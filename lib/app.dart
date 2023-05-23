@@ -1,10 +1,10 @@
-import 'package:adaptive_theme/adaptive_theme.dart';
-import 'package:beamer/beamer.dart';
-import 'package:courrier/constants.dart';
-import 'package:courrier/helpers/font_helper.dart';
-import 'package:courrier/router/app_routes.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
+import "package:adaptive_theme/adaptive_theme.dart";
+import "package:beamer/beamer.dart";
+import "package:courrier/constants.dart";
+import "package:courrier/helpers/font_helper.dart";
+import "package:courrier/router/app_routes.dart";
+import "package:easy_localization/easy_localization.dart";
+import "package:flutter/material.dart";
 
 /// Main app class.
 class App extends StatelessWidget {
@@ -21,7 +21,6 @@ class App extends StatelessWidget {
       light: ThemeData(
         brightness: Brightness.light,
         fontFamily: FontHelper.fontFamily,
-        backgroundColor: Constants.colors.lightBackground,
         scaffoldBackgroundColor: Constants.colors.lightBackground,
         primaryColor: Constants.colors.primary,
         secondaryHeaderColor: Constants.colors.secondary,
@@ -29,7 +28,6 @@ class App extends StatelessWidget {
       dark: ThemeData(
         brightness: Brightness.dark,
         fontFamily: FontHelper.fontFamily,
-        backgroundColor: Constants.colors.dark,
         scaffoldBackgroundColor: Constants.colors.dark,
         primaryColor: Constants.colors.primary,
         secondaryHeaderColor: Constants.colors.secondary,

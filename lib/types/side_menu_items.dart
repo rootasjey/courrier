@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import "package:flutter/material.dart";
 
 /// Side menu item containing an icon leading an a text label.
 /// It must also have a defined hover color and a route path.

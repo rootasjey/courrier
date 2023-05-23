@@ -1,11 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
+import "package:flutter/material.dart";
+import "package:modal_bottom_sheet/modal_bottom_sheet.dart";
 
 class UIHelper {
   const UIHelper();
 
-  /// Starting delay for fade in y animmation.
-  static int _delay = 0;
+  /// Starting delays for animations.
+  static Map<String, int> delayMap = {
+    "noname": 0,
+  };
 
   /// Amount to add to delay for the next widget to animate.
   final int _step = 25;
@@ -39,12 +41,11 @@ class UIHelper {
   }
 
   int getNextAnimationDelay({String animationName = "", bool reset = false}) {
-    if (reset) {
-      _delay = 0;
-    }
+    final String key = animationName.isNotEmpty ? animationName : "noname";
+    int delay = delayMap[key] ?? 0;
+    delay = reset ? 0 : delay + _step;
 
-    final int prevDelay = _delay;
-    _delay += _step;
-    return prevDelay;
+    delayMap[key] = delay;
+    return delay;
   }
 }

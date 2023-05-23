@@ -1,14 +1,14 @@
-import 'package:beamer/beamer.dart';
-import 'package:courrier/components/text_icon_button.dart';
-import 'package:courrier/constants.dart';
-import 'package:courrier/helpers.dart';
-import 'package:courrier/router/locations/layout_content_location.dart';
-import 'package:courrier/router/locations/layout_location.dart';
-import 'package:courrier/types/side_menu_items.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:unicons/unicons.dart';
+import "package:beamer/beamer.dart";
+import "package:courrier/components/text_icon_button.dart";
+import "package:courrier/constants.dart";
+import "package:courrier/helpers.dart";
+import "package:courrier/router/locations/layout_content_location.dart";
+import "package:courrier/router/locations/layout_location.dart";
+import "package:courrier/types/side_menu_items.dart";
+import "package:easy_localization/easy_localization.dart";
+import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:unicons/unicons.dart";
 
 /// User's atelier side menu.
 class LayoutPageSideMenu extends ConsumerStatefulWidget {
@@ -37,9 +37,13 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
   /// Show a button to scroll up the side panel if true.
   bool _showScrollUpButton = false;
 
+  /// The width of the side menu when expanded.
   final double _expandedWidth = 300.0;
+
+  /// The width of the side menu when collapsed.
   final double _collapsedWidth = 100.0;
 
+  /// The scroll controller of the side panel
   final ScrollController _sidePanelScrollController = ScrollController();
 
   @override
@@ -78,7 +82,6 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
     // }
 
     return Material(
-      color: Theme.of(context).backgroundColor,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeOutExpo,
@@ -108,9 +111,6 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
   }
 
   Widget bodySidePanel() {
-    // final UserFirestore? userFirestore =
-    //     ref.watch(AppState.userProvider).firestoreUser;
-
     return SliverPadding(
       padding: EdgeInsets.only(
         left: _isExpanded ? 20.0 : 28.0,
@@ -122,18 +122,20 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
         getItemList().map(
           (final SideMenuItem sidePanelItem) {
             final Color foregroundColor =
-                Theme.of(context).textTheme.bodyText1?.color ?? Colors.white;
+                Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
 
             Color color = foregroundColor.withOpacity(0.6);
             Color textColor = foregroundColor.withOpacity(0.4);
             FontWeight fontWeight = FontWeight.w700;
 
-            bool pathMatch = context
-                    .currentBeamLocation.state.routeInformation.location
-                    ?.contains(sidePanelItem.routePath) ??
-                false;
+            final String? currentLocation =
+                context.currentBeamLocation.state.routeInformation.location;
 
-            if (sidePanelItem.routePath == LayoutLocation.route) {
+            bool pathMatch =
+                currentLocation?.contains(sidePanelItem.routePath) ?? false;
+
+            if (sidePanelItem.routePath == LayoutLocation.route &&
+                currentLocation != LayoutLocation.route) {
               pathMatch = false;
             }
 
@@ -146,7 +148,6 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
             return Align(
               alignment: Alignment.topLeft,
               child: Container(
-                // width: _collapsedWidth,
                 padding: EdgeInsets.only(
                   left: _isExpanded ? 24.0 : 0.0,
                   top: 32.0,
@@ -172,21 +173,16 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
                     ),
                   ),
                   onTap: () {
-                    if (sidePanelItem.routePath ==
-                        "AtelierLocationContent.profileRoute") {
-                      context.beamToNamed(
-                        sidePanelItem.routePath,
-                        routeState: {
-                          // "userId": userFirestore?.id ?? "",
-                        },
-                      );
-                    } else if (sidePanelItem.routePath ==
-                        LayoutLocation.route) {
+                    if (sidePanelItem.routePath == LayoutLocation.route) {
                       Beamer.of(context, root: true).beamToNamed(
                         LayoutLocation.route,
                       );
                     } else {
                       context.beamToNamed(sidePanelItem.routePath);
+                    }
+
+                    if (!mounted) {
+                      return;
                     }
 
                     setState(() {});
@@ -207,14 +203,13 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
 
     const double maxHeight = 76.0;
     final Color color =
-        Theme.of(context).textTheme.bodyText2?.color ?? Colors.black;
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
 
     return Positioned(
       bottom: 70.0,
       left: 0.0,
       right: 0.0,
       child: Material(
-        color: Theme.of(context).backgroundColor,
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: _expandedWidth,
@@ -246,7 +241,10 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
                 ),
                 child: Tooltip(
                   message: "scroll_down".tr(),
-                  child: const Icon(UniconsLine.arrow_down),
+                  child: Icon(
+                    UniconsLine.arrow_down,
+                    color: color.withOpacity(0.6),
+                  ),
                 ),
               ),
             ),
@@ -263,14 +261,13 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
 
     const double maxHeight = 76.0;
     final Color color =
-        Theme.of(context).textTheme.bodyText2?.color ?? Colors.black;
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
 
     return Positioned(
       top: 0.0,
       left: 0.0,
       right: 0.0,
       child: Material(
-        color: Theme.of(context).backgroundColor,
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: _expandedWidth,
@@ -302,7 +299,10 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
                 ),
                 child: Tooltip(
                   message: "scroll_up".tr(),
-                  child: const Icon(UniconsLine.arrow_up),
+                  child: Icon(
+                    UniconsLine.arrow_up,
+                    color: color.withOpacity(0.6),
+                  ),
                 ),
               ),
             ),
@@ -319,16 +319,15 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
   }
 
   Widget toggleExpandButton() {
-    final Color color =
-        Theme.of(context).textTheme.bodyText2?.color ?? Colors.black;
     const double maxHeight = 76.0;
+    final Color color =
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
 
     return Positioned(
       bottom: 0.0,
       left: 0.0,
       right: 0.0,
       child: Material(
-        color: Theme.of(context).backgroundColor,
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: _expandedWidth,
@@ -364,7 +363,10 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
                       Expanded(
                         child: Tooltip(
                           message: "expand".tr(),
-                          child: const Icon(UniconsLine.arrow_from_right),
+                          child: Icon(
+                            UniconsLine.arrow_from_right,
+                            color: color.withOpacity(0.6),
+                          ),
                         ),
                       ),
                   ],
@@ -392,7 +394,6 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
                 : CrossAxisAlignment.start,
             children: [
               TextButton(
-                // tooltip: "hub_subtitle".tr(),
                 onPressed: () {
                   Beamer.of(context).beamToNamed("/");
                 },
@@ -400,17 +401,18 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
                   foregroundColor: Colors.black,
                 ),
                 child: Text(
-                  "Courrier",
+                  Constants.appName.toLowerCase(),
                   style: Helpers.fonts.title(
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                       fontSize: 16.0,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withOpacity(0.6),
                     ),
                   ),
                 ),
-                // icon: const Opacity(
-                //   opacity: 0.8,
-                //   child: Icon(UniconsLine.ruler_combined),
-                // ),
               ),
             ],
           ),
@@ -432,42 +434,30 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
         iconData: UniconsLine.inbox,
         label: "inbox".tr(),
         hoverColor: Constants.colors.home,
-        routePath: LayoutLocation.route,
+        routePath: LayoutContentLocation.inboxRoute,
       ),
       SideMenuItem(
-        iconData: UniconsLine.star,
-        label: "starred".tr(),
+        iconData: UniconsLine.heart,
+        label: "flagged".tr(),
         hoverColor: Constants.colors.activity,
-        routePath: "AtelierLocationContent.activityRoute",
-      ),
-      SideMenuItem(
-        iconData: UniconsLine.envelope_send,
-        label: "sent".tr(),
-        hoverColor: Constants.colors.illustrations,
-        routePath: "AtelierLocationContent.illustrationsRoute",
-      ),
-      SideMenuItem(
-        iconData: UniconsLine.pen,
-        label: "drafts".tr(),
-        hoverColor: Constants.colors.books,
-        routePath: "AtelierLocationContent.booksRoute",
+        routePath: LayoutContentLocation.flaggedMessageRoute,
       ),
       SideMenuItem(
         iconData: UniconsLine.archive,
         label: "archived".tr(),
         hoverColor: Constants.colors.galleries,
-        routePath: "AtelierLocationContent.profileRoute",
+        routePath: LayoutContentLocation.archivedMessageRoute,
       ),
       SideMenuItem(
         iconData: UniconsLine.trash,
         label: "deleted".tr(),
-        hoverColor: Constants.colors.settings,
-        routePath: "/deleted",
+        hoverColor: Constants.colors.delete,
+        routePath: LayoutContentLocation.deletedMessageRoute,
       ),
       SideMenuItem(
         iconData: UniconsLine.setting,
-        label: "settings".tr(),
-        hoverColor: Colors.pink,
+        label: "settings.title".tr(),
+        hoverColor: Colors.green,
         routePath: LayoutContentLocation.settingsRoute,
       ),
       SideMenuItem(

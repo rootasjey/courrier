@@ -1,16 +1,62 @@
 {
   "about": "About",
+  "archive_message": "Archive this message",
   "archived": "Archived",
+  "close_message": "Close this message",
   "collapse": "Collapse",
+  "courrier_leading": "Courrier •",
+  "dark": "Dark",
   "deleted": "Deleted",
+  "delete_message": "Delete this message",
   "drafts": "Drafts",
+  "empty_message_list_view": {
+    "title": "No message to display yet.",
+    "description": {
+      "archived": "First archive a message and it will appear here.",
+      "deleted": "First delete a message and it will appear here.",
+      "flagged": "First flag a message and it will appear here.",
+      "inbox": "New received messages will appear here."
+    }
+  },
+  "empty_view_description": {
+    "archived": "All messages who you want to keep but want out of your way.",
+    "deleted": "All deleted messages are here. They may be cleaned up after some time.",
+    "flagged": "This is all messages you marked as important.",
+    "inbox": "This is a demo inbox app. Select a message to see its content."
+  },
+  "empty_view_title": {
+    "archived": "Archived Messages",
+    "deleted": "Deleted Messages",
+    "flagged": "Flagged Messages",
+    "inbox": "Good Morning",
+    "morning": "Good Morning",
+    "afternoon": "Good Afternoon",
+    "evening": "Good Evening"
+  },
   "expand": "Expand",
+  "flag_message": "Flag this message",
+  "flagged": "Flagged",
   "home": "Home",
   "hub_subtitle": "Subtitle",
-  "inbox": "inbox",
+  "inbox": "Inbox",
+  "light": "Light",
+  "loading": "Loading",
+  "move_message_trash": "Move this message to trash",
+  "page_title": {
+    "about": "@:courrier_leading About",
+    "archived": "@:courrier_leading Archived Messages",
+    "deleted": "@:courrier_leading Deleted Messages",
+    "flagged": "@:courrier_leading Flagged Messages",
+    "inbox": "@:courrier_leading Inbox",
+    "settings": "@:courrier_leading Settings"
+  },
+  "profile": "Profile",
   "scroll_down": "Scroll down",
   "scroll_up": "Scroll up",
   "sent": "Sent",
-  "settings": "Settings",
+  "settings": {
+    "description": "Change some of the application behaviors.",
+    "title": "Settings"
+  },
   "starred": "Starred"
 }

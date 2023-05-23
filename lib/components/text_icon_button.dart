@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:loggy/loggy.dart';
+import "package:flutter/material.dart";
+import "package:loggy/loggy.dart";
 
 class TextButtonIcon extends StatelessWidget with UiLoggy {
   const TextButtonIcon({

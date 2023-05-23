@@ -1,17 +1,17 @@
-import 'dart:io';
+import "dart:io";
 
-import 'package:adaptive_theme/adaptive_theme.dart';
-import 'package:courrier/app.dart';
-import 'package:courrier/firebase_options.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loggy/loggy.dart';
-import 'package:url_strategy/url_strategy.dart';
-import 'package:window_manager/window_manager.dart';
+import "package:adaptive_theme/adaptive_theme.dart";
+import "package:courrier/app.dart";
+import "package:courrier/firebase_options.dart";
+import "package:easy_localization/easy_localization.dart";
+import "package:firebase_core/firebase_core.dart";
+import "package:flutter/foundation.dart";
+import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:loggy/loggy.dart";
+import "package:url_strategy/url_strategy.dart";
+import "package:window_manager/window_manager.dart";
 
 void main() async {
   LicenseRegistry.addLicense(() async* {
@@ -30,7 +30,7 @@ void main() async {
   final AdaptiveThemeMode? savedThemeMode = await AdaptiveTheme.getThemeMode();
   setPathUrlStrategy();
 
-  if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+  if (!kIsWeb && (Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
     await windowManager.ensureInitialized();
 
     windowManager.waitUntilReadyToShow(
@@ -43,7 +43,7 @@ void main() async {
     );
   }
 
-  if (Platform.isAndroid || Platform.isIOS) {
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.white,

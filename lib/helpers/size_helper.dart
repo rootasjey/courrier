@@ -1,10 +1,10 @@
-import 'package:flutter/widgets.dart';
+import "package:flutter/widgets.dart";
 
 class SizeHelper {
   const SizeHelper();
 
   /// Width limit between mobile & desktop screen size.
-  final double mobileWidthTreshold = 700.0;
+  final double mobileWidthTreshold = 400.0;
 
   /// Return true if the app's window is equal or less than the maximum
   /// mobile width.

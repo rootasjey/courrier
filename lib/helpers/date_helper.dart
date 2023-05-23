@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:loggy/loggy.dart';
+import "package:cloud_firestore/cloud_firestore.dart";
+import "package:loggy/loggy.dart";
 
 /// Helper for date and time conversions.
 class DateHelper with UiLoggy {
@@ -8,7 +8,7 @@ class DateHelper with UiLoggy {
   /// Parse a date from Firestore.
   /// The raw value can be a int, Timestamp or a Map.
   /// Return a valida date and the currect date if it fails to parse ra‹ value.
-  DateTime fromFirestore(dynamic map) {
+  static DateTime fromFirestore(dynamic map) {
     DateTime date = DateTime.now();
 
     if (map == null) {
@@ -22,11 +22,11 @@ class DateHelper with UiLoggy {
         date = map.toDate();
       } else if (map is String) {
         date = DateTime.parse(map);
-      } else if (map != null && map['_seconds'] != null) {
-        date = DateTime.fromMillisecondsSinceEpoch(map['_seconds'] * 1000);
+      } else if (map != null && map["_seconds"] != null) {
+        date = DateTime.fromMillisecondsSinceEpoch(map["_seconds"] * 1000);
       }
     } catch (error) {
-      loggy.error(error);
+      GlobalLoggy().loggy.error(error);
     }
 
     return date;

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import "package:flutter/material.dart";
+import "package:google_fonts/google_fonts.dart";
 
 /// Fonts helper.
 /// Make it easier to work with online Google fonts.
@@ -47,9 +47,22 @@ class FontHelper {
     );
   }
 
+  TextStyle body6({TextStyle? textStyle}) {
+    return GoogleFonts.nunito(
+      textStyle: textStyle,
+    );
+  }
+
   /// Can be used for blog post title.
   TextStyle title({TextStyle? textStyle}) {
     return GoogleFonts.righteous(
+      textStyle: textStyle,
+    );
+  }
+
+  /// Can be used for blog post title.
+  TextStyle title2({TextStyle? textStyle}) {
+    return GoogleFonts.playfairDisplay(
       textStyle: textStyle,
     );
   }

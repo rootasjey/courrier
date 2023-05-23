@@ -1,6 +1,6 @@
-import 'package:beamer/beamer.dart';
-import 'package:courrier/router/locations/layout_location.dart';
-import 'package:flutter/widgets.dart';
+import "package:beamer/beamer.dart";
+import "package:courrier/router/locations/layout_location.dart";
+import "package:flutter/widgets.dart";
 
 class NavigationHelper {
   const NavigationHelper();

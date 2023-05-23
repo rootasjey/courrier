@@ -1,16 +1,62 @@
 {
   "about": "À propos",
-  "archived": "Archived",
-  "collapse": "Collapse",
-  "deleted": "Deleted",
-  "drafts": "Drafts",
-  "expand": "Expand",
+  "archive_message": "Archiver ce message",
+  "archived": "Archivés",
+  "close_message": "Fermer ce message",
+  "courrier_leading": "Courrier •",
+  "collapse": "Réduire",
+  "dark": "Sombre",
+  "delete_message": "Supprimer ce message",
+  "deleted": "Supprimés",
+  "drafts": "Brouillons",
+  "empty_message_list_view": {
+    "title": "Pas de message à afficher pour le moment",
+    "description": {
+      "archived": "Archivez d'abord un message et il apparaîtra ici.",
+      "deleted": "Supprimez d'abord un message et il apparaîtra ici.",
+      "flagged": "Marquez d'abord un message et il apparaîtra ici.",
+      "inbox": "Les nouveaux messages reçus seront ici."
+    }
+  },
+  "empty_view_description": {
+    "archived": "Tous les messages vous voulez garder sans surcharger la boîte de réception.",
+    "deleted": "Tous les messages supprimés sont ici avant qu'ils ne soient définitivement perdus.",
+    "flagged": "Ces messages ont été marqués comme important.",
+    "inbox": "Ceci est une application de démonstration de boîte de réception. Sélectionnez un message pour voir son contenu."
+  },
+  "empty_view_title": {
+    "archived": "Messages Archivés",
+    "deleted": "Messages Supprimés",
+    "flagged": "Messages Marqués",
+    "inbox": "Bonjour",
+    "morning": "Bonjour",
+    "afternoon": "Bon après-midi",
+    "evening": "Bonne soirée"
+  },
+  "expand": "Agrandir",
+  "flag_message": "Marquer ce message",
+  "flagged": "Marqué",
   "home": "Accueil",
-  "hub_subtitle": "Subtitle",
-  "inbox": "inbox",
-  "scroll_down": "Scroll down",
-  "scroll_up": "Scroll up",
-  "sent": "Sent",
-  "settings": "Settings",
-  "starred": "Starred"
+  "hub_subtitle": "Sous-titre",
+  "inbox": "Boîte de réception",
+  "light": "Clair",
+  "loading": "Loading",
+  "move_message_trash": "Placer ce message dans la corbeile",
+  "page_title": {
+    "about": "@:courrier_leading À propos",
+    "archived": "@:courrier_leading Messages Archivés",
+    "deleted": "@:courrier_leading Messages Supprimés",
+    "flagged": "@:courrier_leading Messages Marqués",
+    "inbox": "@:courrier_leading Boîte de réception",
+    "settings": "@:courrier_leading Paramètres"
+  },
+  "profile": "Profile",
+  "scroll_down": "Descendre",
+  "scroll_up": "Monter",
+  "sent": "Envoyé(s)",
+  "settings": {
+    "description": "Change some of the application behaviors.",
+    "title": "Paramètres"
+  },
+  "starred": "En favoris"
 }
