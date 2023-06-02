@@ -1,16 +1,36 @@
 # courrier
 
-A new Flutter project.
+<p align="center">
+  <img src="./web/icons/favicon-192.png" />
+</p>
+
+<p align="center">
+  An inbox client for prototype purpose.
+</p>
+
+![screenshot 1](assets/images/screenshot-01.png)
+
+## Démo
+
+[Web version](https://courrier.rootasjey.dev)
+
+## About
+
+This is a project is to demonstrate the use of Flutter and Firebase.
+
+Features:
+
+* Responsive (desktop and mobile)
+* Multi-columns layout
+* Router with deep linking
+* Firebase database
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+* Clone the project locally `git clone https://rootasjey.dev/courrier`
+* Go inside the folder `cd courrier`
+* Run the project `flutter run -d chrome`
 
-A few resources to get you started if this is your first Flutter project:
+## Licence
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+MIT License

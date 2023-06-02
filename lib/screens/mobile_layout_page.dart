@@ -1,6 +1,6 @@
 import "package:beamer/beamer.dart";
 import "package:courrier/router/locations/layout_content_location.dart";
-import "package:courrier/screens/app_bottom_app_bar.dart";
+import "package:courrier/screens/beamer_app_bar.dart";
 import "package:flutter/material.dart";
 
 class MobileLayoutPage extends StatefulWidget {
@@ -13,6 +13,14 @@ class MobileLayoutPage extends StatefulWidget {
 class _MobileLayoutPageState extends State<MobileLayoutPage> {
   final _beamerKey = GlobalKey<BeamerState>();
 
+  final _beamerDelegate = BeamerDelegate(
+    locationBuilder: BeamerLocationBuilder(
+      beamLocations: [
+        LayoutContentLocation(),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     return HeroControllerScope(
@@ -21,15 +29,9 @@ class _MobileLayoutPageState extends State<MobileLayoutPage> {
         child: Scaffold(
           body: Beamer(
             key: _beamerKey,
-            routerDelegate: BeamerDelegate(
-              locationBuilder: BeamerLocationBuilder(
-                beamLocations: [
-                  LayoutContentLocation(),
-                ],
-              ),
-            ),
+            routerDelegate: _beamerDelegate,
           ),
-          bottomNavigationBar: AppBottomAppBar(
+          bottomNavigationBar: BeamerAppBar(
             beamerKey: _beamerKey,
           ),
         ),

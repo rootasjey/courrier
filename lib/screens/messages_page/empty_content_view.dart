@@ -8,8 +8,8 @@ import "package:jiffy/jiffy.dart";
 import "package:lottie/lottie.dart";
 
 /// Empty view to display when therer's no message selected.
-class EmptyMessageContentView extends StatelessWidget {
-  const EmptyMessageContentView({
+class EmptyContentView extends StatelessWidget {
+  const EmptyContentView({
     super.key,
     this.pageDataFilter = PageDataFilter.inbox,
   });

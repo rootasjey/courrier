@@ -1,9 +1,13 @@
+import "dart:async";
+
 import "package:beamer/beamer.dart";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:courrier/helpers.dart";
 import "package:courrier/router/locations/layout_content_location.dart";
-import "package:courrier/screens/home_page/empty_message_content_view.dart";
-import "package:courrier/screens/home_page/message_content_view.dart";
+import "package:courrier/screens/messages_page/empty_content_view.dart";
+import "package:courrier/screens/messages_page/content_view.dart";
+import "package:courrier/types/alias/firestore/document_map.dart";
+import "package:courrier/types/alias/firestore/document_snapshot_map.dart";
 import "package:courrier/types/alias/json_alias.dart";
 import "package:courrier/types/contact.dart";
 import "package:courrier/types/enums/enum_page_data_filter.dart";
@@ -30,13 +34,17 @@ class MessageContentPage extends StatefulWidget {
 }
 
 class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
-  Message _selectedMessage = Message.empty();
+  /// Current selected contact;
   Contact _selectedContact = Contact.empty();
 
-  PageState _pageState = PageState.loading;
+  /// Current selected message;
+  Message _selectedMessage = Message.empty();
 
-  /// Firestore collection name.
-  final String _collectionName = "messages";
+  /// Current page state.
+  PageState _pageState = PageState.preLoading;
+
+  /// Timer to set loading state with a delay.
+  Timer? _loadingTimer;
 
   @override
   void initState() {
@@ -46,11 +54,16 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
 
   @override
   void dispose() {
+    _loadingTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_pageState == PageState.preLoading) {
+      return Container();
+    }
+
     if (_pageState == PageState.loading) {
       return SizedBox(
         width: 300.0,
@@ -75,12 +88,12 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
     }
 
     if (_selectedMessage.id.isEmpty && _pageState == PageState.idle) {
-      return EmptyMessageContentView(
+      return EmptyContentView(
         pageDataFilter: widget.pageDataFilter,
       );
     }
 
-    return MessageContentView(
+    return ContentView(
       selectedMessage: _selectedMessage,
       selectedContact: _selectedContact,
       onUnselectMessage: onUnselectMessage,
@@ -108,12 +121,37 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
 
       setState(() {
         _pageState = PageState.idle;
+        onUnselectMessage();
       });
     } catch (error) {
       loggy.error(error);
       setState(() {
         _pageState = PageState.idle;
       });
+    }
+  }
+
+  String getCollectionName() {
+    switch (widget.pageDataFilter) {
+      case PageDataFilter.archived:
+        return "archived_messages";
+      case PageDataFilter.deleted:
+        return "deleted_messages";
+      case PageDataFilter.inbox:
+        return "messages";
+      default:
+        return "messages";
+    }
+  }
+
+  String getTrashSourceCollectionName() {
+    switch (widget.pageDataFilter) {
+      case PageDataFilter.archived:
+        return "archived_messages";
+      case PageDataFilter.inbox:
+        return "messages";
+      default:
+        return "messages";
     }
   }
 
@@ -129,7 +167,7 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
           .set(_selectedMessage.toMap());
 
       await FirebaseFirestore.instance
-          .collection(_collectionName)
+          .collection(getTrashSourceCollectionName())
           .doc(_selectedMessage.id)
           .delete();
 
@@ -139,6 +177,7 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
 
       setState(() {
         _pageState = PageState.idle;
+        onUnselectMessage();
       });
     } catch (error) {
       loggy.error(error);
@@ -149,6 +188,10 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
   }
 
   void onArchiveMessage() async {
+    if (widget.pageDataFilter != PageDataFilter.inbox) {
+      return;
+    }
+
     setState(() {
       _pageState = PageState.archivingMessage;
     });
@@ -160,7 +203,7 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
           .set(_selectedMessage.toMap());
 
       await FirebaseFirestore.instance
-          .collection(_collectionName)
+          .collection("messages")
           .doc(_selectedMessage.id)
           .delete();
 
@@ -170,8 +213,7 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
 
       setState(() {
         _pageState = PageState.idle;
-        _selectedContact = Contact.empty();
-        _selectedMessage = Message.empty();
+        onUnselectMessage();
       });
     } catch (error) {
       loggy.error(error);
@@ -200,7 +242,7 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
 
     try {
       await FirebaseFirestore.instance
-          .collection(_collectionName)
+          .collection(getCollectionName())
           .doc(_selectedMessage.id)
           .update({"is_flagged": isFlagged});
     } catch (error) {
@@ -229,21 +271,23 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
       return;
     }
 
-    setState(() {
-      _pageState = PageState.loading;
+    _loadingTimer = Timer(const Duration(seconds: 2), () {
+      setState(() {
+        _pageState = PageState.loading;
+      });
     });
 
     try {
-      final doc = FirebaseFirestore.instance
-          .collection(_collectionName)
+      final DocumentMap doc = FirebaseFirestore.instance
+          .collection(getCollectionName())
           .doc(widget.selectedMessageId);
 
-      final snapshot = await doc.get();
+      final DocumentSnapshotMap snapshot = await doc.get();
       final Json? map = snapshot.data();
 
       if (!snapshot.exists || map == null) {
+        _loadingTimer?.cancel();
         setState(() => _pageState = PageState.idle);
-
         return;
       }
 
@@ -252,11 +296,13 @@ class _MessageContentPageState extends State<MessageContentPage> with UiLoggy {
       final contact = await tryFetchContact(message.contactId);
 
       setState(() {
+        _loadingTimer?.cancel();
         _selectedMessage = message;
         _selectedContact = contact;
         _pageState = PageState.idle;
       });
     } catch (error) {
+      _loadingTimer?.cancel();
       setState(() => _pageState = PageState.idle);
       loggy.error(error);
     }

@@ -1,6 +1,6 @@
 import "package:beamer/beamer.dart";
 import "package:courrier/router/locations/layout_content_location.dart";
-import "package:courrier/screens/layout_page_side_menu.dart";
+import "package:courrier/screens/side_menu.dart";
 import "package:flutter/material.dart";
 
 /// The main layout page of the app.
@@ -30,7 +30,7 @@ class _LayoutPageState extends State<LayoutPage> {
           children: [
             Row(
               children: [
-                LayoutPageSideMenu(
+                SideMenu(
                   beamerKey: _beamerKey,
                 ),
                 Expanded(

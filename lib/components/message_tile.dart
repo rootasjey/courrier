@@ -42,8 +42,8 @@ class _MessageTileState extends State<MessageTile> {
       minVerticalPadding: 12,
       title: Text(contactName),
       leading: CircleAvatar(
-        foregroundImage: NetworkImage(contact.avatarUrl),
         backgroundColor: Colors.black12,
+        foregroundImage: NetworkImage(contact.avatarUrl),
       ),
       titleTextStyle: Helpers.fonts.body6(
         textStyle: TextStyle(

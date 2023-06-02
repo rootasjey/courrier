@@ -1,8 +1,10 @@
+import "dart:async";
+
 import "package:beamer/beamer.dart";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:courrier/router/locations/layout_content_location.dart";
 import "package:courrier/router/locations/messages_content_location.dart";
-import "package:courrier/screens/home_page/message_list_view.dart";
+import "package:courrier/screens/messages_page/message_list_view.dart";
 import "package:courrier/types/alias/firestore/document_change_map.dart";
 import "package:courrier/types/alias/firestore/query_map.dart";
 import "package:courrier/types/alias/firestore/query_snap_map.dart";
@@ -15,8 +17,8 @@ import "package:courrier/types/message.dart";
 import "package:flutter/material.dart";
 import "package:loggy/loggy.dart";
 
-class HomePage extends StatefulWidget {
-  const HomePage({
+class MessagesLayoutPage extends StatefulWidget {
+  const MessagesLayoutPage({
     super.key,
     this.pageDataFilter = PageDataFilter.inbox,
     this.selectedMessageId = "",
@@ -28,14 +30,17 @@ class HomePage extends StatefulWidget {
   final String selectedMessageId;
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<MessagesLayoutPage> createState() => _MessagesLayoutPageState();
 }
 
-class _HomePageState extends State<HomePage> with UiLoggy {
+class _MessagesLayoutPageState extends State<MessagesLayoutPage> with UiLoggy {
   final _beamerKey = GlobalKey<BeamerState>(debugLabel: "message-beamer-key");
 
   /// True if there're more posts to fetch.
   bool _hasNext = true;
+
+  /// True if message content should be shown.
+  bool _shouldShowContent = false;
 
   /// Last document fetched from Firestore.
   DocumentSnapshot? _lastDocument;
@@ -58,12 +63,16 @@ class _HomePageState extends State<HomePage> with UiLoggy {
   /// Selected message.
   Message _selectedMessage = Message.empty();
 
-  PageState _pageState = PageState.idle;
+  /// Current page state.
+  PageState _pageState = PageState.preLoading;
 
   final BeamerDelegate _beamerDelegate = BeamerDelegate(
     locationBuilder: (routeInformation, _) =>
         MessagesContentLocation(routeInformation),
   );
+
+  /// Timer to set loading state with a delay.
+  Timer? _loadingTimer;
 
   @override
   void initState() {
@@ -75,6 +84,7 @@ class _HomePageState extends State<HomePage> with UiLoggy {
   @override
   void dispose() {
     _lastDocument = null;
+    _loadingTimer?.cancel();
     _messageSubscription?.cancel();
     _beamerDelegate.removeListener(listenToRoute);
     super.dispose();
@@ -82,29 +92,43 @@ class _HomePageState extends State<HomePage> with UiLoggy {
 
   @override
   Widget build(BuildContext context) {
+    final Size windowSize = MediaQuery.of(context).size;
+    final isMobileSize = windowSize.width < 600.0;
+
+    final bool showMessageListView =
+        !isMobileSize || (isMobileSize && !_shouldShowContent);
+
+    final bool showContentView =
+        !isMobileSize || (isMobileSize && _shouldShowContent);
+
     return Scaffold(
       body: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          MessageListView(
-            messages: _messages,
-            contactMap: _contactMap,
-            onTapMessage: onTapMessage,
-            selectedMessage: _selectedMessage,
-            pageDataFilter: widget.pageDataFilter,
-            pageState: _pageState,
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(0.0),
-              child: Material(
-                child: Beamer(
-                  key: _beamerKey,
-                  routerDelegate: _beamerDelegate,
+          if (showMessageListView)
+            MessageListView(
+              messages: _messages,
+              contactMap: _contactMap,
+              onTapMessage: onTapMessage,
+              onTapSettings: onTapSettings,
+              selectedMessage: _selectedMessage,
+              pageDataFilter: widget.pageDataFilter,
+              pageState: _pageState,
+              isMobileSize: isMobileSize,
+              windowSize: windowSize,
+            ),
+          if (showContentView)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(0.0),
+                child: Material(
+                  child: Beamer(
+                    key: _beamerKey,
+                    routerDelegate: _beamerDelegate,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -183,7 +207,7 @@ class _HomePageState extends State<HomePage> with UiLoggy {
     return queryResult;
   }
 
-  void listenToProjectEvents(QueryMap? query) {
+  void listenToMessageEvents(QueryMap? query) {
     if (query == null) {
       return;
     }
@@ -333,6 +357,7 @@ class _HomePageState extends State<HomePage> with UiLoggy {
 
       setState(() {
         _selectedMessage = Message.empty();
+        _shouldShowContent = false;
       });
 
       return;
@@ -340,12 +365,12 @@ class _HomePageState extends State<HomePage> with UiLoggy {
 
     setState(() {
       _selectedMessage = message;
+      _shouldShowContent = true;
     });
 
-    final route = MessagesContentLocation.messageRoute.replaceFirst(
-      ":messageId",
-      message.id,
-    );
+    final String route = MessagesContentLocation.messageRoute
+        .replaceFirst(":pageTypeId", widget.pageDataFilter.name)
+        .replaceFirst(":messageId", message.id);
 
     Beamer.of(context).beamToNamed(
       route,
@@ -409,15 +434,19 @@ class _HomePageState extends State<HomePage> with UiLoggy {
   void tryFetchMessages() async {
     setState(() {
       _messages.clear();
-      _pageState = PageState.loading;
+    });
+
+    _loadingTimer = Timer(const Duration(seconds: 2), () {
+      setState(() => _pageState = PageState.loading);
     });
 
     try {
       final QueryMap query = getFirestoreQuery();
       final QuerySnapMap snapshot = await query.get();
-      listenToProjectEvents(query);
+      listenToMessageEvents(query);
 
       if (snapshot.size == 0) {
+        _loadingTimer?.cancel();
         setState(() {
           _hasNext = false;
           _pageState = PageState.idle;
@@ -440,12 +469,14 @@ class _HomePageState extends State<HomePage> with UiLoggy {
       }
 
       setState(() {
+        _loadingTimer?.cancel();
         _lastDocument = snapshot.docs.last;
         _hasNext = _limit == snapshot.size;
         _pageState = PageState.idle;
       });
     } catch (error) {
       loggy.error(error);
+      _loadingTimer?.cancel();
       setState(() {
         _pageState = PageState.idle;
       });
@@ -458,11 +489,11 @@ class _HomePageState extends State<HomePage> with UiLoggy {
       return;
     }
 
-    setState(() => _pageState = PageState.loading);
+    setState(() => _pageState = PageState.loadingMore);
 
     try {
       final QueryMap query = getFirestoreQuery();
-      listenToProjectEvents(query);
+      listenToMessageEvents(query);
 
       final QuerySnapMap snapshot = await query.get();
 
@@ -539,6 +570,37 @@ class _HomePageState extends State<HomePage> with UiLoggy {
 
     setState(() {
       _selectedMessage = Message.empty();
+      _shouldShowContent = false;
     });
+  }
+
+  bool getShouldShowContent() {
+    if (_beamerDelegate.beamingHistory.isEmpty) {
+      return false;
+    }
+
+    final beamLocation = _beamerDelegate.beamingHistory.first;
+    final String? location1 = beamLocation.state.routeInformation.location;
+
+    if (location1 == null) {
+      return false;
+    }
+
+    if (location1.contains("/messages")) {
+      return true;
+    }
+    final List<HistoryElement> history = beamLocation.history;
+
+    if (history.isEmpty) {
+      return false;
+    }
+
+    final String? location = history.first.routeInformation.location;
+    // final String? location = beamLocation.state.routeInformation.location;
+    return location != null && location.contains("/messages");
+  }
+
+  void onTapSettings() {
+    Beamer.of(context).beamToNamed(LayoutContentLocation.settingsRoute);
   }
 }

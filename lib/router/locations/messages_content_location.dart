@@ -8,17 +8,24 @@ class MessagesContentLocation extends BeamLocation<BeamState> {
       : super(routeInformation);
 
   /// Inbox route location.
-  static const String route = "/inbox";
+  static const String inboxRoute = "/inbox";
+  static const String archivedRoute = "/archived";
+  static const String flaggedRoute = "/flagged";
+  static const String deletedRoute = "/deleted";
 
   /// All messages route location.
-  static const String messagesRoute = "$route/messages";
+  static const String messagesRoute = "/:pageTypeId/messages";
+  // static const String messagesRoute = "$inboxRoute/messages";
 
   /// Single message route location.
   static const String messageRoute = "$messagesRoute/:messageId";
 
   @override
   List<Pattern> get pathPatterns => [
-        route,
+        inboxRoute,
+        archivedRoute,
+        flaggedRoute,
+        deletedRoute,
         messagesRoute,
         messageRoute,
       ];

@@ -1,6 +1,6 @@
 import "package:beamer/beamer.dart";
 import "package:courrier/screens/about_page.dart";
-import "package:courrier/screens/home_page.dart";
+import "package:courrier/screens/messages_page/messages_layout_page.dart";
 import "package:courrier/screens/settings_page.dart";
 import "package:courrier/types/enums/enum_page_data_filter.dart";
 import "package:easy_localization/easy_localization.dart";
@@ -11,19 +11,28 @@ class LayoutContentLocation extends BeamLocation<BeamState> {
   static const String aboutRoute = "/about";
 
   /// Archived messages route location.
-  static const String archivedMessageRoute = "/archived";
+  static const String archivedRoute = "/archived";
+
+  /// Archvied messages wildcard route location.
+  static const String archivedWildCardRoot = "$archivedRoute/*";
 
   /// Deleted messages route location.
-  static const String deletedMessageRoute = "/deleted";
+  static const String deletedRoute = "/deleted";
+
+  /// Deleted messages (wildcard) route location.
+  static const String deletedWildCardRoute = "$deletedRoute/*";
 
   /// Flagged messages route location.
-  static const String flaggedMessageRoute = "/flagged";
+  static const String flaggedRoute = "/flagged";
+
+  /// Flagged messages wildcard route location.
+  static const String flaggedWildCardRoot = "$flaggedRoute/*";
 
   /// Inbox route location.
   static const String inboxRoute = "/inbox";
 
   /// Inbox wildcard route location.
-  static const String inboxWildCard = "/inbox/*";
+  static const String inboxWildCardRoot = "$inboxRoute/*";
 
   /// Settings route location.
   static const String settingsRoute = "/settings";
@@ -42,11 +51,14 @@ class LayoutContentLocation extends BeamLocation<BeamState> {
   @override
   List<Pattern> get pathPatterns => [
         aboutRoute,
-        archivedMessageRoute,
-        deletedMessageRoute,
-        flaggedMessageRoute,
+        archivedRoute,
+        archivedWildCardRoot,
+        deletedRoute,
+        deletedWildCardRoute,
+        flaggedRoute,
+        flaggedWildCardRoot,
         inboxRoute,
-        inboxWildCard,
+        inboxWildCardRoot,
         settingsRoute,
       ];
 
@@ -56,38 +68,31 @@ class LayoutContentLocation extends BeamLocation<BeamState> {
     PageDataFilter pageDataFilter = PageDataFilter.inbox;
     String valueKey = inboxRoute;
 
-    if (state.pathPatternSegments.contains("flagged")) {
+    final List<String> segments = state.pathPatternSegments;
+
+    if (segments.contains(flaggedRoute.replaceFirst("/", ""))) {
       pageTitle = "page_title.flagged".tr();
       pageDataFilter = PageDataFilter.flagged;
-      valueKey = flaggedMessageRoute;
-    } else if (state.pathPatternSegments.contains("archived")) {
+      valueKey = flaggedRoute;
+    } else if (segments.contains(archivedRoute.replaceFirst("/", ""))) {
       pageTitle = "page_title.archived".tr();
       pageDataFilter = PageDataFilter.archived;
-      valueKey = archivedMessageRoute;
-    } else if (state.pathPatternSegments.contains("deleted")) {
+      valueKey = archivedRoute;
+    } else if (segments.contains(deletedRoute.replaceFirst("/", ""))) {
       pageTitle = "page_title.deleted".tr();
       pageDataFilter = PageDataFilter.deleted;
-      valueKey = deletedMessageRoute;
+      valueKey = deletedRoute;
     }
 
     return [
       BeamPage(
-        child: HomePage(
+        child: MessagesLayoutPage(
           pageDataFilter: pageDataFilter,
         ),
         key: ValueKey(valueKey),
         title: pageTitle,
         type: BeamPageType.fadeTransition,
       ),
-      if (state.pathPatternSegments.contains("deleted"))
-        BeamPage(
-          child: HomePage(
-            pageDataFilter: pageDataFilter,
-          ),
-          key: ValueKey(valueKey),
-          title: pageTitle,
-          type: BeamPageType.fadeTransition,
-        ),
       if (state.pathPatternSegments.contains("about"))
         BeamPage(
           child: const AboutPage(),

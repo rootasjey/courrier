@@ -10,9 +10,9 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:unicons/unicons.dart";
 
-/// User's atelier side menu.
-class LayoutPageSideMenu extends ConsumerStatefulWidget {
-  const LayoutPageSideMenu({
+/// Application's side menu.
+class SideMenu extends ConsumerStatefulWidget {
+  const SideMenu({
     Key? key,
     required this.beamerKey,
   }) : super(key: key);
@@ -23,19 +23,13 @@ class LayoutPageSideMenu extends ConsumerStatefulWidget {
   createState() => _DashboardSideMenuState();
 }
 
-class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
+class _DashboardSideMenuState extends ConsumerState<SideMenu> {
   late BeamerDelegate _beamerDelegate;
 
   /// True if the side menu is expanded showing icons and labels.
   /// If false, the side menu shows only icon.
   /// Default to true.
   bool _isExpanded = true;
-
-  /// Show a button to scroll down the side panel if true.
-  bool _showScrollDownButton = true;
-
-  /// Show a button to scroll up the side panel if true.
-  bool _showScrollUpButton = false;
 
   /// The width of the side menu when expanded.
   final double _expandedWidth = 300.0;
@@ -44,15 +38,13 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
   final double _collapsedWidth = 100.0;
 
   /// The scroll controller of the side panel
-  final ScrollController _sidePanelScrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _isExpanded = false;
     // _isExpanded = Helpers.storage.getDashboardSideMenuExpanded();
-
-    _sidePanelScrollController.addListener(onScrollPanel);
 
     // NOTE: Beamer state isn't ready on 1st frame
     // probably because [SidePanelMenu] appears before the Beamer widget.
@@ -70,16 +62,15 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
   @override
   void dispose() {
     _beamerDelegate.removeListener(_setStateListener);
-    _sidePanelScrollController.removeListener(onScrollPanel);
-    _sidePanelScrollController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // if (Helpers.size.isMobileSize(context)) {
-    //   return Container();
-    // }
+    final Size windowSize = MediaQuery.of(context).size;
+    final isMobileSize = windowSize.width < 600.0;
+    final showExpandButton = !isMobileSize;
 
     return Material(
       child: AnimatedContainer(
@@ -93,29 +84,27 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
               maxWidth: 300.0,
               alignment: Alignment.topLeft,
               child: CustomScrollView(
-                controller: _sidePanelScrollController,
+                controller: _scrollController,
                 slivers: <Widget>[
                   topSidePanel(),
-                  bodySidePanel(),
+                  bodySidePanel(isMobileSize: isMobileSize),
                   space(),
                 ],
               ),
             ),
-            scrollUpButton(),
-            scrollDownButton(),
-            toggleExpandButton(),
+            if (showExpandButton) toggleExpandButton(),
           ],
         ),
       ),
     );
   }
 
-  Widget bodySidePanel() {
+  Widget bodySidePanel({bool isMobileSize = false}) {
     return SliverPadding(
       padding: EdgeInsets.only(
         left: _isExpanded ? 20.0 : 28.0,
         right: 20.0,
-        bottom: 100.0,
+        bottom: isMobileSize ? 40.0 : 100.0,
       ),
       sliver: SliverList(
           delegate: SliverChildListDelegate.fixed(
@@ -196,122 +185,6 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
     );
   }
 
-  Widget scrollDownButton() {
-    if (!_showScrollDownButton) {
-      return Container();
-    }
-
-    const double maxHeight = 76.0;
-    final Color color =
-        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
-
-    return Positioned(
-      bottom: 70.0,
-      left: 0.0,
-      right: 0.0,
-      child: Material(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: _expandedWidth,
-            maxHeight: maxHeight,
-          ),
-          child: OverflowBox(
-            maxHeight: maxHeight,
-            child: InkWell(
-              onTap: () {
-                _sidePanelScrollController.animateTo(
-                  _sidePanelScrollController.offset + 70.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.bounceIn,
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.only(
-                  top: 24.0,
-                  left: 0.0,
-                  bottom: 24.0,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: color.withOpacity(0.1),
-                      width: 2.0,
-                    ),
-                  ),
-                ),
-                child: Tooltip(
-                  message: "scroll_down".tr(),
-                  child: Icon(
-                    UniconsLine.arrow_down,
-                    color: color.withOpacity(0.6),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget scrollUpButton() {
-    if (!_showScrollUpButton) {
-      return Container();
-    }
-
-    const double maxHeight = 76.0;
-    final Color color =
-        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
-
-    return Positioned(
-      top: 0.0,
-      left: 0.0,
-      right: 0.0,
-      child: Material(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: _expandedWidth,
-            maxHeight: maxHeight,
-          ),
-          child: OverflowBox(
-            maxHeight: maxHeight,
-            child: InkWell(
-              onTap: () {
-                _sidePanelScrollController.animateTo(
-                  _sidePanelScrollController.offset - 70.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.bounceIn,
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.only(
-                  top: 24.0,
-                  left: 0.0,
-                  bottom: 24.0,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: color.withOpacity(0.1),
-                      width: 2.0,
-                    ),
-                  ),
-                ),
-                child: Tooltip(
-                  message: "scroll_up".tr(),
-                  child: Icon(
-                    UniconsLine.arrow_up,
-                    color: color.withOpacity(0.6),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget space() {
     return const SliverPadding(
       padding: EdgeInsets.only(bottom: 70.0),
@@ -382,7 +255,7 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
   Widget topSidePanel() {
     return SliverPadding(
       padding: EdgeInsets.only(
-        top: 40.0,
+        top: 24.0,
         bottom: 12.0,
         left: _isExpanded ? 0.0 : 16.0,
       ),
@@ -394,9 +267,9 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
                 : CrossAxisAlignment.start,
             children: [
               TextButton(
-                onPressed: () {
-                  Beamer.of(context).beamToNamed("/");
-                },
+                onPressed: () => Beamer.of(context).beamToNamed(
+                  LayoutContentLocation.settingsRoute,
+                ),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.black,
                 ),
@@ -440,52 +313,21 @@ class _DashboardSideMenuState extends ConsumerState<LayoutPageSideMenu> {
         iconData: UniconsLine.heart,
         label: "flagged".tr(),
         hoverColor: Constants.colors.activity,
-        routePath: LayoutContentLocation.flaggedMessageRoute,
+        routePath: LayoutContentLocation.flaggedRoute,
       ),
       SideMenuItem(
         iconData: UniconsLine.archive,
         label: "archived".tr(),
         hoverColor: Constants.colors.galleries,
-        routePath: LayoutContentLocation.archivedMessageRoute,
+        routePath: LayoutContentLocation.archivedRoute,
       ),
       SideMenuItem(
         iconData: UniconsLine.trash,
         label: "deleted".tr(),
         hoverColor: Constants.colors.delete,
-        routePath: LayoutContentLocation.deletedMessageRoute,
-      ),
-      SideMenuItem(
-        iconData: UniconsLine.setting,
-        label: "settings.title".tr(),
-        hoverColor: Colors.green,
-        routePath: LayoutContentLocation.settingsRoute,
-      ),
-      SideMenuItem(
-        iconData: UniconsLine.info,
-        label: "about".tr(),
-        hoverColor: Colors.amber.shade800,
-        routePath: LayoutContentLocation.aboutRoute,
+        routePath: LayoutContentLocation.deletedRoute,
       ),
     ];
-  }
-
-  /// Callback fired when the side panel menu scrolls.
-  /// Update update navigation button variables.
-  void onScrollPanel() {
-    if (_sidePanelScrollController.offset >=
-        _sidePanelScrollController.position.maxScrollExtent) {
-      _showScrollDownButton = false;
-    } else {
-      _showScrollDownButton = true;
-    }
-
-    if (_sidePanelScrollController.offset <= 0.0) {
-      _showScrollUpButton = false;
-    } else {
-      _showScrollUpButton = true;
-    }
-
-    setState(() {});
   }
 
   void _setStateListener() => setState(() {});

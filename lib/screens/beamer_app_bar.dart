@@ -6,8 +6,9 @@ import "package:flutter/material.dart";
 import "package:salomon_bottom_bar/salomon_bottom_bar.dart";
 import "package:unicons/unicons.dart";
 
-class AppBottomAppBar extends StatefulWidget {
-  const AppBottomAppBar({
+/// An bottom app bar linked to beamer router.
+class BeamerAppBar extends StatefulWidget {
+  const BeamerAppBar({
     super.key,
     required this.beamerKey,
   });
@@ -15,10 +16,10 @@ class AppBottomAppBar extends StatefulWidget {
   final GlobalKey<BeamerState> beamerKey;
 
   @override
-  State<AppBottomAppBar> createState() => _AppBottomAppBarState();
+  State<BeamerAppBar> createState() => _BeamerAppBarState();
 }
 
-class _AppBottomAppBarState extends State<AppBottomAppBar> {
+class _BeamerAppBarState extends State<BeamerAppBar> {
   late BeamerDelegate _beamerDelegate;
 
   int _currentIndex = 0;
@@ -54,8 +55,13 @@ class _AppBottomAppBarState extends State<AppBottomAppBar> {
       items: [
         SalomonBottomBarItem(
           icon: const Icon(UniconsLine.home),
-          title: Text("home".tr()),
+          title: Text("inbox".tr()),
           selectedColor: Constants.colors.home,
+        ),
+        SalomonBottomBarItem(
+          icon: const Icon(UniconsLine.heart),
+          title: Text("flagged".tr()),
+          selectedColor: Constants.colors.likes,
         ),
         SalomonBottomBarItem(
           icon: const Icon(UniconsLine.archive),
@@ -63,15 +69,15 @@ class _AppBottomAppBarState extends State<AppBottomAppBar> {
           selectedColor: Constants.colors.galleries,
         ),
         SalomonBottomBarItem(
-          icon: const Icon(UniconsLine.archive),
+          icon: const Icon(UniconsLine.trash),
           title: Text("deleted".tr()),
           selectedColor: Constants.colors.delete,
         ),
-        SalomonBottomBarItem(
-          icon: const Icon(UniconsLine.user),
-          title: Text("profile".tr()),
-          selectedColor: Colors.amber.shade800,
-        ),
+        // SalomonBottomBarItem(
+        //   icon: const Icon(UniconsLine.user),
+        //   title: Text("profile".tr()),
+        //   selectedColor: Colors.amber.shade800,
+        // ),
       ],
     );
   }
@@ -84,14 +90,17 @@ class _AppBottomAppBarState extends State<AppBottomAppBar> {
         _beamerDelegate.beamToNamed(LayoutContentLocation.inboxRoute);
         break;
       case 1:
-        _beamerDelegate.beamToNamed(LayoutContentLocation.archivedMessageRoute);
+        _beamerDelegate.beamToNamed(LayoutContentLocation.flaggedRoute);
         break;
       case 2:
-        _beamerDelegate.beamToNamed(LayoutContentLocation.deletedMessageRoute);
+        _beamerDelegate.beamToNamed(LayoutContentLocation.archivedRoute);
         break;
       case 3:
-        _beamerDelegate.beamToNamed(LayoutContentLocation.settingsRoute);
+        _beamerDelegate.beamToNamed(LayoutContentLocation.deletedRoute);
         break;
+      // case 4:
+      //   _beamerDelegate.beamToNamed(LayoutContentLocation.settingsRoute);
+      //   break;
       default:
         _beamerDelegate.beamToNamed(LayoutContentLocation.inboxRoute);
     }

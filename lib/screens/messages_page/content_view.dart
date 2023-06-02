@@ -1,14 +1,14 @@
 import "package:courrier/components/fade_in_y.dart";
 import "package:courrier/helpers.dart";
-import "package:courrier/screens/home_page/action_header.dart";
-import "package:courrier/screens/home_page/contact_header.dart";
+import "package:courrier/screens/messages_page/action_header.dart";
+import "package:courrier/screens/messages_page/contact_header.dart";
 import "package:courrier/types/contact.dart";
 import "package:courrier/types/enums/enum_page_data_filter.dart";
 import "package:courrier/types/message.dart";
 import "package:flutter/material.dart";
 
-class MessageContentView extends StatelessWidget {
-  const MessageContentView({
+class ContentView extends StatelessWidget {
+  const ContentView({
     super.key,
     required this.selectedContact,
     required this.selectedMessage,

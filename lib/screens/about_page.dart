@@ -1,3 +1,7 @@
+import "package:beamer/beamer.dart";
+import "package:courrier/components/circle_button.dart";
+import "package:courrier/components/fade_in_x.dart";
+import "package:courrier/components/fade_in_y.dart";
 import "package:courrier/constants.dart";
 import "package:courrier/helpers.dart";
 import "package:easy_localization/easy_localization.dart";
@@ -22,218 +26,159 @@ class AboutPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "about".tr(),
-                    style: Helpers.fonts.title(
-                      textStyle: TextStyle(
-                        fontSize: 24.0,
-                        fontWeight: FontWeight.w600,
-                        color: color?.withOpacity(0.8),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      "Hi, this is a demo inbox app made with Flutter.",
-                      style: Helpers.fonts.body(
-                        textStyle: TextStyle(
-                          fontWeight: FontWeight.w400,
-                          color: color?.withOpacity(0.6),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    "This app is made for demonstration purpose only.",
-                    style: Helpers.fonts.body(
-                      textStyle: TextStyle(
-                        fontWeight: FontWeight.w400,
-                        color: color?.withOpacity(0.6),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: Text(
-                      "The user interface is responsive and should adapt on web and desktop.",
-                      style: Helpers.fonts.body(
-                        textStyle: TextStyle(
-                          fontWeight: FontWeight.w400,
-                          color: color?.withOpacity(0.6),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    "Data is stored in Firestore and code is publicly accessible on GitHub.",
-                    style: Helpers.fonts.body(
-                      textStyle: TextStyle(
-                        fontWeight: FontWeight.w400,
-                        color: color?.withOpacity(0.6),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 24.0),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: "I'm ",
-                          ),
-                          const TextSpan(
-                            text: "Jeremie Corpinot",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          const TextSpan(
-                            text: ". \nBrowse app code source on ",
-                          ),
-                          TextSpan(
-                            text: "GitHub.",
-                            mouseCursor: SystemMouseCursors.click,
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = navigateToGitHub,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const TextSpan(
-                            text: "\n\nYou can follow my activities on ",
-                          ),
-                          TextSpan(
-                            text: "Instagram, ",
-                            mouseCursor: SystemMouseCursors.click,
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = navigateToInstagram,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          TextSpan(
-                            text: "Twitter, ",
-                            mouseCursor: SystemMouseCursors.click,
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = navigateToTwitter,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          TextSpan(
-                            text: "or my personal website.",
-                            mouseCursor: SystemMouseCursors.click,
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = navigateToWebsite,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                        style: Helpers.fonts.body(
-                          textStyle: TextStyle(
-                            fontWeight: FontWeight.w400,
-                            color: color?.withOpacity(0.6),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  header(context, color: color),
+                  ...topBody(color: color),
                   const Divider(height: 64.0),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(
-                      "This app was made thanks to:",
-                      style: Helpers.fonts.body(
-                        textStyle: TextStyle(
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.w400,
-                          color: color?.withOpacity(0.4),
-                        ),
-                      ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => navigateToExtLink(
-                      "https://flutter.dev/",
-                    ),
-                    icon: const Icon(UniconsLine.paint_tool, size: 20.0),
-                    label: const Text("Flutter"),
-                    style: TextButton.styleFrom(
-                      foregroundColor: color?.withOpacity(0.5),
-                      textStyle: Helpers.fonts.body5(
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => navigateToExtLink(
-                      "https://firebase.google.com/",
-                    ),
-                    icon: const Icon(UniconsLine.cloud, size: 20.0),
-                    label: const Text("Firebase"),
-                    style: TextButton.styleFrom(
-                      foregroundColor: color?.withOpacity(0.5),
-                      textStyle: Helpers.fonts.body5(
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () =>
-                        navigateToExtLink("https://fonts.google.com/,"),
-                    icon: const Icon(UniconsLine.font, size: 20.0),
-                    label: const Text("Google Fonts"),
-                    style: TextButton.styleFrom(
-                      foregroundColor: color?.withOpacity(0.5),
-                      textStyle: Helpers.fonts.body5(
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => navigateToExtLink(
-                      "https://lottiefiles.com/",
-                    ),
-                    icon: const Icon(UniconsLine.lottiefiles, size: 20.0),
-                    label: const Text("Lottie"),
-                    style: TextButton.styleFrom(
-                      foregroundColor: color?.withOpacity(0.5),
-                      textStyle: Helpers.fonts.body5(
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  lottieFileButton(
-                    textValue: "mail send by Marie Esturgie",
-                    url: "https://lottiefiles.com/63315-mail-send",
-                    color: color,
-                  ),
-                  lottieFileButton(
-                    textValue: "mail animation by Bhargav Savaliya",
-                    url: "https://lottiefiles.com/68364-mail-animation",
-                    color: color,
-                  ),
-                  lottieFileButton(
-                    textValue: "mail animation by Ashleyy",
-                    url: "https://lottiefiles.com/37799-starry-background",
-                    color: color,
-                  ),
+                  ...bottomBody(color: color)
+                      .map(
+                        (Widget widget) => FadeInY(
+                            beginY: 16.0,
+                            delay: Duration(
+                              milliseconds: Helpers.ui.getNextAnimationDelay(
+                                animationName: "about",
+                              ),
+                            ),
+                            child: widget),
+                      )
+                      .toList(),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> bottomBody({Color? color}) {
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8.0),
+        child: Text(
+          "This app was made thanks to:",
+          style: Helpers.fonts.body(
+            textStyle: TextStyle(
+              fontSize: 16.0,
+              fontWeight: FontWeight.w400,
+              color: color?.withOpacity(0.4),
+            ),
+          ),
+        ),
+      ),
+      TextButton.icon(
+        onPressed: () => navigateToExtLink(
+          "https://flutter.dev/",
+        ),
+        icon: const Icon(UniconsLine.paint_tool, size: 20.0),
+        label: const Text("Flutter"),
+        style: TextButton.styleFrom(
+          foregroundColor: color?.withOpacity(0.5),
+          textStyle: Helpers.fonts.body5(
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18.0,
+            ),
+          ),
+        ),
+      ),
+      TextButton.icon(
+        onPressed: () => navigateToExtLink(
+          "https://firebase.google.com/",
+        ),
+        icon: const Icon(UniconsLine.cloud, size: 20.0),
+        label: const Text("Firebase"),
+        style: TextButton.styleFrom(
+          foregroundColor: color?.withOpacity(0.5),
+          textStyle: Helpers.fonts.body5(
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18.0,
+            ),
+          ),
+        ),
+      ),
+      TextButton.icon(
+        onPressed: () => navigateToExtLink("https://fonts.google.com/,"),
+        icon: const Icon(UniconsLine.font, size: 20.0),
+        label: const Text("Google Fonts"),
+        style: TextButton.styleFrom(
+          foregroundColor: color?.withOpacity(0.5),
+          textStyle: Helpers.fonts.body5(
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18.0,
+            ),
+          ),
+        ),
+      ),
+      TextButton.icon(
+        onPressed: () => navigateToExtLink(
+          "https://lottiefiles.com/",
+        ),
+        icon: const Icon(UniconsLine.lottiefiles, size: 20.0),
+        label: const Text("Lottie"),
+        style: TextButton.styleFrom(
+          foregroundColor: color?.withOpacity(0.5),
+          textStyle: Helpers.fonts.body5(
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 18.0,
+            ),
+          ),
+        ),
+      ),
+      lottieFileButton(
+        textValue: "mail send by Marie Esturgie",
+        url: "https://lottiefiles.com/63315-mail-send",
+        color: color,
+      ),
+      lottieFileButton(
+        textValue: "mail animation by Bhargav Savaliya",
+        url: "https://lottiefiles.com/68364-mail-animation",
+        color: color,
+      ),
+      lottieFileButton(
+        textValue: "mail animation by Ashleyy",
+        url: "https://lottiefiles.com/37799-starry-background",
+        color: color,
+      ),
+    ];
+  }
+
+  Widget header(BuildContext context, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        children: [
+          FadeInX(
+            beginX: 16.0,
+            delay: Duration(
+              milliseconds: Helpers.ui.getNextAnimationDelay(
+                animationName: "about",
+                reset: true,
+              ),
+            ),
+            child: CircleButton(
+              margin: const EdgeInsets.only(right: 16.0),
+              onTap: Beamer.of(context).beamBack,
+              icon: Icon(UniconsLine.arrow_left, color: color),
+            ),
+          ),
+          FadeInX(
+            beginX: 16.0,
+            delay: Duration(
+              milliseconds: Helpers.ui.getNextAnimationDelay(
+                animationName: "about",
+              ),
+            ),
+            child: Text(
+              "about".tr(),
+              style: Helpers.fonts.title(
+                textStyle: TextStyle(
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.w600,
+                  color: color?.withOpacity(0.8),
+                ),
               ),
             ),
           ),
@@ -262,6 +207,157 @@ class AboutPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Widget> topBody({Color? color}) {
+    return [
+      FadeInY(
+        beginY: 16.0,
+        delay: Duration(
+          milliseconds: Helpers.ui.getNextAnimationDelay(
+            animationName: "about",
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(
+            "Hi, this is a demo inbox app made with Flutter.",
+            style: Helpers.fonts.body(
+              textStyle: TextStyle(
+                fontWeight: FontWeight.w400,
+                color: color?.withOpacity(0.6),
+              ),
+            ),
+          ),
+        ),
+      ),
+      FadeInY(
+        beginY: 16.0,
+        delay: Duration(
+          milliseconds: Helpers.ui.getNextAnimationDelay(
+            animationName: "about",
+          ),
+        ),
+        child: Text(
+          "This app is made for demonstration purpose only.",
+          style: Helpers.fonts.body(
+            textStyle: TextStyle(
+              fontWeight: FontWeight.w400,
+              color: color?.withOpacity(0.6),
+            ),
+          ),
+        ),
+      ),
+      FadeInY(
+        beginY: 16.0,
+        delay: Duration(
+          milliseconds: Helpers.ui.getNextAnimationDelay(
+            animationName: "about",
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 16.0),
+          child: Text(
+            "The user interface is responsive and should adapt on web and desktop.",
+            style: Helpers.fonts.body(
+              textStyle: TextStyle(
+                fontWeight: FontWeight.w400,
+                color: color?.withOpacity(0.6),
+              ),
+            ),
+          ),
+        ),
+      ),
+      FadeInY(
+        beginY: 16.0,
+        delay: Duration(
+          milliseconds: Helpers.ui.getNextAnimationDelay(
+            animationName: "about",
+          ),
+        ),
+        child: Text(
+          "Data is stored in Firestore and code is publicly accessible on GitHub.",
+          style: Helpers.fonts.body(
+            textStyle: TextStyle(
+              fontWeight: FontWeight.w400,
+              color: color?.withOpacity(0.6),
+            ),
+          ),
+        ),
+      ),
+      FadeInY(
+        beginY: 16.0,
+        delay: Duration(
+          milliseconds: Helpers.ui.getNextAnimationDelay(
+            animationName: "about",
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 24.0),
+          child: Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(
+                  text: "I'm ",
+                ),
+                const TextSpan(
+                  text: "Jeremie Corpinot",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.blue,
+                  ),
+                ),
+                const TextSpan(
+                  text: ". \nBrowse app code source on ",
+                ),
+                TextSpan(
+                  text: "GitHub.",
+                  mouseCursor: SystemMouseCursors.click,
+                  recognizer: TapGestureRecognizer()..onTap = navigateToGitHub,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const TextSpan(
+                  text: "\n\nYou can follow my activities on ",
+                ),
+                TextSpan(
+                  text: "Instagram, ",
+                  mouseCursor: SystemMouseCursors.click,
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = navigateToInstagram,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextSpan(
+                  text: "Twitter, ",
+                  mouseCursor: SystemMouseCursors.click,
+                  recognizer: TapGestureRecognizer()..onTap = navigateToTwitter,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                TextSpan(
+                  text: "or my personal website.",
+                  mouseCursor: SystemMouseCursors.click,
+                  recognizer: TapGestureRecognizer()..onTap = navigateToWebsite,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+              style: Helpers.fonts.body(
+                textStyle: TextStyle(
+                  fontWeight: FontWeight.w400,
+                  color: color?.withOpacity(0.6),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   void navigateToExtLink(String url) async {

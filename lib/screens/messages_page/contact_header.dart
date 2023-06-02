@@ -30,8 +30,8 @@ class ContactHeader extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(right: 8.0),
                 child: CircleAvatar(
-                  foregroundImage: NetworkImage(selectedContact.avatarUrl),
                   backgroundColor: Colors.black12,
+                  foregroundImage: NetworkImage(selectedContact.avatarUrl),
                 ),
               ),
             ),
