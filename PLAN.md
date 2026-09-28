@@ -4,7 +4,7 @@
 
 - **Jalon 0 — vérification préalable :** les MX publics de `verbatims.cc` pointent vers Cloudflare Email Routing. Cela ne confirme pas quelles règles de transfert sont configurées dans le tableau de bord ; ne pas modifier les MX avant cette vérification.
 - **Jalon 1 — socle :** application Nuxt locale opérationnelle ; un `.eml` synthétique passe par PostalMime, est conservé dans D1/R2 locaux et apparaît dans l’Imbox avec sa pièce jointe.
-- **Déploiement distant :** pas encore relié à GitHub ni à Cloudflare. Le dépôt n’a pas de remote Git configuré.
+- **Déploiement distant :** dépôt public `rootasjey/courrier` créé et branche `main` poussée ; Workers Builds n’est pas encore relié à Cloudflare.
 
 ## Intention
 
