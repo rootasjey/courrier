@@ -1,75 +1,30 @@
-# Nuxt Minimal Starter
+# Courrier
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Prototype personnel de boîte de réception pour réunir des adresses de plusieurs domaines dans une interface à soi.
 
-## Setup
+## État actuel
 
-Make sure to install dependencies:
+- Nuxt/Vue déployable sur Cloudflare Workers avec Workers Assets.
+- UnoCSS et Una UI installés comme base de composants ; Una UI est encore en alpha, donc l’interface garde des styles natifs faciles à remplacer.
+- Maquette locale avec contenu fictif clairement signalé.
+- Ingestion locale d’un email synthétique avec PostalMime ; métadonnées et pièces jointes vont dans D1/R2 locaux.
+- Aucune connexion Email Routing, aucune donnée réelle et aucun changement DNS.
+- Le plan et les critères de validation sont dans [PLAN.md](./PLAN.md).
 
-```bash
-# npm
+## Démarrer
+
+```sh
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
+npm run db:migrate:local
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+## Déployer
 
-Build the application for production:
+Après configuration des bindings Cloudflare et de l’accès :
 
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+```sh
+npm run deploy
 ```
 
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Ne configure pas encore les MX de `verbatims.cc` : vérifie d’abord l’usage actuel du domaine et suis le jalon 0 de [PLAN.md](./PLAN.md).

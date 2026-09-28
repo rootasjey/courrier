@@ -1,0 +1,35 @@
+From: Courrier Prototype <demo@courrier.example>
+To: test@verbatims.cc
+Date: Mon, 28 Sep 2026 10:42:00 +0200
+Message-ID: <courrier-fixture-001@courrier.example>
+Subject: [TEST] Premier message reçu dans Courrier
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="courrier-mixed"
+
+--courrier-mixed
+Content-Type: multipart/alternative; boundary="courrier-alternative"
+
+--courrier-alternative
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Bonjour !
+
+Ce message fictif passe par le parseur MIME, puis est conserv=C3=A9 localement dans D1 et R2. Il ne provient pas d'une bo=C3=AEte r=C3=A9elle.
+
+Bonne r=C3=A9ception,
+Le prototype Courrier
+--courrier-alternative
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<p>Bonjour !</p><p>Ce message fictif passe par le parseur MIME, puis est conserv=C3=A9 localement dans D1 et R2. Il ne provient pas d'une bo=C3=AEte r=C3=A9elle.</p><p>Bonne r=C3=A9ception,<br>Le prototype Courrier</p>
+--courrier-alternative--
+--courrier-mixed
+Content-Type: text/plain; name="note.txt"
+Content-Disposition: attachment; filename="note.txt"
+Content-Transfer-Encoding: base64
+Content-ID: <fixture-note>
+
+VGhpcyBpcyBhIGZha2UgdGVzdCBhdHRhY2htZW50Lg==
+--courrier-mixed--

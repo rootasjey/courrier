@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "generate": "nuxt generate",
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
@@ -12,11 +13,18 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
+    "@una-ui/nuxt": "^1.0.0-alpha.27",
+    "@unocss/nuxt": "^66.10.5",
     "nuxt": "^4.5.2",
+    "postal-mime": "^4.0.0",
+    "unocss": "^66.10.5",
     "vue": "^3.5.43",
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.118",
+    "@iconify-json/radix-icons": "^1.2.6",
+    "@iconify-json/tabler": "^1.2.37",
     "@types/node": "^26.6.3",
     "nitro-cloudflare-dev": "^0.2.2",
     "nitropack": "^2.13.4",

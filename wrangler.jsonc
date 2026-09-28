@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "courrier",
 	"main": "./.output/server/index.mjs",
-	"compatibility_date": "2026-09-25",
+	"compatibility_date": "2026-09-28",
 	"assets": {
 		"binding": "ASSETS",
 		"directory": "./.output/public/"
@@ -14,7 +14,18 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MAIL_STORE"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
