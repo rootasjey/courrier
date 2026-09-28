@@ -4,7 +4,7 @@
 
 - **Jalon 0 — vérification préalable :** les MX publics de `verbatims.cc` pointent vers Cloudflare Email Routing. Cela ne confirme pas quelles règles de transfert sont configurées dans le tableau de bord ; ne pas modifier les MX avant cette vérification.
 - **Jalon 1 — socle :** application Nuxt locale opérationnelle ; un `.eml` synthétique passe par PostalMime, est conservé dans D1/R2 locaux et apparaît dans l’Imbox avec sa pièce jointe.
-- **Déploiement distant :** dépôt public `rootasjey/courrier` créé et branche `main` poussée ; Workers Builds n’est pas encore relié à Cloudflare.
+- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds ; premier déploiement sur `main` réussi sous `https://courrier.jerem-dev.workers.dev`. Cloudflare a provisionné `courrier-db` (D1) et `courrier-mail-store` (R2). La migration distante et le prochain déploiement déclenché par un push restent à valider.
 
 ## Intention
 
@@ -31,10 +31,10 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 ## Publication continue
 
-- Créer le futur dépôt GitHub sous un nom distinct de `courrier`, par exemple `courrier-web`, afin de ne pas casser la redirection de l’ancien dépôt renommé en `courrier-flutter`.
-- Relier ce dépôt à un Worker depuis **Cloudflare Workers Builds**. Déployer les branches de prévisualisation séparément de la branche de production.
-- Déclarer les bindings D1/R2 (et ceux qui seront réellement nécessaires) dans `wrangler.jsonc`. Workers Builds peut provisionner les ressources déclarées ; lors d’un déploiement depuis le dashboard, les identifiants restent visibles dans le dashboard et ne sont pas réécrits dans le dépôt. Appliquer ensuite la migration D1. Le cache Worker ne nécessite pas de bucket dédié, et les règles Email Routing/MX restent une configuration séparée.
-- D’abord valider un déploiement de prévisualisation avec données de test ; ensuite seulement configurer l’accès Cloudflare et une règle de réception pour l’adresse d’essai.
+- Relier `rootasjey/courrier` au Worker `courrier` depuis **Cloudflare Workers Builds**. La branche de production est `main` ; les builds de prévisualisation restent désactivés pour l’instant.
+- Déclarer les bindings D1/R2 (et ceux qui seront réellement nécessaires) dans `wrangler.jsonc`. Wrangler a provisionné `courrier-db` et `courrier-mail-store` au premier déploiement. Les identifiants créés par Workers Builds restent dans le dashboard et ne sont pas réécrits dans le dépôt.
+- Appliquer les migrations distantes après le déploiement dans le script `npm run deploy`. Le cache Worker ne nécessite pas de bucket dédié, et les règles Email Routing/MX restent une configuration séparée.
+- D’abord valider l’initialisation du schéma D1 et un déploiement déclenché par un push. Ensuite seulement configurer l’accès Cloudflare et une règle de réception pour l’adresse d’essai.
 
 ## Étapes et critères d’acceptation
 

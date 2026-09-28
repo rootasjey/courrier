@@ -9,7 +9,7 @@
     "generate": "nuxt generate",
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "npm run build && wrangler deploy && wrangler d1 migrations apply DB --remote",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
