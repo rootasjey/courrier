@@ -4,7 +4,9 @@
 
 - **Jalon 0 — vérification préalable :** les MX publics de `verbatims.cc` pointent vers Cloudflare Email Routing. Cela ne confirme pas quelles règles de transfert sont configurées dans le tableau de bord ; ne pas modifier les MX avant cette vérification.
 - **Jalon 1 — socle :** application Nuxt locale opérationnelle ; un `.eml` synthétique passe par PostalMime, est conservé dans D1/R2 locaux et apparaît dans l’Imbox avec sa pièce jointe.
-- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds ; le push `d2baf23` a déclenché un build sur `main`, puis le Worker a été déployé sous `https://courrier.jerem-dev.workers.dev`. Cloudflare a provisionné `courrier-db` (D1) et `courrier-mail-store` (R2), et la migration distante a créé `messages` et `attachments`. L’interface distante s’affiche avec sa boîte vide de démonstration. Access et la réception réelle restent à configurer.
+- **Jalon sécurité — Cloudflare Access :** Zero Trust Free est actif (0 $/mois, jusqu’à 50 utilisateurs). Une règle Worker protège tout le trafic de production et de prévisualisation de `courrier`, avec la politique « Cloudflare account members ». Le test navigateur a confirmé une redirection vers la connexion sans session, puis une réponse `[]` de `/api/messages` après connexion avec le compte Cloudflare.
+- **Jalon sécurité — code :** les routes `/api/*` du dépôt exigent une identité fournie par le contexte Cloudflare Access du Worker et désactivent la mise en cache des réponses. Le contexte local simule une identité de démonstration. Ces changements sont encore locaux et n’ont pas été déployés ; le Worker distant répond donc encore avec l’API de démonstration actuelle.
+- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds ; le push `d2baf23` a déclenché un build sur `main`, puis le Worker a été déployé sous `https://courrier.jerem-dev.workers.dev`. Cloudflare a provisionné `courrier-db` (D1) et `courrier-mail-store` (R2), et la migration distante a créé `messages` et `attachments`. L’interface distante s’affiche avec sa boîte vide de démonstration. Aucune réception réelle n’est activée.
 
 ## Intention
 
@@ -34,7 +36,12 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 - Relier `rootasjey/courrier` au Worker `courrier` depuis **Cloudflare Workers Builds**. La branche de production est `main` ; les builds de prévisualisation restent désactivés pour l’instant.
 - Déclarer les bindings D1/R2 (et ceux qui seront réellement nécessaires) dans `wrangler.jsonc`. Wrangler a provisionné `courrier-db` et `courrier-mail-store` au premier déploiement. Les identifiants créés par Workers Builds restent dans le dashboard et ne sont pas réécrits dans le dépôt.
 - Workers Builds exécute `npm run build`, puis `npx wrangler deploy && npx wrangler d1 migrations apply DB --remote` sur `main`. Le script local `npm run deploy` inclut aussi l’application des migrations. Le cache Worker ne nécessite pas de bucket dédié, et les règles Email Routing/MX restent une configuration séparée.
-- D’abord valider l’initialisation du schéma D1 et un déploiement déclenché par un push. Ensuite seulement configurer l’accès Cloudflare et une règle de réception pour l’adresse d’essai.
+- L’initialisation du schéma D1 et le déploiement déclenché par un push ont été validés. Cloudflare Access est maintenant configuré sur le Worker. Toute modification destinée au Worker distant doit passer par le dépôt et son déploiement Workers Builds.
+
+## Prochaine étape sécurité
+
+- Déployer le garde-fou serveur présent dans le dépôt et vérifier le build distant ainsi que les parcours authentifié et non authentifié après ce déploiement.
+- Ne configurer aucune réception réelle avant d’avoir revu les règles de transfert et l’usage actuel de `verbatims.cc`.
 
 ## Étapes et critères d’acceptation
 
@@ -93,6 +100,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 - **Livraison :** l’Email Sending de Cloudflare est en bêta ; le quota inclus ne garantit pas la réputation ou l’arrivée en boîte principale.
 - **Intégrité :** les emails sont du MIME complexe ; le parser doit être la source de normalisation, et les originaux doivent rester exportables.
 - **Accès :** Cloudflare Access protège l’entrée de l’application ; l’API doit aussi vérifier chaque identité et chaque ressource.
+- **Facturation Zero Trust :** l’offre Free affiche 0 $/mois jusqu’à 50 utilisateurs ; la souscription validée autorise aussi Cloudflare à facturer les usages qui dépasseraient les limites gratuites.
 - **Coût :** les 5 $ de Workers Paid sont une base de facturation, pas une garantie que tous les composants et usages resteront sous ce montant.
 
 ## Hors périmètre initial
