@@ -8,7 +8,7 @@ Prototype personnel de boîte de réception pour réunir des adresses de plusieu
 - UnoCSS et Una UI installés comme base de composants ; Una UI est encore en alpha, donc l’interface garde des styles natifs faciles à remplacer.
 - Maquette locale avec contenu fictif clairement signalé.
 - Ingestion locale d’un email synthétique avec PostalMime ; métadonnées et pièces jointes vont dans D1/R2 locaux.
-- Le Worker distant est protégé par Cloudflare Access sur toutes ses URL, avec la politique « Cloudflare account members » ; les requêtes sans session sont redirigées vers la connexion.
+- Le Worker distant est protégé par Cloudflare Access sur toutes ses URL, avec la politique « Cloudflare account members » ; un navigateur sans session est redirigé vers la connexion et les requêtes anonymes vérifiées renvoient `403`.
 - Les routes `/api/*` vérifient l’identité Cloudflare Access : contexte natif quand disponible, ou JWT signé `Cf-Access-Jwt-Assertion` pour le Worker avec Static Assets. Wrangler simule une identité locale de démonstration.
 - Zero Trust Free est actif à 0 $/mois jusqu’à 50 utilisateurs ; les dépassements des limites gratuites peuvent être facturés selon les conditions validées à la souscription.
 - Aucune connexion Email Routing, aucune donnée réelle et aucun changement DNS.
