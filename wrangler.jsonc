@@ -23,6 +23,10 @@
 			}
 		}
 	},
+	"vars": {
+		"CF_ACCESS_TEAM_DOMAIN": "https://cold-silence-a54e.cloudflareaccess.com",
+		"CF_ACCESS_AUD": "6ea2d73d4c7f5327b094ff283c30a834f4f14953001c5712a6614773f427d1a7"
+	},
 	"upload_source_maps": true,
 	"d1_databases": [
 		{

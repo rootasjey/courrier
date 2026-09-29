@@ -5,7 +5,7 @@
 - **Jalon 0 — vérification préalable :** les MX publics de `verbatims.cc` pointent vers Cloudflare Email Routing. Cela ne confirme pas quelles règles de transfert sont configurées dans le tableau de bord ; ne pas modifier les MX avant cette vérification.
 - **Jalon 1 — socle :** application Nuxt locale opérationnelle ; un `.eml` synthétique passe par PostalMime, est conservé dans D1/R2 locaux et apparaît dans l’Imbox avec sa pièce jointe.
 - **Jalon sécurité — Cloudflare Access :** Zero Trust Free est actif (0 $/mois, jusqu’à 50 utilisateurs). Une règle Worker protège tout le trafic de production et de prévisualisation de `courrier`, avec la politique « Cloudflare account members ». Le test navigateur a confirmé une redirection vers la connexion sans session, puis une réponse `[]` de `/api/messages` après connexion avec le compte Cloudflare.
-- **Jalon sécurité — code :** les routes `/api/*` du dépôt exigent une identité fournie par le contexte Cloudflare Access du Worker et désactivent la mise en cache des réponses. Le contexte local simule une identité de démonstration. Ces changements sont encore locaux et n’ont pas été déployés ; le Worker distant répond donc encore avec l’API de démonstration actuelle.
+- **Jalon sécurité — code :** les routes `/api/*` exigent une identité Cloudflare Access et désactivent la mise en cache. Le code utilise le contexte natif quand il est disponible, sinon vérifie cryptographiquement le JWT `Cf-Access-Jwt-Assertion` avec `jose`, l’émetteur et l’AUD de l’application. Ce second chemin est nécessaire car le routeur interne des Workers Static Assets ne transmet pas `ctx.access` au Worker applicatif.
 - **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds ; le push `d2baf23` a déclenché un build sur `main`, puis le Worker a été déployé sous `https://courrier.jerem-dev.workers.dev`. Cloudflare a provisionné `courrier-db` (D1) et `courrier-mail-store` (R2), et la migration distante a créé `messages` et `attachments`. L’interface distante s’affiche avec sa boîte vide de démonstration. Aucune réception réelle n’est activée.
 
 ## Intention
@@ -38,9 +38,9 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 - Workers Builds exécute `npm run build`, puis `npx wrangler deploy && npx wrangler d1 migrations apply DB --remote` sur `main`. Le script local `npm run deploy` inclut aussi l’application des migrations. Le cache Worker ne nécessite pas de bucket dédié, et les règles Email Routing/MX restent une configuration séparée.
 - L’initialisation du schéma D1 et le déploiement déclenché par un push ont été validés. Cloudflare Access est maintenant configuré sur le Worker. Toute modification destinée au Worker distant doit passer par le dépôt et son déploiement Workers Builds.
 
-## Prochaine étape sécurité
+## Vérification sécurité après déploiement
 
-- Déployer le garde-fou serveur présent dans le dépôt et vérifier le build distant ainsi que les parcours authentifié et non authentifié après ce déploiement.
+- Après chaque changement du garde-fou, vérifier le build Workers Builds, l’accès authentifié à `/api/messages`, le refus d’une requête sans JWT et `Cache-Control: private, no-store`.
 - Ne configurer aucune réception réelle avant d’avoir revu les règles de transfert et l’usage actuel de `verbatims.cc`.
 
 ## Étapes et critères d’acceptation
