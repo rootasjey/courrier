@@ -116,7 +116,10 @@ export async function storeIncomingEmail(
     ...attachmentRows.map(attachment => bindings.DB.prepare(`
       INSERT OR IGNORE INTO attachments (
         id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) SELECT ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE EXISTS (
+        SELECT 1 FROM messages WHERE id = ? AND message_id = ?
+      )
     `).bind(
       attachment.id,
       attachment.messageId,
@@ -126,9 +129,37 @@ export async function storeIncomingEmail(
       attachment.objectKey,
       attachment.contentId,
       attachment.disposition,
+      id,
+      messageId,
     )),
   ]
 
-  await bindings.DB.batch(statements)
+  const results = await bindings.DB.batch(statements)
+  if (results[0]?.meta.changes !== 1) {
+    const existingMessage = await bindings.DB
+      .prepare('SELECT id FROM messages WHERE message_id = ?')
+      .bind(messageId)
+      .first<{ id: string }>()
+
+    if (existingMessage) {
+      // Different raw deliveries can share a Message-ID. Once D1 confirms
+      // another row won the race, remove only this delivery's unique R2 keys.
+      if (existingMessage.id !== id) {
+        const orphanedKeys = [rawObjectKey, ...attachmentRows.map(attachment => attachment.objectKey)]
+        await Promise.all(orphanedKeys.map(async key => {
+          try {
+            await bindings.MAIL_STORE.delete(key)
+          } catch (error) {
+            console.error('[courrier] Could not remove an R2 object from a duplicate delivery.', { key, error })
+          }
+        }))
+      }
+
+      return { id: existingMessage.id, duplicate: true }
+    }
+
+    throw new Error('D1 did not store the incoming email and no existing Message-ID was found.')
+  }
+
   return { id, duplicate: false }
 }
