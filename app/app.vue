@@ -277,11 +277,18 @@ useSeoMeta({
           <p v-for="(paragraph, index) in selectedMessage.body.split('\n\n')" :key="index">{{ paragraph }}</p>
           <div v-if="selectedMessage.attachments.length" class="attachment-list" aria-label="Pièces jointes">
             <span class="attachment-heading">{{ selectedMessage.attachments.length }} pièce{{ selectedMessage.attachments.length > 1 ? 's' : '' }} jointe{{ selectedMessage.attachments.length > 1 ? 's' : '' }}</span>
-            <span v-for="attachment in selectedMessage.attachments" :key="attachment.id" class="attachment-item">
+            <a
+              v-for="attachment in selectedMessage.attachments"
+              :key="attachment.id"
+              class="attachment-item"
+              :href="`/api/attachments/${attachment.id}`"
+              :download="attachment.filename"
+              :aria-label="`Télécharger ${attachment.filename}`"
+            >
               <span aria-hidden="true">↳</span>
               <strong>{{ attachment.filename }}</strong>
               <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
-            </span>
+            </a>
           </div>
           <div class="signature">
             {{ isDevelopment ? 'Message conservé dans le stockage de test local.' : 'Message et pièces jointes conservés dans Cloudflare.' }}

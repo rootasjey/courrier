@@ -119,7 +119,8 @@ h1 { margin-bottom: 0; font-family: "Iowan Old Style", "Palatino Linotype", Geor
 .message-paper p { max-width: 580px; margin-bottom: 15px; color: #535e67; font-size: 12px; line-height: 1.85; white-space: pre-line; }
 .attachment-list { display: grid; gap: 8px; max-width: 580px; margin-top: 23px; padding-top: 15px; border-top: 1px solid var(--line); }
 .attachment-heading { color: var(--muted); font-size: 9px; font-weight: 650; }
-.attachment-item { display: flex; align-items: center; gap: 8px; color: #626c73; font-size: 10px; }
+.attachment-item { display: flex; align-items: center; gap: 8px; color: #626c73; font-size: 10px; text-decoration: none; }
+.attachment-item:hover strong { text-decoration: underline; }
 .attachment-item strong { font-weight: 560; }
 .attachment-item > span:last-child { margin-left: auto; color: var(--muted); font-size: 9px; }
 .signature { margin-top: 28px; color: #858e93; font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: 12px; line-height: 1.6; }
