@@ -2,7 +2,9 @@
 
 ## Avancement
 
-- **Jalon 0 — vérification préalable :** les MX publics de `verbatims.cc` pointent vers Cloudflare Email Routing. Cela ne confirme pas quelles règles de transfert sont configurées dans le tableau de bord ; ne pas modifier les MX avant cette vérification.
+- **Jalon 0 — vérification préalable (vérifié le 30 septembre 2026) :** Email Routing est déjà activé pour `verbatims.cc` et ses enregistrements MX Cloudflare sont présents. Deux règles actives (`support@verbatims.cc` et `francis@verbatims.cc`) transfèrent vers l’adresse de destination vérifiée du compte `codingbox.fr`. Le catch-all `Drop` est désactivé et le tableau de bord indique 0 email reçu sur les 7 derniers jours. Aucun réglage n’a été modifié. Avant toute réception dans Courrier, choisir une adresse dédiée et vérifier qu’elle ne chevauche pas un usage existant ; préserver les transferts actuels.
+- **Continuité de service :** remplacer les transferts adresse par adresse. Pendant une période pilote, Courrier stocke chaque message et le relaie aussi vers la destination actuelle. Retirer le relais historique d’une adresse seulement après validation de la réception, de l’affichage et de la conservation dans Courrier.
+- **Handler de réception local :** `worker.ts` délègue les requêtes HTTP à Nuxt/Nitro et expose directement le handler Cloudflare `email()`. Le relais de migration est optionnel via `COURRIER_LEGACY_FORWARD_TO`. En simulation Wrangler, le `.eml` de démonstration a été stocké dans D1/R2 local puis relayé vers une destination de test ; la route HTTP Nuxt répond aussi `200`. Une vraie adresse et le chemin d’échec restent à valider avant toute bascule réelle. Aucun routage Cloudflare n’a été modifié.
 - **Jalon 1 — socle :** application Nuxt locale opérationnelle ; un `.eml` synthétique passe par PostalMime, est conservé dans D1/R2 locaux et apparaît dans l’Imbox avec sa pièce jointe.
 - **Jalon sécurité — Cloudflare Access :** Zero Trust Free est actif (0 $/mois, jusqu’à 50 utilisateurs). Une règle Worker protège tout le trafic de production et de prévisualisation de `courrier`, avec la politique « Cloudflare account members ». Après le déploiement final, `/api/messages` renvoie `200`, `[]` et `Cache-Control: private, no-store` avec une session valide ; sans cookie, `GET /` et `GET /api/messages` renvoient `403`.
 - **Jalon sécurité — code :** les routes `/api/*` exigent une identité Cloudflare Access et désactivent la mise en cache. Le code utilise le contexte natif quand il est disponible, sinon vérifie cryptographiquement le JWT `Cf-Access-Jwt-Assertion` avec `jose`, l’émetteur et l’AUD de l’application. Ce second chemin est nécessaire car le routeur interne des Workers Static Assets ne transmet pas `ctx.access` au Worker applicatif.
@@ -10,15 +12,15 @@
 
 ## Intention
 
-Construire une boîte de réception personnelle qui réunit plusieurs adresses et domaines dans une interface inspirée par les idées de HEY. Le premier domaine envisagé est `verbatims.cc`.
+Construire une boîte de réception par domaine, dans une interface inspirée par les idées de HEY. Pour `verbatims.cc`, prévoir une adresse principale et des alias qui arrivent dans sa propre boîte Courrier. Commencer pour un seul utilisateur, puis envisager le multi-utilisateurs après fiabilisation du flux de réception et de conservation.
 
 Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et le stockage des messages, le parsing MIME, les pièces jointes et les en-têtes de fil. Nous ne convertissons pas son application React/Hono : l’interface et les contrats applicatifs de Courrier sont construits pour Nuxt/Vue.
 
 ## Principes de départ
 
-- Un seul utilisateur : le propriétaire du compte Cloudflare, protégé par Cloudflare Access.
+- Première étape mono-utilisateur : le propriétaire du compte Cloudflare, protégé par Cloudflare Access ; le multi-utilisateurs viendra après la fiabilisation du courrier.
 - Aucun changement DNS ni bascule de `codingbox.fr` pendant le prototype.
-- Vérifier les enregistrements MX et l’usage mail actuel de `verbatims.cc` avant tout onboarding Email Routing.
+- Vérifier les enregistrements MX et l’usage mail actuel de `verbatims.cc` avant toute modification d’Email Routing ; conserver les transferts existants sauf décision explicite contraire.
 - Conserver les messages originaux et leurs pièces jointes. La base SQL contient les champs normalisés utiles à l’affichage, au classement et à la recherche.
 - Garder l’envoi et les agents derrière une validation explicite tant que la réception et la conservation ne sont pas fiables.
 - Afficher toute donnée fictive comme telle ; aucun contenu de démonstration ne doit être confondu avec un vrai message.
@@ -26,7 +28,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 ## Architecture envisagée
 
 - **Interface et API :** Nuxt sur Cloudflare Workers.
-- **Réception :** handler `email()` du Worker Cloudflare généré par Nitro. Un hook `cloudflare:email` délègue le parsing et le stockage au service d’ingestion partagé avec le test local.
+- **Réception :** point d’entrée `worker.ts`, qui délègue `fetch` au Worker Nuxt/Nitro généré et traite directement les événements `email()` avec le service d’ingestion partagé. Un relais temporaire facultatif maintient la livraison historique pendant le pilote.
 - **Données :** D1 pour les adresses, messages, fils, dossiers et métadonnées ; R2 pour les originaux RFC 822 et les pièces jointes. Confirmer ce choix au jalon d’ingestion après vérification des limites et coûts actuels.
 - **Accès :** Cloudflare Access limité au compte personnel. L’application vérifiera l’identité côté serveur avant toute lecture ou modification de données.
 - **Agents :** hors périmètre du premier jalon. Ils viendront après la recherche, le classement et les brouillons.
@@ -48,10 +50,10 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 ### 0. Vérifier le terrain
 
 - Relever les enregistrements MX actuels et les services qui utilisent `verbatims.cc`.
-- Choisir une adresse d’essai et vérifier qu’Email Routing peut être activé sans interrompre un usage existant.
+- Choisir une adresse dédiée d’essai et vérifier qu’une règle Email Routing vers le Worker Courrier peut remplacer son transfert actuel sans changer les MX ni interrompre la remise : stockage dans Courrier et relais temporaire vers la destination historique.
 - Clarifier le premier parcours : recevoir un email, l’afficher, puis répondre ou seulement l’afficher.
 
-**Critère de sortie :** aucun changement DNS n’est nécessaire avant d’avoir compris les conséquences de la réception Cloudflare sur les MX existants.
+**Critère de sortie :** l’usage existant est compris ; une adresse d’essai dédiée est choisie ; le comportement d’échec du handler est validé ; la règle ciblée peut stocker dans Courrier tout en conservant la remise historique pendant le pilote. Les MX sont déjà configurés pour Cloudflare Email Routing et ne doivent pas être modifiés pour ce jalon sans raison vérifiée.
 
 ### 1. Socle du projet
 
@@ -64,11 +66,12 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 ### 2. Réception réelle sur une adresse d’essai
 
-- Ajouter le Worker `email()` et parser le message avec PostalMime.
+- Stabiliser le handler `email()` et parser le message avec PostalMime.
 - Écrire les en-têtes et parties lisibles dans D1 ; conserver la source RFC 822 et les pièces jointes dans R2.
 - Dédupliquer par identifiant de message et conserver le destinataire reçu, pour distinguer plusieurs domaines dans une même boîte.
+- Pendant le pilote, configurer `COURRIER_LEGACY_FORWARD_TO` pour relayer les messages vers la destination historique.
 
-**Critère de sortie :** un message réel envoyé à l’adresse d’essai apparaît dans Courrier avec expéditeur, destinataire, date, sujet, corps et pièces jointes lisibles.
+**Critère de sortie :** un message réel envoyé à l’adresse d’essai apparaît dans Courrier avec expéditeur, destinataire, date, sujet, corps et pièces jointes lisibles, et continue d’être remis à la destination historique pendant le pilote. Le transfert historique est retiré pour cette adresse après validation.
 
 ### 3. Boîte utile au quotidien
 

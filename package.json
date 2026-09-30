@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
+    "postbuild": "node scripts/configure-worker-entry.mjs",
     "dev": "nuxt dev",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "generate": "nuxt generate",
