@@ -7,6 +7,9 @@ type MessageRow = {
   sender_name: string
   sender_address: string
   subject: string
+  folder: 'Imbox' | 'The Feed' | 'Paper Trail' | 'Screener'
+  has_sender_rule: number
+  is_read: number
   sent_at: string | null
   received_at: string
   text_body: string
@@ -27,10 +30,16 @@ export default defineEventHandler(async (event) => {
   }
 
   const { results } = await bindings.DB.prepare(`
-    SELECT id, envelope_from, envelope_to, sender_name, sender_address, subject,
-      sent_at, received_at, text_body, raw_object_key
+    SELECT messages.id, messages.envelope_from, messages.envelope_to,
+      messages.sender_name, messages.sender_address, messages.subject,
+      messages.sent_at, messages.received_at, messages.text_body, messages.is_read,
+      messages.raw_object_key, messages.folder,
+      CASE WHEN sender_rules.sender_address IS NULL THEN 0 ELSE 1 END AS has_sender_rule
     FROM messages
-    ORDER BY COALESCE(sent_at, received_at) DESC
+    LEFT JOIN sender_rules
+      ON sender_rules.mailbox_domain = messages.mailbox_domain
+      AND sender_rules.sender_address = lower(trim(messages.sender_address))
+    ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
   `).all<MessageRow>()
 
   return Promise.all(results.map(async (message) => {
@@ -53,7 +62,9 @@ export default defineEventHandler(async (event) => {
         minute: '2-digit',
         timeZone: 'Europe/Paris',
       }).format(new Date(message.sent_at || message.received_at)),
-      folder: 'Imbox' as const,
+      folder: message.folder,
+      hasSenderRule: Boolean(message.has_sender_rule),
+      isRead: Boolean(message.is_read),
       initials: (message.sender_name || message.sender_address || message.envelope_from)
         .split(/[\s@._-]+/)
         .filter(Boolean)

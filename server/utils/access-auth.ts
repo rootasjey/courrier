@@ -35,6 +35,11 @@ function getAccessJwks(teamDomain: string) {
 
 /** Return the identity Cloudflare Access verified for this Worker request. */
 export async function requireAccessIdentity(event: H3Event) {
+  const host = getHeader(event, 'host')?.split(':')[0]?.toLocaleLowerCase('en-US')
+  if (import.meta.dev && ['localhost', '127.0.0.1'].includes(host || '')) {
+    return { email: 'demo@courrier.test' }
+  }
+
   const cloudflare = event.context.cloudflare as CloudflareEventContext | undefined
   const access = cloudflare?.context?.access
 

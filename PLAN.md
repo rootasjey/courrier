@@ -3,17 +3,54 @@
 ## Avancement
 
 - **Jalon 0 — vérification préalable (vérifié le 30 septembre 2026) :** Email Routing et les enregistrements MX Cloudflare sont actifs pour `verbatims.cc`. Les règles historiques `support@verbatims.cc` et `francis@verbatims.cc` continuent de transférer vers `codingbox.fr`. Une règle dédiée `courrier-test@verbatims.cc` dirige les messages vers le Worker `courrier` ; le handler les stocke et les relaie vers la destination historique tant que `COURRIER_LEGACY_FORWARD_TO` est configuré. Les règles historiques n’ont pas été modifiées.
-- **Jalon 2 — réception réelle (partiellement validé le 30 septembre 2026) :** trois messages de test ont été reçus par Cloudflare, traités par le Worker et affichés dans l’interface de production ; le second relais vers HEY a été confirmé par l’utilisateur. Une pièce jointe réelle a été inscrite dans D1, conservée dans R2 et listée dans Courrier. La route protégée par Access a été vérifiée en production : le téléchargement authentifié renvoie `200` avec les en-têtes de pièce jointe et `private, no-store`, tandis qu’une requête anonyme est redirigée par Access (`302`). Restent à vérifier les réémissions avec le même `Message-ID` et le comportement en cas d’échec avant de retirer le relais.
+- **Jalon 2 — réception réelle (validé pour l’adresse pilote le 30 septembre 2026) :** quatre messages de test ont été reçus et affichés dans Courrier. Le dernier message texte a été confirmé dans HEY ; un message avec pièce jointe a été conservé dans D1/R2 et listé dans Courrier. Les journaux Cloudflare associent `Handled` et `Forwarded` au dernier message. Un rejeu séquentiel du même `.eml` avec le même `Message-ID` dans Wrangler local n’a créé qu’un message et une pièce jointe dans D1/R2 ; les tests locaux couvrent aussi les chemins d’échec simulés. Le relais de secours reste actif. Les pannes réelles et les réémissions concurrentes ne sont pas couvertes.
 - **Continuité de service :** maintenir le relais vers `codingbox.fr` pendant la validation. Ensuite, retirer le relais pour l’adresse pilote seulement après les vérifications de réception, d’affichage, de conservation, des pièces jointes et de déduplication ; conserver les deux règles historiques tant que leurs adresses ne sont pas migrées séparément.
-- **Handler de réception :** `worker.ts` délègue les requêtes HTTP à Nuxt/Nitro et expose directement le handler Cloudflare `email()`. Le relais de migration est optionnel via `COURRIER_LEGACY_FORWARD_TO`. La simulation Wrangler du `.eml` de démonstration et deux réceptions réelles ont été validées. Le chemin nominal est confirmé ; le chemin d’échec et la déduplication lors d’une réémission réelle restent à valider.
+- **Handler de réception :** `worker.ts` délègue les requêtes HTTP à Nuxt/Nitro et expose directement le handler Cloudflare `email()`. Le relais de migration est optionnel via `COURRIER_LEGACY_FORWARD_TO` et les doublons séquentiels déjà stockés ne sont plus relayés. Le rejeu Wrangler local avec le même `Message-ID` et les branches d’échec simulées sont validés ; aucune réémission concurrente n’a été testée.
 - **Jalon 1 — socle :** application Nuxt locale opérationnelle ; un `.eml` synthétique passe par PostalMime, est conservé dans D1/R2 locaux et apparaît dans l’Imbox avec sa pièce jointe.
+- **Tranche UI — liste et réglages (30 septembre 2026) :** proposition visuelle inspirée de la liste HEY choisie, avec les boîtes dans le menu Courrier, une page Réglages et sans chiffres de raccourcis visibles. L’Imbox sépare les non-lus des messages consultés avec un état `is_read` persistant dans D1. Les changements restent locaux et ne sont pas déployés.
 - **Jalon sécurité — Cloudflare Access :** Zero Trust Free est actif (0 $/mois, jusqu’à 50 utilisateurs). Une règle Worker protège tout le trafic de production et de prévisualisation de `courrier`, avec la politique « Cloudflare account members ». Après le déploiement final, `/api/messages` renvoie `200`, `[]` et `Cache-Control: private, no-store` avec une session valide ; sans cookie, `GET /` et `GET /api/messages` renvoient `403`.
-- **Jalon sécurité — code :** les routes `/api/*` exigent une identité Cloudflare Access et désactivent la mise en cache. Le code utilise le contexte natif quand il est disponible, sinon vérifie cryptographiquement le JWT `Cf-Access-Jwt-Assertion` avec `jose`, l’émetteur et l’AUD de l’application. Ce second chemin est nécessaire car le routeur interne des Workers Static Assets ne transmet pas `ctx.access` au Worker applicatif.
-- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds. La branche `main` déploie le Worker `https://courrier.jerem-dev.workers.dev`, D1 `courrier-db` et R2 `courrier-mail-store` ; le schéma contient `messages` et `attachments`. Le Worker est protégé par Cloudflare Access. Email Routing dirige maintenant l’adresse d’essai dédiée vers ce Worker.
+- **Jalon sécurité — code :** en production, les routes `/api/*` exigent une identité Cloudflare Access et désactivent la mise en cache. Le code utilise le contexte natif quand il est disponible, sinon vérifie cryptographiquement le JWT `Cf-Access-Jwt-Assertion` avec `jose`, l’émetteur et l’AUD de l’application. Ce second chemin est nécessaire car le routeur interne des Workers Static Assets ne transmet pas `ctx.access` au Worker applicatif. En développement, `localhost` et `127.0.0.1` utilisent une identité synthétique limitée au serveur local.
+- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds. La branche `main` déploie le Worker `https://courrier.jerem-dev.workers.dev`, D1 `courrier-db` et R2 `courrier-mail-store` ; le schéma contient `messages` et `attachments`. Le Worker est protégé par Cloudflare Access. Email Routing dirige maintenant l’adresse d’essai dédiée vers ce Worker. Workers Builds exécute `npm run build`, puis applique les migrations D1 distantes avant `wrangler deploy`, pour que le nouveau code ne parte pas avec un schéma précédent.
 
 ## Intention
 
 Construire une boîte de réception par domaine, dans une interface inspirée par les idées de HEY. Pour `verbatims.cc`, prévoir une adresse principale et des alias qui arrivent dans sa propre boîte Courrier. Commencer pour un seul utilisateur, puis envisager le multi-utilisateurs après fiabilisation du flux de réception et de conservation.
+
+## Boussole produit et priorités UX
+
+Les priorités ci-dessous viennent des usages HEY que l’utilisateur considère les plus utiles. Elles guident Courrier sans imposer une reproduction exacte de HEY.
+
+### Priorités principales
+
+1. **Lecture et navigation :** présenter les messages reçus et envoyés dans une même liste chronologique ; ouvrir un message dans une vue de lecture ample qui prend toute l’interface ; pouvoir passer rapidement entre les boîtes au clavier.
+2. **Trois espaces de classement :** Imbox pour les messages importants, The Feed pour les newsletters et lectures, Paper Trail pour les reçus et confirmations. Le Screener sert de file distincte pour les nouveaux expéditeurs. Une règle choisie par expéditeur s’applique aux nouveaux messages et re-classe aussi tout son historique (décision du 30 septembre 2026).
+3. **Screener et contrôle des expéditeurs :** proposer un espace dédié pour décider quels nouveaux expéditeurs peuvent écrire. HEY décrit le Screener comme distinct du filtre anti-spam ; il permet aussi le criblage automatique par domaine, avec des exceptions pour certains grands domaines. Une règle par motif n’est pas documentée. Courrier étudiera séparément le blocage d’une adresse, d’un domaine ou d’un motif, et le traitement des faux négatifs spam. ([Screener HEY](https://help.hey.com/article/722-the-screener), [Spam Corps](https://help.hey.com/article/889-spam-corps))
+4. **Notifications discrètes :** aucune notification par défaut ; activation explicite pour les expéditeurs ou fils choisis.
+
+### Fonctions appréciées ensuite
+
+- Set Aside et Reply Later pour suivre les messages à garder sous la main ou auxquels répondre, sans encombrer l’Imbox.
+- Renommer localement l’objet d’un fil, sans modifier l’objet reçu ou l’affichage chez les autres correspondants.
+- Priorité de regroupement : fusionner plusieurs fils en une conversation unique ; proposer aussi les Collections pour garder plusieurs conversations distinctes sur une page, à un rang inférieur.
+- Clips pour conserver et retrouver un extrait de texte, par exemple un code promotionnel.
+- Alias par boîte/domaine.
+
+### Piste ultérieure : agents
+
+Envisager des boîtes de réception destinées à des agents seulement après avoir défini les comptes, le multi-utilisateur et les autorisations par boîte et par action. Les droits devront être limités, visibles et révocables ; l’envoi devra rester soumis à une approbation explicite.
+
+### Méthode d’observation
+
+Avant de développer les interactions principales, documenter pour chaque fonction son besoin, son déclencheur, son résultat dans l’interface, son effet sur le message et la possibilité d’annuler l’action. Prioriser selon l’usage réel plutôt que chercher la parité fonctionnelle avec HEY.
+
+### Observation directe de HEY — 30 septembre 2026
+
+- L’Imbox sépare visuellement « New For You » et « Previously Seen » ; le fil ouvert utilise une vue de lecture ample et une barre d’actions dédiée en bas. Les emails envoyés figurent dans « Previously Seen » selon l’aide HEY.
+- The Feed, Paper Trail, Reply Later, Set Aside et Bubble Up sont des destinations séparées dans la navigation. Les commandes d’action affichent leurs raccourcis clavier ; HEY documente aussi des raccourcis dédiés pour basculer entre Imbox, Feed et Paper Trail.
+- Le Screener possède une vue dédiée pour les nouveaux expéditeurs. Observation sans accepter ni rejeter aucun expéditeur.
+- L’autorisation globale des notifications web était désactivée dans le compte observé ; aucun réglage n’a été modifié.
+- Le parcours de fusion demande de sélectionner plusieurs fils, propose un objet pour le fil résultant, récapitule les fils sélectionnés et présente la fusion comme permanente. Parcours exploré avec deux messages de test, sans validation finale ; aucun fil n’a été fusionné.
+- Aucun email n’a été envoyé pendant cette observation.
 
 Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et le stockage des messages, le parsing MIME, les pièces jointes et les en-têtes de fil. Nous ne convertissons pas son application React/Hono : l’interface et les contrats applicatifs de Courrier sont construits pour Nuxt/Vue.
 
@@ -77,7 +114,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 ### 3. Boîte utile au quotidien
 
 - Ajouter lecture, recherche, conversations et dossiers.
-- Ajouter archivage, suivi et classement de messages.
+- Ajouter le suivi et le classement des messages selon le modèle HEY (Set Aside, Feed, Paper Trail).
 - Protéger l’application par Access et vérifier l’identité sur les API, pas seulement sur la page web.
 - Définir une stratégie de sauvegarde et d’export avant d’y conserver du courrier important.
 
@@ -91,12 +128,13 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 **Critère de sortie :** une réponse part avec une identité cohérente, apparaît dans le fil local et arrive correctement chez plusieurs destinataires de test.
 
-### 5. Idées de HEY et agents
+### 5. Fonctions complémentaires et agents
 
-- Renommer un fil, regrouper des messages, puis faire évoluer Imbox, The Feed et Paper Trail.
-- Ajouter classification et résumé assistés, puis préparation de brouillons avec validation humaine.
+- Après les priorités UX, étudier Set Aside, Reply Later, renommage local d’objet, clips et alias. Donner la priorité à la fusion de fils ; les Collections sont appréciées mais moins prioritaires.
+- Envisager ensuite classification et résumé assistés, puis préparation de brouillons avec validation humaine.
+- Reporter les agents disposant de leur propre boîte à une phase ultérieure au cadrage des identités, du multi-utilisateur et des autorisations par ressource.
 
-**Critère de sortie :** les règles de tri restent modifiables et un agent ne peut pas envoyer un email sans approbation explicite.
+**Critère de sortie :** les règles de tri restent modifiables ; un agent ne peut consulter que les boîtes autorisées et ne peut pas envoyer un email sans approbation explicite.
 
 ## Risques à traiter tôt
 

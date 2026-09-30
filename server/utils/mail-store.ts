@@ -49,6 +49,8 @@ export async function storeIncomingEmail(
   const id = contentHash
   const rawObjectKey = `messages/${id}/original.eml`
   const sender = flattenAddresses(parsed.from)[0]
+  const senderAddress = (sender?.address || envelope.from).trim().toLocaleLowerCase('en-US')
+  const mailboxDomain = envelope.to.trim().split('@').at(-1)?.toLocaleLowerCase('en-US') || ''
   const sentAt = parsed.date && !Number.isNaN(Date.parse(parsed.date))
     ? new Date(parsed.date).toISOString()
     : null
@@ -87,15 +89,19 @@ export async function storeIncomingEmail(
     bindings.DB.prepare(`
       INSERT OR IGNORE INTO messages (
         id, message_id, envelope_from, envelope_to, sender_name, sender_address,
-        subject, sent_at, received_at, in_reply_to, references_header, text_body, raw_object_key
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        subject, sent_at, received_at, in_reply_to, references_header, text_body, raw_object_key,
+        mailbox_domain, folder
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(
+        (SELECT folder FROM sender_rules WHERE mailbox_domain = ? AND sender_address = ?),
+        'Screener'
+      ))
     `).bind(
       id,
       messageId,
       envelope.from,
       envelope.to,
       sender?.name || '',
-      sender?.address || envelope.from,
+      senderAddress,
       parsed.subject?.trim() || '(sans objet)',
       sentAt,
       new Date().toISOString(),
@@ -103,6 +109,9 @@ export async function storeIncomingEmail(
       parsed.references || null,
       parsed.text || '',
       rawObjectKey,
+      mailboxDomain,
+      mailboxDomain,
+      senderAddress,
     ),
     ...attachmentRows.map(attachment => bindings.DB.prepare(`
       INSERT OR IGNORE INTO attachments (
