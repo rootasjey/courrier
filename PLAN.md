@@ -2,13 +2,14 @@
 
 ## Avancement
 
-- **Jalon 0 — vérification préalable (vérifié le 30 septembre 2026) :** Email Routing est déjà activé pour `verbatims.cc` et ses enregistrements MX Cloudflare sont présents. Deux règles actives (`support@verbatims.cc` et `francis@verbatims.cc`) transfèrent vers l’adresse de destination vérifiée du compte `codingbox.fr`. Le catch-all `Drop` est désactivé et le tableau de bord indique 0 email reçu sur les 7 derniers jours. Aucun réglage n’a été modifié. Avant toute réception dans Courrier, choisir une adresse dédiée et vérifier qu’elle ne chevauche pas un usage existant ; préserver les transferts actuels.
-- **Continuité de service :** remplacer les transferts adresse par adresse. Pendant une période pilote, Courrier stocke chaque message et le relaie aussi vers la destination actuelle. Retirer le relais historique d’une adresse seulement après validation de la réception, de l’affichage et de la conservation dans Courrier.
-- **Handler de réception local :** `worker.ts` délègue les requêtes HTTP à Nuxt/Nitro et expose directement le handler Cloudflare `email()`. Le relais de migration est optionnel via `COURRIER_LEGACY_FORWARD_TO`. En simulation Wrangler, le `.eml` de démonstration a été stocké dans D1/R2 local puis relayé vers une destination de test ; la route HTTP Nuxt répond aussi `200`. Une vraie adresse et le chemin d’échec restent à valider avant toute bascule réelle. Aucun routage Cloudflare n’a été modifié.
+- **Jalon 0 — vérification préalable (vérifié le 30 septembre 2026) :** Email Routing et les enregistrements MX Cloudflare sont actifs pour `verbatims.cc`. Les règles historiques `support@verbatims.cc` et `francis@verbatims.cc` continuent de transférer vers `codingbox.fr`. Une règle dédiée `courrier-test@verbatims.cc` dirige les messages vers le Worker `courrier` ; le handler les stocke et les relaie vers la destination historique tant que `COURRIER_LEGACY_FORWARD_TO` est configuré. Les règles historiques n’ont pas été modifiées.
+- **Jalon 2 — réception réelle (partiellement validé le 30 septembre 2026) :** deux messages de test ont été reçus par Cloudflare, traités par le Worker, affichés dans l’interface de production et relayés vers HEY. Le journal Email Routing indique `Handled` et `Forwarded` pour les deux ; l’arrivée du second relais dans HEY a été confirmée. Les originaux sont conservés dans R2 et les métadonnées/parsing dans D1. Les pièces jointes réelles, les réémissions avec le même `Message-ID` et le comportement en cas d’échec restent à vérifier avant de retirer le relais.
+- **Continuité de service :** maintenir le relais vers `codingbox.fr` pendant la validation. Ensuite, retirer le relais pour l’adresse pilote seulement après les vérifications de réception, d’affichage, de conservation, des pièces jointes et de déduplication ; conserver les deux règles historiques tant que leurs adresses ne sont pas migrées séparément.
+- **Handler de réception :** `worker.ts` délègue les requêtes HTTP à Nuxt/Nitro et expose directement le handler Cloudflare `email()`. Le relais de migration est optionnel via `COURRIER_LEGACY_FORWARD_TO`. La simulation Wrangler du `.eml` de démonstration et deux réceptions réelles ont été validées. Le chemin nominal est confirmé ; le chemin d’échec et la déduplication lors d’une réémission réelle restent à valider.
 - **Jalon 1 — socle :** application Nuxt locale opérationnelle ; un `.eml` synthétique passe par PostalMime, est conservé dans D1/R2 locaux et apparaît dans l’Imbox avec sa pièce jointe.
 - **Jalon sécurité — Cloudflare Access :** Zero Trust Free est actif (0 $/mois, jusqu’à 50 utilisateurs). Une règle Worker protège tout le trafic de production et de prévisualisation de `courrier`, avec la politique « Cloudflare account members ». Après le déploiement final, `/api/messages` renvoie `200`, `[]` et `Cache-Control: private, no-store` avec une session valide ; sans cookie, `GET /` et `GET /api/messages` renvoient `403`.
 - **Jalon sécurité — code :** les routes `/api/*` exigent une identité Cloudflare Access et désactivent la mise en cache. Le code utilise le contexte natif quand il est disponible, sinon vérifie cryptographiquement le JWT `Cf-Access-Jwt-Assertion` avec `jose`, l’émetteur et l’AUD de l’application. Ce second chemin est nécessaire car le routeur interne des Workers Static Assets ne transmet pas `ctx.access` au Worker applicatif.
-- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds. Le push initial `d2baf23` a créé le Worker `https://courrier.jerem-dev.workers.dev`, D1 `courrier-db` et R2 `courrier-mail-store`, avec les tables `messages` et `attachments`. Après la correction de compatibilité Access, le commit `dcd048c` a été automatiquement déployé en version `111c7137`. Aucune réception réelle n’est activée.
+- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds. La branche `main` déploie le Worker `https://courrier.jerem-dev.workers.dev`, D1 `courrier-db` et R2 `courrier-mail-store` ; le schéma contient `messages` et `attachments`. Le Worker est protégé par Cloudflare Access. Email Routing dirige maintenant l’adresse d’essai dédiée vers ce Worker.
 
 ## Intention
 
@@ -43,7 +44,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 ## Vérification sécurité après déploiement
 
 - Après chaque changement du garde-fou, vérifier le build Workers Builds, l’accès authentifié à `/api/messages`, le refus d’une requête sans JWT et `Cache-Control: private, no-store`.
-- Ne configurer aucune réception réelle avant d’avoir revu les règles de transfert et l’usage actuel de `verbatims.cc`.
+- Ne pas étendre la réception à d’autres adresses avant d’avoir validé les pièces jointes, la déduplication et le chemin d’échec du pilote.
 
 ## Étapes et critères d’acceptation
 
@@ -53,7 +54,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 - Choisir une adresse dédiée d’essai et vérifier qu’une règle Email Routing vers le Worker Courrier peut remplacer son transfert actuel sans changer les MX ni interrompre la remise : stockage dans Courrier et relais temporaire vers la destination historique.
 - Clarifier le premier parcours : recevoir un email, l’afficher, puis répondre ou seulement l’afficher.
 
-**Critère de sortie :** l’usage existant est compris ; une adresse d’essai dédiée est choisie ; le comportement d’échec du handler est validé ; la règle ciblée peut stocker dans Courrier tout en conservant la remise historique pendant le pilote. Les MX sont déjà configurés pour Cloudflare Email Routing et ne doivent pas être modifiés pour ce jalon sans raison vérifiée.
+**Critère de sortie :** validé pour l’adresse dédiée `courrier-test@verbatims.cc` ; les MX n’ont pas été modifiés.
 
 ### 1. Socle du projet
 
@@ -71,7 +72,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 - Dédupliquer par identifiant de message et conserver le destinataire reçu, pour distinguer plusieurs domaines dans une même boîte.
 - Pendant le pilote, configurer `COURRIER_LEGACY_FORWARD_TO` pour relayer les messages vers la destination historique.
 
-**Critère de sortie :** un message réel envoyé à l’adresse d’essai apparaît dans Courrier avec expéditeur, destinataire, date, sujet, corps et pièces jointes lisibles, et continue d’être remis à la destination historique pendant le pilote. Le transfert historique est retiré pour cette adresse après validation.
+**Critère de sortie :** réception, relais, stockage du message et affichage des champs principaux validés avec deux messages réels. À compléter : test d’une pièce jointe réelle, vérification d’une réémission pour le même `Message-ID`, et contrôle du chemin d’échec. Le relais reste actif jusqu’à validation de ces points.
 
 ### 3. Boîte utile au quotidien
 

@@ -29,6 +29,12 @@ const theme = ref<'system' | 'light' | 'dark'>('system')
 const isDevelopment = import.meta.dev
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
+const dateLabel = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'Europe/Paris',
+}).format(new Date()).replace(' ', ' · ').toLocaleUpperCase('fr')
 
 const { data: inboxMessages, refresh: refreshMessages } = await useFetch<InboxMessage[]>('/api/messages', {
   default: () => [],
@@ -119,7 +125,7 @@ useSeoMeta({
         <span class="account-icon" aria-hidden="true">v.</span>
         <span class="account-copy">
           <span class="account-name">verbatims.cc</span>
-          <span class="account-address">adresse d’essai à définir</span>
+          <span class="account-address">courrier-test@verbatims.cc</span>
         </span>
         <span class="chevron" aria-hidden="true">⌄</span>
       </button>
@@ -147,7 +153,8 @@ useSeoMeta({
       <div class="sidebar-bottom">
         <div class="storage-note">
           <span class="storage-dot" aria-hidden="true" />
-          <span>Prototype local<br><strong>aucune boîte connectée</strong></span>
+          <span v-if="isDevelopment">Prototype local<br><strong>stockage de test</strong></span>
+          <span v-else>Réception pilote<br><strong>Cloudflare · relais HEY</strong></span>
         </div>
         <button class="settings-link" type="button" disabled>
           <span aria-hidden="true">⚙</span>
@@ -163,10 +170,10 @@ useSeoMeta({
 
     <section class="message-column" aria-label="Liste des conversations">
       <header class="column-header">
-        <div class="eyebrow">LUNDI · 28 SEPTEMBRE</div>
+        <div class="eyebrow">{{ dateLabel }}</div>
         <div class="heading-row">
           <h1>{{ activeFolder }}</h1>
-          <button class="compose-button" type="button" disabled title="La rédaction sera ajoutée après la réception des messages">
+          <button class="compose-button" type="button" disabled title="L’envoi sera ajouté après stabilisation de la réception">
             <span aria-hidden="true">＋</span> Écrire
           </button>
         </div>
@@ -198,7 +205,7 @@ useSeoMeta({
       </nav>
 
       <div class="list-caption">
-        <span>{{ visibleMessages.length }} conversation{{ visibleMessages.length > 1 ? 's' : '' }}</span>
+        <span>{{ visibleMessages.length }} message{{ visibleMessages.length > 1 ? 's' : '' }}</span>
           <button type="button" class="sort-button" disabled>Plus récent <span aria-hidden="true">⌄</span></button>
       </div>
 
@@ -235,7 +242,9 @@ useSeoMeta({
         <span v-if="fixtureError" class="fixture-error" role="alert">{{ fixtureError }}</span>
       </div>
 
-      <div class="demo-note"><span class="demo-dot" /> Stockage local · aucune boîte connectée</div>
+      <div class="demo-note"><span class="demo-dot" />
+        {{ isDevelopment ? 'Données de test locales' : 'Réception réelle · copie relayée vers HEY' }}
+      </div>
     </section>
 
     <section class="reading-column" aria-label="Message sélectionné">
@@ -274,12 +283,14 @@ useSeoMeta({
               <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
             </span>
           </div>
-          <div class="signature">Message conservé dans le prototype local.</div>
+          <div class="signature">
+            {{ isDevelopment ? 'Message conservé dans le stockage de test local.' : 'Message et pièces jointes conservés dans Cloudflare.' }}
+          </div>
         </div>
 
         <div class="reply-placeholder">
           <span class="reply-icon" aria-hidden="true">↩</span>
-          <span>La réponse arrivera après la réception réelle.</span>
+          <span>L’envoi sera ajouté après stabilisation de la réception.</span>
           <span class="reply-shortcut">R</span>
         </div>
       </div>
@@ -287,7 +298,7 @@ useSeoMeta({
       <div v-else class="reading-empty">
         <div class="envelope-art" aria-hidden="true"><span /></div>
         <h2>Votre courrier prendra place ici.</h2>
-        <p>On commence par recevoir un premier message sur verbatims.cc. Il apparaîtra ensuite dans cette colonne.</p>
+        <p>Les messages reçus à courrier-test@verbatims.cc apparaîtront ici.</p>
         <span class="postmark">EN ATTENTE<br><strong>VERBATIMS.CC</strong></span>
       </div>
     </section>
