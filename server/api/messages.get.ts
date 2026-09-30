@@ -1,4 +1,5 @@
 import type { MailStorageBindings } from '../utils/mail-store'
+import { getThreadIds } from '../utils/threading'
 
 type MessageRow = {
   id: string
@@ -14,6 +15,10 @@ type MessageRow = {
   received_at: string
   text_body: string
   raw_object_key: string
+  message_id: string
+  in_reply_to: string | null
+  references_header: string | null
+  mailbox_domain: string
 }
 
 type AttachmentRow = {
@@ -33,7 +38,8 @@ export default defineEventHandler(async (event) => {
     SELECT messages.id, messages.envelope_from, messages.envelope_to,
       messages.sender_name, messages.sender_address, messages.subject,
       messages.sent_at, messages.received_at, messages.text_body, messages.is_read,
-      messages.raw_object_key, messages.folder,
+      messages.raw_object_key, messages.folder, messages.message_id,
+      messages.in_reply_to, messages.references_header, messages.mailbox_domain,
       CASE WHEN sender_rules.sender_address IS NULL THEN 0 ELSE 1 END AS has_sender_rule
     FROM messages
     LEFT JOIN sender_rules
@@ -41,6 +47,7 @@ export default defineEventHandler(async (event) => {
       AND sender_rules.sender_address = lower(trim(messages.sender_address))
     ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
   `).all<MessageRow>()
+  const threadIds = getThreadIds(results)
 
   return Promise.all(results.map(async (message) => {
     const attachmentResult = await bindings.DB.prepare(`
@@ -52,11 +59,13 @@ export default defineEventHandler(async (event) => {
 
     return {
       id: message.id,
+      threadId: threadIds.get(message.id) || message.id,
       sender: message.sender_name || message.sender_address || message.envelope_from,
       address: message.sender_address || message.envelope_from,
       subject: message.subject,
       preview: message.text_body.replace(/\s+/g, ' ').trim().slice(0, 180),
       body: message.text_body,
+      timestamp: new Date(message.sent_at || message.received_at).toISOString(),
       date: new Intl.DateTimeFormat('fr-FR', {
         hour: '2-digit',
         minute: '2-digit',
