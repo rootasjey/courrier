@@ -1,25 +1,39 @@
 <script setup lang="ts">
 import AppTopbar from '~/components/AppTopbar.vue'
-
-type Folder = 'Screener' | 'Imbox' | 'The Feed' | 'Paper Trail'
-
-const folders: { name: Folder, description: string }[] = [
-  { name: 'Screener', description: 'Nouveaux expéditeurs' },
-  { name: 'Imbox', description: 'À lire et à traiter' },
-  { name: 'The Feed', description: 'Newsletters et lectures' },
-  { name: 'Paper Trail', description: 'Reçus et confirmations' },
-]
+import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/utils/mailbox-routing'
 
 const route = useRoute()
 const router = useRouter()
-const activeFolder = useState<Folder>('courrier-active-folder', () => 'Imbox')
-const search = useState('courrier-search', () => '')
+const activeFolder = computed(() => mailboxFromPath(route.path))
+const search = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 
-function selectFolder(folder: Folder) {
-  activeFolder.value = folder
-  search.value = ''
-  if (route.path !== '/') void router.push('/')
+function selectFolder(folder: MailboxKey) {
+  const destination = mailboxPath(folder)
+  if (route.path !== destination) void router.push(destination)
+}
+
+function updateSearch(value: string) {
+  if (!route.path.startsWith('/mail/')) return
+  const query = { ...route.query }
+  if (value.trim()) query.q = value
+  else delete query.q
+
+  if (value !== search.value) {
+    void router.replace({ path: route.path, query })
+  }
+}
+
+const backTo = computed(() => mailboxPath(activeFolder.value))
+const showSearch = computed(() => route.path.startsWith('/mail/'))
+const folderOptions = mailboxes.map(mailbox => ({ ...mailbox }))
+
+function shortcutFolder(key: string, code: string, shiftKey: boolean): MailboxKey | undefined {
+  if (!shiftKey) {
+    return ({ '0': 'Screener', '1': 'Imbox', '2': 'The Feed', '3': 'Paper Trail' } as Record<string, MailboxKey>)[key]
+  }
+
+  return ({ Digit1: 'Imbox', Digit2: 'The Feed', Digit3: 'Paper Trail' } as Partial<Record<string, MailboxKey>>)[code]
 }
 
 function applyTheme(preference: 'system' | 'light' | 'dark') {
@@ -42,27 +56,14 @@ function handleGlobalShortcut(event: KeyboardEvent) {
 
   if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
     event.preventDefault()
-    if (route.path !== '/') void router.push('/')
+    if (!showSearch.value) void router.push(mailboxPath(activeFolder.value))
     requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#mail-search')?.focus())
     return
   }
 
   if (event.metaKey || event.ctrlKey || event.altKey || isTyping || isDialogOpen) return
 
-  const unshiftedFolders: Record<string, Folder> = {
-    '0': 'Screener',
-    '1': 'Imbox',
-    '2': 'The Feed',
-    '3': 'Paper Trail',
-  }
-  const azertyNumberRowFolders: Partial<Record<string, Folder>> = {
-    Digit1: 'Imbox',
-    Digit2: 'The Feed',
-    Digit3: 'Paper Trail',
-  }
-  const folder = event.shiftKey
-    ? azertyNumberRowFolders[event.code]
-    : unshiftedFolders[event.key]
+  const folder = shortcutFolder(event.key, event.code, event.shiftKey)
   if (!folder) return
 
   event.preventDefault()
@@ -93,11 +94,12 @@ watch(theme, (value) => {
 <template>
   <div class="app-shell">
     <AppTopbar
-      :folders="folders"
+      :folders="folderOptions"
       :active-folder="activeFolder"
       :search="search"
-      :show-search="route.path === '/'"
-      @update:search="search = $event"
+      :show-search="showSearch"
+      :back-to="backTo"
+      @update:search="updateSearch"
       @select-folder="selectFolder"
     />
     <NuxtPage />

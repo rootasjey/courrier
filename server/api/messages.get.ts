@@ -48,6 +48,19 @@ export default defineEventHandler(async (event) => {
     ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
   `).all<MessageRow>()
   const threadIds = getThreadIds(results)
+  const threadRouteIds = new Map<string, string>()
+  const messagesById = new Map(results.map(message => [message.id, message]))
+
+  for (const message of results) {
+    const threadRoot = threadIds.get(message.id) || message.id
+    const existingMessage = messagesById.get(threadRouteIds.get(threadRoot) ?? '')
+    const timestamp = new Date(message.sent_at || message.received_at).getTime()
+    const existingTimestamp = existingMessage
+      ? new Date(existingMessage.sent_at || existingMessage.received_at).getTime()
+      : Number.POSITIVE_INFINITY
+
+    if (timestamp < existingTimestamp) threadRouteIds.set(threadRoot, message.id)
+  }
 
   return Promise.all(results.map(async (message) => {
     const attachmentResult = await bindings.DB.prepare(`
@@ -59,7 +72,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       id: message.id,
-      threadId: threadIds.get(message.id) || message.id,
+      threadId: threadRouteIds.get(threadIds.get(message.id) || message.id) || message.id,
       sender: message.sender_name || message.sender_address || message.envelope_from,
       address: message.sender_address || message.envelope_from,
       subject: message.subject,

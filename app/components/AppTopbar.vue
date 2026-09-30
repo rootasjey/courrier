@@ -1,16 +1,17 @@
 <script setup lang="ts">
-type Folder = 'Screener' | 'Imbox' | 'The Feed' | 'Paper Trail'
+import type { MailboxKey } from '~/utils/mailbox-routing'
 
 const props = defineProps<{
-  folders: { name: Folder, description: string }[]
-  activeFolder: Folder
+  folders: { name: MailboxKey, label: string, slug: string, description: string }[]
+  activeFolder: MailboxKey
   search: string
   showSearch: boolean
+  backTo: string
 }>()
 
 const emit = defineEmits<{
   'update:search': [value: string]
-  'select-folder': [folder: Folder]
+  'select-folder': [folder: MailboxKey]
 }>()
 
 const menu = ref<HTMLDetailsElement | null>(null)
@@ -21,7 +22,7 @@ const searchValue = computed({
   set: (value: string) => emit('update:search', value),
 })
 
-function chooseFolder(folder: Folder) {
+function chooseFolder(folder: MailboxKey) {
   emit('select-folder', folder)
   if (menu.value) menu.value.open = false
 }
@@ -51,7 +52,7 @@ onUnmounted(() => window.removeEventListener('keydown', closeMenuOnEscape))
         <span class="sr-only">Rechercher dans la boîte</span>
         <input ref="searchInput" id="mail-search" v-model="searchValue" type="search" placeholder="Rechercher" autocomplete="off">
       </div>
-      <NuxtLink v-else class="topbar-back" to="/">Retour à la boîte</NuxtLink>
+      <NuxtLink v-else class="topbar-back" :to="backTo">Retour à la boîte</NuxtLink>
     </div>
 
     <details ref="menu" class="brand-menu">
@@ -71,7 +72,7 @@ onUnmounted(() => window.removeEventListener('keydown', closeMenuOnEscape))
           :aria-current="activeFolder === folder.name ? 'page' : undefined"
           @click="chooseFolder(folder.name)"
         >
-          <span>{{ folder.name }}</span>
+          <span>{{ folder.label }}</span>
           <span v-if="folder.name === 'Screener'" class="menu-folder-note">{{ folder.description }}</span>
         </button>
         <div class="menu-divider" />
