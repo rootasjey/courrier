@@ -8,6 +8,7 @@
     "dev": "nuxt dev",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "generate": "nuxt generate",
+    "test:email": "node --experimental-strip-types --test tests/email-handler.test.ts",
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
     "deploy": "npm run build && wrangler deploy && wrangler d1 migrations apply DB --remote",
