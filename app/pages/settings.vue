@@ -17,6 +17,20 @@
           </select>
         </label>
       </section>
+
+      <section class="settings-section" aria-labelledby="export-heading">
+        <div class="settings-section-copy">
+          <h2 id="export-heading">Exporter tes données</h2>
+          <p>Télécharge une copie portable des emails conservés dans Courrier.</p>
+        </div>
+        <div class="settings-export-row">
+          <p>L’archive contient les emails originaux, les pièces jointes intégrées et les classements Courrier.</p>
+          <a class="settings-export-button" href="/api/export" download>
+            Télécharger l’archive
+            <span aria-hidden="true">↓</span>
+          </a>
+        </div>
+      </section>
     </div>
   </main>
 </template>

@@ -265,6 +265,11 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .settings-section-copy p { margin: 0; color: var(--muted); font-size: 14px; }
 .settings-select-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 64px; border-top: 1px solid var(--line); color: var(--ink); font-size: 14px; }
 .settings-select-row select { min-width: 150px; padding: 9px 34px 9px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink); }
+.settings-export-row { display: flex; align-items: center; justify-content: space-between; gap: 22px; min-height: 76px; border-top: 1px solid var(--line); }
+.settings-export-row > p { max-width: 440px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.settings-export-button { display: inline-flex; align-items: center; gap: 14px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 12px; font-weight: 620; text-decoration: none; white-space: nowrap; transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease; }
+.settings-export-button:hover { border-color: #c9bfff; background: var(--violet-wash); transform: translateY(-1px); }
+.settings-export-button span { color: var(--violet); font-size: 18px; line-height: 1; }
 
 /* UnaUI dialog for sender classification */
 .dialog-overlay.dialog-overlay { position: fixed; inset: 0; z-index: 50; background: rgb(24 19 39 / 44%); }
@@ -406,6 +411,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .settings-content > h1 { margin-bottom: 35px; font-size: 36px; }
   .settings-select-row { min-height: 58px; font-size: 13px; }
   .settings-select-row select { min-width: 125px; }
+  .settings-export-row { align-items: flex-start; flex-direction: column; justify-content: center; padding: 15px 0; }
   .dialog-content.classification-dialog { max-height: calc(100dvh - 24px); padding: 24px 19px 19px; }
 }
 
