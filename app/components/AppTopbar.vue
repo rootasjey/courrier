@@ -5,8 +5,17 @@
         <button class="mobile-search-toggle" type="button" aria-label="Rechercher" @click="openMobileSearch">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.2 4.2" /></svg>
         </button>
-        <span class="sr-only">Rechercher dans la boîte</span>
+        <span class="sr-only">Rechercher dans les messages</span>
         <input ref="searchInput" id="mail-search" v-model="searchValue" type="search" placeholder="Rechercher" autocomplete="off">
+        <NTooltip v-if="searchExceedsLimit" :content="searchWarningMessage">
+          <button class="search-warning" type="button" :aria-label="searchWarningMessage">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M8.8 3.3a1.4 1.4 0 0 1 2.4 0l6.1 10.6a1.4 1.4 0 0 1-1.2 2.1H3.9a1.4 1.4 0 0 1-1.2-2.1z" />
+              <path d="M10 7v4" />
+              <circle cx="10" cy="13.7" r=".6" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        </NTooltip>
       </div>
       <NuxtLink v-else class="topbar-back" :to="backTo">Retour à la boîte</NuxtLink>
     </div>
@@ -67,6 +76,8 @@ const searchValue = computed({
   get: () => props.search,
   set: (value: string) => emit('update:search', value),
 })
+const searchExceedsLimit = computed(() => searchValue.value.trim().length > 200)
+const searchWarningMessage = 'La recherche est limitée aux 200 premiers caractères. La suite est ignorée.'
 
 function chooseFolder(folder: MailboxKey) {
   emit('select-folder', folder)

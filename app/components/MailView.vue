@@ -2,7 +2,7 @@
   <main class="mail-page">
     <section v-if="!isReadingMessage" class="mailbox-view" aria-label="Boîte de réception">
       <header class="inbox-heading">
-        <div class="heading-actions">
+      <div v-if="!isGlobalSearch" class="heading-actions">
           <template v-if="activeFolder === 'Screener'">
             <div class="screener-header-actions">
               <button class="screener-help-trigger" type="button" aria-label="Afficher les raccourcis du Screener" title="Raccourcis clavier (?)" @click="screenerShortcutHelpOpen = true">?</button>
@@ -27,7 +27,7 @@
             </button>
           </template>
         </div>
-        <h1>{{ mailboxByName(activeFolder).label }}</h1>
+        <h1>{{ isGlobalSearch ? 'Recherche' : mailboxByName(activeFolder).label }}</h1>
         <p v-if="activeFolder === 'Screener'" class="screener-intro">
           « Non » bloque l’adresse et rejette ses prochains messages. « Clear all » écarte ceux déjà reçus sans bloquer leurs expéditeurs.
         </p>
@@ -49,6 +49,40 @@
           {{ isRefreshingInbox ? 'Chargement…' : 'Réessayer' }}
         </button>
       </div>
+
+      <section v-else-if="isGlobalSearch" class="search-results" aria-label="Résultats de recherche">
+        <p class="search-results-summary" aria-live="polite">
+          <span v-if="searchLoading">Recherche en cours…</span>
+          <span v-else>{{ searchTotal }} message{{ searchTotal > 1 ? 's' : '' }} trouvé{{ searchTotal > 1 ? 's' : '' }} · {{ globalSearchThreads.length }} fil{{ globalSearchThreads.length > 1 ? 's' : '' }} affiché{{ globalSearchThreads.length > 1 ? 's' : '' }}</span>
+        </p>
+        <p v-if="searchExceedsLimit" class="search-limit-notice" role="status">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M8.8 3.3a1.4 1.4 0 0 1 2.4 0l6.1 10.6a1.4 1.4 0 0 1-1.2 2.1H3.9a1.4 1.4 0 0 1-1.2-2.1z" />
+            <path d="M10 7v4" />
+            <circle cx="10" cy="13.7" r=".6" fill="currentColor" stroke="none" />
+          </svg>
+          <span>La recherche est limitée aux 200 premiers caractères. La suite est ignorée.</span>
+        </p>
+        <p v-if="searchError" class="search-error" role="alert">{{ searchError }}</p>
+        <p v-else-if="searchLoading && !globalSearchThreads.length" class="search-empty">Recherche dans les messages…</p>
+        <p v-else-if="!globalSearchThreads.length" class="search-empty">Aucun message ne correspond à « {{ search.trim() }} ».</p>
+        <div v-else class="thread-list search-result-list" role="list">
+          <div v-for="thread in globalSearchThreads" :key="thread.id" role="listitem">
+            <button class="thread-row search-result-row" type="button" @click="openMessage(thread.latest)">
+              <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+              <span class="thread-content">
+                <span class="thread-subject">{{ thread.latest.subject }}</span>
+                <span class="thread-preview"><span class="search-folder-label">{{ mailboxByName(thread.latest.folder).label }}</span><span aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.snippet || thread.latest.preview }}</span>
+              </span>
+              <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
+              <time class="thread-date">{{ thread.latest.date }}</time>
+            </button>
+          </div>
+        </div>
+        <button v-if="searchHasMore" class="search-load-more" type="button" :disabled="searchLoading" @click="loadMoreSearchResults">
+          {{ searchLoading ? 'Chargement…' : 'Afficher plus de résultats' }}
+        </button>
+      </section>
 
       <div v-else-if="activeFolder === 'Screener'" class="thread-list screener-list" role="list" aria-label="Expéditeurs à classer">
         <div class="screener-list-tools">
@@ -514,10 +548,23 @@ type MessageThread = {
   unreadCount: number
 }
 
+type SearchHit = {
+  id: string
+  folder: Folder
+  threadId: string
+  snippet: string
+}
+
+type SearchThread = MessageThread & {
+  snippet: string
+}
+
 const folders = mailboxes
 const route = useRoute()
 const router = useRouter()
 const activeFolder = computed(() => mailboxFromPath(route.path))
+const isGlobalSearch = computed(() => Boolean(search.value.trim()) && activeFolder.value !== 'Screener' && activeFolder.value !== 'Trash')
+const searchExceedsLimit = computed(() => search.value.trim().length > 200)
 const search = computed({
   get: () => typeof route.query.q === 'string' ? route.query.q : '',
   set: (value: string) => {
@@ -529,6 +576,14 @@ const search = computed({
 })
 const selectedId = computed(() => threadIdFromPath(route.path))
 const isReadingMessage = computed(() => Boolean(selectedId.value))
+const searchResults = ref<SearchHit[]>([])
+const searchTotal = ref(0)
+const searchOffset = ref(0)
+const searchHasMore = ref(false)
+const searchLoading = ref(Boolean(isGlobalSearch.value))
+const searchError = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let searchRevision = 0
 const openedFromList = ref(false)
 const classificationTarget = ref<InboxMessage | null>(null)
 const classificationScope = ref<'sender' | 'message'>('sender')
@@ -560,6 +615,25 @@ const { data: inboxMessages, refresh: refreshMessages, error: inboxMessagesError
   default: () => [],
 })
 
+watch([search, activeFolder], () => {
+  if (!import.meta.client) return
+  searchRevision += 1
+  if (searchTimer) clearTimeout(searchTimer)
+  searchResults.value = []
+  searchTotal.value = 0
+  searchOffset.value = 0
+  searchHasMore.value = false
+  searchError.value = ''
+
+  if (!isGlobalSearch.value) {
+    searchLoading.value = false
+    return
+  }
+
+  searchLoading.value = true
+  searchTimer = setTimeout(() => { void loadSearchPage(true) }, 240)
+}, { immediate: true })
+
 const folderMessages = computed(() => {
   return (inboxMessages.value ?? []).filter(message => message.folder === activeFolder.value)
 })
@@ -583,8 +657,38 @@ const visibleThreads = computed(() => {
   if (!query) return folderThreads.value
 
   return folderThreads.value.filter(thread => thread.messages.some(message =>
-    `${message.sender} ${message.subject} ${message.preview}`.toLocaleLowerCase('fr').includes(query),
+    `${message.sender} ${message.subject} ${message.body}`.toLocaleLowerCase('fr').includes(query),
   ))
+})
+
+const globalSearchThreads = computed<SearchThread[]>(() => {
+  const messages = inboxMessages.value ?? []
+  const messagesById = new Map(messages.map(message => [message.id, message]))
+  const groups = new Map<string, { latest: InboxMessage, messages: InboxMessage[], snippet: string }>()
+
+  for (const hit of searchResults.value) {
+    const matchedMessage = messagesById.get(hit.id)
+    if (!matchedMessage) continue
+
+    const key = `${hit.folder}\u0000${hit.threadId}`
+    const existing = groups.get(key)
+    if (existing) continue
+
+    const threadMessages = messages.filter(message => message.folder === hit.folder && message.threadId === hit.threadId)
+    groups.set(key, {
+      latest: matchedMessage,
+      messages: threadMessages,
+      snippet: hit.snippet,
+    })
+  }
+
+  return [...groups.entries()].map(([id, group]) => ({
+    id,
+    messages: group.messages,
+    latest: group.latest,
+    unreadCount: group.messages.filter(message => !message.isRead).length,
+    snippet: group.snippet,
+  }))
 })
 
 const newThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount > 0))
@@ -630,7 +734,7 @@ const screenerSenders = computed(() => {
   if (!query) return allScreenerSenders.value
 
   return allScreenerSenders.value.filter(({ address, latest }) =>
-    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
+    `${address} ${latest.sender} ${latest.subject} ${latest.body}`.toLocaleLowerCase('fr').includes(query),
   )
 })
 
@@ -639,7 +743,7 @@ const visibleScreenerHistory = computed(() => {
   if (!query) return screenerHistorySenders.value
 
   return screenerHistorySenders.value.filter(({ address, latest }) =>
-    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
+    `${address} ${latest.sender} ${latest.subject} ${latest.body}`.toLocaleLowerCase('fr').includes(query),
   )
 })
 
@@ -944,11 +1048,11 @@ function openMessage(message: InboxMessage) {
   messageReadError.value = ''
   resetThreadPresentation(message.id)
   void router.push({
-    path: threadPath(activeFolder.value, message.threadId),
+    path: threadPath(message.folder, message.threadId),
     query: { ...route.query, message: message.id },
   })
 
-  const unread = folderMessages.value.filter(item => item.threadId === message.threadId && !item.isRead)
+  const unread = (inboxMessages.value ?? []).filter(item => item.folder === message.folder && item.threadId === message.threadId && !item.isRead)
   if (!unread.length) return
 
   void Promise.allSettled(unread.map(async (item) => {
@@ -967,6 +1071,50 @@ function openMessage(message: InboxMessage) {
       messageReadError.value = 'Le fil est ouvert, mais certains états de lecture n’ont pas été enregistrés.'
     }
   })
+}
+
+async function loadSearchPage(reset = false) {
+  if (!isGlobalSearch.value) return
+
+  if (reset) {
+    searchResults.value = []
+    searchOffset.value = 0
+  }
+
+  const offset = reset ? 0 : searchOffset.value
+  const revision = ++searchRevision
+  searchLoading.value = true
+  searchError.value = ''
+
+  try {
+    const response = await $fetch<{
+      results: SearchHit[]
+      total: number
+      hasMore: boolean
+      nextOffset: number | null
+    }>('/api/search', {
+      query: { q: search.value.trim(), offset },
+    })
+
+    if (revision !== searchRevision) return
+
+    if (reset) searchResults.value = response.results
+    else {
+      const knownIds = new Set(searchResults.value.map(result => result.id))
+      searchResults.value = [...searchResults.value, ...response.results.filter(result => !knownIds.has(result.id))]
+    }
+    searchTotal.value = response.total
+    searchHasMore.value = response.hasMore
+    searchOffset.value = response.nextOffset ?? offset + response.results.length
+  } catch {
+    if (revision === searchRevision) searchError.value = 'La recherche a échoué. Vérifie ta connexion et réessaie.'
+  } finally {
+    if (revision === searchRevision) searchLoading.value = false
+  }
+}
+
+function loadMoreSearchResults() {
+  if (searchHasMore.value && !searchLoading.value) void loadSearchPage()
 }
 
 function setMessageRead(message: InboxMessage, isRead: boolean) {
@@ -1243,6 +1391,8 @@ async function saveClassification() {
 
 onUnmounted(() => {
   if (undoTimer) clearTimeout(undoTimer)
+  if (searchTimer) clearTimeout(searchTimer)
+  searchRevision += 1
 })
 
 useSeoMeta({
