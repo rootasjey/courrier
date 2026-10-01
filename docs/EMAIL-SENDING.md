@@ -16,8 +16,12 @@ Le formulaire de réponse enregistre un brouillon dans D1. Chaque envoi passe pa
 - Si Cloudflare renvoie une erreur dont l’acceptation est incertaine, ou si Courrier ne peut pas terminer l’archivage après acceptation, le brouillon reste verrouillé en `sending`. Vérifier la boîte destinataire avant toute nouvelle tentative afin d’éviter un doublon.
 - Une réponse envoyée depuis la vue d’un message du Screener ou de la corbeille est refusée.
 
-## Vérification à effectuer avant la mise en production
+## Vérification de production
 
-Le domaine d’envoi est prêt côté tableau de bord, mais le nouveau binding et le parcours d’envoi de Courrier n’ont pas encore été déployés ni utilisés pour envoyer un email. Avant d’envoyer le premier message réel, ouvrir une réponse à un email de test reçu de Gmail, vérifier le brouillon et le destinataire, confirmer l’envoi, puis contrôler le message dans Gmail et le fil dans Courrier. Ne retirer aucun relais de réception pendant cette vérification.
+Le 2 octobre 2026, une réponse en texte seul a été envoyée depuis Courrier vers une boîte Gmail contrôlée. Elle est arrivée dans Gmail et apparaît dans Courrier comme le second message du fil. Gmail l’a rattachée à la conversation existante `Test Courrier 2` ; ce regroupement est cohérent avec les en-têtes de réponse, il ne s’agissait pas d’un nouveau fil autonome.
+
+Les détails du message dans Gmail indiquent `courrier-test@verbatims.cc` comme expéditeur, `verbatims.cc` comme domaine signataire, `cf-bounce.verbatims.cc` comme relais et un chiffrement TLS. Dans **Afficher l’original**, Gmail rapporte **SPF PASS** (IP `104.30.16.86`), **DKIM PASS** pour `verbatims.cc` et **DMARC PASS**. Ces résultats confirment l’authentification de ce message de test précis ; ils ne suffisent pas à établir la réputation du domaine ni la délivrabilité vers d’autres fournisseurs.
+
+L’allowlist des destinataires reste volontairement temporaire et limitée. Ne retirer aucun relais de réception pendant cette vérification. Avant d’élargir l’envoi, vérifier le comportement des rejets et observer la réputation du domaine sur plusieurs livraisons contrôlées.
 
 Références Cloudflare : [Workers API](https://developers.cloudflare.com/email-service/api/send-emails/workers-api/), [restrictions de binding](https://developers.cloudflare.com/email-service/configuration/send-bindings/), [en-têtes pris en charge](https://developers.cloudflare.com/email-service/reference/headers/).
