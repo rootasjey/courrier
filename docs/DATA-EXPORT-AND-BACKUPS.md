@@ -2,7 +2,7 @@
 
 Ce guide décrit comment Courrier conserve les emails, comment en télécharger une copie et ce que permettent les mécanismes de récupération actuels. Il s'adresse aux personnes qui utilisent ou déploient le projet.
 
-> **État du pilote (1 octobre 2026) :** l'export ZIP est disponible. Le miroir R2 quotidien est déployé, mais sa première exécution et un exercice de restauration restent à confirmer. Ne considère donc pas encore le miroir comme une sauvegarde éprouvée.
+> **État du pilote (1 octobre 2026) :** l’export ZIP est disponible. Le premier passage quotidien du miroir R2 a été constaté à 03:15 UTC. Un exercice manuel a aussi confirmé qu’un fichier `.eml` synthétique, récupéré du bucket de secours après suppression temporaire de sa source, pouvait être remis sous sa clé d’origine avec une empreinte identique. Les objets temporaires ont été nettoyés. Cet essai valide une restauration d’objet ; il ne valide pas une restauration complète de boîte ni la synchronisation automatique d’un objet synthétique par le cron.
 
 ## Où sont les données ?
 
