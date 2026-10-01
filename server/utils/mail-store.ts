@@ -11,6 +11,8 @@ export type IncomingEnvelope = {
   to: string
 }
 
+export type ParsedEmail = Awaited<ReturnType<typeof PostalMime.parse>>
+
 function flattenAddresses(value: Address | Address[] | undefined) {
   const addresses = value ? (Array.isArray(value) ? value : [value]) : []
   return addresses.flatMap((address) => 'group' in address && address.group
@@ -31,12 +33,39 @@ async function sha256(value: BufferSource) {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
+export function parseIncomingEmail(rawEmail: ArrayBuffer) {
+  return PostalMime.parse(rawEmail)
+}
+
+export function incomingSenderAddress(parsed: ParsedEmail, envelope: IncomingEnvelope) {
+  const sender = flattenAddresses(parsed.from)[0]
+  return (sender?.address || envelope.from).trim().toLocaleLowerCase('en-US')
+}
+
+export async function isBlockedSender(
+  parsed: ParsedEmail,
+  envelope: IncomingEnvelope,
+  bindings: Pick<MailStorageBindings, 'DB'>,
+) {
+  const mailboxDomain = envelope.to.trim().split('@').at(-1)?.toLocaleLowerCase('en-US') || ''
+  const senderAddress = incomingSenderAddress(parsed, envelope)
+  if (!mailboxDomain || !senderAddress) return false
+
+  const blocked = await bindings.DB.prepare(`
+    SELECT 1 AS blocked FROM blocked_senders
+    WHERE mailbox_domain = ? AND sender_address = ?
+  `).bind(mailboxDomain, senderAddress).first<{ blocked: number }>()
+
+  return Boolean(blocked)
+}
+
 export async function storeIncomingEmail(
   rawEmail: ArrayBuffer,
   envelope: IncomingEnvelope,
   bindings: MailStorageBindings,
+  parsedEmail?: ParsedEmail,
 ) {
-  const parsed = await PostalMime.parse(rawEmail)
+  const parsed = parsedEmail ?? await parseIncomingEmail(rawEmail)
   const contentHash = await sha256(rawEmail)
   const messageId = parsed.messageId?.trim() || `<${contentHash}@courrier.local>`
   const existing = await bindings.DB
@@ -49,7 +78,7 @@ export async function storeIncomingEmail(
   const id = contentHash
   const rawObjectKey = `messages/${id}/original.eml`
   const sender = flattenAddresses(parsed.from)[0]
-  const senderAddress = (sender?.address || envelope.from).trim().toLocaleLowerCase('en-US')
+  const senderAddress = incomingSenderAddress(parsed, envelope)
   const mailboxDomain = envelope.to.trim().split('@').at(-1)?.toLocaleLowerCase('en-US') || ''
   const sentAt = parsed.date && !Number.isNaN(Date.parse(parsed.date))
     ? new Date(parsed.date).toISOString()

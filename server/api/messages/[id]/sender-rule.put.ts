@@ -79,7 +79,7 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       INSERT INTO sender_rule_change_messages (change_id, message_id, previous_folder)
       SELECT ?, id, folder FROM messages
-      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
+      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
     `).bind(changeId, message.mailbox_domain, message.sender_address),
     bindings.DB.prepare(`
       INSERT INTO sender_rules (
@@ -93,13 +93,13 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       UPDATE messages
       SET folder = ?
-      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
+      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
     `).bind(folder, message.mailbox_domain, message.sender_address),
   ])
 
   const { results } = await bindings.DB.prepare(`
     SELECT COUNT(*) AS count FROM messages
-    WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
+    WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
   `).bind(message.mailbox_domain, message.sender_address).all<{ count: number }>()
 
   return {

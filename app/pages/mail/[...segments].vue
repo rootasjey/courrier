@@ -1,3 +1,7 @@
+<template>
+  <MailView />
+</template>
+
 <script setup lang="ts">
 import MailView from '~/components/MailView.vue'
 import { mailboxBySlug, mailboxPath } from '~/utils/mailbox-routing'
@@ -12,7 +16,3 @@ if (!mailbox || (!isMailboxRoute && !isThreadRoute)) {
   await navigateTo(mailboxPath('Imbox'), { replace: true })
 }
 </script>
-
-<template>
-  <MailView />
-</template>

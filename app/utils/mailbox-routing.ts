@@ -1,15 +1,16 @@
-export type MailboxKey = 'Screener' | 'Imbox' | 'The Feed' | 'Paper Trail'
+export type MailboxKey = 'Screener' | 'Imbox' | 'The Feed' | 'Paper Trail' | 'Trash'
 
 export const mailboxes: {
   name: MailboxKey
-  label: 'Inbox' | 'Feed' | 'Paper' | 'Screener'
-  slug: 'inbox' | 'feed' | 'paper' | 'screener'
+  label: 'Inbox' | 'Feed' | 'Paper' | 'Screener' | 'Corbeille'
+  slug: 'inbox' | 'feed' | 'paper' | 'screener' | 'trash'
   description: string
 }[] = [
   { name: 'Screener', label: 'Screener', slug: 'screener', description: 'Nouveaux expéditeurs' },
   { name: 'Imbox', label: 'Inbox', slug: 'inbox', description: 'À lire et à traiter' },
   { name: 'The Feed', label: 'Feed', slug: 'feed', description: 'Newsletters et lectures' },
   { name: 'Paper Trail', label: 'Paper', slug: 'paper', description: 'Reçus et confirmations' },
+  { name: 'Trash', label: 'Corbeille', slug: 'trash', description: 'Messages mis de côté' },
 ]
 
 export function mailboxByName(name: MailboxKey) {

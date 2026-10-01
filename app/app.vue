@@ -1,3 +1,18 @@
+<template>
+  <div class="app-shell">
+    <AppTopbar
+      :folders="folderOptions"
+      :active-folder="activeFolder"
+      :search="search"
+      :show-search="showSearch"
+      :back-to="backTo"
+      @update:search="updateSearch"
+      @select-folder="selectFolder"
+    />
+    <NuxtPage />
+  </div>
+</template>
+
 <script setup lang="ts">
 import AppTopbar from '~/components/AppTopbar.vue'
 import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/utils/mailbox-routing'
@@ -90,18 +105,3 @@ watch(theme, (value) => {
   window.localStorage.setItem('courrier-theme', value)
 })
 </script>
-
-<template>
-  <div class="app-shell">
-    <AppTopbar
-      :folders="folderOptions"
-      :active-folder="activeFolder"
-      :search="search"
-      :show-search="showSearch"
-      :back-to="backTo"
-      @update:search="updateSearch"
-      @select-folder="selectFolder"
-    />
-    <NuxtPage />
-  </div>
-</template>

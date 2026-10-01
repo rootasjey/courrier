@@ -1,11 +1,3 @@
-<script setup lang="ts">
-const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
-
-useSeoMeta({
-  title: 'Réglages — Courrier',
-})
-</script>
-
 <template>
   <main class="settings-page">
     <div class="settings-content">
@@ -28,3 +20,11 @@ useSeoMeta({
     </div>
   </main>
 </template>
+
+<script setup lang="ts">
+const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
+
+useSeoMeta({
+  title: 'Réglages — Courrier',
+})
+</script>

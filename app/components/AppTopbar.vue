@@ -1,47 +1,3 @@
-<script setup lang="ts">
-import type { MailboxKey } from '~/utils/mailbox-routing'
-
-const props = defineProps<{
-  folders: { name: MailboxKey, label: string, slug: string, description: string }[]
-  activeFolder: MailboxKey
-  search: string
-  showSearch: boolean
-  backTo: string
-}>()
-
-const emit = defineEmits<{
-  'update:search': [value: string]
-  'select-folder': [folder: MailboxKey]
-}>()
-
-const menu = ref<HTMLDetailsElement | null>(null)
-const isSearchOpen = ref(false)
-const searchInput = ref<HTMLInputElement | null>(null)
-const searchValue = computed({
-  get: () => props.search,
-  set: (value: string) => emit('update:search', value),
-})
-
-function chooseFolder(folder: MailboxKey) {
-  emit('select-folder', folder)
-  if (menu.value) menu.value.open = false
-}
-
-function openMobileSearch() {
-  isSearchOpen.value = true
-  nextTick(() => searchInput.value?.focus())
-}
-
-function closeMenuOnEscape(event: KeyboardEvent) {
-  if (event.key === 'Escape' && menu.value?.open) {
-    menu.value.open = false
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', closeMenuOnEscape))
-onUnmounted(() => window.removeEventListener('keydown', closeMenuOnEscape))
-</script>
-
 <template>
   <header class="topbar">
     <div class="topbar-start">
@@ -87,3 +43,47 @@ onUnmounted(() => window.removeEventListener('keydown', closeMenuOnEscape))
     </div>
   </header>
 </template>
+
+<script setup lang="ts">
+import type { MailboxKey } from '~/utils/mailbox-routing'
+
+const props = defineProps<{
+  folders: { name: MailboxKey, label: string, slug: string, description: string }[]
+  activeFolder: MailboxKey
+  search: string
+  showSearch: boolean
+  backTo: string
+}>()
+
+const emit = defineEmits<{
+  'update:search': [value: string]
+  'select-folder': [folder: MailboxKey]
+}>()
+
+const menu = ref<HTMLDetailsElement | null>(null)
+const isSearchOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+const searchValue = computed({
+  get: () => props.search,
+  set: (value: string) => emit('update:search', value),
+})
+
+function chooseFolder(folder: MailboxKey) {
+  emit('select-folder', folder)
+  if (menu.value) menu.value.open = false
+}
+
+function openMobileSearch() {
+  isSearchOpen.value = true
+  nextTick(() => searchInput.value?.focus())
+}
+
+function closeMenuOnEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape' && menu.value?.open) {
+    menu.value.open = false
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', closeMenuOnEscape))
+onUnmounted(() => window.removeEventListener('keydown', closeMenuOnEscape))
+</script>

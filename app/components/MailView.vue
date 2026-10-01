@@ -1,515 +1,45 @@
-<script setup lang="ts">
-import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
-
-type Folder = MailboxKey
-type MailboxFolder = Exclude<Folder, 'Screener'>
-
-type InboxMessage = {
-  id: string
-  threadId: string
-  sender: string
-  address: string
-  subject: string
-  preview: string
-  date: string
-  timestamp: string
-  folder: Folder
-  hasSenderRule: boolean
-  isRead: boolean
-  initials: string
-  color: string
-  body: string
-  attachments: { id: string, filename: string, mimeType: string, sizeBytes: number }[]
-}
-
-type MessageThread = {
-  id: string
-  messages: InboxMessage[]
-  latest: InboxMessage
-  unreadCount: number
-}
-
-const folders = mailboxes
-const route = useRoute()
-const router = useRouter()
-const activeFolder = computed(() => mailboxFromPath(route.path))
-const search = computed({
-  get: () => typeof route.query.q === 'string' ? route.query.q : '',
-  set: (value: string) => {
-    const query = { ...route.query }
-    if (value.trim()) query.q = value
-    else delete query.q
-    if (value !== search.value) void router.replace({ path: route.path, query })
-  },
-})
-const selectedId = computed(() => threadIdFromPath(route.path))
-const isReadingMessage = computed(() => Boolean(selectedId.value))
-const openedFromList = ref(false)
-const classificationTarget = ref<InboxMessage | null>(null)
-const classificationScope = ref<'sender' | 'message'>('sender')
-const classificationFolder = ref<MailboxFolder>('Imbox')
-const isSavingClassification = ref(false)
-const isUndoingClassification = ref(false)
-const undoClassificationId = ref('')
-const classificationError = ref('')
-const classificationFeedback = ref('')
-const classificationActionError = ref('')
-const messageReadError = ref('')
-const isRefreshingInbox = ref(false)
-const isDevelopment = import.meta.dev
-const isImportingFixture = ref(false)
-const fixtureError = ref('')
-let undoTimer: ReturnType<typeof setTimeout> | undefined
-
-const { data: inboxMessages, refresh: refreshMessages, error: inboxMessagesError } = await useFetch<InboxMessage[]>('/api/messages', {
-  default: () => [],
-})
-
-const folderMessages = computed(() => {
-  return (inboxMessages.value ?? []).filter(message => message.folder === activeFolder.value)
-})
-
-const folderThreads = computed<MessageThread[]>(() => {
-  const threads = new Map<string, InboxMessage[]>()
-  for (const message of folderMessages.value) {
-    const messages = threads.get(message.threadId) ?? []
-    messages.push(message)
-    threads.set(message.threadId, messages)
-  }
-
-  return [...threads.entries()].map(([id, messages]) => {
-    messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    return { id, messages, latest: messages[0]!, unreadCount: messages.filter(message => !message.isRead).length }
-  })
-})
-
-const visibleThreads = computed(() => {
-  const query = search.value.trim().toLocaleLowerCase('fr')
-  if (!query) return folderThreads.value
-
-  return folderThreads.value.filter(thread => thread.messages.some(message =>
-    `${message.sender} ${message.subject} ${message.preview}`.toLocaleLowerCase('fr').includes(query),
-  ))
-})
-
-const newThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount > 0))
-const previouslySeenThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount === 0))
-
-const allScreenerSenders = computed(() => {
-  const senders = new Map<string, { address: string, latest: InboxMessage, count: number }>()
-
-  for (const message of (inboxMessages.value ?? []).filter(message => message.folder === 'Screener')) {
-    const address = message.address.trim().toLocaleLowerCase('en-US')
-    const existing = senders.get(address)
-    if (existing) existing.count += 1
-    else senders.set(address, { address: message.address, latest: message, count: 1 })
-  }
-
-  return [...senders.values()]
-})
-
-const screenerSenders = computed(() => {
-  const query = search.value.trim().toLocaleLowerCase('fr')
-  if (!query) return allScreenerSenders.value
-
-  return allScreenerSenders.value.filter(({ address, latest }) =>
-    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
-  )
-})
-
-const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
-const selectedMessage = computed(() => selectedThread.value?.latest)
-const chronologicalMessages = computed(() => [...(selectedThread.value?.messages ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
-const activeThreadMessageId = ref('')
-const threadSlideDirection = ref(1)
-const isReadingAll = ref(false)
-const threadMessageRail = ref<HTMLDivElement | null>(null)
-const railCanScrollStart = ref(false)
-const railCanScrollEnd = ref(false)
-const activeThreadMessage = computed(() => chronologicalMessages.value.find(message => message.id === activeThreadMessageId.value) ?? selectedMessage.value)
-const activeThreadMessageIndex = computed(() => chronologicalMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id))
-
-watch(selectedId, (threadId) => {
-  const thread = selectedThread.value
-  if (!threadId) {
-    activeThreadMessageId.value = ''
-    isReadingAll.value = false
-    openedFromList.value = false
-    return
-  }
-  if (!thread) return
-
-  const requestedMessageId = typeof route.query.message === 'string' ? route.query.message : ''
-  const requestedMessage = thread.messages.find(message => message.id === requestedMessageId)
-  const message = requestedMessage ?? thread.latest
-  resetThreadPresentation(message.id)
-
-  if (requestedMessage?.id !== message.id && import.meta.client) {
-    void router.replace({ path: route.path, query: { ...route.query, message: message.id } })
-  }
-}, { immediate: true })
-
-watch(() => route.query.message, (messageParam) => {
-  const thread = selectedThread.value
-  if (!selectedId.value || !thread) return
-
-  const requestedMessageId = typeof messageParam === 'string' ? messageParam : ''
-  const message = thread.messages.find(item => item.id === requestedMessageId) ?? thread.latest
-  if (activeThreadMessageId.value !== message.id) {
-    const nextIndex = chronologicalMessages.value.findIndex(item => item.id === message.id)
-    threadSlideDirection.value = nextIndex > activeThreadMessageIndex.value ? 1 : -1
-    activeThreadMessageId.value = message.id
-  }
-
-  if (requestedMessageId !== message.id && import.meta.client) {
-    void router.replace({ path: route.path, query: { ...route.query, message: message.id } })
-  }
-})
-
-function updateThreadRailOverflow() {
-  const rail = threadMessageRail.value
-  if (!rail) {
-    railCanScrollStart.value = false
-    railCanScrollEnd.value = false
-    return
-  }
-
-  const hasOverflow = rail.scrollWidth > rail.clientWidth + 2
-  railCanScrollStart.value = hasOverflow && activeThreadMessageIndex.value > 0
-  railCanScrollEnd.value = hasOverflow && activeThreadMessageIndex.value < chronologicalMessages.value.length - 1
-}
-
-function revealThreadTab(messageId: string) {
-  const rail = threadMessageRail.value
-  const tab = document.getElementById(`thread-message-tab-${messageId}`)
-  if (!rail || !tab) return
-
-  const railRect = rail.getBoundingClientRect()
-  const tabRect = tab.getBoundingClientRect()
-  const nextScrollLeft = tabRect.left < railRect.left
-    ? rail.scrollLeft + tabRect.left - railRect.left
-    : tabRect.right > railRect.right
-      ? rail.scrollLeft + tabRect.right - railRect.right
-      : rail.scrollLeft
-  rail.scrollTo({ left: nextScrollLeft, behavior: 'instant' })
-  updateThreadRailOverflow()
-}
-
-function resetThreadPresentation(activeMessageId: string) {
-  activeThreadMessageId.value = activeMessageId
-  isReadingAll.value = false
-}
-
-function selectThreadMessage(messageId: string) {
-  const nextIndex = chronologicalMessages.value.findIndex(message => message.id === messageId)
-  if (nextIndex < 0) return
-
-  threadSlideDirection.value = nextIndex > activeThreadMessageIndex.value ? 1 : -1
-  activeThreadMessageId.value = messageId
-  void router.replace({ path: route.path, query: { ...route.query, message: messageId } })
-}
-
-function navigateThreadMessage(direction: -1 | 1) {
-  const nextMessage = chronologicalMessages.value[activeThreadMessageIndex.value + direction]
-  if (nextMessage) selectThreadMessage(nextMessage.id)
-}
-
-function toggleReadAll() {
-  isReadingAll.value = !isReadingAll.value
-}
-
-watch(activeThreadMessageId, async (messageId) => {
-  await nextTick()
-  revealThreadTab(messageId)
-  if (isReadingAll.value) {
-    document.getElementById(`thread-full-message-${messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-})
-
-function handleThreadKeydown(event: KeyboardEvent) {
-  if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-  const target = event.target
-  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return
-
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeMessage()
-  } else if (event.key === 'ArrowLeft') {
-    event.preventDefault()
-    navigateThreadMessage(-1)
-  } else if (event.key === 'ArrowRight') {
-    event.preventDefault()
-    navigateThreadMessage(1)
-  } else if (event.key === 'Home') {
-    event.preventDefault()
-    const oldestMessage = chronologicalMessages.value[0]
-    if (oldestMessage) selectThreadMessage(oldestMessage.id)
-  } else if (event.key === 'End') {
-    event.preventDefault()
-    const newestMessage = chronologicalMessages.value.at(-1)
-    if (newestMessage) selectThreadMessage(newestMessage.id)
-  }
-}
-
-let threadRailResizeObserver: ResizeObserver | undefined
-watch(threadMessageRail, async (rail) => {
-  threadRailResizeObserver?.disconnect()
-  if (rail && typeof ResizeObserver !== 'undefined') {
-    threadRailResizeObserver = new ResizeObserver(updateThreadRailOverflow)
-    threadRailResizeObserver.observe(rail)
-  }
-  await nextTick()
-  if (rail && activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
-  updateThreadRailOverflow()
-}, { flush: 'post' })
-
-watch(isReadingMessage, async (isOpen) => {
-  if (!isOpen) return
-  await nextTick()
-  if (activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
-  updateThreadRailOverflow()
-}, { flush: 'post' })
-
-watch(() => chronologicalMessages.value.length, async () => {
-  await nextTick()
-  updateThreadRailOverflow()
-}, { flush: 'post' })
-
-onMounted(() => window.addEventListener('keydown', handleThreadKeydown))
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleThreadKeydown)
-  threadRailResizeObserver?.disconnect()
-})
-
-async function importFixture() {
-  isImportingFixture.value = true
-  fixtureError.value = ''
-
-  try {
-    const fixture = await fetch('/fixtures/courrier-test.eml')
-    if (!fixture.ok) throw new Error('Le message de démonstration est introuvable.')
-
-    const result = await $fetch<{ id: string }>('/api/dev/ingest', {
-      method: 'POST',
-      body: await fixture.text(),
-      headers: { 'content-type': 'message/rfc822' },
-    })
-
-    await refreshMessages()
-    const imported = inboxMessages.value?.find(message => message.id === result.id)
-    if (imported) openMessage(imported)
-  } catch (error) {
-    fixtureError.value = error instanceof Error ? error.message : 'Impossible d’importer le message de test.'
-  } finally {
-    isImportingFixture.value = false
-  }
-}
-
-function openMessage(message: InboxMessage) {
-  openedFromList.value = true
-  messageReadError.value = ''
-  resetThreadPresentation(message.id)
-  void router.push({
-    path: threadPath(activeFolder.value, message.threadId),
-    query: { ...route.query, message: message.id },
-  })
-
-  const unread = folderMessages.value.filter(item => item.threadId === message.threadId && !item.isRead)
-  if (!unread.length) return
-
-  void Promise.allSettled(unread.map(async (item) => {
-    setMessageRead(item, true)
-    try {
-      await $fetch(`/api/messages/${encodeURIComponent(item.id)}/read`, {
-        method: 'PATCH',
-        body: { isRead: true },
-      })
-    } catch (error) {
-      setMessageRead(item, false)
-      throw error
-    }
-  })).then((results) => {
-    if (results.some(result => result.status === 'rejected')) {
-      messageReadError.value = 'Le fil est ouvert, mais certains états de lecture n’ont pas été enregistrés.'
-    }
-  })
-}
-
-function setMessageRead(message: InboxMessage, isRead: boolean) {
-  message.isRead = isRead
-  // useFetch keeps a shallow array in this page, so replace it to refresh computed thread counts.
-  inboxMessages.value = [...(inboxMessages.value ?? [])]
-}
-
-function navigateToFolder(folder: Folder) {
-  void router.push(mailboxPath(folder))
-}
-
-async function retryMarkRead() {
-  const unread = selectedThread.value?.messages.filter(message => !message.isRead) ?? []
-  if (!unread.length) return
-
-  messageReadError.value = ''
-  const results = await Promise.allSettled(unread.map(async (message) => {
-    await $fetch(`/api/messages/${encodeURIComponent(message.id)}/read`, {
-      method: 'PATCH',
-      body: { isRead: true },
-    })
-    setMessageRead(message, true)
-  }))
-  if (results.some(result => result.status === 'rejected')) {
-    messageReadError.value = 'Impossible d’enregistrer la lecture. Vérifie ta connexion et réessaie.'
-  }
-}
-
-async function retryInboxLoad() {
-  isRefreshingInbox.value = true
-  try {
-    await refreshMessages()
-  } catch {
-    // useFetch exposes the request failure through inboxMessagesError.
-  } finally {
-    isRefreshingInbox.value = false
-  }
-}
-
-function closeMessage() {
-  if (openedFromList.value) {
-    openedFromList.value = false
-    void router.back()
-    return
-  }
-
-  const query = route.query.q ? { q: route.query.q } : {}
-  void router.replace({ path: mailboxPath(activeFolder.value), query })
-}
-
-function openClassification(message: InboxMessage, scope: 'sender' | 'message' = 'sender') {
-  classificationTarget.value = message
-  classificationScope.value = scope
-  classificationFolder.value = message.folder === 'Screener' ? 'Imbox' : message.folder
-  classificationError.value = ''
-}
-
-function showClassificationFeedback(message: string, undoId = '') {
-  classificationFeedback.value = message
-  classificationActionError.value = ''
-  undoClassificationId.value = undoId
-  if (undoTimer) clearTimeout(undoTimer)
-
-  if (undoId) {
-    undoTimer = setTimeout(() => {
-      undoClassificationId.value = ''
-      undoTimer = undefined
-    }, 20_000)
-  }
-}
-
-async function undoSenderRule() {
-  const changeId = undoClassificationId.value
-  if (!changeId || isUndoingClassification.value) return
-
-  isUndoingClassification.value = true
-  classificationActionError.value = ''
-  try {
-    const result = await $fetch<{ restoredMessages: number }>(`/api/sender-rule-changes/${encodeURIComponent(changeId)}/undo`, {
-      method: 'POST',
-    })
-    undoClassificationId.value = ''
-    if (undoTimer) clearTimeout(undoTimer)
-    undoTimer = undefined
-    showClassificationFeedback(`Règle annulée : ${result.restoredMessages} message${result.restoredMessages > 1 ? 's' : ''} restauré${result.restoredMessages > 1 ? 's' : ''} dans son emplacement précédent${result.restoredMessages > 1 ? ' respectif' : ''}.`)
-    try {
-      await refreshMessages()
-    } catch {
-      classificationActionError.value = 'Règle annulée, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
-    }
-  } catch {
-    classificationActionError.value = 'L’annulation n’a pas abouti. Recharge la boîte et vérifie le classement avant de réessayer.'
-  } finally {
-    isUndoingClassification.value = false
-  }
-}
-
-async function saveClassification() {
-  const message = classificationTarget.value
-  if (!message || isSavingClassification.value) return
-
-  isSavingClassification.value = true
-  classificationError.value = ''
-  classificationActionError.value = ''
-
-  try {
-    if (classificationScope.value === 'sender') {
-      const result = await $fetch<{ folder: MailboxFolder, affectedMessages: number, undoId: string }>(`/api/messages/${encodeURIComponent(message.id)}/sender-rule`, {
-        method: 'PUT',
-        body: { folder: classificationFolder.value },
-      })
-      showClassificationFeedback(`${result.affectedMessages} message${result.affectedMessages > 1 ? 's' : ''} classé${result.affectedMessages > 1 ? 's' : ''} dans ${mailboxByName(result.folder).label}.`, result.undoId)
-    } else {
-      const result = await $fetch<{ folder: MailboxFolder }>(`/api/messages/${encodeURIComponent(message.id)}/folder`, {
-        method: 'PATCH',
-        body: { folder: classificationFolder.value },
-      })
-      showClassificationFeedback(`Message déplacé dans ${mailboxByName(result.folder).label}. La règle de l’expéditeur reste inchangée.`)
-    }
-
-    classificationTarget.value = null
-    closeMessage()
-    try {
-      await refreshMessages()
-    } catch {
-      classificationActionError.value = 'Classement enregistré, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
-    }
-  } catch {
-    classificationError.value = 'Le classement n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
-  } finally {
-    isSavingClassification.value = false
-  }
-}
-
-onUnmounted(() => {
-  if (undoTimer) clearTimeout(undoTimer)
-})
-
-useSeoMeta({
-  title: 'Courrier — votre boîte, à votre façon',
-  description: 'Une boîte de réception personnelle pour vos domaines.',
-})
-</script>
-
 <template>
   <main class="mail-page">
     <section v-if="!isReadingMessage" class="mailbox-view" aria-label="Boîte de réception">
       <header class="inbox-heading">
         <div class="heading-actions">
-          <button
-            v-if="allScreenerSenders.length"
-            class="screener-callout"
-            type="button"
-            @click="navigateToFolder('Screener')"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1.2A4.8 4.8 0 0 1 6.8 14h.4A4.8 4.8 0 0 1 12 18.8V20m0-1.2a4.8 4.8 0 0 1 4.8-4.8h.4a4.8 4.8 0 0 1 4.8 4.8V20" /></svg>
-            <span>{{ allScreenerSenders.length }} expéditeur{{ allScreenerSenders.length > 1 ? 's' : '' }} à examiner</span>
-          </button>
-          <span v-else class="screener-spacer" aria-hidden="true" />
-          <button class="compose-button" type="button" disabled title="L’envoi sera ajouté après stabilisation de la réception">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-            <span>Écrire</span>
-          </button>
+          <template v-if="activeFolder === 'Screener'">
+            <div class="screener-header-actions">
+              <button class="screener-help-trigger" type="button" aria-label="Afficher les raccourcis du Screener" title="Raccourcis clavier (?)" @click="screenerShortcutHelpOpen = true">?</button>
+              <button class="screener-done" type="button" @click="doneScreener">Done</button>
+            </div>
+            <span aria-hidden="true" />
+          </template>
+          <template v-else>
+            <button
+              v-if="allScreenerSenders.length"
+              class="screener-callout"
+              type="button"
+              @click="navigateToFolder('Screener')"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1.2A4.8 4.8 0 0 1 6.8 14h.4A4.8 4.8 0 0 1 12 18.8V20m0-1.2a4.8 4.8 0 0 1 4.8-4.8h.4a4.8 4.8 0 0 1 4.8 4.8V20" /></svg>
+              <span>{{ allScreenerSenders.length }} expéditeur{{ allScreenerSenders.length > 1 ? 's' : '' }} à examiner</span>
+            </button>
+            <span v-else class="screener-spacer" aria-hidden="true" />
+            <button class="compose-button" type="button" disabled title="L’envoi sera ajouté après stabilisation de la réception">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              <span>Écrire</span>
+            </button>
+          </template>
         </div>
         <h1>{{ mailboxByName(activeFolder).label }}</h1>
         <p v-if="activeFolder === 'Screener'" class="screener-intro">
-          Choisis où ranger chaque expéditeur. La règle s’appliquera à ses anciens et à ses futurs messages.
+          « Non » bloque l’adresse et rejette ses prochains messages. « Clear all » écarte ceux déjà reçus sans bloquer leurs expéditeurs.
         </p>
       </header>
 
-      <div v-if="classificationFeedback || undoClassificationId || classificationActionError" class="action-feedback">
+      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError" class="action-feedback">
         <p v-if="classificationFeedback" class="classification-feedback" role="status">{{ classificationFeedback }}</p>
         <button v-if="undoClassificationId" class="undo-action" type="button" :disabled="isUndoingClassification" @click="undoSenderRule">
           {{ isUndoingClassification ? 'Annulation…' : 'Annuler' }}
         </button>
         <p v-if="classificationActionError" class="action-feedback-error" role="alert">{{ classificationActionError }}</p>
+        <p v-if="screenerActionError" class="action-feedback-error" role="alert">{{ screenerActionError }}</p>
       </div>
 
       <div v-if="inboxMessagesError" class="empty-list error-state" role="alert">
@@ -520,20 +50,82 @@ useSeoMeta({
         </button>
       </div>
 
-      <div v-else-if="activeFolder === 'Screener' && screenerSenders.length" class="thread-list screener-list" role="list" aria-label="Expéditeurs à classer">
-        <article v-for="sender in screenerSenders" :key="sender.address" class="screener-row" role="listitem">
-          <button class="thread-row screener-message" type="button" :aria-label="`Lire le dernier message de ${sender.address}`" @click="openMessage(sender.latest)">
-            <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
-            <span class="thread-content">
-              <span class="thread-topline"><strong>{{ sender.latest.sender }}</strong><time>{{ sender.latest.date }}</time></span>
-              <span class="thread-address">{{ sender.address }}</span>
-              <span class="thread-subject">{{ sender.latest.subject }}</span>
-              <span class="thread-preview">{{ sender.latest.preview }}</span>
-            </span>
-            <span v-if="sender.count > 1" class="sender-message-count">{{ sender.count }}</span>
+      <div v-else-if="activeFolder === 'Screener'" class="thread-list screener-list" role="list" aria-label="Expéditeurs à classer">
+        <div class="screener-list-tools">
+          <div class="screener-view-switch" role="group" aria-label="Messages du Screener">
+            <button type="button" :aria-pressed="screenerView === 'pending'" @click="screenerView = 'pending'">À examiner <span>{{ allScreenerSenders.length }}</span></button>
+            <button type="button" :aria-pressed="screenerView === 'history'" @click="screenerView = 'history'">Historique <span>{{ screenerHistorySenders.length }}</span></button>
+          </div>
+          <button v-if="screenerView === 'pending' && allScreenerSenders.length" class="screener-clear-all" type="button" :disabled="isClearingScreener" @click="requestClearScreener">
+            {{ isClearingScreener ? 'Écart…' : 'Clear all…' }}
           </button>
-          <button class="sender-classify" type="button" @click="openClassification(sender.latest, 'sender')">Choisir une boîte</button>
-        </article>
+        </div>
+        <template v-if="screenerView === 'pending'">
+          <p v-if="!screenerSenders.length" class="screener-empty">Aucun expéditeur en attente.</p>
+          <article v-for="sender in screenerSenders" :key="sender.address" class="screener-row" :class="{ 'is-keyboard-selected': selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US') }" :aria-current="selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US') ? 'true' : undefined" role="listitem">
+            <svg v-if="selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US')" class="screener-current-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
+            <div class="screener-actions">
+              <button class="screener-choice screener-yes transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="`Autoriser ${sender.address} et classer ses messages dans Inbox`" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, 'Imbox', 'sender')">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm0 0 4-8c2.2 0 3.1 1.7 2.5 3.6L12.5 10h6a3 3 0 0 1 2.9 3.8l-1.7 6A3 3 0 0 1 16.8 22H7" /></svg><strong>Oui</strong>
+              </button>
+              <button class="screener-choice screener-no transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="`Bloquer ${sender.address} et rejeter ses prochains messages`" :disabled="isSavingScreenerAction" @click="blockScreenerSender(sender.latest)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14V3H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3Zm0 0 4 8c2.2 0 3.1-1.7 2.5-3.6L12.5 14h6a3 3 0 0 0 2.9-3.8l-1.7-6A3 3 0 0 0 16.8 2H7" /></svg><strong>Non</strong>
+              </button>
+              <div class="screener-options-wrap">
+                <button class="screener-options-trigger" type="button" :aria-label="`Options pour ${sender.address}`" :aria-expanded="openScreenerOptionsFor === sender.address" @click="toggleScreenerOptions(sender.address, sender.latest)">
+                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
+                </button>
+                <Transition name="screener-popover">
+                  <div v-if="openScreenerOptionsFor === sender.address" class="screener-popover" role="dialog" :aria-label="`Classement de ${sender.address}`">
+                  <strong>Oui, et classer dans…</strong>
+                  <div class="screener-destinations" role="group" aria-label="Boîte de destination">
+                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="`Destination ${destination.label} — ${destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P'}`" @click="screenerDestination = destination.name">
+                      <svg v-if="destination.name === 'Imbox'" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></svg>
+                      <svg v-else-if="destination.name === 'The Feed'" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5c3.3-.9 6.3-.4 9 1.5v13c-2.7-1.9-5.7-2.4-9-1.5v-13Zm18 0c-3.3-.9-6.3-.4-9 1.5v13c2.7-1.9 5.7-2.4 9-1.5v-13Z" /></svg>
+                      <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21V3Zm3 5h6m-6 4h6m-6 4h4" /></svg>
+                      <span>{{ destination.label }}</span>
+                      <kbd>{{ destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P' }}</kbd>
+                    </button>
+                  </div>
+                  <div class="screener-scope" role="group" aria-label="Appliquer à">
+                    <button class="screener-scope-label" type="button" :aria-pressed="screenerScope === 'sender'" @click="screenerScope = 'sender'">Cet expéditeur</button>
+                    <button class="screener-scope-toggle" type="button" role="switch" :aria-checked="screenerScope === 'message'" aria-label="Basculer entre cet expéditeur et ce message" title="Raccourci G" @click="screenerScope = screenerScope === 'sender' ? 'message' : 'sender'">
+                      <span />
+                    </button>
+                    <button class="screener-scope-label screener-scope-message" type="button" :aria-pressed="screenerScope === 'message'" @click="screenerScope = 'message'">Ce message <kbd>G</kbd></button>
+                  </div>
+                  <button class="screener-apply" type="button" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, screenerDestination, screenerScope)"><span>Appliquer</span><kbd>Y</kbd></button>
+                  </div>
+                </Transition>
+              </div>
+            </div>
+            <button class="thread-row screener-message" type="button" :aria-label="`Lire le dernier message de ${sender.address}`" @click="openMessage(sender.latest)">
+              <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
+              <span class="thread-content">
+                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time>{{ sender.latest.date }}</time></span>
+                <span class="thread-subject">{{ sender.latest.subject }}</span>
+                <span class="thread-preview">{{ sender.latest.preview }}</span>
+              </span>
+              <span v-if="sender.count > 1" class="sender-message-count">{{ sender.count }}</span>
+            </button>
+          </article>
+        </template>
+        <template v-else>
+          <p v-if="!visibleScreenerHistory.length" class="screener-empty">Aucun message dans l’historique.</p>
+          <article v-for="sender in visibleScreenerHistory" :key="`${sender.address}-${sender.state}`" class="screener-row screener-history-row" role="listitem">
+            <span class="screener-history-state" :class="`is-${sender.state}`">{{ sender.state === 'blocked' ? 'Bloqué' : 'Écarté' }}</span>
+            <button class="thread-row screener-message" type="button" :aria-label="`Lire le dernier message de ${sender.address}`" @click="openMessage(sender.latest)">
+              <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
+              <span class="thread-content">
+                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time>{{ sender.latest.date }}</time></span>
+                <span class="thread-subject">{{ sender.latest.subject }}</span>
+                <span class="thread-preview">{{ sender.latest.preview }}</span>
+              </span>
+              <span v-if="sender.count > 1" class="sender-message-count">{{ sender.count }}</span>
+            </button>
+            <button class="screener-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreScreenerSender(sender.latest, sender.state)">{{ sender.state === 'blocked' ? 'Autoriser' : 'Remettre en attente' }}</button>
+          </article>
+        </template>
       </div>
 
       <template v-else-if="activeFolder === 'Imbox' && visibleThreads.length">
@@ -580,7 +172,7 @@ useSeoMeta({
       </template>
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
-        <div v-for="thread in visibleThreads" :key="thread.id" role="listitem">
+        <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row" role="listitem">
           <button class="thread-row" type="button" @click="openMessage(thread.latest)">
             <span v-if="thread.unreadCount" class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
             <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
@@ -591,13 +183,14 @@ useSeoMeta({
             <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
             <time class="thread-date">{{ thread.latest.date }}</time>
           </button>
+          <button v-if="activeFolder === 'Trash'" class="screener-restore trash-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(thread.latest)">Restaurer</button>
         </div>
       </div>
 
       <div v-else class="empty-list">
         <svg class="empty-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="8.5" /><path d="m20 20 6 6" /></svg>
-        <strong>{{ activeFolder === 'Screener' ? 'Aucun expéditeur en attente' : 'Aucun message ici' }}</strong>
-        <span>{{ search ? 'Essaie avec un autre mot.' : activeFolder === 'Screener' ? 'Les nouveaux expéditeurs apparaîtront ici.' : 'Ce dossier attend ses premiers messages.' }}</span>
+        <strong>{{ activeFolder === 'Screener' ? 'Aucun expéditeur en attente' : activeFolder === 'Trash' ? 'La corbeille est vide' : 'Aucun message ici' }}</strong>
+        <span>{{ search ? 'Essaie avec un autre mot.' : activeFolder === 'Screener' ? 'Les nouveaux expéditeurs apparaîtront ici.' : activeFolder === 'Trash' ? 'Les messages que tu y déplaces apparaîtront ici.' : 'Ce dossier attend ses premiers messages.' }}</span>
         <button v-if="isDevelopment && activeFolder === 'Imbox' && !search" class="fixture-button" type="button" :disabled="isImportingFixture" @click="importFixture">
           {{ isImportingFixture ? 'Import en cours…' : 'Charger un message de test' }}
         </button>
@@ -612,7 +205,10 @@ useSeoMeta({
           <span>Retour à {{ mailboxByName(activeFolder).label }}</span>
           <kbd>Esc</kbd>
         </button>
-        <button class="message-classify" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
+        <button v-if="activeFolder === 'Trash'" class="message-classify" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
+          Restaurer ce message
+        </button>
+        <button v-else class="message-classify" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
           Classer ce message
         </button>
       </div>
@@ -812,7 +408,7 @@ useSeoMeta({
 
         <fieldset class="classification-destinations">
           <legend>Destination</legend>
-          <label v-for="folder in folders.filter(item => item.name !== 'Screener')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
+          <label v-for="folder in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
             <input v-model="classificationFolder" type="radio" :value="folder.name">
             <span><strong>{{ folder.label }}</strong><small>{{ folder.description }}</small></span>
           </label>
@@ -829,5 +425,828 @@ useSeoMeta({
         </footer>
       </template>
     </NDialog>
+
+    <NDialog
+      :open="screenerShortcutHelpOpen"
+      title="Raccourcis du Screener"
+      description="Raccourcis clavier disponibles dans la file À examiner."
+      :_dialog-content="{ class: 'classification-dialog screener-shortcut-dialog-content' }"
+      @update:open="(open: boolean) => { screenerShortcutHelpOpen = open }"
+    >
+      <template #content>
+        <div class="screener-shortcut-dialog">
+          <header class="dialog-header">
+            <p class="dialog-kicker">Navigation rapide</p>
+            <NDialogTitle class="dialog-title">Raccourcis du Screener</NDialogTitle>
+            <NDialogDescription class="sr-only">Raccourcis clavier disponibles dans la file À examiner.</NDialogDescription>
+          </header>
+          <dl>
+            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Parcourir les expéditeurs</dd></div>
+            <div><dt><kbd>N</kbd></dt><dd>Bloquer l’adresse sélectionnée</dd></div>
+            <div><dt><kbd>Y</kbd></dt><dd>Ouvrir ses options de classement</dd></div>
+            <div><dt><kbd>T</kbd></dt><dd>Mettre son message en Corbeille</dd></div>
+            <div><dt><kbd>C</kbd></dt><dd>Écarter tous les messages en attente</dd></div>
+            <div class="shortcut-dialog-divider"><dt><kbd>I</kbd> <kbd>F</kbd> <kbd>P</kbd></dt><dd>Choisir Inbox, Feed ou Paper</dd></div>
+            <div><dt><kbd>G</kbd></dt><dd>Alterner expéditeur et message</dd></div>
+            <div><dt><kbd>Entrée</kbd> <kbd>Espace</kbd> <kbd>Y</kbd></dt><dd>Appliquer le classement choisi</dd></div>
+          </dl>
+          <p class="screener-shortcut-footnote"><kbd>Échap</kbd> ferme cette aide ou le menu d’options.</p>
+        </div>
+      </template>
+    </NDialog>
+
+    <NDialog
+      :open="screenerClearDialogOpen"
+      title="Écarter les messages du Screener ?"
+      description="Ils resteront conservés dans l’historique et les prochains messages de ces expéditeurs pourront encore arriver."
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog screener-confirm-dialog' }"
+      @update:open="(open: boolean) => { screenerClearDialogOpen = open }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <p class="dialog-kicker">Screener</p>
+          <NDialogTitle class="dialog-title">Écarter tous les messages ?</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">Les messages reçus resteront consultables dans l’historique. Les expéditeurs ne seront pas bloqués.</NDialogDescription>
+        </header>
+        <footer class="dialog-actions">
+          <NDialogClose as-child>
+            <button class="dialog-cancel" type="button" :disabled="isClearingScreener">Annuler</button>
+          </NDialogClose>
+          <button class="dialog-danger" type="button" :disabled="isClearingScreener" @click="clearAllScreener">
+            {{ isClearingScreener ? 'Écart…' : 'Clear all' }}
+          </button>
+        </footer>
+      </template>
+    </NDialog>
   </main>
 </template>
+
+<script setup lang="ts">
+import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
+
+type Folder = MailboxKey
+type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash'>
+
+type InboxMessage = {
+  id: string
+  threadId: string
+  sender: string
+  address: string
+  subject: string
+  preview: string
+  date: string
+  timestamp: string
+  folder: Folder
+  screenerState: 'pending' | 'cleared' | 'blocked'
+  hasSenderRule: boolean
+  isRead: boolean
+  initials: string
+  color: string
+  body: string
+  attachments: { id: string, filename: string, mimeType: string, sizeBytes: number }[]
+}
+
+type MessageThread = {
+  id: string
+  messages: InboxMessage[]
+  latest: InboxMessage
+  unreadCount: number
+}
+
+const folders = mailboxes
+const route = useRoute()
+const router = useRouter()
+const activeFolder = computed(() => mailboxFromPath(route.path))
+const search = computed({
+  get: () => typeof route.query.q === 'string' ? route.query.q : '',
+  set: (value: string) => {
+    const query = { ...route.query }
+    if (value.trim()) query.q = value
+    else delete query.q
+    if (value !== search.value) void router.replace({ path: route.path, query })
+  },
+})
+const selectedId = computed(() => threadIdFromPath(route.path))
+const isReadingMessage = computed(() => Boolean(selectedId.value))
+const openedFromList = ref(false)
+const classificationTarget = ref<InboxMessage | null>(null)
+const classificationScope = ref<'sender' | 'message'>('sender')
+const classificationFolder = ref<MailboxFolder>('Imbox')
+const screenerView = ref<'pending' | 'history'>('pending')
+const selectedScreenerAddress = ref('')
+const openScreenerOptionsFor = ref('')
+const screenerClearDialogOpen = ref(false)
+const screenerShortcutHelpOpen = ref(false)
+const screenerDestination = ref<MailboxFolder>('Imbox')
+const screenerScope = ref<'sender' | 'message'>('sender')
+const screenerActionError = ref('')
+const isClearingScreener = ref(false)
+const isSavingScreenerAction = ref(false)
+const isSavingClassification = ref(false)
+const isUndoingClassification = ref(false)
+const undoClassificationId = ref('')
+const classificationError = ref('')
+const classificationFeedback = ref('')
+const classificationActionError = ref('')
+const messageReadError = ref('')
+const isRefreshingInbox = ref(false)
+const isDevelopment = import.meta.dev
+const isImportingFixture = ref(false)
+const fixtureError = ref('')
+let undoTimer: ReturnType<typeof setTimeout> | undefined
+
+const { data: inboxMessages, refresh: refreshMessages, error: inboxMessagesError } = await useFetch<InboxMessage[]>('/api/messages', {
+  default: () => [],
+})
+
+const folderMessages = computed(() => {
+  return (inboxMessages.value ?? []).filter(message => message.folder === activeFolder.value)
+})
+
+const folderThreads = computed<MessageThread[]>(() => {
+  const threads = new Map<string, InboxMessage[]>()
+  for (const message of folderMessages.value) {
+    const messages = threads.get(message.threadId) ?? []
+    messages.push(message)
+    threads.set(message.threadId, messages)
+  }
+
+  return [...threads.entries()].map(([id, messages]) => {
+    messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    return { id, messages, latest: messages[0]!, unreadCount: messages.filter(message => !message.isRead).length }
+  })
+})
+
+const visibleThreads = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase('fr')
+  if (!query) return folderThreads.value
+
+  return folderThreads.value.filter(thread => thread.messages.some(message =>
+    `${message.sender} ${message.subject} ${message.preview}`.toLocaleLowerCase('fr').includes(query),
+  ))
+})
+
+const newThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount > 0))
+const previouslySeenThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount === 0))
+
+const allScreenerSenders = computed(() => {
+  const senders = new Map<string, { address: string, latest: InboxMessage, count: number, state: 'pending' }>()
+
+  for (const message of (inboxMessages.value ?? []).filter(message => message.folder === 'Screener' && message.screenerState === 'pending')) {
+    const address = message.address.trim().toLocaleLowerCase('en-US')
+    const existing = senders.get(address)
+    if (existing) existing.count += 1
+    else senders.set(address, { address: message.address, latest: message, count: 1, state: 'pending' })
+  }
+
+  return [...senders.values()]
+})
+
+const screenerHistorySenders = computed(() => {
+  const senders = new Map<string, { address: string, latest: InboxMessage, count: number, state: 'cleared' | 'blocked' }>()
+
+  for (const message of (inboxMessages.value ?? []).filter(message => message.folder === 'Screener' && message.screenerState !== 'pending')) {
+    const address = message.address.trim().toLocaleLowerCase('en-US')
+    const existing = senders.get(address)
+    if (existing) {
+      existing.count += 1
+      if (message.screenerState === 'blocked') existing.state = 'blocked'
+    } else {
+      senders.set(address, {
+        address: message.address,
+        latest: message,
+        count: 1,
+        state: message.screenerState === 'blocked' ? 'blocked' : 'cleared',
+      })
+    }
+  }
+
+  return [...senders.values()]
+})
+
+const screenerSenders = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase('fr')
+  if (!query) return allScreenerSenders.value
+
+  return allScreenerSenders.value.filter(({ address, latest }) =>
+    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
+  )
+})
+
+const visibleScreenerHistory = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase('fr')
+  if (!query) return screenerHistorySenders.value
+
+  return screenerHistorySenders.value.filter(({ address, latest }) =>
+    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
+  )
+})
+
+watch(screenerSenders, (senders) => {
+  if (!senders.some(sender => sender.address.trim().toLocaleLowerCase('en-US') === selectedScreenerAddress.value)) {
+    selectedScreenerAddress.value = ''
+    openScreenerOptionsFor.value = ''
+  }
+})
+
+const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
+const selectedMessage = computed(() => selectedThread.value?.latest)
+const chronologicalMessages = computed(() => [...(selectedThread.value?.messages ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
+const activeThreadMessageId = ref('')
+const threadSlideDirection = ref(1)
+const isReadingAll = ref(false)
+const threadMessageRail = ref<HTMLDivElement | null>(null)
+const railCanScrollStart = ref(false)
+const railCanScrollEnd = ref(false)
+const activeThreadMessage = computed(() => chronologicalMessages.value.find(message => message.id === activeThreadMessageId.value) ?? selectedMessage.value)
+const activeThreadMessageIndex = computed(() => chronologicalMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id))
+
+watch(selectedId, (threadId) => {
+  const thread = selectedThread.value
+  if (!threadId) {
+    activeThreadMessageId.value = ''
+    isReadingAll.value = false
+    openedFromList.value = false
+    return
+  }
+  if (!thread) return
+
+  const requestedMessageId = typeof route.query.message === 'string' ? route.query.message : ''
+  const requestedMessage = thread.messages.find(message => message.id === requestedMessageId)
+  const message = requestedMessage ?? thread.latest
+  resetThreadPresentation(message.id)
+
+  if (requestedMessage?.id !== message.id && import.meta.client) {
+    void router.replace({ path: route.path, query: { ...route.query, message: message.id } })
+  }
+}, { immediate: true })
+
+watch(() => route.query.message, (messageParam) => {
+  const thread = selectedThread.value
+  if (!selectedId.value || !thread) return
+
+  const requestedMessageId = typeof messageParam === 'string' ? messageParam : ''
+  const message = thread.messages.find(item => item.id === requestedMessageId) ?? thread.latest
+  if (activeThreadMessageId.value !== message.id) {
+    const nextIndex = chronologicalMessages.value.findIndex(item => item.id === message.id)
+    threadSlideDirection.value = nextIndex > activeThreadMessageIndex.value ? 1 : -1
+    activeThreadMessageId.value = message.id
+  }
+
+  if (requestedMessageId !== message.id && import.meta.client) {
+    void router.replace({ path: route.path, query: { ...route.query, message: message.id } })
+  }
+})
+
+function updateThreadRailOverflow() {
+  const rail = threadMessageRail.value
+  if (!rail) {
+    railCanScrollStart.value = false
+    railCanScrollEnd.value = false
+    return
+  }
+
+  const hasOverflow = rail.scrollWidth > rail.clientWidth + 2
+  railCanScrollStart.value = hasOverflow && activeThreadMessageIndex.value > 0
+  railCanScrollEnd.value = hasOverflow && activeThreadMessageIndex.value < chronologicalMessages.value.length - 1
+}
+
+function revealThreadTab(messageId: string) {
+  const rail = threadMessageRail.value
+  const tab = document.getElementById(`thread-message-tab-${messageId}`)
+  if (!rail || !tab) return
+
+  const railRect = rail.getBoundingClientRect()
+  const tabRect = tab.getBoundingClientRect()
+  const nextScrollLeft = tabRect.left < railRect.left
+    ? rail.scrollLeft + tabRect.left - railRect.left
+    : tabRect.right > railRect.right
+      ? rail.scrollLeft + tabRect.right - railRect.right
+      : rail.scrollLeft
+  rail.scrollTo({ left: nextScrollLeft, behavior: 'instant' })
+  updateThreadRailOverflow()
+}
+
+function resetThreadPresentation(activeMessageId: string) {
+  activeThreadMessageId.value = activeMessageId
+  isReadingAll.value = false
+}
+
+function selectThreadMessage(messageId: string) {
+  const nextIndex = chronologicalMessages.value.findIndex(message => message.id === messageId)
+  if (nextIndex < 0) return
+
+  threadSlideDirection.value = nextIndex > activeThreadMessageIndex.value ? 1 : -1
+  activeThreadMessageId.value = messageId
+  void router.replace({ path: route.path, query: { ...route.query, message: messageId } })
+}
+
+function navigateThreadMessage(direction: -1 | 1) {
+  const nextMessage = chronologicalMessages.value[activeThreadMessageIndex.value + direction]
+  if (nextMessage) selectThreadMessage(nextMessage.id)
+}
+
+function toggleReadAll() {
+  isReadingAll.value = !isReadingAll.value
+}
+
+watch(activeThreadMessageId, async (messageId) => {
+  await nextTick()
+  revealThreadTab(messageId)
+  if (isReadingAll.value) {
+    document.getElementById(`thread-full-message-${messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+})
+
+function handleThreadKeydown(event: KeyboardEvent) {
+  const target = event.target
+  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return
+  if (event.altKey || event.ctrlKey || event.metaKey) return
+
+  if (activeFolder.value === 'Screener' && screenerView.value === 'pending') {
+    if (screenerShortcutHelpOpen.value) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        screenerShortcutHelpOpen.value = false
+      }
+      return
+    }
+
+    if (screenerClearDialogOpen.value) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        screenerClearDialogOpen.value = false
+      }
+      return
+    }
+
+    const senders = screenerSenders.value
+    const selectedAddress = selectedScreenerAddress.value
+    const selected = senders.find(sender => sender.address.trim().toLocaleLowerCase('en-US') === selectedAddress)
+    const key = event.key.toLocaleLowerCase('en-US')
+
+    if (event.key === '?') {
+      event.preventDefault()
+      screenerShortcutHelpOpen.value = true
+      return
+    }
+
+    if (event.key === 'Escape' && openScreenerOptionsFor.value) {
+      event.preventDefault()
+      openScreenerOptionsFor.value = ''
+      return
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (!senders.length) return
+      event.preventDefault()
+      const currentIndex = senders.findIndex(sender => sender.address.trim().toLocaleLowerCase('en-US') === selectedAddress)
+      const nextIndex = currentIndex < 0
+        ? (event.key === 'ArrowDown' ? 0 : senders.length - 1)
+        : Math.max(0, Math.min(senders.length - 1, currentIndex + (event.key === 'ArrowDown' ? 1 : -1)))
+      selectedScreenerAddress.value = senders[nextIndex]!.address.trim().toLocaleLowerCase('en-US')
+      openScreenerOptionsFor.value = ''
+      void nextTick(() => document.querySelector<HTMLElement>('.screener-row.is-keyboard-selected')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+      return
+    }
+
+    if (key === 'c' && senders.length) {
+      event.preventDefault()
+      screenerClearDialogOpen.value = true
+      return
+    }
+
+    if (!selected) return
+
+    if (openScreenerOptionsFor.value === selected.address && ['i', 'f', 'p', 'g', 'y', 'enter', ' '].includes(key)) {
+      event.preventDefault()
+      if (key === 'i') screenerDestination.value = 'Imbox'
+      else if (key === 'f') screenerDestination.value = 'The Feed'
+      else if (key === 'p') screenerDestination.value = 'Paper Trail'
+      else if (key === 'g') screenerScope.value = screenerScope.value === 'sender' ? 'message' : 'sender'
+      else void applyScreenerChoice(selected.latest, screenerDestination.value, screenerScope.value)
+      return
+    }
+
+    if (key === 'n') {
+      event.preventDefault()
+      openScreenerOptionsFor.value = ''
+      void blockScreenerSender(selected.latest)
+    } else if (key === 'y') {
+      event.preventDefault()
+      toggleScreenerOptions(selected.address, selected.latest)
+      if (openScreenerOptionsFor.value === selected.address) {
+        void nextTick(() => document.querySelector<HTMLButtonElement>('.screener-destinations button[aria-pressed="true"]')?.focus())
+      }
+    } else if (key === 't') {
+      event.preventDefault()
+      openScreenerOptionsFor.value = ''
+      void trashScreenerMessage(selected.latest)
+    }
+    return
+  }
+
+  if (event.key === 'Escape' && openScreenerOptionsFor.value) {
+    openScreenerOptionsFor.value = ''
+    return
+  }
+  if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeMessage()
+  } else if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    navigateThreadMessage(-1)
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    navigateThreadMessage(1)
+  } else if (event.key === 'Home') {
+    event.preventDefault()
+    const oldestMessage = chronologicalMessages.value[0]
+    if (oldestMessage) selectThreadMessage(oldestMessage.id)
+  } else if (event.key === 'End') {
+    event.preventDefault()
+    const newestMessage = chronologicalMessages.value.at(-1)
+    if (newestMessage) selectThreadMessage(newestMessage.id)
+  }
+}
+
+function handleScreenerOutsideClick(event: PointerEvent) {
+  if (!openScreenerOptionsFor.value) return
+  const target = event.target
+  if (target instanceof Element && !target.closest('.screener-options-wrap')) {
+    openScreenerOptionsFor.value = ''
+  }
+}
+
+let threadRailResizeObserver: ResizeObserver | undefined
+watch(threadMessageRail, async (rail) => {
+  threadRailResizeObserver?.disconnect()
+  if (rail && typeof ResizeObserver !== 'undefined') {
+    threadRailResizeObserver = new ResizeObserver(updateThreadRailOverflow)
+    threadRailResizeObserver.observe(rail)
+  }
+  await nextTick()
+  if (rail && activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
+  updateThreadRailOverflow()
+}, { flush: 'post' })
+
+watch(isReadingMessage, async (isOpen) => {
+  if (!isOpen) return
+  await nextTick()
+  if (activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
+  updateThreadRailOverflow()
+}, { flush: 'post' })
+
+watch(() => chronologicalMessages.value.length, async () => {
+  await nextTick()
+  updateThreadRailOverflow()
+}, { flush: 'post' })
+
+onMounted(() => {
+  window.addEventListener('keydown', handleThreadKeydown)
+  window.addEventListener('pointerdown', handleScreenerOutsideClick)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleThreadKeydown)
+  window.removeEventListener('pointerdown', handleScreenerOutsideClick)
+  threadRailResizeObserver?.disconnect()
+})
+
+async function importFixture() {
+  isImportingFixture.value = true
+  fixtureError.value = ''
+
+  try {
+    const fixture = await fetch('/fixtures/courrier-test.eml')
+    if (!fixture.ok) throw new Error('Le message de démonstration est introuvable.')
+
+    const result = await $fetch<{ id: string }>('/api/dev/ingest', {
+      method: 'POST',
+      body: await fixture.text(),
+      headers: { 'content-type': 'message/rfc822' },
+    })
+
+    await refreshMessages()
+    const imported = inboxMessages.value?.find(message => message.id === result.id)
+    if (imported) openMessage(imported)
+  } catch (error) {
+    fixtureError.value = error instanceof Error ? error.message : 'Impossible d’importer le message de test.'
+  } finally {
+    isImportingFixture.value = false
+  }
+}
+
+function openMessage(message: InboxMessage) {
+  openedFromList.value = true
+  messageReadError.value = ''
+  resetThreadPresentation(message.id)
+  void router.push({
+    path: threadPath(activeFolder.value, message.threadId),
+    query: { ...route.query, message: message.id },
+  })
+
+  const unread = folderMessages.value.filter(item => item.threadId === message.threadId && !item.isRead)
+  if (!unread.length) return
+
+  void Promise.allSettled(unread.map(async (item) => {
+    setMessageRead(item, true)
+    try {
+      await $fetch(`/api/messages/${encodeURIComponent(item.id)}/read`, {
+        method: 'PATCH',
+        body: { isRead: true },
+      })
+    } catch (error) {
+      setMessageRead(item, false)
+      throw error
+    }
+  })).then((results) => {
+    if (results.some(result => result.status === 'rejected')) {
+      messageReadError.value = 'Le fil est ouvert, mais certains états de lecture n’ont pas été enregistrés.'
+    }
+  })
+}
+
+function setMessageRead(message: InboxMessage, isRead: boolean) {
+  message.isRead = isRead
+  // useFetch keeps a shallow array in this page, so replace it to refresh computed thread counts.
+  inboxMessages.value = [...(inboxMessages.value ?? [])]
+}
+
+function navigateToFolder(folder: Folder) {
+  const query = folder === 'Screener'
+    ? { from: mailboxByName(activeFolder.value).slug }
+    : {}
+  void router.push({ path: mailboxPath(folder), query })
+}
+
+function doneScreener() {
+  const from = typeof route.query.from === 'string'
+    ? mailboxes.find(mailbox => mailbox.slug === route.query.from)?.name
+    : undefined
+  void router.push(mailboxPath(from ?? 'Imbox'))
+}
+
+function toggleScreenerOptions(address: string, message: InboxMessage) {
+  if (openScreenerOptionsFor.value === address) {
+    openScreenerOptionsFor.value = ''
+    return
+  }
+
+  screenerDestination.value = 'Imbox'
+  screenerScope.value = 'sender'
+  openScreenerOptionsFor.value = address
+}
+
+function requestClearScreener() {
+  if (allScreenerSenders.value.length && !isClearingScreener.value) screenerClearDialogOpen.value = true
+}
+
+async function applyScreenerChoice(message: InboxMessage, folder: MailboxFolder, scope: 'sender' | 'message') {
+  if (isSavingScreenerAction.value) return
+  isSavingScreenerAction.value = true
+  screenerActionError.value = ''
+  openScreenerOptionsFor.value = ''
+
+  try {
+    if (scope === 'sender') {
+      const result = await $fetch<{ folder: MailboxFolder, affectedMessages: number, undoId: string }>(`/api/messages/${encodeURIComponent(message.id)}/sender-rule`, {
+        method: 'PUT',
+        body: { folder },
+      })
+      showClassificationFeedback(`${result.affectedMessages} message${result.affectedMessages > 1 ? 's' : ''} classé${result.affectedMessages > 1 ? 's' : ''} dans ${mailboxByName(result.folder).label}.`, result.undoId)
+    } else {
+      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/folder`, {
+        method: 'PATCH',
+        body: { folder },
+      })
+      showClassificationFeedback('Message classé. Les autres et les prochains restent dans le Screener.')
+    }
+    classificationTarget.value = null
+    await refreshMessages()
+  } catch {
+    screenerActionError.value = 'Le classement n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
+  } finally {
+    isSavingScreenerAction.value = false
+  }
+}
+
+async function blockScreenerSender(message: InboxMessage) {
+  if (isSavingScreenerAction.value) return
+  isSavingScreenerAction.value = true
+  screenerActionError.value = ''
+  try {
+    const result = await $fetch<{ preservedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/block-sender`, {
+      method: 'POST',
+    })
+    showClassificationFeedback(`Adresse bloquée. ${result.preservedMessages} message${result.preservedMessages > 1 ? 's reçus restent consultables' : ' reçu reste consultable'} dans l’historique.`)
+    await refreshMessages()
+  } catch {
+    screenerActionError.value = 'Le blocage n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
+  } finally {
+    isSavingScreenerAction.value = false
+  }
+}
+
+async function trashScreenerMessage(message: InboxMessage) {
+  if (isSavingScreenerAction.value) return
+  isSavingScreenerAction.value = true
+  screenerActionError.value = ''
+  try {
+    await $fetch(`/api/messages/${encodeURIComponent(message.id)}/trash`, { method: 'POST' })
+    showClassificationFeedback('Message déplacé dans la corbeille. Tu pourras le restaurer depuis cette boîte.')
+    await refreshMessages()
+  } catch {
+    screenerActionError.value = 'Le message n’a pas pu être déplacé dans la corbeille. Vérifie ta connexion et réessaie.'
+  } finally {
+    isSavingScreenerAction.value = false
+  }
+}
+
+async function restoreTrashedMessage(message: InboxMessage) {
+  if (isSavingScreenerAction.value) return
+  const wasReadingFromTrash = activeFolder.value === 'Trash' && isReadingMessage.value
+  isSavingScreenerAction.value = true
+  screenerActionError.value = ''
+  try {
+    await $fetch(`/api/messages/${encodeURIComponent(message.id)}/restore-trash`, { method: 'POST' })
+    showClassificationFeedback('Message restauré dans sa boîte d’origine.')
+    await refreshMessages()
+    if (wasReadingFromTrash) void router.push(mailboxPath('Trash'))
+  } catch {
+    screenerActionError.value = 'Le message n’a pas pu être restauré. Vérifie ta connexion et réessaie.'
+  } finally {
+    isSavingScreenerAction.value = false
+  }
+}
+
+async function clearAllScreener() {
+  if (isClearingScreener.value || !allScreenerSenders.value.length) return
+  screenerClearDialogOpen.value = false
+  isClearingScreener.value = true
+  screenerActionError.value = ''
+  try {
+    const result = await $fetch<{ clearedMessages: number }>('/api/screener/clear', { method: 'POST' })
+    showClassificationFeedback(`${result.clearedMessages} message${result.clearedMessages > 1 ? 's écartés' : ' écarté'} de la file. Ils restent consultables dans l’historique.`)
+    await refreshMessages()
+  } catch {
+    screenerActionError.value = 'La file n’a pas pu être vidée. Vérifie ta connexion et réessaie.'
+  } finally {
+    isClearingScreener.value = false
+  }
+}
+
+async function restoreScreenerSender(message: InboxMessage, state: 'cleared' | 'blocked') {
+  if (isSavingScreenerAction.value) return
+  isSavingScreenerAction.value = true
+  screenerActionError.value = ''
+  try {
+    if (state === 'blocked') {
+      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/unblock-sender`, { method: 'POST' })
+      showClassificationFeedback('Adresse autorisée à nouveau. Les messages conservés sont de retour dans la file du Screener.')
+    } else {
+      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/restore-screener`, { method: 'POST' })
+      showClassificationFeedback('Messages remis dans la file du Screener.')
+    }
+    await refreshMessages()
+  } catch {
+    screenerActionError.value = 'La modification n’a pas pu être enregistrée. Vérifie ta connexion et réessaie.'
+  } finally {
+    isSavingScreenerAction.value = false
+  }
+}
+
+async function retryMarkRead() {
+  const unread = selectedThread.value?.messages.filter(message => !message.isRead) ?? []
+  if (!unread.length) return
+
+  messageReadError.value = ''
+  const results = await Promise.allSettled(unread.map(async (message) => {
+    await $fetch(`/api/messages/${encodeURIComponent(message.id)}/read`, {
+      method: 'PATCH',
+      body: { isRead: true },
+    })
+    setMessageRead(message, true)
+  }))
+  if (results.some(result => result.status === 'rejected')) {
+    messageReadError.value = 'Impossible d’enregistrer la lecture. Vérifie ta connexion et réessaie.'
+  }
+}
+
+async function retryInboxLoad() {
+  isRefreshingInbox.value = true
+  try {
+    await refreshMessages()
+  } catch {
+    // useFetch exposes the request failure through inboxMessagesError.
+  } finally {
+    isRefreshingInbox.value = false
+  }
+}
+
+function closeMessage() {
+  if (openedFromList.value) {
+    openedFromList.value = false
+    void router.back()
+    return
+  }
+
+  const query = route.query.q ? { q: route.query.q } : {}
+  void router.replace({ path: mailboxPath(activeFolder.value), query })
+}
+
+function openClassification(message: InboxMessage, scope: 'sender' | 'message' = 'sender') {
+  classificationTarget.value = message
+  classificationScope.value = scope
+  classificationFolder.value = message.folder === 'Screener' || message.folder === 'Trash' ? 'Imbox' : message.folder
+  classificationError.value = ''
+}
+
+function showClassificationFeedback(message: string, undoId = '') {
+  classificationFeedback.value = message
+  classificationActionError.value = ''
+  undoClassificationId.value = undoId
+  if (undoTimer) clearTimeout(undoTimer)
+
+  if (undoId) {
+    undoTimer = setTimeout(() => {
+      undoClassificationId.value = ''
+      undoTimer = undefined
+    }, 20_000)
+  }
+}
+
+async function undoSenderRule() {
+  const changeId = undoClassificationId.value
+  if (!changeId || isUndoingClassification.value) return
+
+  isUndoingClassification.value = true
+  classificationActionError.value = ''
+  try {
+    const result = await $fetch<{ restoredMessages: number }>(`/api/sender-rule-changes/${encodeURIComponent(changeId)}/undo`, {
+      method: 'POST',
+    })
+    undoClassificationId.value = ''
+    if (undoTimer) clearTimeout(undoTimer)
+    undoTimer = undefined
+    showClassificationFeedback(`Règle annulée : ${result.restoredMessages} message${result.restoredMessages > 1 ? 's' : ''} restauré${result.restoredMessages > 1 ? 's' : ''} dans son emplacement précédent${result.restoredMessages > 1 ? ' respectif' : ''}.`)
+    try {
+      await refreshMessages()
+    } catch {
+      classificationActionError.value = 'Règle annulée, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
+    }
+  } catch {
+    classificationActionError.value = 'L’annulation n’a pas abouti. Recharge la boîte et vérifie le classement avant de réessayer.'
+  } finally {
+    isUndoingClassification.value = false
+  }
+}
+
+async function saveClassification() {
+  const message = classificationTarget.value
+  if (!message || isSavingClassification.value) return
+
+  isSavingClassification.value = true
+  classificationError.value = ''
+  classificationActionError.value = ''
+
+  try {
+    if (classificationScope.value === 'sender') {
+      const result = await $fetch<{ folder: MailboxFolder, affectedMessages: number, undoId: string }>(`/api/messages/${encodeURIComponent(message.id)}/sender-rule`, {
+        method: 'PUT',
+        body: { folder: classificationFolder.value },
+      })
+      showClassificationFeedback(`${result.affectedMessages} message${result.affectedMessages > 1 ? 's' : ''} classé${result.affectedMessages > 1 ? 's' : ''} dans ${mailboxByName(result.folder).label}.`, result.undoId)
+    } else {
+      const result = await $fetch<{ folder: MailboxFolder }>(`/api/messages/${encodeURIComponent(message.id)}/folder`, {
+        method: 'PATCH',
+        body: { folder: classificationFolder.value },
+      })
+      showClassificationFeedback(`Message déplacé dans ${mailboxByName(result.folder).label}. La règle de l’expéditeur reste inchangée.`)
+    }
+
+    classificationTarget.value = null
+    closeMessage()
+    try {
+      await refreshMessages()
+    } catch {
+      classificationActionError.value = 'Classement enregistré, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
+    }
+  } catch {
+    classificationError.value = 'Le classement n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
+  } finally {
+    isSavingClassification.value = false
+  }
+}
+
+onUnmounted(() => {
+  if (undoTimer) clearTimeout(undoTimer)
+})
+
+useSeoMeta({
+  title: 'Courrier — votre boîte, à votre façon',
+  description: 'Une boîte de réception personnelle pour vos domaines.',
+})
+</script>
