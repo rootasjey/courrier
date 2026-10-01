@@ -21,6 +21,7 @@ type MessageRow = {
   in_reply_to: string | null
   references_header: string | null
   mailbox_domain: string
+  is_outgoing: number
 }
 
 type AttachmentRow = {
@@ -42,6 +43,7 @@ export default defineEventHandler(async (event) => {
       messages.sent_at, messages.received_at, messages.text_body, messages.is_read, messages.trashed_at,
       messages.raw_object_key, messages.folder, messages.screener_state, messages.message_id,
       messages.in_reply_to, messages.references_header, messages.mailbox_domain,
+      messages.is_outgoing,
       CASE WHEN sender_rules.sender_address IS NULL THEN 0 ELSE 1 END AS has_sender_rule
     FROM messages
     LEFT JOIN sender_rules
@@ -77,6 +79,8 @@ export default defineEventHandler(async (event) => {
       threadId: threadRouteIds.get(threadIds.get(message.id) || message.id) || message.id,
       sender: message.sender_name || message.sender_address || message.envelope_from,
       address: message.sender_address || message.envelope_from,
+      recipient: message.is_outgoing ? message.envelope_to : '',
+      isOutgoing: Boolean(message.is_outgoing),
       subject: message.subject,
       preview: message.text_body.replace(/\s+/g, ' ').trim().slice(0, 180),
       body: message.text_body,

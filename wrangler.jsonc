@@ -45,6 +45,12 @@
 			"binding": "BACKUP_STORE",
 			"bucket_name": "courrier-mail-backup"
 		}
+	],
+	"send_email": [
+		{
+			"name": "EMAIL",
+			"allowed_sender_addresses": ["courrier-test@verbatims.cc"]
+		}
 	]
 	/**
 	 * Smart Placement

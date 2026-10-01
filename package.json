@@ -11,7 +11,7 @@
     "test:email": "node --experimental-strip-types --test tests/*.test.ts",
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
-    "deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "deploy": "npm run build && node scripts/require-email-allowlist.mjs && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {

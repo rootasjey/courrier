@@ -1,0 +1,2 @@
+# Local-only comma-separated reply recipients. Replace the sample values locally.
+COURRIER_ALLOWED_RECIPIENTS=first@example.test,second@example.test

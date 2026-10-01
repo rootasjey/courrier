@@ -127,7 +127,7 @@ class MemoryR2 {
 
 function rawEmail(body: string) {
   return [
-    'From: Jérémy <jeremiejoachim@gmail.com>',
+    'From: Jules Exemple <jules@example.net>',
     'To: courrier-test@verbatims.cc',
     'Message-ID: <same-message@example.net>',
     'Subject: Test de doublon concurrent',
@@ -151,7 +151,7 @@ function rawEmail(body: string) {
 
 function makeMessage(source: string, forward: (destination: string) => Promise<unknown>) {
   return {
-    from: 'jeremiejoachim@gmail.com',
+    from: 'jules@example.net',
     to: 'courrier-test@verbatims.cc',
     raw: new Response(source).body!,
     forward,

@@ -3,6 +3,8 @@ import PostalMime, { type Address, type Attachment } from 'postal-mime'
 export type MailStorageBindings = {
   DB: D1Database
   MAIL_STORE: R2Bucket
+  EMAIL?: SendEmail
+  COURRIER_ALLOWED_RECIPIENTS?: string
   COURRIER_LEGACY_FORWARD_TO?: string
 }
 

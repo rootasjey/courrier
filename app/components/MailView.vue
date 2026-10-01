@@ -21,7 +21,7 @@
               <span>{{ allScreenerSenders.length }} expéditeur{{ allScreenerSenders.length > 1 ? 's' : '' }} à examiner</span>
             </button>
             <span v-else class="screener-spacer" aria-hidden="true" />
-            <button class="compose-button" type="button" disabled title="L’envoi sera ajouté après stabilisation de la réception">
+            <button class="compose-button" type="button" disabled title="La rédaction de nouveaux messages arrive ensuite">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span>Écrire</span>
             </button>
@@ -340,7 +340,7 @@
                 <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
                 <span class="meta-copy">
                   <strong>{{ activeThreadMessage.sender }}</strong>
-                  <span>{{ activeThreadMessage.address }}</span>
+                  <span>{{ activeThreadMessage.isOutgoing ? `À ${activeThreadMessage.recipient}` : activeThreadMessage.address }}</span>
                 </span>
                 <time>{{ activeThreadMessage.date }}</time>
               </div>
@@ -377,9 +377,9 @@
             >
               <div class="message-meta">
                 <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
-                <span class="meta-copy">
-                  <strong>{{ message.sender }}</strong>
-                  <span>{{ message.address }}</span>
+              <span class="meta-copy">
+                <strong>{{ message.sender }}</strong>
+                <span>{{ message.isOutgoing ? `À ${message.recipient}` : message.address }}</span>
                 </span>
                 <time>{{ message.date }}</time>
               </div>
@@ -405,11 +405,24 @@
         </div>
       </article>
 
-      <div class="reply-placeholder">
+      <form v-if="replyComposerOpen" class="reply-composer" @submit.prevent="requestReplySend">
+        <div class="reply-composer-to"><span>À</span><strong>{{ replyRecipient }}</strong></div>
+        <label class="sr-only" for="reply-body">Votre réponse</label>
+        <textarea id="reply-body" v-model="replyBody" autofocus placeholder="Écrire une réponse…" :disabled="replyLoading || replySending || replyDraftStatus === 'sending'" />
+        <p v-if="replyError" class="reply-error" role="alert">{{ replyError }}</p>
+        <div class="reply-composer-footer">
+          <span class="reply-save-status" role="status">{{ replyLoading ? 'Chargement du brouillon…' : replyDraftStatus === 'sending' ? 'Envoi déjà lancé — vérifie la boîte destinataire.' : replySaving ? 'Enregistrement…' : replySaved ? 'Brouillon enregistré dans Courrier' : 'Brouillon non enregistré' }}</span>
+          <button type="button" class="reply-secondary" :disabled="replySending" @click="replyComposerOpen = false">Réduire</button>
+          <button type="submit" class="reply-send" :disabled="replySending || replySaving || replyDraftStatus === 'sending' || !replyBody.trim()">
+            {{ replySending ? 'Envoi…' : 'Envoyer' }}
+          </button>
+        </div>
+      </form>
+      <button v-else class="reply-placeholder" type="button" @click="openReplyComposer">
         <span class="reply-icon" aria-hidden="true">↩</span>
-        <span>L’envoi sera ajouté après stabilisation de la réception.</span>
+        <span>Répondre à {{ activeThreadMessage?.sender }}</span>
         <span class="reply-shortcut">R</span>
-      </div>
+      </button>
     </section>
 
     <NDialog
@@ -456,6 +469,26 @@
           <button class="dialog-save" type="button" :disabled="isSavingClassification" @click="saveClassification">
             {{ isSavingClassification ? 'Enregistrement…' : classificationScope === 'sender' ? 'Classer l’expéditeur' : 'Déplacer ce message' }}
           </button>
+        </footer>
+      </template>
+    </NDialog>
+
+    <NDialog
+      :open="replySendConfirmOpen"
+      title="Envoyer cette réponse ?"
+      description="L’envoi est limité aux adresses de test que tu contrôles."
+      :_dialog-content="{ class: 'classification-dialog reply-confirm-dialog' }"
+      @update:open="(open: boolean) => { replySendConfirmOpen = open }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <p class="dialog-kicker">Vérification avant envoi</p>
+          <NDialogTitle class="dialog-title">Envoyer cette réponse ?</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">Elle sera envoyée depuis courrier-test@verbatims.cc à {{ replyRecipient }}.</NDialogDescription>
+        </header>
+        <footer class="dialog-actions">
+          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="replySending">Continuer à écrire</button></NDialogClose>
+          <button class="dialog-save" type="button" :disabled="replySending" @click="sendReply">{{ replySending ? 'Envoi…' : 'Envoyer' }}</button>
         </footer>
       </template>
     </NDialog>
@@ -535,6 +568,8 @@ type InboxMessage = {
   screenerState: 'pending' | 'cleared' | 'blocked'
   hasSenderRule: boolean
   isRead: boolean
+  isOutgoing: boolean
+  recipient: string
   initials: string
   color: string
   body: string
@@ -606,6 +641,18 @@ const classificationFeedback = ref('')
 const classificationActionError = ref('')
 const messageReadError = ref('')
 const isRefreshingInbox = ref(false)
+const replyComposerOpen = ref(false)
+const replySendConfirmOpen = ref(false)
+const replyBody = ref('')
+const replyError = ref('')
+const replyLoading = ref(false)
+const replyDraftTargetId = ref('')
+const replyDraftStatus = ref<'draft' | 'sending'>('draft')
+const replySaving = ref(false)
+const replySending = ref(false)
+const replySaved = ref(false)
+let replySaveTimer: ReturnType<typeof setTimeout> | undefined
+let replySaveRevision = 0
 const isDevelopment = import.meta.dev
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
@@ -765,6 +812,17 @@ const railCanScrollStart = ref(false)
 const railCanScrollEnd = ref(false)
 const activeThreadMessage = computed(() => chronologicalMessages.value.find(message => message.id === activeThreadMessageId.value) ?? selectedMessage.value)
 const activeThreadMessageIndex = computed(() => chronologicalMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id))
+const replyRecipient = computed(() => activeThreadMessage.value?.isOutgoing
+  ? activeThreadMessage.value.recipient
+  : activeThreadMessage.value?.address || '')
+
+watch(replyBody, () => {
+  if (!replyComposerOpen.value || replyLoading.value || replyDraftStatus.value === 'sending') return
+  replySaveRevision += 1
+  if (replySaveTimer) clearTimeout(replySaveTimer)
+  replySaved.value = false
+  replySaveTimer = setTimeout(() => { void saveReplyDraft() }, 650)
+})
 
 watch(selectedId, (threadId) => {
   const thread = selectedThread.value
@@ -855,7 +913,105 @@ function toggleReadAll() {
   isReadingAll.value = !isReadingAll.value
 }
 
+async function openReplyComposer() {
+  const message = activeThreadMessage.value
+  if (!message || replyLoading.value) return
+  replyError.value = ''
+  replySaved.value = false
+  replyBody.value = ''
+  replyDraftStatus.value = 'draft'
+  replyDraftTargetId.value = message.id
+  replyComposerOpen.value = true
+  replyLoading.value = true
+  try {
+    const draft = await $fetch<{ id: string, to: string, subject: string, textBody: string, status: 'draft' | 'sending' } | null>(`/api/messages/${encodeURIComponent(message.id)}/draft`)
+    replyBody.value = draft?.textBody ?? ''
+    replyDraftStatus.value = draft?.status ?? 'draft'
+    replySaved.value = Boolean(draft)
+  } catch {
+    replyError.value = 'Impossible de charger le brouillon. Vérifie ta connexion et réessaie.'
+  } finally {
+    replyLoading.value = false
+  }
+}
+
+async function saveReplyDraft() {
+  const messageId = replyDraftTargetId.value
+  if (!messageId || replyDraftStatus.value === 'sending' || replySaving.value) return
+  if (replySaveTimer) {
+    clearTimeout(replySaveTimer)
+    replySaveTimer = undefined
+  }
+
+  replySaving.value = true
+  replyError.value = ''
+  const revision = replySaveRevision
+  const textBody = replyBody.value
+  try {
+    const draft = await $fetch<{ status: 'draft' | 'sending' }>(`/api/messages/${encodeURIComponent(messageId)}/draft`, {
+      method: 'PUT',
+      body: { textBody },
+    })
+    replyDraftStatus.value = draft.status
+    replySaved.value = true
+  } catch {
+    replySaved.value = false
+    replyError.value = 'Le brouillon n’a pas pu être enregistré.'
+  } finally {
+    replySaving.value = false
+    if (revision !== replySaveRevision && replyDraftStatus.value !== 'sending') void saveReplyDraft()
+  }
+}
+
+async function requestReplySend() {
+  if (!replyBody.value.trim() || replySending.value) return
+  if (replySaveTimer) {
+    clearTimeout(replySaveTimer)
+    replySaveTimer = undefined
+  }
+  await saveReplyDraft()
+  while (replySaving.value) await new Promise(resolve => setTimeout(resolve, 25))
+  if (!replySaved.value || replyError.value) return
+  replySendConfirmOpen.value = true
+}
+
+async function sendReply() {
+  const messageId = replyDraftTargetId.value
+  if (!messageId || replySending.value) return
+  replySending.value = true
+  replyError.value = ''
+  let sent: { id: string } | undefined
+  try {
+    sent = await $fetch<{ id: string }>(`/api/messages/${encodeURIComponent(messageId)}/send`, { method: 'POST' })
+    replySendConfirmOpen.value = false
+    replyComposerOpen.value = false
+  } catch (error) {
+    replySendConfirmOpen.value = false
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    replyError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : 'La réponse n’a pas pu être envoyée.'
+    if (replyError.value.includes('état est incertain') || replyError.value.includes('accepté par Cloudflare')) {
+      replyDraftStatus.value = 'sending'
+    }
+  } finally {
+    replySending.value = false
+  }
+  if (!sent) return
+
+  try {
+    await refreshMessages()
+    await router.replace({ path: route.path, query: { ...route.query, message: sent.id } })
+  } catch {
+    replyError.value = 'La réponse est partie, mais la vue n’a pas pu se recharger. Actualise la page pour la retrouver.'
+  }
+}
+
 watch(activeThreadMessageId, async (messageId) => {
+  if (replyComposerOpen.value && replyDraftTargetId.value && replyDraftTargetId.value !== messageId) {
+    replyComposerOpen.value = false
+    void saveReplyDraft()
+  }
   await nextTick()
   revealThreadTab(messageId)
   if (isReadingAll.value) {
@@ -959,7 +1115,11 @@ function handleThreadKeydown(event: KeyboardEvent) {
 
   if (event.key === 'Escape') {
     event.preventDefault()
-    closeMessage()
+    if (replyComposerOpen.value) replyComposerOpen.value = false
+    else closeMessage()
+  } else if (event.key.toLocaleLowerCase('en-US') === 'r') {
+    event.preventDefault()
+    void openReplyComposer()
   } else if (event.key === 'ArrowLeft') {
     event.preventDefault()
     navigateThreadMessage(-1)
