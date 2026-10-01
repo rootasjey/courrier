@@ -28,6 +28,9 @@
 		"CF_ACCESS_AUD": "6ea2d73d4c7f5327b094ff283c30a834f4f14953001c5712a6614773f427d1a7"
 	},
 	"upload_source_maps": true,
+	"triggers": {
+		"crons": ["15 3 * * *"]
+	},
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -37,6 +40,10 @@
 	"r2_buckets": [
 		{
 			"binding": "MAIL_STORE"
+		},
+		{
+			"binding": "BACKUP_STORE",
+			"bucket_name": "courrier-mail-backup"
 		}
 	]
 	/**
