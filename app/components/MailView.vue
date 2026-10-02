@@ -88,7 +88,10 @@
         <div v-else class="thread-list search-result-list" role="list">
           <div v-for="thread in globalSearchThreads" :key="thread.id" role="listitem">
             <button class="thread-row search-result-row" type="button" @click="openMessage(thread.latest)">
-              <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+              <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }" :title="thread.manualMergeIds.length ? 'Fil fusionné' : undefined">
+                <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
+              </span>
               <span class="thread-content">
                 <span class="thread-subject">{{ thread.latest.subject }}</span>
                 <span class="thread-preview"><span class="search-folder-label">{{ mailboxByName(thread.latest.folder).label }}</span><span aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.snippet || thread.latest.preview }}</span>
@@ -188,13 +191,16 @@
             <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
-            <div v-for="thread in newThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id) }" role="listitem">
-              <button v-if="threadSelectionMode" class="thread-selection-check" type="button" :aria-pressed="selectedThreadIds.includes(thread.id)" :aria-label="`${selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}`" @click="toggleThreadSelection(thread.id)">
-                <svg v-if="selectedThreadIds.includes(thread.id)" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
+            <div v-for="thread in newThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
+              <span class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
+              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
+                <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
+                  <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                  <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
+                  <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-mark" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m4 10 4 4 8-8" /></svg></span>
+                </span>
               </button>
-              <button class="thread-row" type="button" @click="handleThreadRowClick(thread)">
-                <span class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
-                <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+              <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
                 <span class="thread-content">
                   <span class="thread-subject">{{ thread.latest.subject }}</span>
                   <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
@@ -212,12 +218,15 @@
             <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
-            <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id) }" role="listitem">
-              <button v-if="threadSelectionMode" class="thread-selection-check" type="button" :aria-pressed="selectedThreadIds.includes(thread.id)" :aria-label="`${selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}`" @click="toggleThreadSelection(thread.id)">
-                <svg v-if="selectedThreadIds.includes(thread.id)" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
+            <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
+              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
+                <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
+                  <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                  <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
+                  <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-mark" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m4 10 4 4 8-8" /></svg></span>
+                </span>
               </button>
-              <button class="thread-row" type="button" @click="handleThreadRowClick(thread)">
-                <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+              <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
                 <span class="thread-content">
                   <span class="thread-subject">{{ thread.latest.subject }}</span>
                   <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
@@ -231,13 +240,16 @@
       </template>
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
-        <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id) }" role="listitem">
-          <button v-if="threadSelectionMode" class="thread-selection-check" type="button" :aria-pressed="selectedThreadIds.includes(thread.id)" :aria-label="`${selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}`" @click="toggleThreadSelection(thread.id)">
-            <svg v-if="selectedThreadIds.includes(thread.id)" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
+        <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
+          <span v-if="thread.unreadCount" class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
+          <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
+            <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
+              <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+              <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
+              <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-mark" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="m4 10 4 4 8-8" /></svg></span>
+            </span>
           </button>
-          <button class="thread-row" type="button" @click="handleThreadRowClick(thread)">
-            <span v-if="thread.unreadCount" class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
-            <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+          <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
             <span class="thread-content">
               <span class="thread-subject">{{ thread.latest.subject }}</span>
               <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
@@ -718,6 +730,8 @@ const screenerScope = ref<'sender' | 'message'>('sender')
 const screenerActionError = ref('')
 const threadSelectionMode = ref(false)
 const selectedThreadIds = ref<string[]>([])
+const keyboardSelectionThreadId = ref('')
+const selectionAnchorThreadId = ref('')
 const mergeDialogOpen = ref(false)
 const splitDialogOpen = ref(false)
 const isMergingThreads = ref(false)
@@ -758,6 +772,8 @@ const { data: inboxMessages, refresh: refreshMessages, error: inboxMessagesError
 watch([activeFolder, isGlobalSearch], () => {
   threadSelectionMode.value = false
   selectedThreadIds.value = []
+  keyboardSelectionThreadId.value = ''
+  selectionAnchorThreadId.value = ''
   threadMergeFeedback.value = ''
   threadMergeError.value = ''
 })
@@ -851,6 +867,9 @@ const globalSearchThreads = computed<SearchThread[]>(() => {
 
 const newThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount > 0))
 const previouslySeenThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount === 0))
+const selectableThreads = computed(() => activeFolder.value === 'Imbox'
+  ? [...newThreads.value, ...previouslySeenThreads.value]
+  : visibleThreads.value)
 
 const allScreenerSenders = computed(() => {
   const senders = new Map<string, { address: string, latest: InboxMessage, count: number, state: 'pending' }>()
@@ -1218,6 +1237,24 @@ function handleThreadKeydown(event: KeyboardEvent) {
     return
   }
 
+  if (threadSelectionMode.value && canSelectThreads.value) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      clearThreadSelection()
+      return
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      moveSelectionCursor(event.key === 'ArrowDown' ? 1 : -1)
+      return
+    }
+    if (event.key === ' ' && keyboardSelectionThreadId.value) {
+      event.preventDefault()
+      toggleThreadSelection(keyboardSelectionThreadId.value)
+      return
+    }
+  }
+
   if (event.key === 'Escape' && openScreenerOptionsFor.value) {
     openScreenerOptionsFor.value = ''
     return
@@ -1344,30 +1381,79 @@ function openMessage(message: InboxMessage) {
   })
 }
 
-function handleThreadRowClick(thread: MessageThread) {
+function handleThreadRowClick(thread: MessageThread, event?: MouseEvent) {
   if (threadSelectionMode.value) {
-    toggleThreadSelection(thread.id)
+    toggleThreadSelection(thread.id, event)
     return
   }
   openMessage(thread.latest)
 }
 
+function handleThreadAvatarClick(threadId: string, event: MouseEvent) {
+  event.stopPropagation()
+  if (!threadSelectionMode.value) {
+    threadMergeError.value = ''
+    threadSelectionMode.value = true
+    selectedThreadIds.value = [threadId]
+    selectionAnchorThreadId.value = threadId
+    keyboardSelectionThreadId.value = threadId
+    return
+  }
+  toggleThreadSelection(threadId, event)
+}
+
 function toggleThreadSelectionMode() {
   threadMergeError.value = ''
   threadSelectionMode.value = !threadSelectionMode.value
-  if (!threadSelectionMode.value) selectedThreadIds.value = []
+  if (threadSelectionMode.value) {
+    keyboardSelectionThreadId.value = selectableThreads.value[0]?.id ?? ''
+    selectionAnchorThreadId.value = keyboardSelectionThreadId.value
+  } else {
+    selectedThreadIds.value = []
+    keyboardSelectionThreadId.value = ''
+    selectionAnchorThreadId.value = ''
+  }
 }
 
-function toggleThreadSelection(threadId: string) {
+function toggleThreadSelection(threadId: string, event?: MouseEvent) {
   threadMergeError.value = ''
+  keyboardSelectionThreadId.value = threadId
+  const orderedIds = selectableThreads.value.map(thread => thread.id)
+  const anchorIndex = orderedIds.indexOf(selectionAnchorThreadId.value)
+  const targetIndex = orderedIds.indexOf(threadId)
+  if (event?.shiftKey && anchorIndex >= 0 && targetIndex >= 0) {
+    const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex]
+    selectedThreadIds.value = [...new Set([...selectedThreadIds.value, ...orderedIds.slice(start, end + 1)])]
+    return
+  }
   selectedThreadIds.value = selectedThreadIds.value.includes(threadId)
     ? selectedThreadIds.value.filter(id => id !== threadId)
     : [...selectedThreadIds.value, threadId]
+  selectionAnchorThreadId.value = threadId
 }
 
 function clearThreadSelection() {
   selectedThreadIds.value = []
   threadSelectionMode.value = false
+  keyboardSelectionThreadId.value = ''
+  selectionAnchorThreadId.value = ''
+}
+
+function moveSelectionCursor(direction: -1 | 1) {
+  const threads = selectableThreads.value
+  if (!threads.length) return
+  const currentIndex = threads.findIndex(thread => thread.id === keyboardSelectionThreadId.value)
+  const nextIndex = currentIndex < 0
+    ? (direction === 1 ? 0 : threads.length - 1)
+    : Math.max(0, Math.min(threads.length - 1, currentIndex + direction))
+  const thread = threads[nextIndex]!
+  keyboardSelectionThreadId.value = thread.id
+  void nextTick(() => {
+    const row = [...document.querySelectorAll<HTMLElement>('.thread-selection-row')]
+      .find(element => element.dataset.threadSelectionId === thread.id)
+    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    row?.querySelector<HTMLButtonElement>('.thread-row')?.focus({ preventScroll: true })
+  })
 }
 
 async function mergeSelectedThreads() {
@@ -1382,6 +1468,8 @@ async function mergeSelectedThreads() {
     mergeDialogOpen.value = false
     threadSelectionMode.value = false
     selectedThreadIds.value = []
+    keyboardSelectionThreadId.value = ''
+    selectionAnchorThreadId.value = ''
     await refreshMessages()
     threadMergeFeedback.value = `${result.mergedThreads} fils réunis. Tu pourras les séparer depuis la conversation.`
   } catch (error) {

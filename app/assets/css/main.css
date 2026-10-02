@@ -108,13 +108,23 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .thread-selection-merge { background: var(--violet); color: white; font-weight: 650; transition: background-color 140ms ease, opacity 140ms ease; }
 .thread-selection-merge:hover:not(:disabled) { background: var(--violet-hover); }
 .thread-selection-merge:disabled { cursor: not-allowed; opacity: .46; }
-.thread-selection-row { display: flex; align-items: center; gap: 8px; }
+.thread-selection-row { display: flex; align-items: center; gap: 14px; min-height: 83px; padding: 0 8px; border-radius: 9px; transition: background-color 140ms ease, outline-color 140ms ease; }
+.thread-selection-row:not(.is-thread-selected):has(.thread-row:hover), .thread-selection-row:not(.is-thread-selected):has(.thread-avatar-trigger:hover) { background: #faf9ff; }
 .thread-selection-row .thread-row { min-width: 0; flex: 1; }
-.thread-selection-row.is-thread-selected .thread-row { border-radius: 9px; background: var(--violet-wash); }
-.thread-selection-check { display: grid; width: 25px; height: 25px; flex: 0 0 25px; place-items: center; margin-left: 3px; padding: 0; border: 1.5px solid var(--quiet); border-radius: 50%; background: var(--paper); color: white; cursor: pointer; transition: border-color 130ms ease, background-color 130ms ease, transform 130ms ease; }
-.thread-selection-check:hover { border-color: var(--violet); transform: scale(1.06); }
-.thread-selection-check[aria-pressed="true"] { border-color: var(--violet); background: var(--violet); }
-.thread-selection-check svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.thread-selection-row.is-thread-selected { background: var(--violet-wash); }
+.thread-selection-row.is-selection-cursor { outline: 2px solid color-mix(in srgb, var(--violet) 72%, transparent); outline-offset: 2px; }
+.thread-selection-row .thread-row { min-height: 83px; padding-inline: 0; background: transparent; }
+.thread-selection-row .thread-row:hover { background: transparent; }
+.thread-avatar-trigger { position: relative; display: grid; width: 53px; height: 69px; flex: 0 0 53px; place-items: center; margin: 0 -3px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.thread-avatar-trigger:focus-visible { outline: 2px solid var(--violet); outline-offset: 1px; }
+.thread-avatar-wrap { position: relative; display: grid; width: 47px; height: 47px; flex: 0 0 47px; place-items: center; }
+.thread-avatar-wrap .sender-avatar { position: relative; z-index: 1; }
+.merged-avatar-mark::before, .merged-avatar-mark::after { position: absolute; z-index: 0; border: 2px solid var(--violet); border-radius: 50%; content: ""; pointer-events: none; }
+.merged-avatar-mark::before { inset: -3px; opacity: .55; }
+.merged-avatar-mark::after { inset: -6px; border-right-color: transparent; opacity: .72; transform: rotate(-32deg); }
+.avatar-selection-mark { position: absolute; z-index: 2; right: -2px; bottom: -1px; display: grid; width: 19px; height: 19px; place-items: center; border: 2px solid var(--paper); border-radius: 50%; background: var(--violet); color: white; }
+.avatar-selection-mark svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.thread-avatar-trigger.is-selected .thread-avatar-wrap { transform: scale(.95); }
 .merged-thread-control { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 0 0 18px; padding: 10px 13px; border-radius: 9px; background: var(--violet-wash); color: var(--muted); font-size: 12px; }
 .thread-split-button { flex: 0 0 auto; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--violet) 28%, var(--line)); border-radius: 18px; background: var(--paper); color: var(--violet); font: inherit; font-size: 12px; font-weight: 620; cursor: pointer; }
 .thread-split-button:hover:not(:disabled) { border-color: var(--violet); }
@@ -377,6 +387,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 :root[data-theme="dark"] .profile-button { background: #34463f; color: #d1f4e8; }
 :root[data-theme="dark"] .compose-button:disabled { background: #594a8a; color: #eee9ff; }
 :root[data-theme="dark"] .thread-row:hover { background: #262231; }
+:root[data-theme="dark"] .thread-selection-row:not(.is-thread-selected):has(.thread-row:hover), :root[data-theme="dark"] .thread-selection-row:not(.is-thread-selected):has(.thread-avatar-trigger:hover) { background: #262231; }
 :root[data-theme="dark"] .message-group-seen { background: #282339; }
 :root[data-theme="dark"] .message-paper > p { color: #d1cadf; }
 :root[data-theme="dark"] .thread-message-card > p { color: #d1cadf; }
@@ -412,8 +423,10 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .group-heading { gap: 10px; margin: 12px 0 7px; }
   .group-heading h2 { font-size: 13px; }
   .thread-row { min-height: 75px; gap: 10px; padding: 11px 3px; }
-  .thread-selection-row { gap: 5px; }
-  .thread-selection-check { width: 21px; height: 21px; flex-basis: 21px; margin-left: 0; }
+  .thread-selection-row { gap: 8px; min-height: 75px; padding-inline: 3px; }
+  .thread-selection-row .thread-row { min-height: 75px; padding-block: 11px; }
+  .thread-avatar-trigger { width: 46px; height: 63px; flex-basis: 46px; margin-inline: -3px; }
+  .thread-avatar-wrap { width: 40px; height: 40px; flex-basis: 40px; }
   .thread-selection-bar { gap: 5px; margin-top: 4px; padding-left: 11px; font-size: 11px; }
   .thread-selection-cancel, .thread-selection-merge { min-height: 32px; padding-inline: 9px; font-size: 11px; }
   .merged-thread-control { align-items: flex-start; flex-direction: column; gap: 8px; }
@@ -473,6 +486,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 
 @media (prefers-reduced-motion: no-preference) {
   .brand-trigger, .brand-chevron, .thread-row, .thread-message-summary, .show-earlier-messages, .menu-folder, .menu-settings, .compose-button, .screener-callout { transition: background-color 140ms ease, color 140ms ease, transform 140ms ease; }
+  .thread-selection-row .thread-avatar-wrap { transition: transform 140ms ease; }
   .screener-popover-enter-active, .screener-popover-leave-active { transition: opacity 150ms ease, transform 180ms cubic-bezier(.2, .7, .2, 1); }
   .screener-popover-enter-from, .screener-popover-leave-to { opacity: 0; transform: translateY(-6px) scale(.98); }
   .message-slide-next-enter-active, .message-slide-next-leave-active, .message-slide-prev-enter-active, .message-slide-prev-leave-active { transition: opacity 150ms ease, transform 200ms ease; }
@@ -483,5 +497,5 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .thread-message-card { transition: none; }
+  .thread-message-card, .thread-selection-row, .thread-selection-row .thread-avatar-wrap { transition: none; }
 }
