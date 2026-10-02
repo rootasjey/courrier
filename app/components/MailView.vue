@@ -182,7 +182,9 @@
           </header>
           <div class="thread-list" role="list">
             <div v-for="thread in newThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
-              <span class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
+              <span class="unread-indicator" :class="{ 'is-selection-cursor': threadSelectionMode && keyboardSelectionThreadId === thread.id }" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`">
+                <svg v-if="threadSelectionMode && keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
+              </span>
               <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
@@ -209,6 +211,7 @@
           </header>
           <div class="thread-list" role="list">
             <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
+              <span v-if="threadSelectionMode && keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
               <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
@@ -231,7 +234,10 @@
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
         <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
-          <span v-if="thread.unreadCount" class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
+          <span v-if="thread.unreadCount" class="unread-indicator" :class="{ 'is-selection-cursor': threadSelectionMode && keyboardSelectionThreadId === thread.id }" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`">
+            <svg v-if="threadSelectionMode && keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
+          </span>
+          <span v-else-if="threadSelectionMode && keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
           <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
             <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
               <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
