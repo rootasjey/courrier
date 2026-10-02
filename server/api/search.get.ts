@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../utils/mail-store'
-import { getThreadIds } from '../utils/threading'
+import { getThreadGrouping, type ManualThreadMergeMember } from '../utils/threading'
 
 type SearchMessageRow = {
   id: string
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
   const pageSize = 40
   const bindingsList = [matchQuery]
 
-  const [countRow, page, threadRows] = await Promise.all([
+  const [countRow, page, threadRows, mergeRows] = await Promise.all([
     bindings.DB.prepare(`
       SELECT COUNT(*) AS total
       FROM messages_search
@@ -68,11 +68,17 @@ export default defineEventHandler(async (event) => {
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND trashed_at IS NULL
     `).all<ThreadRow>(),
+    bindings.DB.prepare(`
+      SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
+        thread_merges.folder, thread_merge_members.root_message_id
+      FROM thread_merge_members
+      JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
+    `).all<ManualThreadMergeMember>(),
   ])
 
   const hasMore = page.results.length > pageSize
   const rows = hasMore ? page.results.slice(0, pageSize) : page.results
-  const threadIds = getThreadIds(threadRows.results)
+  const { threadIds } = getThreadGrouping(threadRows.results, mergeRows.results)
   const routeIds = new Map<string, string>()
   const rowsById = new Map(threadRows.results.map(row => [row.id, row]))
 

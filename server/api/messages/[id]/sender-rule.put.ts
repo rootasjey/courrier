@@ -1,3 +1,9 @@
+import {
+  getThreadGrouping,
+  type ManualThreadMergeMember,
+  type ThreadableMessage,
+} from '../../../utils/threading'
+
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 
 type ClassificationBindings = {
@@ -7,6 +13,11 @@ type ClassificationBindings = {
 type SenderRuleRow = {
   folder: MailFolder
   last_change_id: string | null
+}
+
+type ClassifiedMessage = ThreadableMessage & {
+  sender_address: string | null
+  trashed_at: string | null
 }
 
 const folders = new Set<MailFolder>(['Imbox', 'The Feed', 'Paper Trail'])
@@ -35,6 +46,40 @@ export default defineEventHandler(async (event) => {
   if (!message) throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
   if (!message.mailbox_domain || !message.sender_address) {
     throw createError({ statusCode: 409, statusMessage: 'Cet expéditeur ne peut pas encore être classé.' })
+  }
+
+  const [messagesResult, mergesResult] = await Promise.all([
+    bindings.DB.prepare(`
+      SELECT id, message_id, mailbox_domain, folder, in_reply_to,
+        references_header, sender_address, trashed_at
+      FROM messages
+      WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
+    `).all<ClassifiedMessage>(),
+    bindings.DB.prepare(`
+      SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
+        thread_merges.folder, thread_merge_members.root_message_id
+      FROM thread_merge_members
+      JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
+    `).all<ManualThreadMergeMember>(),
+  ])
+  const messages = messagesResult.results
+  const grouping = getThreadGrouping(messages, mergesResult.results)
+  const mergedRootsToCheck = new Set(messages
+    .filter(row => row.mailbox_domain === message.mailbox_domain
+      && row.sender_address?.trim().toLocaleLowerCase('en-US') === message.sender_address)
+    .map(row => grouping.manualMergeIds.get(row.id)?.length ? grouping.threadIds.get(row.id) : undefined)
+    .filter((root): root is string => Boolean(root)))
+  const mergeIdsToMove = new Set<string>()
+
+  for (const root of mergedRootsToCheck) {
+    const groupMessages = messages.filter(row => grouping.threadIds.get(row.id) === root)
+    const groupAddresses = new Set(groupMessages.map(row => row.sender_address?.trim().toLocaleLowerCase('en-US')).filter(Boolean))
+    if (groupMessages.some(row => !row.sender_address?.trim()) || groupAddresses.size > 1) {
+      throw createError({ statusCode: 409, statusMessage: 'Cet expéditeur appartient à une conversation fusionnée avec d’autres expéditeurs. Sépare les fils avant de le reclasser.' })
+    }
+    for (const groupMessage of groupMessages) {
+      for (const mergeId of grouping.manualMergeIds.get(groupMessage.id) ?? []) mergeIdsToMove.add(mergeId)
+    }
   }
 
   const previousRule = await bindings.DB.prepare(`
@@ -81,6 +126,14 @@ export default defineEventHandler(async (event) => {
       SELECT ?, id, folder FROM messages
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
     `).bind(changeId, message.mailbox_domain, message.sender_address),
+    ...[...mergeIdsToMove].flatMap((mergeId) => {
+      const previousFolder = mergesResult.results.find(row => row.merge_id === mergeId)?.folder
+      if (!previousFolder || !folders.has(previousFolder as MailFolder)) return []
+      return [bindings.DB.prepare(`
+        INSERT INTO sender_rule_change_merges (change_id, merge_id, previous_folder)
+        VALUES (?, ?, ?)
+      `).bind(changeId, mergeId, previousFolder)]
+    }),
     bindings.DB.prepare(`
       INSERT INTO sender_rules (
         mailbox_domain, sender_address, folder, created_at, updated_at, last_change_id
@@ -95,6 +148,9 @@ export default defineEventHandler(async (event) => {
       SET folder = ?
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
     `).bind(folder, message.mailbox_domain, message.sender_address),
+    ...[...mergeIdsToMove].map(mergeId => bindings.DB.prepare(`
+      UPDATE thread_merges SET folder = ? WHERE id = ? AND mailbox_domain = ?
+    `).bind(folder, mergeId, message.mailbox_domain)),
   ])
 
   const { results } = await bindings.DB.prepare(`

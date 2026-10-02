@@ -12,6 +12,15 @@
           </template>
           <template v-else>
             <button
+              v-if="canSelectThreads"
+              class="thread-select-mode-button"
+              type="button"
+              :aria-pressed="threadSelectionMode"
+              @click="toggleThreadSelectionMode"
+            >
+              {{ threadSelectionMode ? 'Terminer' : 'Sélectionner' }}
+            </button>
+            <button
               v-if="allScreenerSenders.length"
               class="screener-callout"
               type="button"
@@ -33,13 +42,23 @@
         </p>
       </header>
 
-      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError" class="action-feedback">
+      <div v-if="threadSelectionMode && selectedThreadIds.length" class="thread-selection-bar" role="status">
+        <span>{{ selectedThreadIds.length }} fil{{ selectedThreadIds.length > 1 ? 's' : '' }} sélectionné{{ selectedThreadIds.length > 1 ? 's' : '' }}</span>
+        <button type="button" class="thread-selection-cancel" @click="clearThreadSelection">Annuler</button>
+        <button type="button" class="thread-selection-merge" :disabled="selectedThreadIds.length < 2 || isMergingThreads" @click="mergeDialogOpen = true">
+          {{ isMergingThreads ? 'Fusion…' : 'Fusionner' }}
+        </button>
+      </div>
+
+      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || threadMergeFeedback || threadMergeError" class="action-feedback">
         <p v-if="classificationFeedback" class="classification-feedback" role="status">{{ classificationFeedback }}</p>
         <button v-if="undoClassificationId" class="undo-action" type="button" :disabled="isUndoingClassification" @click="undoSenderRule">
           {{ isUndoingClassification ? 'Annulation…' : 'Annuler' }}
         </button>
         <p v-if="classificationActionError" class="action-feedback-error" role="alert">{{ classificationActionError }}</p>
         <p v-if="screenerActionError" class="action-feedback-error" role="alert">{{ screenerActionError }}</p>
+        <p v-if="threadMergeFeedback" class="classification-feedback" role="status">{{ threadMergeFeedback }}</p>
+        <p v-if="threadMergeError" class="action-feedback-error" role="alert">{{ threadMergeError }}</p>
       </div>
 
       <div v-if="inboxMessagesError" class="empty-list error-state" role="alert">
@@ -169,8 +188,11 @@
             <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
-            <div v-for="thread in newThreads" :key="thread.id" role="listitem">
-              <button class="thread-row" type="button" @click="openMessage(thread.latest)">
+            <div v-for="thread in newThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id) }" role="listitem">
+              <button v-if="threadSelectionMode" class="thread-selection-check" type="button" :aria-pressed="selectedThreadIds.includes(thread.id)" :aria-label="`${selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}`" @click="toggleThreadSelection(thread.id)">
+                <svg v-if="selectedThreadIds.includes(thread.id)" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
+              </button>
+              <button class="thread-row" type="button" @click="handleThreadRowClick(thread)">
                 <span class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
                 <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                 <span class="thread-content">
@@ -190,8 +212,11 @@
             <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
-            <div v-for="thread in previouslySeenThreads" :key="thread.id" role="listitem">
-              <button class="thread-row" type="button" @click="openMessage(thread.latest)">
+            <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id) }" role="listitem">
+              <button v-if="threadSelectionMode" class="thread-selection-check" type="button" :aria-pressed="selectedThreadIds.includes(thread.id)" :aria-label="`${selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}`" @click="toggleThreadSelection(thread.id)">
+                <svg v-if="selectedThreadIds.includes(thread.id)" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
+              </button>
+              <button class="thread-row" type="button" @click="handleThreadRowClick(thread)">
                 <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                 <span class="thread-content">
                   <span class="thread-subject">{{ thread.latest.subject }}</span>
@@ -206,8 +231,11 @@
       </template>
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
-        <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row" role="listitem">
-          <button class="thread-row" type="button" @click="openMessage(thread.latest)">
+        <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id) }" role="listitem">
+          <button v-if="threadSelectionMode" class="thread-selection-check" type="button" :aria-pressed="selectedThreadIds.includes(thread.id)" :aria-label="`${selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}`" @click="toggleThreadSelection(thread.id)">
+            <svg v-if="selectedThreadIds.includes(thread.id)" viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg>
+          </button>
+          <button class="thread-row" type="button" @click="handleThreadRowClick(thread)">
             <span v-if="thread.unreadCount" class="unread-indicator" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`" />
             <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
             <span class="thread-content">
@@ -243,7 +271,7 @@
           Restaurer ce message
         </button>
         <button v-else class="message-classify" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
-          Classer ce message
+          {{ selectedThread?.manualMergeIds.length ? 'Classer cette conversation' : 'Classer ce message' }}
         </button>
       </div>
       <div v-if="messageReadError" class="message-read-error" role="alert">
@@ -253,6 +281,12 @@
 
       <article class="message-paper">
         <h1 class="message-subject">{{ chronologicalMessages[0]?.subject || selectedMessage.subject }}</h1>
+        <div v-if="selectedThread?.manualMergeIds.length" class="merged-thread-control">
+          <span>Cette conversation réunit plusieurs fils.</span>
+          <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
+            {{ isSplittingThread ? 'Séparation…' : 'Séparer les fils' }}
+          </button>
+        </div>
         <div class="thread-carousel">
           <div v-if="chronologicalMessages.length > 1" class="thread-carousel-header">
             <div class="thread-carousel-status">
@@ -437,20 +471,27 @@
         <header class="dialog-header">
           <p class="dialog-kicker">{{ classificationTarget?.folder === 'Screener' ? 'Nouvel expéditeur' : 'Classement' }}</p>
           <NDialogTitle class="dialog-title">Où ranger ses messages ?</NDialogTitle>
-          <NDialogDescription class="sr-only">Choisissez une boîte pour cet expéditeur, ou déplacez uniquement le message sélectionné.</NDialogDescription>
+          <NDialogDescription class="sr-only">Choisissez une boîte pour cet expéditeur, ce groupe ou ce message.</NDialogDescription>
           <p class="dialog-sender">{{ classificationTarget?.sender }} <span>{{ classificationTarget?.address }}</span></p>
         </header>
 
         <fieldset class="classification-scope">
           <legend>Portée</legend>
-          <label class="scope-option">
+          <label v-if="selectedThread?.manualMergeIds.length" class="scope-option">
+            <input v-model="classificationScope" type="radio" value="group">
+            <span><strong>Cette conversation</strong><small>Tous ses messages actuels. Les règles des expéditeurs restent inchangées.</small></span>
+          </label>
+          <label v-if="!selectedThread?.manualMergeIds.length" class="scope-option">
             <input v-model="classificationScope" type="radio" value="sender">
             <span><strong>Cet expéditeur</strong><small>Ses messages déjà reçus et les prochains.</small></span>
           </label>
-          <label class="scope-option">
+          <label v-if="!selectedThread?.manualMergeIds.length" class="scope-option">
             <input v-model="classificationScope" type="radio" value="message">
             <span><strong>Ce message seulement</strong><small>{{ classificationTarget?.hasSenderRule ? 'Les prochains suivront la règle actuelle.' : 'Les autres et les prochains resteront au Screener.' }}</small></span>
           </label>
+          <p v-if="selectedThread?.manualMergeIds.length" class="classification-scope-note">
+            Le reclassement d’un expéditeur ne se fait pas depuis cette conversation. Pour déplacer un seul message, sépare d’abord les fils.
+          </p>
         </fieldset>
 
         <fieldset class="classification-destinations">
@@ -467,7 +508,7 @@
             <button class="dialog-cancel" type="button" :disabled="isSavingClassification">Annuler</button>
           </NDialogClose>
           <button class="dialog-save" type="button" :disabled="isSavingClassification" @click="saveClassification">
-            {{ isSavingClassification ? 'Enregistrement…' : classificationScope === 'sender' ? 'Classer l’expéditeur' : 'Déplacer ce message' }}
+            {{ isSavingClassification ? 'Enregistrement…' : classificationScope === 'sender' ? 'Classer l’expéditeur' : classificationScope === 'group' ? 'Déplacer la conversation' : 'Déplacer ce message' }}
           </button>
         </footer>
       </template>
@@ -489,6 +530,48 @@
         <footer class="dialog-actions">
           <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="replySending">Continuer à écrire</button></NDialogClose>
           <button class="dialog-save" type="button" :disabled="replySending" @click="sendReply">{{ replySending ? 'Envoi…' : 'Envoyer' }}</button>
+        </footer>
+      </template>
+    </NDialog>
+
+    <NDialog
+      :open="mergeDialogOpen"
+      title="Fusionner ces fils ?"
+      :description="`${selectedThreadIds.length} fils seront réunis dans une conversation. Les messages originaux resteront intacts.`"
+      :_dialog-content="{ class: 'classification-dialog thread-merge-dialog' }"
+      @update:open="(open: boolean) => { if (!isMergingThreads) mergeDialogOpen = open }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <p class="dialog-kicker">{{ mailboxByName(activeFolder).label }}</p>
+          <NDialogTitle class="dialog-title">Fusionner ces fils ?</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">Les {{ selectedThreadIds.length }} fils seront réunis dans une conversation. Tu pourras ensuite les séparer ; les messages originaux ne seront pas modifiés.</NDialogDescription>
+        </header>
+        <p v-if="threadMergeError" class="dialog-error" role="alert">{{ threadMergeError }}</p>
+        <footer class="dialog-actions">
+          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isMergingThreads">Annuler</button></NDialogClose>
+          <button class="dialog-save" type="button" :disabled="isMergingThreads" @click="mergeSelectedThreads">{{ isMergingThreads ? 'Fusion…' : 'Fusionner les fils' }}</button>
+        </footer>
+      </template>
+    </NDialog>
+
+    <NDialog
+      :open="splitDialogOpen"
+      title="Séparer les fils ?"
+      description="Les messages resteront dans Courrier et retrouveront leur regroupement d’origine."
+      :_dialog-content="{ class: 'classification-dialog thread-merge-dialog' }"
+      @update:open="(open: boolean) => { if (!isSplittingThread) splitDialogOpen = open }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <p class="dialog-kicker">Conversation fusionnée</p>
+          <NDialogTitle class="dialog-title">Séparer les fils ?</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">Les messages resteront dans Courrier et retrouveront leur regroupement d’origine.</NDialogDescription>
+        </header>
+        <p v-if="threadMergeError" class="dialog-error" role="alert">{{ threadMergeError }}</p>
+        <footer class="dialog-actions">
+          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isSplittingThread">Annuler</button></NDialogClose>
+          <button class="dialog-save" type="button" :disabled="isSplittingThread" @click="splitSelectedThread">{{ isSplittingThread ? 'Séparation…' : 'Séparer les fils' }}</button>
         </footer>
       </template>
     </NDialog>
@@ -558,6 +641,7 @@ type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash'>
 type InboxMessage = {
   id: string
   threadId: string
+  manualMergeIds: string[]
   sender: string
   address: string
   subject: string
@@ -581,6 +665,7 @@ type MessageThread = {
   messages: InboxMessage[]
   latest: InboxMessage
   unreadCount: number
+  manualMergeIds: string[]
 }
 
 type SearchHit = {
@@ -621,7 +706,7 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 let searchRevision = 0
 const openedFromList = ref(false)
 const classificationTarget = ref<InboxMessage | null>(null)
-const classificationScope = ref<'sender' | 'message'>('sender')
+const classificationScope = ref<'sender' | 'message' | 'group'>('sender')
 const classificationFolder = ref<MailboxFolder>('Imbox')
 const screenerView = ref<'pending' | 'history'>('pending')
 const selectedScreenerAddress = ref('')
@@ -631,6 +716,14 @@ const screenerShortcutHelpOpen = ref(false)
 const screenerDestination = ref<MailboxFolder>('Imbox')
 const screenerScope = ref<'sender' | 'message'>('sender')
 const screenerActionError = ref('')
+const threadSelectionMode = ref(false)
+const selectedThreadIds = ref<string[]>([])
+const mergeDialogOpen = ref(false)
+const splitDialogOpen = ref(false)
+const isMergingThreads = ref(false)
+const isSplittingThread = ref(false)
+const threadMergeFeedback = ref('')
+const threadMergeError = ref('')
 const isClearingScreener = ref(false)
 const isSavingScreenerAction = ref(false)
 const isSavingClassification = ref(false)
@@ -660,6 +753,13 @@ let undoTimer: ReturnType<typeof setTimeout> | undefined
 
 const { data: inboxMessages, refresh: refreshMessages, error: inboxMessagesError } = await useFetch<InboxMessage[]>('/api/messages', {
   default: () => [],
+})
+
+watch([activeFolder, isGlobalSearch], () => {
+  threadSelectionMode.value = false
+  selectedThreadIds.value = []
+  threadMergeFeedback.value = ''
+  threadMergeError.value = ''
 })
 
 watch([search, activeFolder], () => {
@@ -695,7 +795,13 @@ const folderThreads = computed<MessageThread[]>(() => {
 
   return [...threads.entries()].map(([id, messages]) => {
     messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    return { id, messages, latest: messages[0]!, unreadCount: messages.filter(message => !message.isRead).length }
+    return {
+      id,
+      messages,
+      latest: messages[0]!,
+      unreadCount: messages.filter(message => !message.isRead).length,
+      manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
+    }
   })
 })
 
@@ -707,6 +813,10 @@ const visibleThreads = computed(() => {
     `${message.sender} ${message.subject} ${message.body}`.toLocaleLowerCase('fr').includes(query),
   ))
 })
+const canSelectThreads = computed(() => !isGlobalSearch.value
+  && activeFolder.value !== 'Screener'
+  && activeFolder.value !== 'Trash'
+  && visibleThreads.value.length > 0)
 
 const globalSearchThreads = computed<SearchThread[]>(() => {
   const messages = inboxMessages.value ?? []
@@ -734,6 +844,7 @@ const globalSearchThreads = computed<SearchThread[]>(() => {
     messages: group.messages,
     latest: group.latest,
     unreadCount: group.messages.filter(message => !message.isRead).length,
+    manualMergeIds: [...new Set(group.messages.flatMap(message => message.manualMergeIds))],
     snippet: group.snippet,
   }))
 })
@@ -1233,6 +1344,80 @@ function openMessage(message: InboxMessage) {
   })
 }
 
+function handleThreadRowClick(thread: MessageThread) {
+  if (threadSelectionMode.value) {
+    toggleThreadSelection(thread.id)
+    return
+  }
+  openMessage(thread.latest)
+}
+
+function toggleThreadSelectionMode() {
+  threadMergeError.value = ''
+  threadSelectionMode.value = !threadSelectionMode.value
+  if (!threadSelectionMode.value) selectedThreadIds.value = []
+}
+
+function toggleThreadSelection(threadId: string) {
+  threadMergeError.value = ''
+  selectedThreadIds.value = selectedThreadIds.value.includes(threadId)
+    ? selectedThreadIds.value.filter(id => id !== threadId)
+    : [...selectedThreadIds.value, threadId]
+}
+
+function clearThreadSelection() {
+  selectedThreadIds.value = []
+  threadSelectionMode.value = false
+}
+
+async function mergeSelectedThreads() {
+  if (selectedThreadIds.value.length < 2 || isMergingThreads.value) return
+  isMergingThreads.value = true
+  threadMergeError.value = ''
+  try {
+    const result = await $fetch<{ mergedThreads: number }>('/api/thread-merges', {
+      method: 'POST',
+      body: { threadIds: selectedThreadIds.value },
+    })
+    mergeDialogOpen.value = false
+    threadSelectionMode.value = false
+    selectedThreadIds.value = []
+    await refreshMessages()
+    threadMergeFeedback.value = `${result.mergedThreads} fils réunis. Tu pourras les séparer depuis la conversation.`
+  } catch (error) {
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    threadMergeError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : 'La fusion n’a pas pu être enregistrée. Réessaie.'
+  } finally {
+    isMergingThreads.value = false
+  }
+}
+
+async function splitSelectedThread() {
+  const threadId = selectedThread.value?.id
+  if (!threadId || isSplittingThread.value) return
+  isSplittingThread.value = true
+  threadMergeError.value = ''
+  try {
+    const result = await $fetch<{ originalThreads: number }>('/api/thread-merges/split', {
+      method: 'POST',
+      body: { threadId },
+    })
+    splitDialogOpen.value = false
+    await refreshMessages()
+    closeMessage()
+    threadMergeFeedback.value = `La conversation a retrouvé ses ${result.originalThreads} fils d’origine.`
+  } catch (error) {
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    threadMergeError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : 'Les fils n’ont pas pu être séparés. Réessaie.'
+  } finally {
+    isSplittingThread.value = false
+  }
+}
+
 async function loadSearchPage(reset = false) {
   if (!isGlobalSearch.value) return
 
@@ -1465,9 +1650,9 @@ function closeMessage() {
   void router.replace({ path: mailboxPath(activeFolder.value), query })
 }
 
-function openClassification(message: InboxMessage, scope: 'sender' | 'message' = 'sender') {
+function openClassification(message: InboxMessage, scope?: 'sender' | 'message' | 'group') {
   classificationTarget.value = message
-  classificationScope.value = scope
+  classificationScope.value = scope ?? (selectedThread.value?.manualMergeIds.length ? 'group' : 'sender')
   classificationFolder.value = message.folder === 'Screener' || message.folder === 'Trash' ? 'Imbox' : message.folder
   classificationError.value = ''
 }
@@ -1521,7 +1706,13 @@ async function saveClassification() {
   classificationActionError.value = ''
 
   try {
-    if (classificationScope.value === 'sender') {
+    if (classificationScope.value === 'group') {
+      const result = await $fetch<{ folder: MailboxFolder, movedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/group-folder`, {
+        method: 'PATCH',
+        body: { folder: classificationFolder.value },
+      })
+      showClassificationFeedback(`${result.movedMessages} message${result.movedMessages > 1 ? 's' : ''} déplacé${result.movedMessages > 1 ? 's' : ''} dans ${mailboxByName(result.folder).label}. Les règles des expéditeurs restent inchangées.`)
+    } else if (classificationScope.value === 'sender') {
       const result = await $fetch<{ folder: MailboxFolder, affectedMessages: number, undoId: string }>(`/api/messages/${encodeURIComponent(message.id)}/sender-rule`, {
         method: 'PUT',
         body: { folder: classificationFolder.value },
@@ -1542,8 +1733,11 @@ async function saveClassification() {
     } catch {
       classificationActionError.value = 'Classement enregistré, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
     }
-  } catch {
-    classificationError.value = 'Le classement n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
+  } catch (error) {
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    classificationError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : 'Le classement n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
   } finally {
     isSavingClassification.value = false
   }

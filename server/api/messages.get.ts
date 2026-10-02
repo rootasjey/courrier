@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../utils/mail-store'
-import { getThreadIds } from '../utils/threading'
+import { getThreadGrouping, type ManualThreadMergeMember } from '../utils/threading'
 
 type MessageRow = {
   id: string
@@ -37,7 +37,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
   }
 
-  const { results } = await bindings.DB.prepare(`
+  const [messageResult, mergeResult] = await Promise.all([
+    bindings.DB.prepare(`
     SELECT messages.id, messages.envelope_from, messages.envelope_to,
       messages.sender_name, messages.sender_address, messages.subject,
       messages.sent_at, messages.received_at, messages.text_body, messages.is_read, messages.trashed_at,
@@ -50,8 +51,16 @@ export default defineEventHandler(async (event) => {
       ON sender_rules.mailbox_domain = messages.mailbox_domain
       AND sender_rules.sender_address = lower(trim(messages.sender_address))
     ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
-  `).all<MessageRow>()
-  const threadIds = getThreadIds(results)
+  `).all<MessageRow>(),
+    bindings.DB.prepare(`
+      SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
+        thread_merges.folder, thread_merge_members.root_message_id
+      FROM thread_merge_members
+      JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
+    `).all<ManualThreadMergeMember>(),
+  ])
+  const results = messageResult.results
+  const { threadIds, manualMergeIds } = getThreadGrouping(results, mergeResult.results)
   const threadRouteIds = new Map<string, string>()
   const messagesById = new Map(results.map(message => [message.id, message]))
 
@@ -77,6 +86,7 @@ export default defineEventHandler(async (event) => {
     return {
       id: message.id,
       threadId: threadRouteIds.get(threadIds.get(message.id) || message.id) || message.id,
+      manualMergeIds: manualMergeIds.get(message.id) ?? [],
       sender: message.sender_name || message.sender_address || message.envelope_from,
       address: message.sender_address || message.envelope_from,
       recipient: message.is_outgoing ? message.envelope_to : '',

@@ -73,6 +73,16 @@ export default defineEventHandler(async (event) => {
       changeId,
       now,
     ),
+    bindings.DB.prepare(`
+      UPDATE thread_merges
+      SET folder = (
+        SELECT previous_folder FROM sender_rule_change_merges
+        WHERE change_id = ? AND merge_id = thread_merges.id
+      )
+      WHERE mailbox_domain = ?
+        AND id IN (SELECT merge_id FROM sender_rule_change_merges WHERE change_id = ?)
+        AND ${guard}
+    `).bind(changeId, change.mailbox_domain, changeId, changeId, now),
     change.previous_rule_folder
       ? bindings.DB.prepare(`
           UPDATE sender_rules SET folder = ?, last_change_id = ?, updated_at = ?
