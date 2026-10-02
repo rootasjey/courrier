@@ -1,6 +1,6 @@
 # Classement des messages
 
-**Statut :** première tranche implémentée localement. Le Screener, le classement par expéditeur, le reclassement de l’historique, le déplacement ponctuel et une annulation immédiate des changements de règle sont branchés à D1. Les règles de blocage et les exceptions restent à concevoir.
+**Statut :** tranche déployée sur le Worker de production. Le Screener, le classement par expéditeur, le reclassement de l’historique, le déplacement ponctuel, l’annulation d’un changement de règle et le blocage d’une adresse exacte sont implémentés. Le 2 octobre 2026, des essais réels ont confirmé que de nouveaux expéditeurs passent du Screener à Feed ou Paper et que leurs messages suivants vont directement dans la boîte choisie. Les listes Feed et Paper ont conservé ces messages après rechargement. Les règles par domaine ou motif et les exceptions automatiques restent hors périmètre.
 
 ## Objectif
 
@@ -21,10 +21,26 @@ Ces destinations décrivent le classement de Courrier. Le filtre anti-spam reste
 | Choix d’une destination pour un expéditeur | Enregistrer une règle par adresse d’expéditeur et domaine de boîte Courrier. Les futurs messages suivent cette règle. |
 | Modification de la règle d’un expéditeur | **Confirmé :** reclasser également tous ses messages déjà reçus dans la nouvelle boîte. |
 | Déplacement ponctuel d’un message | Distinguer « déplacer ce message » de « classer cet expéditeur », qui modifie la règle et re-classe tout son historique. |
-| Réponse ou nouveau message d’un expéditeur connu | **Proposition MVP :** appliquer la règle explicite de cet expéditeur. Les exceptions automatiques et les règles basées sur les en-têtes de réponse sont reportées. |
-| Message indésirable | Le traitement spam/blocage est distinct du Screener et du choix entre les trois boîtes. Les règles de blocage par adresse, domaine ou motif restent à concevoir séparément. |
+| Réponse ou nouveau message d’un expéditeur connu | Appliquer sa règle explicite. Le routage direct vers Feed et Paper a été confirmé en production sur un second message de chaque expéditeur test. Les exceptions automatiques et les règles basées sur les en-têtes de réponse restent reportées. |
+| Expéditeur bloqué | Bloquer l’adresse exacte et rejeter ses nouveaux messages dans le Worker avant stockage ou relais ; conserver les messages déjà reçus. Le blocage est distinct du classement en boîte. |
+| Clear all dans le Screener | Écarter les messages en attente sans bloquer leurs expéditeurs ni changer leurs règles. Ils restent consultables dans l’historique du Screener. |
+| Blocage par domaine ou motif | Non pris en charge ; à considérer séparément du blocage d’une adresse exacte et du filtre anti-spam. |
 
 La reclassification rétroactive est confirmée. Un déplacement ponctuel ne modifie pas la règle existante ; les prochains messages suivent donc toujours cette règle. Pour un expéditeur encore au Screener, déplacer un seul message ne valide pas les suivants : ils restent au Screener. L’interface affiche cette différence avant l’action.
+
+## Vérification en production — 2 octobre 2026
+
+Deux expéditeurs contrôlés et distincts ont été utilisés sur `courrier-test@verbatims.cc` :
+
+- Le premier message du premier expéditeur est apparu dans le Screener, a été classé dans Feed, puis un second message du même expéditeur est arrivé directement dans Feed.
+- Le premier message du second expéditeur est apparu dans le Screener, a été classé dans Paper, puis un second message du même expéditeur est arrivé directement dans Paper.
+- Les messages des deux parcours étaient toujours visibles dans leur boîte respective après rechargement de l’application.
+
+Ces essais confirment le chemin de classement et la persistance des règles d’expéditeur en production pour Feed et Paper. Ils ne valident pas encore la recherche réelle dans Paper, les exceptions automatiques, ni les règles de blocage par domaine ou motif. Les adresses et contenus des messages de test ne sont pas conservés dans cette documentation.
+
+Un essai complémentaire a changé temporairement la règle d’un expéditeur de Paper vers Feed. Ses deux messages existants ont immédiatement suivi la nouvelle destination. En production, le bouton d’annulation n’est pas apparu après le retour à la liste ; la règle a donc été remise à Paper en appliquant une seconde fois le classement par expéditeur. Le message ouvert pendant l’essai a été marqué lu automatiquement ; son état non lu a été restauré, et les deux messages sont revenus dans Paper, non lus. Le reclassement rétroactif est confirmé en production.
+
+Le défaut d’affichage de l’annulation a ensuite été reproduit sur les données locales : le retour à la liste faisait perdre l’état local du composant. Le message d’action et son identifiant d’annulation sont maintenant conservés dans l’état Nuxt partagé entre routes. Sur `localhost:3004/mail/paper`, le bandeau est resté visible après le retour à la liste ; « Annuler » a restauré les deux messages dans leurs dossiers précédents. Le correctif local n’est pas encore déployé ; la vérification du parcours d’annulation en production reste à faire.
 
 La migration conserve dans leur boîte actuelle les messages déjà stockés. Elle crée une règle Imbox pour leurs expéditeurs afin que les futurs messages gardent le comportement déjà observé. Les expéditeurs sans règle arrivent au Screener.
 

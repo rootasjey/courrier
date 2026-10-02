@@ -635,10 +635,10 @@ const isClearingScreener = ref(false)
 const isSavingScreenerAction = ref(false)
 const isSavingClassification = ref(false)
 const isUndoingClassification = ref(false)
-const undoClassificationId = ref('')
+const undoClassificationId = useState('courrier-undo-classification-id', () => '')
 const classificationError = ref('')
-const classificationFeedback = ref('')
-const classificationActionError = ref('')
+const classificationFeedback = useState('courrier-classification-feedback', () => '')
+const classificationActionError = useState('courrier-classification-action-error', () => '')
 const messageReadError = ref('')
 const isRefreshingInbox = ref(false)
 const replyComposerOpen = ref(false)
@@ -1480,7 +1480,7 @@ function showClassificationFeedback(message: string, undoId = '') {
 
   if (undoId) {
     undoTimer = setTimeout(() => {
-      undoClassificationId.value = ''
+      if (undoClassificationId.value === undoId) undoClassificationId.value = ''
       undoTimer = undefined
     }, 20_000)
   }
@@ -1550,7 +1550,6 @@ async function saveClassification() {
 }
 
 onUnmounted(() => {
-  if (undoTimer) clearTimeout(undoTimer)
   if (searchTimer) clearTimeout(searchTimer)
   searchRevision += 1
 })
