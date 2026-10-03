@@ -13,6 +13,7 @@ type MessageRow = {
   trashed_at: string | null
   has_sender_rule: number
   is_read: number
+  is_set_aside: number
   sent_at: string | null
   received_at: string
   text_body: string
@@ -44,7 +45,7 @@ export default defineEventHandler(async (event) => {
       messages.sent_at, messages.received_at, messages.text_body, messages.is_read, messages.trashed_at,
       messages.raw_object_key, messages.folder, messages.screener_state, messages.message_id,
       messages.in_reply_to, messages.references_header, messages.mailbox_domain,
-      messages.is_outgoing,
+      messages.is_outgoing, messages.is_set_aside,
       CASE WHEN sender_rules.sender_address IS NULL THEN 0 ELSE 1 END AS has_sender_rule
     FROM messages
     LEFT JOIN sender_rules
@@ -104,6 +105,7 @@ export default defineEventHandler(async (event) => {
       screenerState: message.screener_state,
       hasSenderRule: Boolean(message.has_sender_rule),
       isRead: Boolean(message.is_read),
+      isSetAside: Boolean(message.is_set_aside),
       initials: (message.sender_name || message.sender_address || message.envelope_from)
         .split(/[\s@._-]+/)
         .filter(Boolean)

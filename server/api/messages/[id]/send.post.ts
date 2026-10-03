@@ -1,4 +1,5 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
+import { keepSetAsideThread } from '../../../utils/keep-set-aside-thread'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
@@ -198,6 +199,12 @@ export default defineEventHandler(async (event) => {
   } catch {
     // The provider accepted the email. Leave the draft locked so the user checks delivery before retrying.
     throw createError({ statusCode: 500, statusMessage: 'Le message a été accepté par Cloudflare, mais Courrier n’a pas pu terminer son archivage. Vérifie la boîte destinataire avant de réessayer.' })
+  }
+
+  try {
+    await keepSetAsideThread(bindings.DB, id)
+  } catch (error) {
+    console.error('[courrier] Could not keep the Set Aside thread together after sending a reply.', { id, error })
   }
 
   return { id, messageId: result.messageId, sentAt }

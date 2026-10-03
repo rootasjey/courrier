@@ -1,6 +1,6 @@
 <template>
   <main class="mail-page">
-    <section v-if="!isReadingMessage" class="mailbox-view" aria-label="Boîte de réception">
+    <section v-if="!isReadingMessage" class="mailbox-view" :class="{ 'has-set-aside-stack': showSetAsideStack }" aria-label="Boîte de réception">
       <header class="inbox-heading">
       <div v-if="!isGlobalSearch" class="heading-actions">
           <template v-if="activeFolder === 'Screener'">
@@ -20,7 +20,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1.2A4.8 4.8 0 0 1 6.8 14h.4A4.8 4.8 0 0 1 12 18.8V20m0-1.2a4.8 4.8 0 0 1 4.8-4.8h.4a4.8 4.8 0 0 1 4.8 4.8V20" /></svg>
               <span>{{ allScreenerSenders.length }} expéditeur{{ allScreenerSenders.length > 1 ? 's' : '' }} à examiner</span>
             </button>
-            <button class="compose-button" type="button" disabled title="La rédaction de nouveaux messages arrive ensuite">
+            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" disabled title="La rédaction de nouveaux messages arrive ensuite">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span>Écrire</span>
             </button>
@@ -125,7 +125,7 @@
                   <div v-if="openScreenerOptionsFor === sender.address" class="screener-popover" role="dialog" :aria-label="`Classement de ${sender.address}`">
                   <strong>Oui, et classer dans…</strong>
                   <div class="screener-destinations" role="group" aria-label="Boîte de destination">
-                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="`Destination ${destination.label} — ${destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P'}`" @click="screenerDestination = destination.name">
+                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="`Destination ${destination.label} — ${destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P'}`" @click="screenerDestination = destination.name">
                       <svg v-if="destination.name === 'Imbox'" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></svg>
                       <svg v-else-if="destination.name === 'The Feed'" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5c3.3-.9 6.3-.4 9 1.5v13c-2.7-1.9-5.7-2.4-9-1.5v-13Zm18 0c-3.3-.9-6.3-.4-9 1.5v13c2.7-1.9 5.7-2.4 9-1.5v-13Z" /></svg>
                       <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21V3Zm3 5h6m-6 4h6m-6 4h4" /></svg>
@@ -248,7 +248,7 @@
           <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
             <span class="thread-content">
               <span class="thread-subject">{{ thread.latest.subject }}</span>
-              <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
+              <span class="thread-preview"><span v-if="activeFolder === 'Set Aside' && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">Nouveau message</span><span v-if="activeFolder === 'Set Aside' && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
             </span>
             <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
             <time class="thread-date">{{ thread.latest.date }}</time>
@@ -259,13 +259,72 @@
 
       <div v-else class="empty-list">
         <svg class="empty-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="8.5" /><path d="m20 20 6 6" /></svg>
-        <strong>{{ activeFolder === 'Screener' ? 'Aucun expéditeur en attente' : activeFolder === 'Trash' ? 'La corbeille est vide' : 'Aucun message ici' }}</strong>
-        <span>{{ search ? 'Essaie avec un autre mot.' : activeFolder === 'Screener' ? 'Les nouveaux expéditeurs apparaîtront ici.' : activeFolder === 'Trash' ? 'Les messages que tu y déplaces apparaîtront ici.' : 'Ce dossier attend ses premiers messages.' }}</span>
+        <strong>{{ activeFolder === 'Screener' ? 'Aucun expéditeur en attente' : activeFolder === 'Trash' ? 'La corbeille est vide' : activeFolder === 'Set Aside' ? 'Rien de côté pour le moment' : 'Aucun message ici' }}</strong>
+        <span>{{ search ? 'Essaie avec un autre mot.' : activeFolder === 'Screener' ? 'Les nouveaux expéditeurs apparaîtront ici.' : activeFolder === 'Trash' ? 'Les messages que tu y déplaces apparaîtront ici.' : activeFolder === 'Set Aside' ? 'Les conversations mises de côté depuis Inbox apparaîtront ici.' : 'Ce dossier attend ses premiers messages.' }}</span>
         <button v-if="isDevelopment && activeFolder === 'Imbox' && !search" class="fixture-button" type="button" :disabled="isImportingFixture" @click="importFixture">
           {{ isImportingFixture ? 'Import en cours…' : 'Charger un message de test' }}
         </button>
         <span v-if="fixtureError" class="fixture-error" role="alert">{{ fixtureError }}</span>
       </div>
+
+      <section v-if="showSetAsideStack" class="set-aside-stack" :class="{ 'is-expanded': isSetAsideStackExpanded }" :style="{ '--set-aside-expanded-height': setAsideStackExpandedHeight }" aria-label="Conversations mises de côté">
+        <div class="set-aside-stack-stage">
+          <Transition name="set-aside-stack">
+            <div
+              v-if="isSetAsideStackExpanded"
+              id="set-aside-stack-expanded"
+              class="set-aside-stack-expanded"
+              role="group"
+              aria-label="Fils mis de côté récemment"
+            >
+              <div class="set-aside-stack-cards">
+                <NuxtLink
+                  v-for="(thread, index) in setAsideStackPreview"
+                  :key="thread.id"
+                  class="set-aside-stack-card"
+                  :to="threadPath('Set Aside', thread.id) + `?message=${encodeURIComponent(thread.latest.id)}`"
+                  :style="{ '--stack-offset': `${index % 2 ? 3 : -2}px`, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, zIndex: setAsideStackPreview.length - index }"
+                >
+                  <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                  <span class="set-aside-stack-copy">
+                    <strong>{{ thread.latest.subject }}</strong>
+                    <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
+                  </span>
+                  <time>{{ thread.latest.date }}</time>
+                </NuxtLink>
+              </div>
+              <NuxtLink class="set-aside-stack-all" :to="mailboxPath('Set Aside')">Voir Set Aside <span aria-hidden="true">→</span></NuxtLink>
+            </div>
+            <div v-else-if="setAsideStackPreview[0]" class="set-aside-stack-collapsed">
+            <button
+              type="button"
+              class="set-aside-stack-card set-aside-stack-preview"
+              aria-label="Déplier la pile Set Aside"
+              @click="isSetAsideStackExpanded = true"
+            >
+                <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${setAsideStackPreview[0].latest.color}`">{{ setAsideStackPreview[0].latest.initials }}</span>
+                <span class="set-aside-stack-copy">
+                  <strong>{{ setAsideStackPreview[0].latest.subject }}</strong>
+                  <span>{{ setAsideStackPreview[0].latest.sender }} · {{ setAsideStackPreview[0].latest.preview }}</span>
+                </span>
+                <span class="set-aside-stack-count">{{ setAsideThreads.length }}</span>
+            </button>
+              <span v-if="setAsideThreads.length > 1" class="set-aside-stack-back set-aside-stack-back-one" aria-hidden="true" />
+              <span v-if="setAsideThreads.length > 2" class="set-aside-stack-back set-aside-stack-back-two" aria-hidden="true" />
+            </div>
+          </Transition>
+        </div>
+        <button
+          class="set-aside-stack-toggle"
+          type="button"
+          :aria-expanded="isSetAsideStackExpanded"
+          :aria-controls="isSetAsideStackExpanded ? 'set-aside-stack-expanded' : undefined"
+          :aria-label="isSetAsideStackExpanded ? 'Replier la pile Set Aside' : `Déplier les ${setAsideThreads.length} fils Set Aside`"
+          @click="isSetAsideStackExpanded = !isSetAsideStackExpanded"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 12 5-5 5 5" /></svg>
+        </button>
+      </section>
     </section>
 
     <section v-else-if="selectedMessage" class="reading-column" aria-label="Message sélectionné">
@@ -277,6 +336,14 @@
         </button>
         <button v-if="activeFolder === 'Trash'" class="message-classify" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
           Restaurer ce message
+        </button>
+        <button v-else-if="activeFolder === 'Set Aside'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
+          {{ isSavingSetAside ? 'Retour dans Inbox…' : 'Remettre dans Inbox' }}
+          <kbd>A</kbd>
+        </button>
+        <button v-else-if="activeFolder === 'Imbox'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
+          {{ isSavingSetAside ? 'Mise de côté…' : 'Set Aside' }}
+          <kbd>A</kbd>
         </button>
         <button v-else class="message-classify" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
           {{ selectedThread?.manualMergeIds.length ? 'Classer cette conversation' : 'Classer ce message' }}
@@ -504,7 +571,7 @@
 
         <fieldset class="classification-destinations">
           <legend>Destination</legend>
-          <label v-for="folder in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
+          <label v-for="folder in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
             <input v-model="classificationFolder" type="radio" :value="folder.name">
             <span><strong>{{ folder.label }}</strong><small>{{ folder.description }}</small></span>
           </label>
@@ -644,7 +711,8 @@
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 type Folder = MailboxKey
-type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash'>
+type StoredFolder = Exclude<Folder, 'Set Aside'>
+type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash' | 'Set Aside'>
 
 type InboxMessage = {
   id: string
@@ -656,10 +724,11 @@ type InboxMessage = {
   preview: string
   date: string
   timestamp: string
-  folder: Folder
+  folder: StoredFolder
   screenerState: 'pending' | 'cleared' | 'blocked'
   hasSenderRule: boolean
   isRead: boolean
+  isSetAside: boolean
   isOutgoing: boolean
   recipient: string
   initials: string
@@ -678,7 +747,7 @@ type MessageThread = {
 
 type SearchHit = {
   id: string
-  folder: Folder
+  folder: StoredFolder
   threadId: string
   snippet: string
 }
@@ -726,6 +795,7 @@ const screenerScope = ref<'sender' | 'message'>('sender')
 const screenerActionError = ref('')
 const threadSelectionMode = ref(false)
 const selectedThreadIds = ref<string[]>([])
+const isSetAsideStackExpanded = ref(false)
 const keyboardSelectionThreadId = ref('')
 const selectionAnchorThreadId = ref('')
 const mergeDialogOpen = ref(false)
@@ -736,6 +806,7 @@ const threadMergeFeedback = ref('')
 const threadMergeError = ref('')
 const isClearingScreener = ref(false)
 const isSavingScreenerAction = ref(false)
+const isSavingSetAside = ref(false)
 const isSavingClassification = ref(false)
 const isUndoingClassification = ref(false)
 const undoClassificationId = useState('courrier-undo-classification-id', () => '')
@@ -794,7 +865,11 @@ watch([search, activeFolder], () => {
 }, { immediate: true })
 
 const folderMessages = computed(() => {
-  return (inboxMessages.value ?? []).filter(message => message.folder === activeFolder.value)
+  return (inboxMessages.value ?? []).filter((message) => {
+    if (activeFolder.value === 'Set Aside') return message.folder === 'Imbox' && message.isSetAside
+    if (activeFolder.value === 'Imbox') return message.folder === 'Imbox' && !message.isSetAside
+    return message.folder === activeFolder.value
+  })
 })
 
 const folderThreads = computed<MessageThread[]>(() => {
@@ -819,12 +894,42 @@ const folderThreads = computed<MessageThread[]>(() => {
 
 const visibleThreads = computed(() => {
   const query = search.value.trim().toLocaleLowerCase('fr')
-  if (!query) return folderThreads.value
+  const threads = activeFolder.value === 'Set Aside'
+    ? [...folderThreads.value].sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
+    : folderThreads.value
+  if (!query) return threads
 
-  return folderThreads.value.filter(thread => thread.messages.some(message =>
+  return threads.filter(thread => thread.messages.some(message =>
     `${message.sender} ${message.subject} ${message.body}`.toLocaleLowerCase('fr').includes(query),
   ))
 })
+const setAsideThreads = computed<MessageThread[]>(() => {
+  const threads = new Map<string, InboxMessage[]>()
+  for (const message of inboxMessages.value ?? []) {
+    if (message.folder !== 'Imbox' || !message.isSetAside) continue
+    const messages = threads.get(message.threadId) ?? []
+    messages.push(message)
+    threads.set(message.threadId, messages)
+  }
+
+  return [...threads.entries()].map(([id, messages]) => {
+    messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    return {
+      id,
+      messages,
+      latest: messages[0]!,
+      unreadCount: messages.filter(message => !message.isRead).length,
+      manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
+    }
+}).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
+})
+const setAsideStackPreview = computed(() => setAsideThreads.value.slice(0, 5))
+const setAsideStackExpandedHeight = computed(() =>
+  `${76 + setAsideStackPreview.value.length * 70}px`)
+const showSetAsideStack = computed(() => activeFolder.value === 'Imbox'
+  && !isGlobalSearch.value
+  && !threadSelectionMode.value
+  && setAsideThreads.value.length > 0)
 const canSelectThreads = computed(() => !isGlobalSearch.value
   && activeFolder.value !== 'Screener'
   && activeFolder.value !== 'Trash'
@@ -1236,6 +1341,12 @@ function handleThreadKeydown(event: KeyboardEvent) {
     return
   }
 
+  if (event.key === 'Escape' && isSetAsideStackExpanded.value) {
+    event.preventDefault()
+    isSetAsideStackExpanded.value = false
+    return
+  }
+
   if (threadSelectionMode.value) {
     if (event.key === 'Escape') {
       event.preventDefault()
@@ -1281,6 +1392,11 @@ function handleThreadKeydown(event: KeyboardEvent) {
     openScreenerOptionsFor.value = ''
     return
   }
+  if (event.key === 'Escape' && activeFolder.value === 'Set Aside' && !isReadingMessage.value && !isGlobalSearch.value) {
+    event.preventDefault()
+    navigateToFolder('Imbox')
+    return
+  }
   if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return
 
   if (event.key === 'Escape') {
@@ -1290,6 +1406,9 @@ function handleThreadKeydown(event: KeyboardEvent) {
   } else if (event.key.toLocaleLowerCase('en-US') === 'r') {
     event.preventDefault()
     void openReplyComposer()
+  } else if (event.key.toLocaleLowerCase('en-US') === 'a' && ['Imbox', 'Set Aside'].includes(activeFolder.value) && !isSavingSetAside.value && !splitDialogOpen.value) {
+    event.preventDefault()
+    void setAsideThread(activeFolder.value !== 'Set Aside')
   } else if (event.key === 'ArrowLeft') {
     event.preventDefault()
     navigateThreadMessage(-1)
@@ -1373,12 +1492,12 @@ async function importFixture() {
   }
 }
 
-function openMessage(message: InboxMessage) {
+function openMessage(message: InboxMessage, mailbox: Folder = message.folder) {
   openedFromList.value = true
   messageReadError.value = ''
   resetThreadPresentation(message.id)
   void router.push({
-    path: threadPath(message.folder, message.threadId),
+    path: threadPath(mailbox, message.threadId),
     query: { ...route.query, message: message.id },
   })
 
@@ -1408,7 +1527,7 @@ function handleThreadRowClick(thread: MessageThread, event?: MouseEvent) {
     toggleThreadSelection(thread.id, event)
     return
   }
-  openMessage(thread.latest)
+  openMessage(thread.latest, activeFolder.value)
 }
 
 function handleThreadAvatarClick(threadId: string, event: MouseEvent) {
@@ -1581,6 +1700,34 @@ function navigateToFolder(folder: Folder) {
     ? { from: mailboxByName(activeFolder.value).slug }
     : {}
   void router.push({ path: mailboxPath(folder), query })
+}
+
+async function setAsideThread(isSetAside: boolean) {
+  const message = activeThreadMessage.value || selectedMessage.value
+  if (!message || isSavingSetAside.value) return
+
+  isSavingSetAside.value = true
+  classificationActionError.value = ''
+  try {
+    const result = await $fetch<{ isSetAside: boolean, affectedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/set-aside`, {
+      method: 'PATCH',
+      body: { isSetAside },
+    })
+    try {
+      await refreshMessages()
+    } catch {
+      classificationActionError.value = 'Le changement est enregistré, mais la boîte n’a pas pu se recharger.'
+    }
+    classificationFeedback.value = ''
+    void router.push(mailboxPath('Imbox'))
+  } catch (error) {
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    classificationActionError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : 'Le changement Set Aside n’a pas pu être enregistré. Vérifie la connexion et réessaie.'
+  } finally {
+    isSavingSetAside.value = false
+  }
 }
 
 function doneScreener() {

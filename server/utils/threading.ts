@@ -14,7 +14,7 @@ export type ManualThreadMergeMember = {
   root_message_id: string
 }
 
-function referenceIds(value: string | null) {
+export function messageReferences(value: string | null) {
   if (!value) return []
 
   const bracketed = value.match(/<[^<>]+>/g)
@@ -59,8 +59,8 @@ export function getThreadGrouping(
     find(ownId)
 
     const references = [
-      ...referenceIds(message.references_header),
-      ...referenceIds(message.in_reply_to),
+      ...messageReferences(message.references_header),
+      ...messageReferences(message.in_reply_to),
     ]
 
     for (const reference of references) {

@@ -18,6 +18,7 @@ type MessageRow = {
   folder: string
   screener_state: string
   is_read: number
+  is_set_aside: number
   trashed_at: string | null
 }
 
@@ -41,7 +42,7 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       SELECT id, message_id, envelope_from, envelope_to, sender_name, sender_address,
         subject, sent_at, received_at, in_reply_to, references_header, raw_object_key,
-        mailbox_domain, folder, screener_state, is_read, trashed_at
+        mailbox_domain, folder, screener_state, is_read, is_set_aside, trashed_at
       FROM messages
       ORDER BY received_at ASC, id ASC
     `).all<MessageRow>(),
@@ -88,6 +89,7 @@ export default defineEventHandler(async (event) => {
     messages: (messageResult.results as MessageRow[]).map(message => ({
       ...message,
       is_read: Boolean(message.is_read),
+      is_set_aside: Boolean(message.is_set_aside),
       original: `messages/${message.id}.eml`,
       attachments: attachmentsByMessage.get(message.id) || [],
     })),
@@ -102,7 +104,7 @@ export default defineEventHandler(async (event) => {
       name: 'README.txt',
       body: new TextEncoder().encode(
         'Courrier mailbox export\n\n' +
-        'manifest.json preserves Courrier message metadata, folders, screener state, trash state, sender rules and blocked senders.\n' +
+        'manifest.json preserves Courrier message metadata, folders, Set Aside state, screener state, trash state, sender rules and blocked senders.\n' +
         'The messages/ directory contains the original RFC 822 emails. MIME attachments remain embedded in those originals.\n',
       ),
     }

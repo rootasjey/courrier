@@ -8,7 +8,7 @@ Ce guide décrit comment Courrier conserve les emails, comment en télécharger 
 
 | Ressource | Contenu | Mécanisme de récupération |
 | --- | --- | --- |
-| D1 | En-têtes et corps texte normalisés, classement, état de lecture, corbeille, règles d'expéditeurs et métadonnées des pièces jointes | Time Travel de Cloudflare D1, restauration à un point dans le temps |
+| D1 | En-têtes et corps texte normalisés, classement, état de lecture et Set Aside, corbeille, règles d'expéditeurs et métadonnées des pièces jointes | Time Travel de Cloudflare D1, restauration à un point dans le temps |
 | R2 `MAIL_STORE` | Originaux RFC 822 (`.eml`) et objets de pièces jointes | Miroir quotidien vers un second bucket R2 ; export ZIP manuel |
 | R2 `BACKUP_STORE` | Copie des objets de `MAIL_STORE`, sous le préfixe `mirror/` | Copie privée dans le même compte Cloudflare ; restauration manuelle |
 
