@@ -1,10 +1,18 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
-import { getThreadGrouping, type ManualThreadMergeMember, type ThreadableMessage } from '../../../utils/threading'
+import { getThreadGrouping, type ManualThreadMergeMember, type ThreadableMessage } from '../../../utils/threading.ts'
+import { resolveSetAsideRestoreFolder } from '../../../utils/set-aside-restore.ts'
 
 type SetAsideMessage = ThreadableMessage & {
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
   is_set_aside: number
+  sender_address: string | null
+  is_outgoing: number
   trashed_at: string | null
+}
+
+type SenderRule = {
+  sender_address: string
+  folder: 'Imbox' | 'The Feed' | 'Paper Trail'
 }
 
 export default defineEventHandler(async (event) => {
@@ -24,7 +32,7 @@ export default defineEventHandler(async (event) => {
   const [messageResult, mergeResult] = await Promise.all([
     bindings.DB.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
-        references_header, is_set_aside, trashed_at
+        references_header, is_set_aside, sender_address, is_outgoing, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
     `).all<SetAsideMessage>(),
@@ -44,19 +52,47 @@ export default defineEventHandler(async (event) => {
 
   const grouping = getThreadGrouping(messageResult.results, mergeResult.results)
   const selectedThreadId = grouping.threadIds.get(selected.id)
-  const threadMessageIds = messageResult.results
+  const threadMessages = messageResult.results
     .filter(message => message.mailbox_domain === selected.mailbox_domain
       && message.folder === selected.folder
       && grouping.threadIds.get(message.id) === selectedThreadId)
-    .map(message => message.id)
 
-  if (!threadMessageIds.length) throw createError({ statusCode: 404, statusMessage: 'Conversation introuvable.' })
+  if (!threadMessages.length) throw createError({ statusCode: 404, statusMessage: 'Conversation introuvable.' })
 
-  await bindings.DB.prepare(`
+  let destinationFolder = selected.folder
+  if (!body.isSetAside && threadMessages.some(message => message.is_set_aside)) {
+    const senderAddresses = [...new Set(threadMessages
+      .filter(message => !message.is_outgoing)
+      .map(message => message.sender_address?.trim().toLocaleLowerCase('en-US'))
+      .filter((address): address is string => Boolean(address)))]
+
+    if (senderAddresses.length) {
+      const senderRulesResult = await bindings.DB.prepare(`
+        SELECT lower(trim(sender_address)) AS sender_address, folder
+        FROM sender_rules
+        WHERE mailbox_domain = ?
+          AND lower(trim(sender_address)) IN (SELECT value FROM json_each(?))
+      `).bind(selected.mailbox_domain, JSON.stringify(senderAddresses)).all<SenderRule>()
+      const senderRules = new Map(senderRulesResult.results.map(rule => [rule.sender_address, rule.folder]))
+      destinationFolder = resolveSetAsideRestoreFolder(selected.folder, senderAddresses, senderRules)
+    }
+  }
+
+  const threadMessageIds = threadMessages.map(message => message.id)
+  const statements = [bindings.DB.prepare(`
     UPDATE messages
-    SET is_set_aside = ?
+    SET is_set_aside = ?, folder = ?
     WHERE id IN (SELECT value FROM json_each(?))
-  `).bind(body.isSetAside ? 1 : 0, JSON.stringify(threadMessageIds)).run()
+  `).bind(body.isSetAside ? 1 : 0, destinationFolder, JSON.stringify(threadMessageIds))]
 
-  return { isSetAside: body.isSetAside, affectedMessages: threadMessageIds.length }
+  if (!body.isSetAside && destinationFolder !== selected.folder) {
+    const mergeIds = [...new Set(threadMessages.flatMap(message => grouping.manualMergeIds.get(message.id) ?? []))]
+    statements.push(...mergeIds.map(mergeId => bindings.DB.prepare(`
+      UPDATE thread_merges SET folder = ? WHERE id = ? AND mailbox_domain = ?
+    `).bind(destinationFolder, mergeId, selected.mailbox_domain)))
+  }
+
+  await bindings.DB.batch(statements)
+
+  return { isSetAside: body.isSetAside, folder: destinationFolder, affectedMessages: threadMessageIds.length }
 })

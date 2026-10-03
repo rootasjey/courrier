@@ -338,7 +338,7 @@
           Restaurer ce message
         </button>
         <button v-else-if="activeFolder === 'Set Aside'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
-          {{ isSavingSetAside ? 'Retour dans Inbox…' : 'Remettre dans Inbox' }}
+          {{ isSavingSetAside ? 'Remise en boîte…' : 'Remettre dans la boîte correspondante' }}
           <kbd>A</kbd>
         </button>
         <button v-else-if="activeFolder === 'Imbox'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
@@ -1709,7 +1709,7 @@ async function setAsideThread(isSetAside: boolean) {
   isSavingSetAside.value = true
   classificationActionError.value = ''
   try {
-    const result = await $fetch<{ isSetAside: boolean, affectedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/set-aside`, {
+    const result = await $fetch<{ isSetAside: boolean, folder: MailboxFolder, affectedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/set-aside`, {
       method: 'PATCH',
       body: { isSetAside },
     })
@@ -1719,7 +1719,7 @@ async function setAsideThread(isSetAside: boolean) {
       classificationActionError.value = 'Le changement est enregistré, mais la boîte n’a pas pu se recharger.'
     }
     classificationFeedback.value = ''
-    void router.push(mailboxPath('Imbox'))
+    void router.push(mailboxPath(result.folder))
   } catch (error) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     classificationActionError.value = data && typeof data === 'object' && 'statusMessage' in data

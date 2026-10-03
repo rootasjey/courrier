@@ -1,4 +1,4 @@
-import { getThreadGrouping, messageReferences, type ManualThreadMergeMember, type ThreadableMessage } from './threading'
+import { getThreadGrouping, messageReferences, type ManualThreadMergeMember, type ThreadableMessage } from './threading.ts'
 
 type SetAsideMessage = ThreadableMessage & {
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'

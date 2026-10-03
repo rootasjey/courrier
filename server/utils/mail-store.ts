@@ -1,5 +1,5 @@
 import PostalMime, { type Address, type Attachment } from 'postal-mime'
-import { isLinkedToSetAsideThread, keepSetAsideThread } from './keep-set-aside-thread'
+import { isLinkedToSetAsideThread } from './keep-set-aside-thread.ts'
 
 export type MailStorageBindings = {
   DB: D1Database
@@ -77,11 +77,6 @@ export async function storeIncomingEmail(
     .first<{ id: string }>()
 
   if (existing) {
-    try {
-      await keepSetAsideThread(bindings.DB, existing.id)
-    } catch (error) {
-      console.error('[courrier] Could not reconcile a duplicate Set Aside delivery.', { id: existing.id, error })
-    }
     return { id: existing.id, duplicate: true }
   }
 
@@ -90,7 +85,9 @@ export async function storeIncomingEmail(
   const sender = flattenAddresses(parsed.from)[0]
   const senderAddress = incomingSenderAddress(parsed, envelope)
   const mailboxDomain = envelope.to.trim().split('@').at(-1)?.toLocaleLowerCase('en-US') || ''
+  const hasReplyHeaders = Boolean(parsed.inReplyTo || parsed.references)
   let replyBelongsToSetAsideThread = false
+  let replyLinkLookupFailed = false
   try {
     replyBelongsToSetAsideThread = await isLinkedToSetAsideThread(
       bindings.DB,
@@ -99,6 +96,7 @@ export async function storeIncomingEmail(
       parsed.references || null,
     )
   } catch (error) {
+    replyLinkLookupFailed = hasReplyHeaders
     console.error('[courrier] Could not detect whether the incoming reply belongs to a Set Aside conversation.', { id, error })
   }
   const sentAt = parsed.date && !Number.isNaN(Date.parse(parsed.date))
@@ -140,12 +138,12 @@ export async function storeIncomingEmail(
       INSERT OR IGNORE INTO messages (
         id, message_id, envelope_from, envelope_to, sender_name, sender_address,
         subject, sent_at, received_at, in_reply_to, references_header, text_body, raw_object_key,
-      mailbox_domain, folder
+      mailbox_domain, folder, is_set_aside
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(
         ?,
         (SELECT folder FROM sender_rules WHERE mailbox_domain = ? AND sender_address = ?),
         'Screener'
-      ))
+      ), ?)
     `).bind(
       id,
       messageId,
@@ -161,9 +159,10 @@ export async function storeIncomingEmail(
       parsed.text || '',
       rawObjectKey,
       mailboxDomain,
-      replyBelongsToSetAsideThread ? 'Imbox' : null,
+      replyBelongsToSetAsideThread || replyLinkLookupFailed ? 'Imbox' : null,
       mailboxDomain,
       senderAddress,
+      replyBelongsToSetAsideThread ? 1 : 0,
     ),
     ...attachmentRows.map(attachment => bindings.DB.prepare(`
       INSERT OR IGNORE INTO attachments (
@@ -208,19 +207,11 @@ export async function storeIncomingEmail(
         return { id: existingMessage.id, duplicate: true }
       }
 
-      // The initial Message-ID lookup found nothing and this exact-content row
-      // is present now. Local D1 can report zero changes here; continue so a
-      // linked reply can still inherit the Set Aside state.
+      // Another identical delivery inserted the same content after the first
+      // lookup. Its classification was written by the winning insert.
+      return { id: existingMessage.id, duplicate: true }
     } else {
       throw new Error('D1 did not store the incoming email and no existing Message-ID was found.')
-    }
-  }
-
-  if (parsed.inReplyTo || parsed.references) {
-    try {
-      await keepSetAsideThread(bindings.DB, id)
-    } catch (error) {
-      console.error('[courrier] Could not keep the Set Aside thread together after a new message.', { id, error })
     }
   }
 

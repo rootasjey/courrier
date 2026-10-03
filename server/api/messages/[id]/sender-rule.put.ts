@@ -2,7 +2,7 @@ import {
   getThreadGrouping,
   type ManualThreadMergeMember,
   type ThreadableMessage,
-} from '../../../utils/threading'
+} from '../../../utils/threading.ts'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 
@@ -17,6 +17,7 @@ type SenderRuleRow = {
 
 type ClassifiedMessage = ThreadableMessage & {
   sender_address: string | null
+  is_set_aside: number
   trashed_at: string | null
 }
 
@@ -51,7 +52,7 @@ export default defineEventHandler(async (event) => {
   const [messagesResult, mergesResult] = await Promise.all([
     bindings.DB.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
-        references_header, sender_address, trashed_at
+        references_header, sender_address, is_set_aside, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
     `).all<ClassifiedMessage>(),
@@ -70,6 +71,7 @@ export default defineEventHandler(async (event) => {
     .map(row => grouping.manualMergeIds.get(row.id)?.length ? grouping.threadIds.get(row.id) : undefined)
     .filter((root): root is string => Boolean(root)))
   const mergeIdsToMove = new Set<string>()
+  const mergeIdsToSnapshot = new Set<string>()
 
   for (const root of mergedRootsToCheck) {
     const groupMessages = messages.filter(row => grouping.threadIds.get(row.id) === root)
@@ -77,6 +79,11 @@ export default defineEventHandler(async (event) => {
     if (groupMessages.some(row => !row.sender_address?.trim()) || groupAddresses.size > 1) {
       throw createError({ statusCode: 409, statusMessage: 'Cet expéditeur appartient à une conversation fusionnée avec d’autres expéditeurs. Sépare les fils avant de le reclasser.' })
     }
+    for (const groupMessage of groupMessages) {
+      for (const mergeId of grouping.manualMergeIds.get(groupMessage.id) ?? []) mergeIdsToSnapshot.add(mergeId)
+    }
+    // Set Aside takes precedence until the conversation is explicitly restored.
+    if (groupMessages.some(row => row.is_set_aside)) continue
     for (const groupMessage of groupMessages) {
       for (const mergeId of grouping.manualMergeIds.get(groupMessage.id) ?? []) mergeIdsToMove.add(mergeId)
     }
@@ -124,9 +131,10 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       INSERT INTO sender_rule_change_messages (change_id, message_id, previous_folder)
       SELECT ?, id, folder FROM messages
-      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
+      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
+        AND trashed_at IS NULL
     `).bind(changeId, message.mailbox_domain, message.sender_address),
-    ...[...mergeIdsToMove].flatMap((mergeId) => {
+    ...[...mergeIdsToSnapshot].flatMap((mergeId) => {
       const previousFolder = mergesResult.results.find(row => row.merge_id === mergeId)?.folder
       if (!previousFolder || !folders.has(previousFolder as MailFolder)) return []
       return [bindings.DB.prepare(`
@@ -146,7 +154,8 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       UPDATE messages
       SET folder = ?
-      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
+      WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
+        AND trashed_at IS NULL AND is_set_aside = 0
     `).bind(folder, message.mailbox_domain, message.sender_address),
     ...[...mergeIdsToMove].map(mergeId => bindings.DB.prepare(`
       UPDATE thread_merges SET folder = ? WHERE id = ? AND mailbox_domain = ?
@@ -155,7 +164,8 @@ export default defineEventHandler(async (event) => {
 
   const { results } = await bindings.DB.prepare(`
     SELECT COUNT(*) AS count FROM messages
-    WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND trashed_at IS NULL
+    WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
+      AND trashed_at IS NULL AND is_set_aside = 0
   `).bind(message.mailbox_domain, message.sender_address).all<{ count: number }>()
 
   return {
