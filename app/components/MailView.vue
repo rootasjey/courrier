@@ -1,6 +1,6 @@
 <template>
   <main class="mail-page">
-    <section v-if="!isReadingMessage" class="mailbox-view" :class="{ 'has-set-aside-stack': showSetAsideStack }" aria-label="Boîte de réception">
+    <section v-if="!isReadingMessage" class="mailbox-view" :class="{ 'has-mail-stacks': showSetAsideStack || showReplyLaterStack }" aria-label="Boîte de réception">
       <header class="inbox-heading">
       <div v-if="!isGlobalSearch" class="heading-actions">
           <template v-if="activeFolder === 'Screener'">
@@ -267,63 +267,66 @@
         <span v-if="fixtureError" class="fixture-error" role="alert">{{ fixtureError }}</span>
       </div>
 
-      <section v-if="showSetAsideStack" class="set-aside-stack" :class="{ 'is-expanded': isSetAsideStackExpanded }" :style="{ '--set-aside-expanded-height': setAsideStackExpandedHeight }" aria-label="Conversations mises de côté">
+      <section v-if="showSetAsideStack" class="mail-stack set-aside-stack" data-stack-kind="set-aside" :class="{ 'is-expanded': isSetAsideStackExpanded, 'is-paired': showReplyLaterStack }" :style="{ '--set-aside-expanded-height': setAsideStackExpandedHeight }" aria-label="Conversations mises de côté">
         <div class="set-aside-stack-stage">
-          <Transition name="set-aside-stack">
-            <div
-              v-if="isSetAsideStackExpanded"
-              id="set-aside-stack-expanded"
-              class="set-aside-stack-expanded"
-              role="group"
-              aria-label="Fils mis de côté récemment"
-            >
-              <div class="set-aside-stack-cards">
-                <NuxtLink
-                  v-for="(thread, index) in setAsideStackPreview"
-                  :key="thread.id"
-                  class="set-aside-stack-card"
-                  :to="threadPath('Set Aside', thread.id) + `?message=${encodeURIComponent(thread.latest.id)}`"
-                  :style="{ '--stack-offset': `${index % 2 ? 3 : -2}px`, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, zIndex: setAsideStackPreview.length - index }"
-                >
-                  <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
-                  <span class="set-aside-stack-copy">
-                    <strong>{{ thread.latest.subject }}</strong>
-                    <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
-                  </span>
-                  <time>{{ thread.latest.date }}</time>
-                </NuxtLink>
-              </div>
-              <NuxtLink class="set-aside-stack-all" :to="mailboxPath('Set Aside')">Voir Set Aside <span aria-hidden="true">→</span></NuxtLink>
-            </div>
-            <div v-else-if="setAsideStackPreview[0]" class="set-aside-stack-collapsed">
-            <button
-              type="button"
-              class="set-aside-stack-card set-aside-stack-preview"
-              aria-label="Déplier la pile Set Aside"
-              @click="isSetAsideStackExpanded = true"
-            >
-                <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${setAsideStackPreview[0].latest.color}`">{{ setAsideStackPreview[0].latest.initials }}</span>
+          <div id="set-aside-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="isSetAsideStackExpanded ? 'Pile Set Aside dépliée' : 'Pile Set Aside repliée'">
+            <div class="set-aside-stack-cards" :class="{ 'is-expanded': isSetAsideStackExpanded }">
+              <button
+                v-for="(thread, index) in setAsideStackPreview"
+                :key="thread.id"
+                class="set-aside-stack-card"
+                type="button"
+                :class="{ 'is-front-card': index === 0 }"
+                :aria-label="!isSetAsideStackExpanded && index === 0 ? 'Déplier la pile Set Aside' : undefined"
+                :aria-hidden="!isSetAsideStackExpanded && index > 0 ? 'true' : undefined"
+                :tabindex="!isSetAsideStackExpanded && index > 0 ? -1 : undefined"
+                :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: setAsideStackPreview.length - index + 1 }"
+                @click="openOrFollowStackCard(isSetAsideStackExpanded, 'set-aside', thread)"
+              >
+                <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                 <span class="set-aside-stack-copy">
-                  <strong>{{ setAsideStackPreview[0].latest.subject }}</strong>
-                  <span>{{ setAsideStackPreview[0].latest.sender }} · {{ setAsideStackPreview[0].latest.preview }}</span>
+                  <strong>{{ thread.latest.subject }}</strong>
+                  <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
                 </span>
-                <span class="set-aside-stack-count">{{ setAsideThreads.length }}</span>
-            </button>
-              <span v-if="setAsideThreads.length > 1" class="set-aside-stack-back set-aside-stack-back-one" aria-hidden="true" />
-              <span v-if="setAsideThreads.length > 2" class="set-aside-stack-back set-aside-stack-back-two" aria-hidden="true" />
+                <time>{{ thread.latest.date }}</time>
+                <span v-if="!isSetAsideStackExpanded && index === 0" class="set-aside-stack-count">{{ setAsideThreads.length }}</span>
+              </button>
             </div>
-          </Transition>
+            <NuxtLink class="set-aside-stack-all" :class="{ 'is-visible': isSetAsideStackExpanded }" :aria-hidden="!isSetAsideStackExpanded ? 'true' : undefined" :tabindex="isSetAsideStackExpanded ? undefined : -1" :to="mailboxPath('Set Aside')">Voir Set Aside <span aria-hidden="true">→</span></NuxtLink>
+          </div>
         </div>
-        <button
-          class="set-aside-stack-toggle"
-          type="button"
-          :aria-expanded="isSetAsideStackExpanded"
-          :aria-controls="isSetAsideStackExpanded ? 'set-aside-stack-expanded' : undefined"
-          :aria-label="isSetAsideStackExpanded ? 'Replier la pile Set Aside' : `Déplier les ${setAsideThreads.length} fils Set Aside`"
-          @click="isSetAsideStackExpanded = !isSetAsideStackExpanded"
-        >
-          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 12 5-5 5 5" /></svg>
-        </button>
+        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">Pile Set Aside {{ isSetAsideStackExpanded ? 'dépliée' : 'repliée' }}.</span>
+      </section>
+
+      <section v-if="showReplyLaterStack" class="mail-stack set-aside-stack reply-later-stack" data-stack-kind="reply-later" :class="{ 'is-expanded': isReplyLaterStackExpanded, 'is-paired': showSetAsideStack }" :style="{ '--set-aside-expanded-height': replyLaterStackExpandedHeight }" aria-label="Conversations à reprendre plus tard">
+        <div class="set-aside-stack-stage">
+          <div id="reply-later-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="isReplyLaterStackExpanded ? 'Pile Reply Later dépliée' : 'Pile Reply Later repliée'">
+            <div class="set-aside-stack-cards" :class="{ 'is-expanded': isReplyLaterStackExpanded }">
+              <button
+                v-for="(thread, index) in replyLaterStackPreview"
+                :key="thread.id"
+                class="set-aside-stack-card reply-later-stack-card"
+                type="button"
+                :class="{ 'is-front-card': index === 0 }"
+                :aria-label="!isReplyLaterStackExpanded && index === 0 ? 'Déplier la pile Reply Later' : undefined"
+                :aria-hidden="!isReplyLaterStackExpanded && index > 0 ? 'true' : undefined"
+                :tabindex="!isReplyLaterStackExpanded && index > 0 ? -1 : undefined"
+                :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: replyLaterStackPreview.length - index + 1 }"
+                @click="openOrFollowStackCard(isReplyLaterStackExpanded, 'reply-later', thread)"
+              >
+                <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                <span class="set-aside-stack-copy">
+                  <strong>{{ thread.latest.subject }}</strong>
+                  <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
+                </span>
+                <time>{{ thread.latest.date }}</time>
+                <span v-if="!isReplyLaterStackExpanded && index === 0" class="set-aside-stack-count reply-later-stack-count">{{ replyLaterThreads.length }}</span>
+              </button>
+            </div>
+            <NuxtLink class="set-aside-stack-all reply-later-stack-all" :class="{ 'is-visible': isReplyLaterStackExpanded }" :aria-hidden="!isReplyLaterStackExpanded ? 'true' : undefined" :tabindex="isReplyLaterStackExpanded ? undefined : -1" :to="mailboxPath('Reply Later')">Voir Reply Later <span aria-hidden="true">→</span></NuxtLink>
+          </div>
+        </div>
+        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">Pile Reply Later {{ isReplyLaterStackExpanded ? 'dépliée' : 'repliée' }}.</span>
       </section>
     </section>
 
@@ -809,6 +812,8 @@ const screenerActionError = ref('')
 const threadSelectionMode = ref(false)
 const selectedThreadIds = ref<string[]>([])
 const isSetAsideStackExpanded = ref(false)
+const isReplyLaterStackExpanded = ref(false)
+const viewportHeight = ref(800)
 const keyboardSelectionThreadId = ref('')
 const selectionAnchorThreadId = ref('')
 const mergeDialogOpen = ref(false)
@@ -938,13 +943,40 @@ const setAsideThreads = computed<MessageThread[]>(() => {
     }
 }).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
 })
-const setAsideStackPreview = computed(() => setAsideThreads.value.slice(0, 5))
+const stackPreviewLimit = computed(() => Math.max(1, Math.min(5, Math.floor((viewportHeight.value - 148) / 70) + 1)))
+const setAsideStackPreview = computed(() => setAsideThreads.value.slice(0, stackPreviewLimit.value))
 const setAsideStackExpandedHeight = computed(() =>
   `${76 + setAsideStackPreview.value.length * 70}px`)
 const showSetAsideStack = computed(() => activeFolder.value === 'Imbox'
   && !isGlobalSearch.value
   && !threadSelectionMode.value
   && setAsideThreads.value.length > 0)
+const replyLaterThreads = computed<MessageThread[]>(() => {
+  const threads = new Map<string, InboxMessage[]>()
+  for (const message of inboxMessages.value ?? []) {
+    if (!message.isReplyLater) continue
+    const messages = threads.get(message.threadId) ?? []
+    messages.push(message)
+    threads.set(message.threadId, messages)
+  }
+
+  return [...threads.entries()].map(([id, messages]) => {
+    messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    return {
+      id,
+      messages,
+      latest: messages[0]!,
+      unreadCount: messages.filter(message => !message.isRead).length,
+      manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
+    }
+  }).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
+})
+const replyLaterStackPreview = computed(() => replyLaterThreads.value.slice(0, stackPreviewLimit.value))
+const replyLaterStackExpandedHeight = computed(() => `${76 + replyLaterStackPreview.value.length * 70}px`)
+const showReplyLaterStack = computed(() => activeFolder.value === 'Imbox'
+  && !isGlobalSearch.value
+  && !threadSelectionMode.value
+  && replyLaterThreads.value.length > 0)
 const canSelectThreads = computed(() => !isGlobalSearch.value
   && activeFolder.value !== 'Screener'
   && activeFolder.value !== 'Trash'
@@ -1360,9 +1392,10 @@ function handleThreadKeydown(event: KeyboardEvent) {
     return
   }
 
-  if (event.key === 'Escape' && isSetAsideStackExpanded.value) {
+  if (event.key === 'Escape' && (isSetAsideStackExpanded.value || isReplyLaterStackExpanded.value)) {
     event.preventDefault()
     isSetAsideStackExpanded.value = false
+    isReplyLaterStackExpanded.value = false
     return
   }
 
@@ -1456,7 +1489,33 @@ function handleScreenerOutsideClick(event: PointerEvent) {
   }
 }
 
+function handleStackOutsideClick(event: PointerEvent) {
+  const target = event.target
+  const stack = target instanceof Element ? target.closest<HTMLElement>('.mail-stack') : null
+  if (stack?.dataset.stackKind !== 'set-aside') isSetAsideStackExpanded.value = false
+  if (stack?.dataset.stackKind !== 'reply-later') isReplyLaterStackExpanded.value = false
+}
+
+function openOrFollowStackCard(isExpanded: boolean, stack: 'set-aside' | 'reply-later', thread: MessageThread) {
+  if (isExpanded) {
+    const folder = stack === 'set-aside' ? 'Set Aside' : 'Reply Later'
+    void router.push({ path: threadPath(folder, thread.id), query: { message: thread.latest.id } })
+    return
+  }
+  if (stack === 'set-aside') {
+    isSetAsideStackExpanded.value = true
+    isReplyLaterStackExpanded.value = false
+  } else {
+    isSetAsideStackExpanded.value = false
+    isReplyLaterStackExpanded.value = true
+  }
+}
+
 let threadRailResizeObserver: ResizeObserver | undefined
+function updateStackPreviewLimit() {
+  viewportHeight.value = window.innerHeight
+}
+
 watch(threadMessageRail, async (rail) => {
   threadRailResizeObserver?.disconnect()
   if (rail && typeof ResizeObserver !== 'undefined') {
@@ -1481,12 +1540,17 @@ watch(() => chronologicalMessages.value.length, async () => {
 }, { flush: 'post' })
 
 onMounted(() => {
+  updateStackPreviewLimit()
+  window.addEventListener('resize', updateStackPreviewLimit, { passive: true })
   window.addEventListener('keydown', handleThreadKeydown)
   window.addEventListener('pointerdown', handleScreenerOutsideClick)
+  window.addEventListener('pointerdown', handleStackOutsideClick)
 })
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateStackPreviewLimit)
   window.removeEventListener('keydown', handleThreadKeydown)
   window.removeEventListener('pointerdown', handleScreenerOutsideClick)
+  window.removeEventListener('pointerdown', handleStackOutsideClick)
   threadRailResizeObserver?.disconnect()
 })
 
