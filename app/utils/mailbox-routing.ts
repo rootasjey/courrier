@@ -45,3 +45,7 @@ export function mailboxPath(name: MailboxKey) {
 export function threadPath(name: MailboxKey, threadId: string) {
   return `${mailboxPath(name)}/threads/${encodeURIComponent(threadId)}`
 }
+
+export function senderPath(address: string) {
+  return `/mail/senders/${encodeURIComponent(address.trim().toLocaleLowerCase('en-US'))}`
+}

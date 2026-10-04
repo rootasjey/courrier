@@ -464,7 +464,8 @@
                 <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
                 <span class="meta-copy">
                   <strong>{{ activeThreadMessage.sender }}</strong>
-                  <span>{{ activeThreadMessage.isOutgoing ? `À ${activeThreadMessage.recipient}` : activeThreadMessage.address }}</span>
+                  <span v-if="activeThreadMessage.isOutgoing">À {{ activeThreadMessage.recipient }}</span>
+                  <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
                 </span>
                 <time>{{ activeThreadMessage.date }}</time>
               </div>
@@ -503,7 +504,8 @@
                 <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
               <span class="meta-copy">
                 <strong>{{ message.sender }}</strong>
-                <span>{{ message.isOutgoing ? `À ${message.recipient}` : message.address }}</span>
+                <span v-if="message.isOutgoing">À {{ message.recipient }}</span>
+                <NuxtLink v-else class="sender-profile-link" :to="senderPath(message.address)">{{ message.address }}</NuxtLink>
                 </span>
                 <time>{{ message.date }}</time>
               </div>
@@ -723,7 +725,7 @@
 </template>
 
 <script setup lang="ts">
-import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
+import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 type Folder = MailboxKey
 type StoredFolder = Exclude<Folder, 'Set Aside' | 'Reply Later'>
@@ -742,11 +744,14 @@ type InboxMessage = {
   folder: StoredFolder
   screenerState: 'pending' | 'cleared' | 'blocked'
   hasSenderRule: boolean
+  senderRuleFolder: MailboxFolder | null
+  isBlockedSender: boolean
   isRead: boolean
   isSetAside: boolean
   isReplyLater: boolean
   isOutgoing: boolean
   recipient: string
+  mailboxDomain: string
   initials: string
   color: string
   body: string

@@ -24,6 +24,8 @@ type MessageRow = {
   references_header: string | null
   mailbox_domain: string
   is_outgoing: number
+  sender_rule_folder: 'Imbox' | 'The Feed' | 'Paper Trail' | null
+  is_blocked_sender: number
 }
 
 type AttachmentRow = {
@@ -47,11 +49,16 @@ export default defineEventHandler(async (event) => {
       messages.raw_object_key, messages.folder, messages.screener_state, messages.message_id,
       messages.in_reply_to, messages.references_header, messages.mailbox_domain,
       messages.is_outgoing, messages.is_set_aside, messages.is_reply_later,
-      CASE WHEN sender_rules.sender_address IS NULL THEN 0 ELSE 1 END AS has_sender_rule
+      CASE WHEN sender_rules.sender_address IS NULL THEN 0 ELSE 1 END AS has_sender_rule,
+      sender_rules.folder AS sender_rule_folder,
+      CASE WHEN blocked_senders.sender_address IS NULL THEN 0 ELSE 1 END AS is_blocked_sender
     FROM messages
     LEFT JOIN sender_rules
       ON sender_rules.mailbox_domain = messages.mailbox_domain
       AND sender_rules.sender_address = lower(trim(messages.sender_address))
+    LEFT JOIN blocked_senders
+      ON blocked_senders.mailbox_domain = messages.mailbox_domain
+      AND blocked_senders.sender_address = lower(trim(messages.sender_address))
     ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
   `).all<MessageRow>(),
     bindings.DB.prepare(`
@@ -93,6 +100,7 @@ export default defineEventHandler(async (event) => {
       address: message.sender_address || message.envelope_from,
       recipient: message.is_outgoing ? message.envelope_to : '',
       isOutgoing: Boolean(message.is_outgoing),
+      mailboxDomain: message.mailbox_domain,
       subject: message.subject,
       preview: message.text_body.replace(/\s+/g, ' ').trim().slice(0, 180),
       body: message.text_body,
@@ -105,6 +113,8 @@ export default defineEventHandler(async (event) => {
       folder: message.trashed_at ? 'Trash' : message.folder,
       screenerState: message.screener_state,
       hasSenderRule: Boolean(message.has_sender_rule),
+      senderRuleFolder: message.sender_rule_folder,
+      isBlockedSender: Boolean(message.is_blocked_sender),
       isRead: Boolean(message.is_read),
       isSetAside: Boolean(message.is_set_aside),
       isReplyLater: Boolean(message.is_reply_later),

@@ -336,6 +336,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .meta-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
 .meta-copy strong { overflow: hidden; color: var(--ink); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .meta-copy span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.meta-copy .sender-profile-link { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; text-decoration: none; white-space: nowrap; }
+.meta-copy .sender-profile-link:hover { color: var(--violet); text-decoration: underline; text-underline-offset: 2px; }
 .message-meta time { color: var(--quiet); font-size: 12px; }
 .message-rule { height: 1px; margin-bottom: 27px; background: var(--line); }
 .message-paper > p { max-width: 68ch; margin: 0 0 19px; color: #494356; font-size: 16px; line-height: 1.75; white-space: pre-wrap; }
