@@ -1,5 +1,6 @@
 import PostalMime, { type Address, type Attachment } from 'postal-mime'
 import { isLinkedToSetAsideThread } from './keep-set-aside-thread.ts'
+import { linkedReplyLaterFolder } from './reply-later-thread.ts'
 
 export type MailStorageBindings = {
   DB: D1Database
@@ -88,6 +89,8 @@ export async function storeIncomingEmail(
   const hasReplyHeaders = Boolean(parsed.inReplyTo || parsed.references)
   let replyBelongsToSetAsideThread = false
   let replyLinkLookupFailed = false
+  let replyLaterFolder: 'Imbox' | 'The Feed' | 'Paper Trail' | null = null
+  let replyLaterLinkLookupFailed = false
   try {
     replyBelongsToSetAsideThread = await isLinkedToSetAsideThread(
       bindings.DB,
@@ -98,6 +101,17 @@ export async function storeIncomingEmail(
   } catch (error) {
     replyLinkLookupFailed = hasReplyHeaders
     console.error('[courrier] Could not detect whether the incoming reply belongs to a Set Aside conversation.', { id, error })
+  }
+  try {
+    replyLaterFolder = await linkedReplyLaterFolder(
+      bindings.DB,
+      mailboxDomain,
+      parsed.inReplyTo || null,
+      parsed.references || null,
+    )
+  } catch (error) {
+    replyLaterLinkLookupFailed = hasReplyHeaders
+    console.error('[courrier] Could not detect whether the incoming reply belongs to a Reply Later conversation.', { id, error })
   }
   const sentAt = parsed.date && !Number.isNaN(Date.parse(parsed.date))
     ? new Date(parsed.date).toISOString()
@@ -138,12 +152,12 @@ export async function storeIncomingEmail(
       INSERT OR IGNORE INTO messages (
         id, message_id, envelope_from, envelope_to, sender_name, sender_address,
         subject, sent_at, received_at, in_reply_to, references_header, text_body, raw_object_key,
-      mailbox_domain, folder, is_set_aside
+      mailbox_domain, folder, is_set_aside, is_reply_later
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(
         ?,
         (SELECT folder FROM sender_rules WHERE mailbox_domain = ? AND sender_address = ?),
         'Screener'
-      ), ?)
+      ), ?, ?)
     `).bind(
       id,
       messageId,
@@ -159,10 +173,11 @@ export async function storeIncomingEmail(
       parsed.text || '',
       rawObjectKey,
       mailboxDomain,
-      replyBelongsToSetAsideThread || replyLinkLookupFailed ? 'Imbox' : null,
+      replyLaterFolder ?? (replyBelongsToSetAsideThread || replyLinkLookupFailed || replyLaterLinkLookupFailed ? 'Imbox' : null),
       mailboxDomain,
       senderAddress,
       replyBelongsToSetAsideThread ? 1 : 0,
+      replyLaterFolder ? 1 : 0,
     ),
     ...attachmentRows.map(attachment => bindings.DB.prepare(`
       INSERT OR IGNORE INTO attachments (

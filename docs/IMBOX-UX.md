@@ -19,7 +19,7 @@ EN-TÊTE
 └───────────────────────────────────────────────────────────────┘
 
 MENU COURRIER OUVERT
-┌ Screener · Imbox · The Feed · Paper Trail · Réglages ┐
+┌ Screener · Imbox · The Feed · Paper Trail · Reply Later · Set Aside · Réglages ┐
 └───────────────────────────────────────────────────────┘
 
 LISTE
@@ -48,7 +48,7 @@ LECTURE
 4. Ouvrir une ligne affiche le message dans une vue de lecture ample qui masque la liste.
 5. « Retour à la boîte » revient à la liste et conserve la boîte active.
 6. La vue de lecture affiche le sujet, l’expéditeur, la date, le corps et les pièces jointes. Elle ne montre pas de commandes d’archivage ni d’actions qui ne fonctionnent pas encore.
-7. Le menu Courrier donne accès au Screener, Imbox, The Feed, Paper Trail et Réglages. Les raccourcis `1`, `2`, `3` et `0` restent actifs mais ne sont pas imprimés dans la navigation. Sur AZERTY, `Maj+&`, `Maj+é` et `Maj+"` passent aussi à Imbox, The Feed et Paper Trail.
+7. Le menu Courrier donne accès au Screener, Imbox, The Feed, Paper Trail, Reply Later, Set Aside et Réglages. Les raccourcis `1`, `2`, `3`, `4` et `0` restent actifs mais ne sont pas imprimés dans la navigation. Sur AZERTY, `Maj+&`, `Maj+é`, `Maj+"` et `Maj+'` passent aussi à Imbox, The Feed, Paper Trail et Reply Later.
 8. Sur petit écran, la liste et la lecture sont deux états successifs, avec un retour toujours visible.
 9. Les messages reliés par Message-ID, In-Reply-To et References forment un fil chronologique. La lecture montre un message à la fois, le plus récent par défaut, avec une frise horizontale au-dessus du corps et des commandes précédent/suivant à ses extrémités. « Lire tout » montre tous les corps dans l’ordre chronologique. Flèches gauche/droite et Début/Fin naviguent dans le fil hors des champs de saisie. Ce regroupement ne traverse ni les boîtes ni les dossiers, et ne marque pas les messages d’un autre dossier comme lus.
 
@@ -61,8 +61,11 @@ Cette phase couvre le design et la technique, dans cet ordre pour éviter de fig
 3. **Implémentation locale :** état lu/non lu persistant, classement par message et règles d’expéditeur en D1, mutations locales et raccourcis clavier. Pas de déploiement effectué.
 4. **Vérification locale effectuée :** règles d’expéditeur rétroactives, application aux futurs messages, déplacement isolé sans règle, recherche, lecture persistante, téléchargement d’une pièce jointe et raccourcis AZERTY ont été parcourus sur des messages fictifs. L’annulation d’une règle a été vérifiée dans le navigateur et les dossiers exacts confirmés dans D1 locale. Les erreurs de chargement, de classement, d’annulation et d’enregistrement de lecture ont été provoquées en bloquant leurs seuls appels API locaux ; les écrans de reprise ont été vérifiés, ainsi que l’absence de mutation D1 lors des échecs. L’interface a été contrôlée sur desktop et mobile. Les notifications restent à concevoir.
 
+## Reply Later — première tranche locale
+
+Reply Later est une file persistante au niveau conversation, sans date de rappel. Elle conserve le dossier source tout en masquant le fil de la boîte principale. Une réponse reçue qui référence le fil y reste attachée et visible dans la file. Envoyer une réponse ou choisir « Remettre dans la boîte d’origine » retire l’état Reply Later. Le raccourci `L` agit depuis la lecture ; `4` et `Maj+'` ouvrent la file. Le classement par expéditeur ne déplace pas les fils en attente et le déplacement ponctuel est refusé tant que la conversation est en attente. Le build et le parcours local du 4 octobre 2026 ont vérifié l’ajout/retrait visuel, le raccourci `4`, le raccourci `L` et le retour dans Inbox sur un message synthétique existant. Le rattachement d’une nouvelle réponse reçue et le retrait après envoi réel restent à éprouver de bout en bout. La migration `0012_message_reply_later.sql` et cette tranche restent locales ; elles n’ont pas été déployées.
+
 ## Hors de cette passe
 
-- Rendu des emails envoyés, en attendant la fonction d’envoi.
-- Fusion manuelle de fils distincts, Collections, blocage des expéditeurs, notifications, Set Aside, Reply Later, alias et agents.
+- Fusion manuelle de fils distincts, Collections, blocage des expéditeurs, notifications, rappels avec échéance, alias et agents.
 - Reproduction exacte de l’interface ou du comportement interne de HEY.

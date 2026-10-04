@@ -1,16 +1,17 @@
-export type MailboxKey = 'Screener' | 'Imbox' | 'Set Aside' | 'The Feed' | 'Paper Trail' | 'Trash'
+export type MailboxKey = 'Screener' | 'Imbox' | 'The Feed' | 'Paper Trail' | 'Reply Later' | 'Set Aside' | 'Trash'
 
 export const mailboxes: {
   name: MailboxKey
-  label: 'Inbox' | 'Set Aside' | 'Feed' | 'Paper' | 'Screener' | 'Corbeille'
-  slug: 'inbox' | 'set-aside' | 'feed' | 'paper' | 'screener' | 'trash'
+  label: 'Inbox' | 'Feed' | 'Paper' | 'Reply Later' | 'Set Aside' | 'Screener' | 'Corbeille'
+  slug: 'inbox' | 'feed' | 'paper' | 'reply-later' | 'set-aside' | 'screener' | 'trash'
   description: string
 }[] = [
   { name: 'Screener', label: 'Screener', slug: 'screener', description: 'Nouveaux expéditeurs' },
   { name: 'Imbox', label: 'Inbox', slug: 'inbox', description: 'À lire et à traiter' },
-  { name: 'Set Aside', label: 'Set Aside', slug: 'set-aside', description: 'À garder sous la main' },
   { name: 'The Feed', label: 'Feed', slug: 'feed', description: 'Newsletters et lectures' },
   { name: 'Paper Trail', label: 'Paper', slug: 'paper', description: 'Reçus et confirmations' },
+  { name: 'Reply Later', label: 'Reply Later', slug: 'reply-later', description: 'Réponses à préparer' },
+  { name: 'Set Aside', label: 'Set Aside', slug: 'set-aside', description: 'À garder sous la main' },
   { name: 'Trash', label: 'Corbeille', slug: 'trash', description: 'Messages mis de côté' },
 ]
 

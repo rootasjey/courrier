@@ -18,6 +18,7 @@ type SenderRuleRow = {
 type ClassifiedMessage = ThreadableMessage & {
   sender_address: string | null
   is_set_aside: number
+  is_reply_later: number
   trashed_at: string | null
 }
 
@@ -52,7 +53,7 @@ export default defineEventHandler(async (event) => {
   const [messagesResult, mergesResult] = await Promise.all([
     bindings.DB.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
-        references_header, sender_address, is_set_aside, trashed_at
+        references_header, sender_address, is_set_aside, is_reply_later, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
     `).all<ClassifiedMessage>(),
@@ -83,7 +84,7 @@ export default defineEventHandler(async (event) => {
       for (const mergeId of grouping.manualMergeIds.get(groupMessage.id) ?? []) mergeIdsToSnapshot.add(mergeId)
     }
     // Set Aside takes precedence until the conversation is explicitly restored.
-    if (groupMessages.some(row => row.is_set_aside)) continue
+    if (groupMessages.some(row => row.is_set_aside || row.is_reply_later)) continue
     for (const groupMessage of groupMessages) {
       for (const mergeId of grouping.manualMergeIds.get(groupMessage.id) ?? []) mergeIdsToMove.add(mergeId)
     }
@@ -155,7 +156,7 @@ export default defineEventHandler(async (event) => {
       UPDATE messages
       SET folder = ?
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
-        AND trashed_at IS NULL AND is_set_aside = 0
+        AND trashed_at IS NULL AND is_set_aside = 0 AND is_reply_later = 0
     `).bind(folder, message.mailbox_domain, message.sender_address),
     ...[...mergeIdsToMove].map(mergeId => bindings.DB.prepare(`
       UPDATE thread_merges SET folder = ? WHERE id = ? AND mailbox_domain = ?
@@ -165,7 +166,7 @@ export default defineEventHandler(async (event) => {
   const { results } = await bindings.DB.prepare(`
     SELECT COUNT(*) AS count FROM messages
     WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
-      AND trashed_at IS NULL AND is_set_aside = 0
+      AND trashed_at IS NULL AND is_set_aside = 0 AND is_reply_later = 0
   `).bind(message.mailbox_domain, message.sender_address).all<{ count: number }>()
 
   return {

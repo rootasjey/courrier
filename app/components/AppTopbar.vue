@@ -38,7 +38,7 @@
           @click="chooseFolder(folder.name)"
         >
           <span>{{ folder.label }}</span>
-          <span v-if="folder.name === 'Screener' || folder.name === 'Set Aside'" class="menu-folder-note">{{ folder.description }}</span>
+          <span v-if="folder.name === 'Screener' || folder.name === 'Reply Later' || folder.name === 'Set Aside'" class="menu-folder-note">{{ folder.description }}</span>
         </button>
         <div class="menu-divider" />
         <NuxtLink class="menu-settings" to="/settings" @click="menu && (menu.open = false)">Réglages</NuxtLink>

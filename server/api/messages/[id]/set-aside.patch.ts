@@ -5,6 +5,7 @@ import { resolveSetAsideRestoreFolder } from '../../../utils/set-aside-restore.t
 type SetAsideMessage = ThreadableMessage & {
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
   is_set_aside: number
+  is_reply_later: number
   sender_address: string | null
   is_outgoing: number
   trashed_at: string | null
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event) => {
   const [messageResult, mergeResult] = await Promise.all([
     bindings.DB.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
-        references_header, is_set_aside, sender_address, is_outgoing, trashed_at
+        references_header, is_set_aside, is_reply_later, sender_address, is_outgoing, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
     `).all<SetAsideMessage>(),
@@ -58,6 +59,9 @@ export default defineEventHandler(async (event) => {
       && grouping.threadIds.get(message.id) === selectedThreadId)
 
   if (!threadMessages.length) throw createError({ statusCode: 404, statusMessage: 'Conversation introuvable.' })
+  if (body.isSetAside && threadMessages.some(message => message.is_reply_later)) {
+    throw createError({ statusCode: 409, statusMessage: 'Une conversation ne peut pas être à la fois dans Reply Later et Set Aside.' })
+  }
 
   let destinationFolder = selected.folder
   if (!body.isSetAside && threadMessages.some(message => message.is_set_aside)) {

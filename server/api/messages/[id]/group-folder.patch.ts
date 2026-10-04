@@ -10,6 +10,7 @@ type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 type GroupMessage = ThreadableMessage & {
   folder: MailFolder
   mailbox_domain: string
+  is_reply_later: number
 }
 
 const folders = new Set<MailFolder>(['Imbox', 'The Feed', 'Paper Trail'])
@@ -30,7 +31,7 @@ export default defineEventHandler(async (event) => {
 
   const [messageResult, mergeResult] = await Promise.all([
     bindings.DB.prepare(`
-      SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header
+      SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header, is_reply_later
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
     `).all<GroupMessage>(),
@@ -45,12 +46,18 @@ export default defineEventHandler(async (event) => {
   const messages = messageResult.results
   const selected = messages.find(message => message.id === messageId)
   if (!selected) throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
+  if (selected.is_reply_later) {
+    throw createError({ statusCode: 409, statusMessage: 'Retire d’abord cette conversation de Reply Later avant de la reclasser.' })
+  }
 
   const grouping = getThreadGrouping(messages, mergeResult.results)
   const selectedRoot = grouping.threadIds.get(selected.id)
   if (!selectedRoot) throw createError({ statusCode: 409, statusMessage: 'Cette conversation ne peut pas être déplacée comme un groupe.' })
 
   const groupMessages = messages.filter(message => grouping.threadIds.get(message.id) === selectedRoot)
+  if (groupMessages.some(message => message.is_reply_later)) {
+    throw createError({ statusCode: 409, statusMessage: 'Retire d’abord cette conversation de Reply Later avant de la reclasser.' })
+  }
   const mergeIds = new Set(groupMessages.flatMap(message => grouping.manualMergeIds.get(message.id) ?? []))
   const originalGrouping = getThreadGrouping(messages).threadIds
   const allFolderRfcGrouping = getThreadGrouping(messages.map(message => ({ ...message, folder: '__all_folders__' }))).threadIds

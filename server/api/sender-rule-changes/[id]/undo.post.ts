@@ -58,14 +58,14 @@ export default defineEventHandler(async (event) => {
       )
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
         AND id IN (SELECT message_id FROM sender_rule_change_messages WHERE change_id = ?)
-        AND is_set_aside = 0
+        AND is_set_aside = 0 AND is_reply_later = 0
         AND ${guard}
     `).bind(changeId, change.mailbox_domain, change.sender_address, changeId, changeId, now),
     bindings.DB.prepare(`
       UPDATE messages SET folder = ?
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
         AND id NOT IN (SELECT message_id FROM sender_rule_change_messages WHERE change_id = ?)
-        AND is_set_aside = 0
+        AND is_set_aside = 0 AND is_reply_later = 0
         AND ${guard}
     `).bind(
       change.previous_rule_folder ?? 'Screener',

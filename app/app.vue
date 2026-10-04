@@ -45,10 +45,10 @@ const folderOptions = mailboxes.map(mailbox => ({ ...mailbox }))
 
 function shortcutFolder(key: string, code: string, shiftKey: boolean): MailboxKey | undefined {
   if (!shiftKey) {
-    return ({ '0': 'Screener', '1': 'Imbox', '2': 'The Feed', '3': 'Paper Trail' } as Record<string, MailboxKey>)[key]
+    return ({ '0': 'Screener', '1': 'Imbox', '2': 'The Feed', '3': 'Paper Trail', '4': 'Reply Later' } as Record<string, MailboxKey>)[key]
   }
 
-  return ({ Digit1: 'Imbox', Digit2: 'The Feed', Digit3: 'Paper Trail' } as Partial<Record<string, MailboxKey>>)[code]
+  return ({ Digit1: 'Imbox', Digit2: 'The Feed', Digit3: 'Paper Trail', Digit4: 'Reply Later' } as Partial<Record<string, MailboxKey>>)[code]
 }
 
 function applyTheme(preference: 'system' | 'light' | 'dark') {

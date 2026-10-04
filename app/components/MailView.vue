@@ -125,7 +125,7 @@
                   <div v-if="openScreenerOptionsFor === sender.address" class="screener-popover" role="dialog" :aria-label="`Classement de ${sender.address}`">
                   <strong>Oui, et classer dans…</strong>
                   <div class="screener-destinations" role="group" aria-label="Boîte de destination">
-                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="`Destination ${destination.label} — ${destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P'}`" @click="screenerDestination = destination.name">
+                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside' && item.name !== 'Reply Later')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="`Destination ${destination.label} — ${destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P'}`" @click="screenerDestination = destination.name">
                       <svg v-if="destination.name === 'Imbox'" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></svg>
                       <svg v-else-if="destination.name === 'The Feed'" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5c3.3-.9 6.3-.4 9 1.5v13c-2.7-1.9-5.7-2.4-9-1.5v-13Zm18 0c-3.3-.9-6.3-.4-9 1.5v13c2.7-1.9 5.7-2.4 9-1.5v-13Z" /></svg>
                       <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21V3Zm3 5h6m-6 4h6m-6 4h4" /></svg>
@@ -248,7 +248,7 @@
           <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
             <span class="thread-content">
               <span class="thread-subject">{{ thread.latest.subject }}</span>
-              <span class="thread-preview"><span v-if="activeFolder === 'Set Aside' && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">Nouveau message</span><span v-if="activeFolder === 'Set Aside' && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
+              <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">Nouveau message</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
             </span>
             <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
             <time class="thread-date">{{ thread.latest.date }}</time>
@@ -259,8 +259,8 @@
 
       <div v-else class="empty-list">
         <svg class="empty-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="8.5" /><path d="m20 20 6 6" /></svg>
-        <strong>{{ activeFolder === 'Screener' ? 'Aucun expéditeur en attente' : activeFolder === 'Trash' ? 'La corbeille est vide' : activeFolder === 'Set Aside' ? 'Rien de côté pour le moment' : 'Aucun message ici' }}</strong>
-        <span>{{ search ? 'Essaie avec un autre mot.' : activeFolder === 'Screener' ? 'Les nouveaux expéditeurs apparaîtront ici.' : activeFolder === 'Trash' ? 'Les messages que tu y déplaces apparaîtront ici.' : activeFolder === 'Set Aside' ? 'Les conversations mises de côté depuis Inbox apparaîtront ici.' : 'Ce dossier attend ses premiers messages.' }}</span>
+        <strong>{{ activeFolder === 'Screener' ? 'Aucun expéditeur en attente' : activeFolder === 'Trash' ? 'La corbeille est vide' : activeFolder === 'Set Aside' ? 'Rien de côté pour le moment' : activeFolder === 'Reply Later' ? 'Aucune réponse en attente' : 'Aucun message ici' }}</strong>
+        <span>{{ search ? 'Essaie avec un autre mot.' : activeFolder === 'Screener' ? 'Les nouveaux expéditeurs apparaîtront ici.' : activeFolder === 'Trash' ? 'Les messages que tu y déplaces apparaîtront ici.' : activeFolder === 'Set Aside' ? 'Les conversations mises de côté depuis Inbox apparaîtront ici.' : activeFolder === 'Reply Later' ? 'Les conversations à reprendre plus tard apparaîtront ici.' : 'Ce dossier attend ses premiers messages.' }}</span>
         <button v-if="isDevelopment && activeFolder === 'Imbox' && !search" class="fixture-button" type="button" :disabled="isImportingFixture" @click="importFixture">
           {{ isImportingFixture ? 'Import en cours…' : 'Charger un message de test' }}
         </button>
@@ -334,20 +334,32 @@
           <span>Retour à {{ mailboxByName(activeFolder).label }}</span>
           <kbd>Esc</kbd>
         </button>
-        <button v-if="activeFolder === 'Trash'" class="message-classify" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
-          Restaurer ce message
-        </button>
-        <button v-else-if="activeFolder === 'Set Aside'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
-          {{ isSavingSetAside ? 'Remise en boîte…' : 'Remettre dans la boîte correspondante' }}
-          <kbd>A</kbd>
-        </button>
-        <button v-else-if="activeFolder === 'Imbox'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
-          {{ isSavingSetAside ? 'Mise de côté…' : 'Set Aside' }}
-          <kbd>A</kbd>
-        </button>
-        <button v-else class="message-classify" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
-          {{ selectedThread?.manualMergeIds.length ? 'Classer cette conversation' : 'Classer ce message' }}
-        </button>
+        <div class="reading-toolbar-actions">
+          <button v-if="activeFolder === 'Trash'" class="message-classify" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
+            Restaurer ce message
+          </button>
+          <template v-else>
+            <button v-if="activeFolder === 'Set Aside'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
+              {{ isSavingSetAside ? 'Remise en boîte…' : 'Remettre dans la boîte correspondante' }}
+              <kbd>A</kbd>
+            </button>
+            <button v-else-if="activeFolder === 'Imbox'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
+              {{ isSavingSetAside ? 'Mise de côté…' : 'Set Aside' }}
+              <kbd>A</kbd>
+            </button>
+            <button v-else-if="activeFolder !== 'Reply Later'" class="message-classify" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
+              {{ selectedThread?.manualMergeIds.length ? 'Classer cette conversation' : 'Classer ce message' }}
+            </button>
+            <button v-if="activeFolder === 'Reply Later'" class="message-reply-later" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(false)">
+              {{ isSavingReplyLater ? 'Remise dans la boîte…' : 'Remettre dans la boîte d’origine' }}
+              <kbd>L</kbd>
+            </button>
+            <button v-else-if="activeFolder !== 'Set Aside'" class="message-reply-later" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(true)">
+              {{ isSavingReplyLater ? 'Ajout à la file…' : 'Reply Later' }}
+              <kbd>L</kbd>
+            </button>
+          </template>
+        </div>
       </div>
       <div v-if="messageReadError" class="message-read-error" role="alert">
         <span>{{ messageReadError }}</span>
@@ -571,7 +583,7 @@
 
         <fieldset class="classification-destinations">
           <legend>Destination</legend>
-          <label v-for="folder in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
+          <label v-for="folder in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside' && item.name !== 'Reply Later')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
             <input v-model="classificationFolder" type="radio" :value="folder.name">
             <span><strong>{{ folder.label }}</strong><small>{{ folder.description }}</small></span>
           </label>
@@ -711,8 +723,8 @@
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 type Folder = MailboxKey
-type StoredFolder = Exclude<Folder, 'Set Aside'>
-type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash' | 'Set Aside'>
+type StoredFolder = Exclude<Folder, 'Set Aside' | 'Reply Later'>
+type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash' | 'Set Aside' | 'Reply Later'>
 
 type InboxMessage = {
   id: string
@@ -729,6 +741,7 @@ type InboxMessage = {
   hasSenderRule: boolean
   isRead: boolean
   isSetAside: boolean
+  isReplyLater: boolean
   isOutgoing: boolean
   recipient: string
   initials: string
@@ -807,6 +820,7 @@ const threadMergeError = ref('')
 const isClearingScreener = ref(false)
 const isSavingScreenerAction = ref(false)
 const isSavingSetAside = ref(false)
+const isSavingReplyLater = ref(false)
 const isSavingClassification = ref(false)
 const isUndoingClassification = ref(false)
 const undoClassificationId = useState('courrier-undo-classification-id', () => '')
@@ -867,8 +881,9 @@ watch([search, activeFolder], () => {
 const folderMessages = computed(() => {
   return (inboxMessages.value ?? []).filter((message) => {
     if (activeFolder.value === 'Set Aside') return message.folder === 'Imbox' && message.isSetAside
-    if (activeFolder.value === 'Imbox') return message.folder === 'Imbox' && !message.isSetAside
-    return message.folder === activeFolder.value
+    if (activeFolder.value === 'Reply Later') return message.isReplyLater
+    if (activeFolder.value === 'Imbox') return message.folder === 'Imbox' && !message.isSetAside && !message.isReplyLater
+    return message.folder === activeFolder.value && !message.isReplyLater
   })
 })
 
@@ -894,7 +909,7 @@ const folderThreads = computed<MessageThread[]>(() => {
 
 const visibleThreads = computed(() => {
   const query = search.value.trim().toLocaleLowerCase('fr')
-  const threads = activeFolder.value === 'Set Aside'
+  const threads = ['Set Aside', 'Reply Later'].includes(activeFolder.value)
     ? [...folderThreads.value].sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
     : folderThreads.value
   if (!query) return threads
@@ -1214,9 +1229,9 @@ async function sendReply() {
   if (!messageId || replySending.value) return
   replySending.value = true
   replyError.value = ''
-  let sent: { id: string } | undefined
+  let sent: { id: string, folder: MailboxFolder } | undefined
   try {
-    sent = await $fetch<{ id: string }>(`/api/messages/${encodeURIComponent(messageId)}/send`, { method: 'POST' })
+    sent = await $fetch<{ id: string, folder: MailboxFolder }>(`/api/messages/${encodeURIComponent(messageId)}/send`, { method: 'POST' })
     replySendConfirmOpen.value = false
     replyComposerOpen.value = false
   } catch (error) {
@@ -1235,7 +1250,11 @@ async function sendReply() {
 
   try {
     await refreshMessages()
-    await router.replace({ path: route.path, query: { ...route.query, message: sent.id } })
+    if (activeFolder.value === 'Reply Later') {
+      await router.push(mailboxPath(sent.folder))
+    } else {
+      await router.replace({ path: route.path, query: { ...route.query, message: sent.id } })
+    }
   } catch {
     replyError.value = 'La réponse est partie, mais la vue n’a pas pu se recharger. Actualise la page pour la retrouver.'
   }
@@ -1409,6 +1428,9 @@ function handleThreadKeydown(event: KeyboardEvent) {
   } else if (event.key.toLocaleLowerCase('en-US') === 'a' && ['Imbox', 'Set Aside'].includes(activeFolder.value) && !isSavingSetAside.value && !splitDialogOpen.value) {
     event.preventDefault()
     void setAsideThread(activeFolder.value !== 'Set Aside')
+  } else if (event.key.toLocaleLowerCase('en-US') === 'l' && !['Screener', 'Trash', 'Set Aside'].includes(activeFolder.value) && !isSavingReplyLater.value && !splitDialogOpen.value) {
+    event.preventDefault()
+    void setReplyLater(activeFolder.value !== 'Reply Later')
   } else if (event.key === 'ArrowLeft') {
     event.preventDefault()
     navigateThreadMessage(-1)
@@ -1727,6 +1749,34 @@ async function setAsideThread(isSetAside: boolean) {
       : 'Le changement Set Aside n’a pas pu être enregistré. Vérifie la connexion et réessaie.'
   } finally {
     isSavingSetAside.value = false
+  }
+}
+
+async function setReplyLater(isReplyLater: boolean) {
+  const message = activeThreadMessage.value || selectedMessage.value
+  if (!message || isSavingReplyLater.value) return
+
+  isSavingReplyLater.value = true
+  classificationActionError.value = ''
+  try {
+    const result = await $fetch<{ isReplyLater: boolean, folder: MailboxFolder, affectedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/reply-later`, {
+      method: 'PATCH',
+      body: { isReplyLater },
+    })
+    try {
+      await refreshMessages()
+    } catch {
+      classificationActionError.value = 'Le changement est enregistré, mais la boîte n’a pas pu se recharger.'
+    }
+    classificationFeedback.value = ''
+    void router.push(mailboxPath(isReplyLater ? 'Reply Later' : result.folder))
+  } catch (error) {
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    classificationActionError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : 'Le changement Reply Later n’a pas pu être enregistré. Vérifie la connexion et réessaie.'
+  } finally {
+    isSavingReplyLater.value = false
   }
 }
 

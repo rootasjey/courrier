@@ -5,6 +5,7 @@ import {
 } from '../../../utils/threading'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
+type ClassifiableMessage = ThreadableMessage & { is_reply_later: number }
 
 type ClassificationBindings = {
   DB?: D1Database
@@ -28,10 +29,10 @@ export default defineEventHandler(async (event) => {
 
   const [messageResult, mergeResult] = await Promise.all([
     bindings.DB.prepare(`
-      SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header
+      SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header, is_reply_later
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
-    `).all<ThreadableMessage>(),
+    `).all<ClassifiableMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
@@ -44,6 +45,9 @@ export default defineEventHandler(async (event) => {
 
   if (!message) {
     throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
+  }
+  if (message.is_reply_later) {
+    throw createError({ statusCode: 409, statusMessage: 'Retire d’abord cette conversation de Reply Later avant de la reclasser.' })
   }
 
   const grouping = getThreadGrouping(messageResult.results, mergeResult.results)

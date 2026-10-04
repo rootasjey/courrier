@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { keepSetAsideThread } from '../../../utils/keep-set-aside-thread'
+import { clearReplyLaterThread } from '../../../utils/reply-later-thread'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
@@ -23,6 +24,7 @@ type ReplyRow = {
   sender_address: string
   envelope_from: string
   folder: string
+  is_reply_later: number
   mailbox_domain: string
   trashed_at: string | null
 }
@@ -96,7 +98,7 @@ export default defineEventHandler(async (event) => {
     SELECT drafts.id AS draft_id, drafts.to_address, drafts.subject, drafts.text_body, drafts.status,
       messages.id, messages.message_id, messages.in_reply_to, messages.references_header,
       messages.sender_name, messages.sender_address, messages.envelope_from, messages.folder,
-      messages.mailbox_domain, messages.trashed_at
+      messages.mailbox_domain, messages.trashed_at, messages.is_reply_later
     FROM drafts
     JOIN messages ON messages.id = drafts.reply_to_message_id
     WHERE messages.id = ?
@@ -131,7 +133,7 @@ export default defineEventHandler(async (event) => {
     SELECT drafts.id AS draft_id, drafts.to_address, drafts.subject, drafts.text_body, drafts.status,
       messages.id, messages.message_id, messages.in_reply_to, messages.references_header,
       messages.sender_name, messages.sender_address, messages.envelope_from, messages.folder,
-      messages.mailbox_domain, messages.trashed_at
+      messages.mailbox_domain, messages.trashed_at, messages.is_reply_later
     FROM drafts
     JOIN messages ON messages.id = drafts.reply_to_message_id
     WHERE messages.id = ? AND drafts.status = 'sending'
@@ -207,5 +209,11 @@ export default defineEventHandler(async (event) => {
     console.error('[courrier] Could not keep the Set Aside thread together after sending a reply.', { id, error })
   }
 
-  return { id, messageId: result.messageId, sentAt }
+  try {
+    await clearReplyLaterThread(bindings.DB, id)
+  } catch (error) {
+    console.error('[courrier] Could not clear the Reply Later queue after sending a reply.', { id, error })
+  }
+
+  return { id, messageId: result.messageId, sentAt, folder: row.folder }
 })
