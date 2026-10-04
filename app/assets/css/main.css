@@ -114,7 +114,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .inbox-heading h1 { margin: 22px 0 0; color: var(--ink); font-size: clamp(40px, 4.2vw, 58px); font-weight: 730; letter-spacing: -2.5px; line-height: 1.06; }
 .heading-actions { position: absolute; top: 5px; right: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .compose-button, .screener-callout { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 18px; border: 0; border-radius: 24px; font-size: 16px; font-weight: 650; }
-.compose-button { background: var(--violet); color: white; }
+.compose-button { margin-left: auto; background: var(--violet); color: white; }
 .compose-button:hover:not(:disabled) { background: var(--violet-hover); }
 .compose-button:disabled { opacity: 1; background: #c5b8ff; color: #fff; }
 .compose-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
