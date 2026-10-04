@@ -1449,6 +1449,16 @@ function handleThreadKeydown(event: KeyboardEvent) {
     navigateToFolder('Imbox')
     return
   }
+  if (event.key === 'Escape' && activeFolder.value === 'Reply Later' && !isReadingMessage.value && !isGlobalSearch.value) {
+    event.preventDefault()
+    const previousPath = window.history.state?.back
+    if (typeof previousPath === 'string' && previousPath.startsWith('/mail/')) {
+      void router.back()
+    } else {
+      navigateToFolder('Imbox')
+    }
+    return
+  }
   if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return
 
   if (event.key === 'Escape') {
