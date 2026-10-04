@@ -1452,7 +1452,7 @@ function handleThreadKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && activeFolder.value === 'Reply Later' && !isReadingMessage.value && !isGlobalSearch.value) {
     event.preventDefault()
     const previousPath = window.history.state?.back
-    if (typeof previousPath === 'string' && previousPath.startsWith('/mail/')) {
+    if (typeof previousPath === 'string' && previousPath.startsWith('/mail/') && previousPath !== route.path) {
       void router.back()
     } else {
       navigateToFolder('Imbox')
