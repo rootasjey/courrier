@@ -2,7 +2,7 @@ import {
   getThreadGrouping,
   type ManualThreadMergeMember,
   type ThreadableMessage,
-} from '../../../utils/threading'
+} from '../../../utils/threading.ts'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 type ClassifiableMessage = ThreadableMessage & { is_reply_later: number }
@@ -25,6 +25,26 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ folder?: unknown }>(event)
   if (typeof body?.folder !== 'string' || !folders.has(body.folder as MailFolder)) {
     throw createError({ statusCode: 400, statusMessage: 'Boîte de destination invalide.' })
+  }
+  const folder = body.folder as MailFolder
+
+  const pendingScreenerMessage = await bindings.DB.prepare(`
+    SELECT id FROM messages
+    WHERE id = ? AND folder = 'Screener' AND screener_state = 'pending' AND trashed_at IS NULL
+  `).bind(messageId).first<{ id: string }>()
+
+  if (pendingScreenerMessage) {
+    const result = await bindings.DB.prepare(`
+      UPDATE messages
+      SET folder = ?, screener_state = 'cleared'
+      WHERE id = ? AND folder = 'Screener' AND screener_state = 'pending' AND trashed_at IS NULL
+    `).bind(folder, messageId).run()
+
+    if (!result.meta.changes) {
+      throw createError({ statusCode: 404, statusMessage: 'Message Screener introuvable.' })
+    }
+
+    return { folder }
   }
 
   const [messageResult, mergeResult] = await Promise.all([
@@ -57,7 +77,7 @@ export default defineEventHandler(async (event) => {
 
   await bindings.DB.prepare(`
     UPDATE messages SET folder = ? WHERE id = ?
-  `).bind(body.folder, messageId).run()
+  `).bind(folder, messageId).run()
 
-  return { folder: body.folder }
+  return { folder }
 })
