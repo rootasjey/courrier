@@ -38,6 +38,7 @@ class ConcurrentD1 {
         mailbox_domain TEXT NOT NULL,
         folder TEXT NOT NULL,
         is_set_aside INTEGER NOT NULL DEFAULT 0,
+        is_reply_later INTEGER NOT NULL DEFAULT 0,
         trashed_at TEXT
       );
       CREATE TABLE sender_rules (

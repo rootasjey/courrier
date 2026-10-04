@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { test } from 'node:test'
 import { storeIncomingEmail } from '../server/utils/mail-store.ts'
 import type { MailStorageBindings } from '../server/utils/mail-store.ts'
+import { clearReplyLaterThread } from '../server/utils/reply-later-thread.ts'
 import { resolveSetAsideRestoreFolder } from '../server/utils/set-aside-restore.ts'
 
 Object.assign(globalThis, {
@@ -46,6 +47,7 @@ class TestD1 {
         mailbox_domain TEXT NOT NULL,
         folder TEXT NOT NULL,
         is_set_aside INTEGER NOT NULL DEFAULT 0,
+        is_reply_later INTEGER NOT NULL DEFAULT 0,
         is_outgoing INTEGER NOT NULL DEFAULT 0,
         trashed_at TEXT
       );
@@ -175,6 +177,33 @@ class TestD1 {
       INSERT INTO sender_rules (mailbox_domain, sender_address, folder)
       VALUES ('verbatims.cc', 'sender@example.net', 'The Feed')
     `).run()
+  }
+
+  seedReplyLaterMessage() {
+    this.sqlite.prepare(`
+      INSERT INTO messages (
+        id, message_id, envelope_from, envelope_to, sender_address, subject,
+        received_at, raw_object_key, mailbox_domain, folder, is_reply_later
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(
+      'reply-later-original',
+      '<reply-later-original@example.net>',
+      'sender@example.net',
+      'courrier-test@verbatims.cc',
+      'sender@example.net',
+      'Conversation à reprendre',
+      '2026-10-03T10:00:00.000Z',
+      'messages/reply-later-original/original.eml',
+      'verbatims.cc',
+      'Imbox',
+    )
+  }
+
+  replyLaterFlags() {
+    return (this.sqlite.prepare('SELECT id, is_reply_later FROM messages ORDER BY id').all() as {
+      id: string
+      is_reply_later: number
+    }[]).map(row => ({ ...row }))
   }
 
   seedLinkedSetAsideMessage(id: string, messageId: string, senderAddress: string, inReplyTo: string | null) {
@@ -339,6 +368,39 @@ test('si la vérification Set Aside échoue, une réponse avec références rest
     )
 
     assert.deepEqual({ ...db.message(result.id) }, { folder: 'Imbox', is_set_aside: 0 })
+  } finally {
+    db.close()
+  }
+})
+
+test('une réponse entrante rejoint Reply Later et libérer le fil retire l’état de tous ses messages', async () => {
+  const db = new TestD1()
+  db.seedReplyLaterMessage()
+
+  try {
+    const result = await storeIncomingEmail(
+      new TextEncoder().encode(rawEmail(
+        'reply-to-reply-later',
+        'Réponse entrante synthétique.',
+        'In-Reply-To: <reply-later-original@example.net>',
+      )).buffer,
+      { from: 'sender@example.net', to: 'courrier-test@verbatims.cc' },
+      bindings(db),
+    )
+
+    assert.deepEqual({ ...db.message(result.id) }, { folder: 'Imbox', is_set_aside: 0 })
+    assert.deepEqual(db.replyLaterFlags(), [
+      { id: result.id, is_reply_later: 1 },
+      { id: 'reply-later-original', is_reply_later: 1 },
+    ])
+
+    const cleared = await clearReplyLaterThread(db as unknown as D1Database, result.id)
+
+    assert.equal(cleared, 2)
+    assert.deepEqual(db.replyLaterFlags(), [
+      { id: result.id, is_reply_later: 0 },
+      { id: 'reply-later-original', is_reply_later: 0 },
+    ])
   } finally {
     db.close()
   }
