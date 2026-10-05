@@ -4,12 +4,6 @@ import { clearReplyLaterThread } from '../../../utils/reply-later-thread'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
-function parseAllowedRecipients(value?: string) {
-  const recipients = (value || '').split(',').map(address => address.trim().toLocaleLowerCase('en-US')).filter(Boolean)
-  if (recipients.some(address => !/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(address))) return new Set<string>()
-  return new Set(recipients)
-}
-
 type ReplyRow = {
   draft_id: string
   to_address: string
@@ -112,10 +106,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, statusMessage: 'Ce message ne peut plus recevoir de réponse.' })
   }
   if (!row.text_body.trim()) throw createError({ statusCode: 400, statusMessage: 'Écris un message avant de l’envoyer.' })
-  const allowedRecipients = parseAllowedRecipients(bindings.COURRIER_ALLOWED_RECIPIENTS)
-  if (!allowedRecipients.has(row.to_address.toLocaleLowerCase('en-US'))) {
-    throw createError({ statusCode: 403, statusMessage: 'Pour ce prototype, l’envoi est limité à tes propres adresses de test.' })
-  }
   if (!/^<[^<>\s\r\n]+@[^<>\s\r\n]+>$/.test(row.message_id)) {
     throw createError({ statusCode: 409, statusMessage: 'L’identifiant de conversation ne permet pas de produire une réponse fiable.' })
   }
