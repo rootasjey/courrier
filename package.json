@@ -9,6 +9,8 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "generate": "nuxt generate",
     "test:email": "node --experimental-strip-types --test tests/*.test.ts",
+    "restore:inspect": "node scripts/restore-mailbox.mjs inspect",
+    "restore:apply": "node scripts/restore-mailbox.mjs restore",
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
     "deploy": "npm run build && node scripts/require-email-allowlist.mjs && wrangler d1 migrations apply DB --remote && wrangler deploy",
