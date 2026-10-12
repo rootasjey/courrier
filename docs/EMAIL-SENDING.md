@@ -8,12 +8,12 @@ Le formulaire de réponse enregistre un brouillon dans D1. Chaque envoi passe pa
 
 ## Garde-fous du prototype
 
-- Le binding `EMAIL` limite l’expéditeur à `courrier-test@verbatims.cc` et aux destinataires explicitement autorisés pour le pilote. Le Worker vérifie aussi cette liste avant l’appel au binding.
+- Le binding `EMAIL` limite l’expéditeur à `courrier-test@verbatims.cc`. Courrier ne maintient pas d’allowlist applicative des destinataires ; l’accès à l’API est protégé par Cloudflare Access et chaque envoi est confirmé dans l’interface.
 - En local, le binding est simulé par Wrangler : aucun email réel n’est envoyé. Le contenu est journalisé par le simulateur ; Courrier conserve aussi une copie d’envoi dans les données locales. En production, le Worker utilise le service Cloudflare Email Sending.
-- L’envoi n’utilise pas d’allowlist de destinataires à maintenir dans les secrets Cloudflare. Les réponses sont envoyées à l’expéditeur du message auquel on répond, sous réserve que le domaine d’envoi soit autorisé par Cloudflare et que la requête soit authentifiée par Cloudflare Access. Toute ancienne variable `COURRIER_ALLOWED_RECIPIENTS` configurée dans `.dev.vars` ou Workers Builds est désormais ignorée et peut être supprimée séparément.
+- Les réponses sont envoyées à l’expéditeur du message auquel on répond, sous réserve que le domaine d’envoi soit autorisé par Cloudflare et que la requête soit authentifiée par Cloudflare Access. Toute ancienne variable `COURRIER_ALLOWED_RECIPIENTS` configurée dans `.dev.vars` ou Workers Builds est désormais ignorée et peut être supprimée séparément.
 - Cette suppression est une décision technique de Courrier, pas une autorisation d’usage accordée par Cloudflare : leur documentation actuelle indique que Email Service est destiné aux emails transactionnels et ne prend pas encore en charge les emails marketing. Vérifier la compatibilité auprès de Cloudflare avant d’utiliser ce service pour des campagnes marketing ou comme service d’envoi général. Voir la [FAQ Cloudflare Email Service](https://developers.cloudflare.com/email-service/reference/faq/).
 - Le script `postbuild` ne modifie que le point d’entrée Worker généré. `npm run deploy` applique les migrations distantes puis déploie, sans exiger de liste de destinataires.
-- L’envoi de nouveaux messages, les pièces jointes sortantes, les autres domaines, les autres expéditeurs et les destinataires externes ne sont pas activés dans ce premier parcours.
+- Seules les réponses à des messages reçus sont prises en charge. La rédaction de nouveaux messages et les pièces jointes sortantes ne sont pas encore implémentées. Les pièces jointes entrantes restent consultables dans Courrier. Les autres domaines et expéditeurs ne sont pas activés dans ce premier parcours.
 - Si Cloudflare renvoie une erreur dont l’acceptation est incertaine, ou si Courrier ne peut pas terminer l’archivage après acceptation, le brouillon reste verrouillé en `sending`. Vérifier la boîte destinataire avant toute nouvelle tentative afin d’éviter un doublon.
 - Une réponse envoyée depuis la vue d’un message du Screener ou de la corbeille est refusée.
 

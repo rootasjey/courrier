@@ -609,7 +609,7 @@
     <NDialog
       :open="replySendConfirmOpen"
       title="Envoyer cette réponse ?"
-      description="L’envoi est limité aux adresses de test que tu contrôles."
+      description="Vérifie le destinataire et le contenu avant de confirmer l’envoi."
       :_dialog-content="{ class: 'classification-dialog reply-confirm-dialog' }"
       @update:open="(open: boolean) => { replySendConfirmOpen = open }"
     >
