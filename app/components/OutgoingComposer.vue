@@ -53,6 +53,12 @@
               </div>
             </div>
 
+            <p class="compose-size-meter" :class="{ 'compose-size-over': estimatedEmailBytes > OUTBOUND_MESSAGE_BUDGET_BYTES }" role="status">
+              Taille estimée : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
+              <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> (limite de 5 Mio, marge incluse)</span>
+              <span v-else> · Réduis le corps ou retire une pièce jointe.</span>
+            </p>
+
             <p v-if="uploading" class="compose-status" role="status">Ajout des fichiers…</p>
             <p v-else-if="error" class="compose-error" role="alert">{{ error }}</p>
             <p v-else-if="draftStatus === 'sending'" class="compose-status" role="status">Un envoi a déjà commencé. Vérifie la boîte destinataire avant toute nouvelle tentative.</p>
@@ -87,6 +93,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { estimateOutgoingEmailBytes, formatEmailSize, OUTBOUND_MESSAGE_BUDGET_BYTES } from '#shared/utils/outgoing-email-size'
 
 type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeBytes: number, contentId: string, disposition: 'attachment' | 'inline' }
 type ComposeDraft = { id: string, to: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', attachments: ComposeAttachment[] }
@@ -100,6 +107,7 @@ const subject = ref('')
 const attachments = ref<ComposeAttachment[]>([])
 const draftStatus = ref<'draft' | 'sending'>('draft')
 const loading = ref(false)
+const editorRevision = ref(0)
 const saving = ref(false)
 const saved = ref(false)
 const uploading = ref(false)
@@ -120,14 +128,27 @@ const editor = useEditor({
     Image.configure({ inline: false, allowBase64: false }),
     Placeholder.configure({ placeholder: 'Écrire votre message…' }),
   ],
-  onUpdate: () => scheduleSave(),
+  onUpdate: () => {
+    editorRevision.value += 1
+    scheduleSave()
+  },
 })
 
 const recipientList = computed(() => to.value.split(/[;,\n]+/).map(address => address.trim()).filter(Boolean))
+const estimatedEmailBytes = computed(() => {
+  editorRevision.value
+  return estimateOutgoingEmailBytes({
+    to: recipientList.value,
+    subject: subject.value,
+    text: editor.value?.getText() || '',
+    html: editor.value?.getHTML() || '',
+    attachments: attachments.value,
+  })
+})
 const recipientError = computed(() => recipientList.value.length > 50 || recipientList.value.some(address => !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address))
   ? 'Vérifie les adresses et sépare-les par une virgule.'
   : '')
-const canSend = computed(() => Boolean(draftId.value && recipientList.value.length && !recipientError.value && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
+const canSend = computed(() => Boolean(draftId.value && recipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
 
 watch(() => props.open, (open) => {
   if (open) {
@@ -212,6 +233,7 @@ async function onFilesSelected(event: Event) {
   uploading.value = true
   error.value = ''
   try {
+    await saveDraft()
     for (const file of files) {
       const form = new FormData()
       form.append('file', file)
@@ -337,7 +359,7 @@ function readError(cause: unknown, fallback: string) {
 }
 
 function formatSize(bytes: number) {
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} Ko` : `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
+  return formatEmailSize(bytes)
 }
 
 onBeforeUnmount(() => {
@@ -374,6 +396,9 @@ onBeforeUnmount(() => {
 .compose-editor .tiptap img { display: block; max-width: 100%; max-height: 360px; margin: 10px 0; border-radius: 5px; object-fit: contain; }
 .compose-editor .tiptap a { color: var(--violet); text-decoration: underline; text-underline-offset: 2px; }
 .compose-attachments { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; padding: 0 18px 12px; }
+.compose-size-meter { margin: 0; padding: 0 18px 12px; color: var(--quiet); font-size: 11px; }
+.compose-size-meter span { color: var(--quiet); }
+.compose-size-meter.compose-size-over { color: #aa3d37; }
 .compose-attachment { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
 .compose-attachment-icon { color: var(--violet); }
 .compose-attachment-name { display: grid; min-width: 0; flex: 1; gap: 2px; }

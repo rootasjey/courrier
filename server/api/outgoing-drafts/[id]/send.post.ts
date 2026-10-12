@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { normalizeDraftRecipients, type OutgoingDraftAttachment } from '../../../utils/outgoing-draft-content'
+import { estimateOutgoingEmailBytes, OUTBOUND_MESSAGE_BUDGET_BYTES } from '../../../../shared/utils/outgoing-email-size'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
@@ -143,13 +144,24 @@ export default defineEventHandler(async (event) => {
     }
     uploaded.push({ ...attachment, bytes })
   }
-  if (uploaded.reduce((total, file) => total + file.size_bytes, 0) > 3_400_000) {
+  const claimRecipients = normalizeDraftRecipients(draft.to_address)
+  if (!claimRecipients) {
     await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
-    throw createError({ statusCode: 413, statusMessage: 'Les pièces jointes dépassent la taille maximale autorisée.' })
+    throw createError({ statusCode: 400, statusMessage: 'Le destinataire ou le contenu du brouillon est invalide.' })
+  }
+  const estimatedMessageBytes = estimateOutgoingEmailBytes({
+    to: claimRecipients,
+    subject,
+    text: draft.text_body,
+    html: draft.html_body,
+    attachments: uploaded,
+  })
+  if (estimatedMessageBytes > OUTBOUND_MESSAGE_BUDGET_BYTES) {
+    await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+    throw createError({ statusCode: 413, statusMessage: 'Le message complet dépasse la limite estimée de 5 Mio. Réduis le corps du message ou retire une pièce jointe.' })
   }
 
-  const claimRecipients = normalizeDraftRecipients(draft.to_address)
-  if (!claimRecipients || !draft.text_body.trim() && !/<(?:img)\b/i.test(draft.html_body) && attachmentRows.results.length === 0) {
+  if (!draft.text_body.trim() && !/<(?:img)\b/i.test(draft.html_body) && attachmentRows.results.length === 0) {
     await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
     throw createError({ statusCode: 400, statusMessage: 'Le destinataire ou le contenu du brouillon est invalide.' })
   }
