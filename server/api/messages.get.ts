@@ -18,6 +18,7 @@ type MessageRow = {
   sent_at: string | null
   received_at: string
   text_body: string
+  html_body: string
   raw_object_key: string
   message_id: string
   in_reply_to: string | null
@@ -45,7 +46,7 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
     SELECT messages.id, messages.envelope_from, messages.envelope_to,
       messages.sender_name, messages.sender_address, messages.subject,
-      messages.sent_at, messages.received_at, messages.text_body, messages.is_read, messages.trashed_at,
+      messages.sent_at, messages.received_at, messages.text_body, messages.html_body, messages.is_read, messages.trashed_at,
       messages.raw_object_key, messages.folder, messages.screener_state, messages.message_id,
       messages.in_reply_to, messages.references_header, messages.mailbox_domain,
       messages.is_outgoing, messages.is_set_aside, messages.is_reply_later,
@@ -104,6 +105,7 @@ export default defineEventHandler(async (event) => {
       subject: message.subject,
       preview: message.text_body.replace(/\s+/g, ' ').trim().slice(0, 180),
       body: message.text_body,
+      htmlBody: message.html_body || '',
       timestamp: new Date(message.sent_at || message.received_at).toISOString(),
       date: new Intl.DateTimeFormat('fr-FR', {
         hour: '2-digit',

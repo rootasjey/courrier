@@ -6,6 +6,12 @@ Cloudflare Email Sending indique `verbatims.cc` **Enabled** et **Configured** da
 
 Le formulaire de réponse enregistre un brouillon dans D1. Chaque envoi passe par une confirmation dans l’interface et ajoute la réponse envoyée au fil, à D1 et à R2. Les en-têtes `In-Reply-To` et `References` relient la réponse au fil entrant. L’archive R2 d’un envoi est nommée `sent-copy.eml` : elle reconstitue le contenu texte transmis et l’identifiant fourni par Cloudflare, car Email Sending ne renvoie pas le MIME exact après traitement par le fournisseur.
 
+## Rédaction autonome — 13 octobre 2026
+
+Le compositeur `Écrire` est maintenant activé dans le code local, mais n’est pas encore déployé ni validé par un envoi réel. Il permet de reprendre un brouillon autonome stocké dans D1, de saisir plusieurs destinataires séparés par des virgules ou points-virgules, de formater le message avec Tiptap, d’ajouter des images intégrées et des pièces jointes conservées dans R2, puis de confirmer l’envoi. L’expéditeur reste `courrier-test@verbatims.cc`.
+
+Les fichiers sont limités à 32 et à 3,4 Mo cumulés afin de garder une marge pour l’encodage MIME et le corps du message. Les images intégrées sont limitées à JPEG, PNG, GIF et WebP. En local, Wrangler simule l’envoi : la vérification de l’interface ne prouve pas la livraison. Avant d’utiliser ce parcours en production, il reste à revoir le code, pousser les changements pour Workers Builds, vérifier la migration D1 distante, puis faire un envoi contrôlé vers une adresse convenue et confirmer sa réception ainsi que sa copie dans Courrier.
+
 ## Garde-fous du prototype
 
 - Le binding `EMAIL` limite l’expéditeur à `courrier-test@verbatims.cc`. Courrier ne maintient pas d’allowlist applicative des destinataires ; l’accès à l’API est protégé par Cloudflare Access et chaque envoi est confirmé dans l’interface.
@@ -13,7 +19,7 @@ Le formulaire de réponse enregistre un brouillon dans D1. Chaque envoi passe pa
 - Les réponses sont envoyées à l’expéditeur du message auquel on répond, sous réserve que le domaine d’envoi soit autorisé par Cloudflare et que la requête soit authentifiée par Cloudflare Access. Toute ancienne variable `COURRIER_ALLOWED_RECIPIENTS` configurée dans `.dev.vars` ou Workers Builds est désormais ignorée et peut être supprimée séparément.
 - Cette suppression est une décision technique de Courrier, pas une autorisation d’usage accordée par Cloudflare : leur documentation actuelle indique que Email Service est destiné aux emails transactionnels et ne prend pas encore en charge les emails marketing. Vérifier la compatibilité auprès de Cloudflare avant d’utiliser ce service pour des campagnes marketing ou comme service d’envoi général. Voir la [FAQ Cloudflare Email Service](https://developers.cloudflare.com/email-service/reference/faq/).
 - Le script `postbuild` ne modifie que le point d’entrée Worker généré. `npm run deploy` applique les migrations distantes puis déploie, sans exiger de liste de destinataires.
-- Seules les réponses à des messages reçus sont prises en charge. La rédaction de nouveaux messages et les pièces jointes sortantes ne sont pas encore implémentées. Les pièces jointes entrantes restent consultables dans Courrier. Les autres domaines et expéditeurs ne sont pas activés dans ce premier parcours.
+- Les réponses à des messages reçus restent prises en charge. Le compositeur autonome et ses pièces jointes sortantes sont implémentés localement, mais doivent encore être revus et validés en production avant d’être considérés comme opérationnels. Les pièces jointes entrantes restent consultables dans Courrier. L’expéditeur reste limité à `courrier-test@verbatims.cc`.
 - Si Cloudflare renvoie une erreur dont l’acceptation est incertaine, ou si Courrier ne peut pas terminer l’archivage après acceptation, le brouillon reste verrouillé en `sending`. Vérifier la boîte destinataire avant toute nouvelle tentative afin d’éviter un doublon.
 - Une réponse envoyée depuis la vue d’un message du Screener ou de la corbeille est refusée.
 

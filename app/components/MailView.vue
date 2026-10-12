@@ -20,7 +20,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1.2A4.8 4.8 0 0 1 6.8 14h.4A4.8 4.8 0 0 1 12 18.8V20m0-1.2a4.8 4.8 0 0 1 4.8-4.8h.4a4.8 4.8 0 0 1 4.8 4.8V20" /></svg>
               <span>{{ allScreenerSenders.length }} expéditeur{{ allScreenerSenders.length > 1 ? 's' : '' }} à examiner</span>
             </button>
-            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" disabled title="La rédaction de nouveaux messages arrive ensuite">
+            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" title="Nouveau message" @click="composeOpen = true">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span>Écrire</span>
             </button>
@@ -471,7 +471,8 @@
               </div>
 
               <div class="message-rule" />
-              <p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p>
+              <div v-if="activeThreadMessage.isOutgoing && activeThreadMessage.htmlBody" class="message-rich-body" v-html="activeThreadMessage.htmlBody" />
+              <template v-else><p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
               <div v-if="activeThreadMessage.attachments.length" class="attachment-list" aria-label="Pièces jointes">
                 <span class="attachment-heading">{{ activeThreadMessage.attachments.length }} pièce{{ activeThreadMessage.attachments.length > 1 ? 's' : '' }} jointe{{ activeThreadMessage.attachments.length > 1 ? 's' : '' }}</span>
                 <a
@@ -510,7 +511,8 @@
                 <time>{{ message.date }}</time>
               </div>
               <div class="message-rule" />
-              <p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p>
+              <div v-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
+              <template v-else><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
               <div v-if="message.attachments.length" class="attachment-list" aria-label="Pièces jointes">
                 <span class="attachment-heading">{{ message.attachments.length }} pièce{{ message.attachments.length > 1 ? 's' : '' }} jointe{{ message.attachments.length > 1 ? 's' : '' }}</span>
                 <a
@@ -721,11 +723,16 @@
         </footer>
       </template>
     </NDialog>
+
+    <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" @sent="onOutgoingMessageSent" />
   </main>
 </template>
 
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
+
+const OutgoingComposer = defineAsyncComponent(() => import('~/components/OutgoingComposer.vue'))
 
 type Folder = MailboxKey
 type StoredFolder = Exclude<Folder, 'Set Aside' | 'Reply Later'>
@@ -755,6 +762,7 @@ type InboxMessage = {
   initials: string
   color: string
   body: string
+  htmlBody: string
   attachments: { id: string, filename: string, mimeType: string, sizeBytes: number }[]
 }
 
@@ -840,6 +848,7 @@ const classificationActionError = useState('courrier-classification-action-error
 const messageReadError = ref('')
 const isRefreshingInbox = ref(false)
 const replyComposerOpen = ref(false)
+const composeOpen = ref(false)
 const replySendConfirmOpen = ref(false)
 const replyBody = ref('')
 const replyError = ref('')
@@ -855,6 +864,14 @@ const isDevelopment = import.meta.dev
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
 let undoTimer: ReturnType<typeof setTimeout> | undefined
+
+async function onOutgoingMessageSent() {
+  try {
+    await refreshMessages()
+  } catch {
+    classificationActionError.value = 'Message envoyé, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
+  }
+}
 
 const { data: inboxMessages, refresh: refreshMessages, error: inboxMessagesError } = await useFetch<InboxMessage[]>('/api/messages', {
   default: () => [],

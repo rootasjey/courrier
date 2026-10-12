@@ -47,11 +47,13 @@ export default defineEventHandler(async (event) => {
   const contentType = /^[\w!#$&^_.+-]+\/[\w!#$&^_.+-]+$/i.test(attachment.mime_type)
     ? attachment.mime_type
     : 'application/octet-stream'
+  const inlineRequested = getQuery(event).inline === '1'
+  const inlineAllowed = inlineRequested && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(contentType.toLowerCase())
 
   return new Response(object.body, {
     headers: {
       'Cache-Control': 'private, no-store',
-      'Content-Disposition': safeDownloadFilename(attachment.filename),
+      'Content-Disposition': inlineAllowed ? 'inline' : safeDownloadFilename(attachment.filename),
       'Content-Length': String(object.size),
       'Content-Type': contentType,
       'X-Content-Type-Options': 'nosniff',

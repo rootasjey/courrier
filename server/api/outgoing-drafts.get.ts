@@ -1,0 +1,32 @@
+import type { MailStorageBindings } from '../utils/mail-store'
+
+type DraftRow = {
+  id: string
+  to_address: string
+  subject: string
+  content_json: string
+  status: 'draft' | 'sending'
+  updated_at: string
+}
+
+export default defineEventHandler(async (event) => {
+  const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
+  if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des brouillons est indisponible.' })
+
+  const draft = await bindings.DB.prepare(`
+    SELECT id, to_address, subject, content_json, status, updated_at
+    FROM outgoing_drafts
+    ORDER BY CASE status WHEN 'draft' THEN 0 ELSE 1 END, updated_at DESC
+    LIMIT 1
+  `).first<DraftRow>()
+  if (!draft) return null
+
+  const attachments = await bindings.DB.prepare(`
+    SELECT id, filename, mime_type AS mimeType, size_bytes AS sizeBytes, disposition, content_id AS contentId
+    FROM outgoing_draft_attachments WHERE draft_id = ? ORDER BY created_at
+  `).bind(draft.id).all()
+
+  let content: unknown
+  try { content = JSON.parse(draft.content_json) } catch { content = { type: 'doc', content: [{ type: 'paragraph' }] } }
+  return { id: draft.id, to: draft.to_address, subject: draft.subject, content, status: draft.status, updatedAt: draft.updated_at, attachments: attachments.results }
+})
