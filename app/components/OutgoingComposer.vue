@@ -22,10 +22,12 @@
               <button class="compose-icon-button" type="button" aria-label="Réduire le compositeur" title="Réduire en bas de l’écran" :disabled="sending" @click="minimizeComposer">
                 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 7 6 6 6-6" /></svg>
               </button>
-              <button class="compose-icon-button" type="button" :aria-label="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :title="mode === 'popup' ? 'Pleine page' : 'Fenêtre flottante'" :disabled="sending" @click="togglePopupMode">
-                <svg v-if="mode === 'popup'" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m0-4 6 6m4 8h4v-4m0 4-6-6" /></svg>
-                <svg v-else viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6m0-6-8 8" /><path d="M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
-              </button>
+              <NTooltip :content="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'">
+                <button class="compose-icon-button" type="button" :aria-label="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :title="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :disabled="sending" @click="togglePopupMode">
+                  <svg v-if="mode === 'popup'" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m0-4 6 6m4 8h4v-4m0 4-6-6" /></svg>
+                  <svg v-else viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6m0-6-8 8" /><path d="M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
+                </button>
+              </NTooltip>
               <button class="compose-icon-button" type="button" aria-label="Fermer le compositeur" title="Fermer le brouillon" :disabled="sending" @click="closeComposer">
                 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
               </button>
@@ -59,7 +61,7 @@
                   <span class="compose-toolbar-separator" aria-hidden="true" />
                   <button type="button" :class="{ active: editor.isActive('link') }" aria-label="Ajouter un lien" title="Ajouter un lien" @mousedown.prevent @click="addLink">Lien</button>
                 </BubbleMenu>
-                <div v-if="editor && slashState.open" class="compose-slash-menu" :style="slashMenuStyle" role="listbox" aria-label="Commandes d’insertion">
+                <div v-if="editor && slashState.open" ref="slashMenu" class="compose-slash-menu" :style="slashMenuStyle" role="listbox" aria-label="Commandes d’insertion">
                   <p class="compose-slash-heading">Insérer un bloc</p>
                   <button v-for="(item, index) in filteredSlashCommands" :key="item.label" type="button" role="option" :aria-selected="slashIndex === index" :class="{ active: slashIndex === index }" @mousedown.prevent @click="applySlashCommand(item)">
                     <span class="compose-slash-icon" aria-hidden="true">{{ item.icon }}</span>
@@ -93,9 +95,16 @@
 
             <footer class="compose-footer">
               <span class="compose-save-status" role="status">{{ saving ? 'Enregistrement…' : saved ? 'Brouillon enregistré' : 'Brouillon en cours' }}</span>
-              <button class="compose-tool-button" type="button" aria-label="Insérer une image" title="Insérer une image" :disabled="!editor || sending || draftStatus === 'sending'" @click="chooseFiles('inline')">Image</button>
-              <button class="compose-tool-button" type="button" aria-label="Joindre des fichiers" title="Joindre des fichiers" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">Joindre</button>
-              <button class="compose-discard" type="button" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">Supprimer le brouillon</button>
+              <NTooltip content="Joindre un ou plusieurs fichiers au message">
+                <button class="compose-tool-button compose-icon-action" type="button" aria-label="Joindre des fichiers" title="Joindre des fichiers" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.3 10.8 5.1-5.1a2.6 2.6 0 0 1 3.7 3.7l-7.2 7.2a4.2 4.2 0 0 1-5.9-5.9l7.1-7.1" /></svg>
+                </button>
+              </NTooltip>
+              <NTooltip content="Supprimer le brouillon et ses pièces jointes">
+                <button class="compose-discard compose-icon-action" type="button" aria-label="Supprimer le brouillon" title="Supprimer le brouillon" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 5.5h13m-11.5 0 .7 11h8.6l.7-11M7.5 5.5V3.8h5v1.7m-3.5 3v5m2-5v5" /></svg>
+                </button>
+              </NTooltip>
               <button class="compose-send" type="button" :disabled="!canSend" @click="requestSend">{{ sending ? 'Envoi…' : 'Envoyer' }}</button>
             </footer>
           </template>
@@ -144,6 +153,7 @@ const loading = ref(false)
 const editorRevision = ref(0)
 const composerWindow = ref<HTMLElement | null>(null)
 const minimizedElement = ref<HTMLElement | null>(null)
+const slashMenu = ref<HTMLElement | null>(null)
 const saving = ref(false)
 const saved = ref(false)
 const uploading = ref(false)
@@ -193,6 +203,14 @@ const slashCommands: SlashCommand[] = [
 const filteredSlashCommands = computed(() => {
   const query = slashState.value.query.trim().toLocaleLowerCase('fr')
   return slashCommands.filter(item => !query || `${item.label} ${item.description}`.toLocaleLowerCase('fr').includes(query))
+})
+
+watch([slashIndex, filteredSlashCommands], async () => {
+  await nextTick()
+  const activeItem = slashMenu.value?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')
+  if (!activeItem) return
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  activeItem.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' })
 })
 
 const slashMenuStyle = computed(() => {
@@ -556,6 +574,9 @@ onBeforeUnmount(() => {
 .compose-stage.is-popup, .compose-stage.is-minimized { background: transparent; pointer-events: none; }
 .compose-window { position: absolute; inset: 76px 0 0; display: grid; width: 100%; height: auto; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 0; border-radius: 0; background: var(--paper); box-shadow: none; color: var(--ink); }
 .compose-window.is-popup { inset: auto 24px 24px auto; width: min(680px, calc(100vw - 48px)); height: min(780px, calc(100dvh - 120px)); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 80px rgb(24 20 35 / 25%); pointer-events: auto; }
+.compose-window.is-popup .compose-header { min-height: 70px; padding: 12px 20px; }
+.compose-window.is-popup .compose-header h2 { font-size: 18px; }
+.compose-window.is-popup .compose-body, .compose-window.is-popup .compose-footer { width: calc(100% - 48px); }
 .compose-header { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 86px; padding: 16px clamp(18px, 4vw, 64px); background: var(--paper); }
 .compose-header h2 { grid-column: 2; margin: 0; font-size: 22px; font-weight: 680; text-align: center; }
 .compose-window-actions { display: flex; gap: 4px; }
@@ -572,19 +593,22 @@ onBeforeUnmount(() => {
 .compose-minimized-copy strong { font-size: 12px; }
 .compose-minimized-copy small { color: var(--quiet); font-size: 10px; }
 .compose-minimized-close { width: 30px; height: 30px; flex: 0 0 30px; }
-.compose-body { display: grid; width: min(76vw, 1240px); min-height: 0; grid-template-rows: auto auto minmax(210px, 1fr) auto auto auto; align-content: stretch; margin: 0 auto; overflow-y: auto; scrollbar-gutter: stable; }
+.compose-body { display: block; width: min(76vw, 1240px); min-height: 0; margin: 0 auto; overflow-y: auto; scrollbar-gutter: stable; }
 .compose-fields { display: grid; padding: 4px 0 0; }
 .compose-field { display: grid; min-height: 43px; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 13px; }
 .compose-field input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
 .compose-field input::placeholder { color: var(--quiet); }
 .compose-field-error { margin: 5px 0 0; color: #aa3d37; font-size: 11px; }
-.compose-editor-shell { position: relative; display: grid; min-height: 230px; grid-template-rows: minmax(190px, 1fr); }
+.compose-editor-shell { position: relative; display: block; min-height: 230px; }
 .compose-toolbar-separator { width: 1px; height: 20px; margin: 0 3px; background: var(--line); }
 .compose-editor { min-height: 210px; padding: 30px 0 36px; color: var(--ink); font-size: 15px; line-height: 1.75; }
 .compose-editor .tiptap { min-height: 210px; outline: 0; }
 .compose-editor .tiptap p { margin: 0 0 12px; }
 .compose-editor .tiptap p.is-editor-empty:first-child::before { float: left; height: 0; color: var(--quiet); content: attr(data-placeholder); pointer-events: none; }
-.compose-editor .tiptap ul, .compose-editor .tiptap ol { padding-left: 24px; }
+.compose-editor .tiptap ul, .compose-editor .tiptap ol { margin: 0 0 12px; padding-left: 28px; }
+.compose-editor .tiptap ul { list-style: disc outside; }
+.compose-editor .tiptap ol { list-style: decimal outside; }
+.compose-editor .tiptap li::marker { color: var(--ink); }
 .compose-editor .tiptap blockquote { margin: 10px 0; padding-left: 14px; border-left: 1px solid var(--line); color: var(--muted); }
 .compose-editor .tiptap h1, .compose-editor .tiptap h2, .compose-editor .tiptap h3 { margin: 18px 0 10px; line-height: 1.3; }
 .compose-editor .tiptap h1 { font-size: 1.75em; }
@@ -595,7 +619,7 @@ onBeforeUnmount(() => {
 .compose-bubble-menu { display: flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 8px 26px rgb(24 20 35 / 18%); }
 .compose-bubble-menu button { min-width: 32px; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-bubble-menu button:hover, .compose-bubble-menu button.active { background: var(--violet-wash); color: var(--violet); }
-.compose-slash-menu { position: absolute; z-index: 5; width: min(300px, calc(100vw - 32px)); max-height: min(360px, 55vh); overflow: auto; padding: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 14px 38px rgb(24 20 35 / 18%); }
+.compose-slash-menu { position: absolute; z-index: 5; width: min(300px, calc(100vw - 32px)); max-height: min(360px, 55vh); overflow: auto; scroll-behavior: smooth; padding: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 14px 38px rgb(24 20 35 / 18%); }
 .compose-slash-heading { margin: 2px 7px 6px; color: var(--quiet); font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
 .compose-slash-menu button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .compose-slash-menu button:hover, .compose-slash-menu button.active { background: var(--violet-wash); }
@@ -620,6 +644,9 @@ onBeforeUnmount(() => {
 .compose-footer { position: relative; display: flex; width: min(76vw, 1240px); flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 auto; padding: 14px 0 max(20px, env(safe-area-inset-bottom)); background: var(--paper); }
 .compose-save-status { margin-right: auto; color: var(--quiet); font-size: 11px; }
 .compose-tool-button { min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.compose-icon-action { display: inline-grid; width: 36px; min-height: 36px; padding: 0; place-items: center; border-radius: 9px; }
+.compose-icon-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.compose-icon-action:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
 .compose-tool-button:hover { border-color: var(--violet); color: var(--violet); }
 .compose-tool-button:disabled { opacity: .5; cursor: not-allowed; }
 .compose-send, .compose-secondary, .compose-discard { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
@@ -645,7 +672,6 @@ onBeforeUnmount(() => {
   .compose-header { min-height: 56px; padding: 8px 10px; }
   .compose-header h2 { font-size: 18px; }
   .compose-body, .compose-footer { width: calc(100% - 32px); }
-  .compose-body { grid-template-rows: auto auto minmax(180px, 1fr) auto auto auto; }
   .compose-editor { padding: 22px 0 28px; }
   .compose-minimized { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(220px, calc(100vw - 16px)); }
   .compose-footer { gap: 7px; padding: 10px 0 max(14px, env(safe-area-inset-bottom)); }
@@ -656,5 +682,6 @@ onBeforeUnmount(() => {
 @media (prefers-reduced-motion: reduce) {
   .compose-shell-enter-active, .compose-shell-leave-active, .compose-shell-enter-active .compose-window, .compose-shell-leave-active .compose-window { transition: none; }
   .compose-minimized { animation: none; }
+  .compose-slash-menu { scroll-behavior: auto; }
 }
 </style>
