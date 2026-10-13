@@ -21,6 +21,9 @@
           <header class="compose-header">
             <h2 id="compose-title">Nouveau message</h2>
             <div class="compose-window-actions">
+              <button class="compose-drafts-count" type="button" :disabled="loading || saving" @click="openDrafts">
+                {{ draftCount }} brouillon{{ draftCount === 1 ? '' : 's' }}
+              </button>
               <NTooltip content="Réduire en bas de l’écran" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
                 <button class="compose-icon-button" type="button" aria-label="Réduire le compositeur" :disabled="sending" @click="minimizeComposer">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 7 6 6 6-6" /></svg>
@@ -207,10 +210,11 @@ type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeB
 type ComposeDraft = { id: string, to: string, cc?: string, bcc?: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', attachments: ComposeAttachment[] }
 type SlashCommand = { label: string, description: string, icon: string, apply: () => void }
 
-const props = defineProps<{ open: boolean }>()
-const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: string] }>()
+const props = defineProps<{ open: boolean, draftId?: string | null }>()
+const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: string], 'show-drafts': [] }>()
 
 const draftId = ref('')
+const draftCount = ref(0)
 const to = ref('')
 const recipientEntry = ref('')
 const cc = ref('')
@@ -456,13 +460,18 @@ const recipientError = computed(() => !toRecipientList.value.length
     : '')
 const canSend = computed(() => Boolean(draftId.value && toRecipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
 
-watch(() => props.open, (open) => {
+watch(() => [props.open, props.draftId] as const, (values, previous = [false, null]) => {
   if (!import.meta.client) return
+  const [open, requestedDraftId] = values
+  const [wasOpen, previousDraftId] = previous
   if (open) {
     mode.value = 'full'
     expandedMode.value = 'full'
     window.addEventListener('keydown', onWindowKeydown, true)
-    void loadDraft()
+    if (!wasOpen || requestedDraftId !== previousDraftId) {
+      reset()
+      void loadDraft(requestedDraftId)
+    }
   }
   else {
     window.removeEventListener('keydown', onWindowKeydown, true)
@@ -473,14 +482,15 @@ watch(() => props.open, (open) => {
 
 watch([to, recipientEntry, cc, ccEntry, bcc, bccEntry, subject], () => scheduleSave())
 
-async function loadDraft() {
+async function loadDraft(requestedDraftId: string | null | undefined = props.draftId) {
   if (loading.value) return
   loading.value = true
   error.value = ''
   hydrating = true
   try {
-    let draft = await $fetch<ComposeDraft | null>('/api/outgoing-drafts')
-    if (!draft) draft = await $fetch<ComposeDraft>('/api/outgoing-drafts', { method: 'POST' })
+    const draft = requestedDraftId
+      ? await $fetch<ComposeDraft>(`/api/outgoing-drafts/${encodeURIComponent(requestedDraftId)}`)
+      : await $fetch<ComposeDraft>('/api/outgoing-drafts', { method: 'POST' })
     draftId.value = draft.id
     const loadedRecipients = splitRecipients(draft.to)
     to.value = loadedRecipients.filter(isValidRecipient).join(', ')
@@ -499,6 +509,7 @@ async function loadDraft() {
     editor.value?.commands.setContent(draft.content || { type: 'doc', content: [{ type: 'paragraph' }] })
     editor.value?.setEditable(draft.status === 'draft')
     saved.value = Boolean(draft.updatedAt)
+    await refreshDraftCount()
   } catch (cause) {
     error.value = readError(cause, 'Le brouillon n’a pas pu être chargé.')
   } finally {
@@ -506,6 +517,15 @@ async function loadDraft() {
     loading.value = false
     await nextTick()
     if (props.open && mode.value !== 'minimized') recipientInput.value?.focus()
+  }
+}
+
+async function refreshDraftCount() {
+  try {
+    const drafts = await $fetch<{ id: string }[]>('/api/outgoing-drafts')
+    draftCount.value = drafts.length
+  } catch {
+    // The composer can still be used if the count cannot be refreshed.
   }
 }
 
@@ -673,6 +693,17 @@ async function closeComposer() {
   emit('update:open', false)
 }
 
+async function openDrafts() {
+  if (sending.value || loading.value) return
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = undefined
+  }
+  await saveDraft()
+  if (saving.value || error.value) return
+  emit('show-drafts')
+}
+
 async function transitionComposerMode(nextMode: 'full' | 'popup' | 'minimized') {
   if (sending.value) return
   await saveDraft()
@@ -759,6 +790,9 @@ onBeforeUnmount(() => {
 .compose-header h2 { grid-column: 2; margin: 0; font-size: 22px; font-weight: 680; text-align: center; }
 .compose-window-actions { display: flex; gap: 4px; }
 .compose-window-actions { grid-column: 3; justify-self: end; }
+.compose-drafts-count { min-height: 34px; margin-right: 4px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--violet) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--violet); font: inherit; font-size: 12px; cursor: pointer; }
+.compose-drafts-count:hover { background: var(--violet-wash); }
+.compose-drafts-count:disabled { opacity: .55; cursor: wait; }
 .compose-icon-button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .compose-icon-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .compose-icon-button:hover { background: var(--paper); color: var(--ink); }
@@ -861,6 +895,7 @@ onBeforeUnmount(() => {
   .compose-window.is-popup { inset: auto 8px max(8px, env(safe-area-inset-bottom)) auto; width: calc(100vw - 16px); height: min(720px, calc(100dvh - 82px)); border-radius: 13px; }
   .compose-header { min-height: 56px; padding: 8px 10px; }
   .compose-header h2 { font-size: 18px; }
+  .compose-drafts-count { padding: 0 8px; font-size: 10px; }
   .compose-body, .compose-footer { width: calc(100% - 32px); }
   .compose-editor { padding: 22px 0 28px; }
   .compose-minimized { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(220px, calc(100vw - 16px)); }

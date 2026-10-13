@@ -20,7 +20,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1.2A4.8 4.8 0 0 1 6.8 14h.4A4.8 4.8 0 0 1 12 18.8V20m0-1.2a4.8 4.8 0 0 1 4.8-4.8h.4a4.8 4.8 0 0 1 4.8 4.8V20" /></svg>
               <span>{{ allScreenerSenders.length }} expéditeur{{ allScreenerSenders.length > 1 ? 's' : '' }} à examiner</span>
             </button>
-            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" title="Nouveau message" @click="composeOpen = true">
+            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" title="Nouveau message" @click="openNewComposer">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span>Écrire</span>
             </button>
@@ -724,7 +724,7 @@
       </template>
     </NDialog>
 
-    <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" @sent="onOutgoingMessageSent" />
+    <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" :draft-id="composeDraftId" @sent="onOutgoingMessageSent" @show-drafts="goToDrafts" />
   </main>
 </template>
 
@@ -849,6 +849,7 @@ const messageReadError = ref('')
 const isRefreshingInbox = ref(false)
 const replyComposerOpen = ref(false)
 const composeOpen = ref(false)
+const composeDraftId = ref<string | null>(null)
 const replySendConfirmOpen = ref(false)
 const replyBody = ref('')
 const replyError = ref('')
@@ -864,6 +865,16 @@ const isDevelopment = import.meta.dev
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
 let undoTimer: ReturnType<typeof setTimeout> | undefined
+
+function openNewComposer() {
+  composeDraftId.value = null
+  composeOpen.value = true
+}
+
+async function goToDrafts() {
+  composeOpen.value = false
+  if (route.path !== '/mail/drafts') await router.push('/mail/drafts')
+}
 
 async function onOutgoingMessageSent() {
   try {
