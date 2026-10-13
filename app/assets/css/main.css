@@ -463,6 +463,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 :root[data-theme="dark"] .message-group-seen { background: #282339; }
 :root[data-theme="dark"] .message-paper > p { color: #d1cadf; }
 :root[data-theme="dark"] .thread-message-card > p { color: #d1cadf; }
+:root[data-theme="dark"] .thread-message-card .message-rich-body { color: var(--ink); }
 :root[data-theme="dark"] .thread-message-card { box-shadow: 0 10px 30px rgb(0 0 0 / 30%); }
 :root[data-theme="dark"] .thread-full-message.is-selected { box-shadow: 0 0 0 2px color-mix(in srgb, var(--violet) 34%, transparent), 0 10px 30px rgb(0 0 0 / 30%); }
 :root[data-theme="dark"] .fixture-button, :root[data-theme="dark"] .dialog-cancel { background: #262231; color: var(--ink); }
