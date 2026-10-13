@@ -34,6 +34,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
+			"database_name": "courrier-db",
+			"database_id": "3dc4507e-78f0-4e8a-b2f4-51ddc75b6aa8",
 			"migrations_dir": "migrations"
 		}
 	],
