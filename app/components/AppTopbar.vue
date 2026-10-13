@@ -91,6 +91,8 @@ function openMobileSearch() {
 
 function closeMenuOnEscape(event: KeyboardEvent) {
   if (event.key === 'Escape' && menu.value?.open) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
     menu.value.open = false
   }
 }

@@ -36,9 +36,31 @@
 </template>
 
 <script setup lang="ts">
+const route = useRoute()
+const router = useRouter()
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 
 useSeoMeta({
   title: 'Réglages — Courrier',
 })
+
+function returnFromSettings(event: KeyboardEvent) {
+  if (event.key !== 'Escape') return
+  if (document.querySelector('details[open]')) return
+  if (event.target instanceof HTMLSelectElement) {
+    event.target.blur()
+    return
+  }
+
+  event.preventDefault()
+  const previousPath = router.options.history.state.back
+  if (typeof previousPath === 'string' && previousPath.startsWith('/') && previousPath !== route.fullPath && !previousPath.startsWith('/settings')) {
+    void router.back()
+  } else {
+    void router.push('/mail/inbox')
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', returnFromSettings))
+onBeforeUnmount(() => window.removeEventListener('keydown', returnFromSettings))
 </script>

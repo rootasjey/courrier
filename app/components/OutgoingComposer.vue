@@ -176,18 +176,19 @@ const recipientError = computed(() => recipientList.value.length > 50 || recipie
 const canSend = computed(() => Boolean(draftId.value && recipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
 
 watch(() => props.open, (open) => {
+  if (!import.meta.client) return
   if (open) {
     mode.value = 'full'
     expandedMode.value = 'full'
-    window.addEventListener('keydown', onWindowKeydown)
+    window.addEventListener('keydown', onWindowKeydown, true)
     void loadDraft()
   }
   else {
-    window.removeEventListener('keydown', onWindowKeydown)
+    window.removeEventListener('keydown', onWindowKeydown, true)
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = undefined
   }
-})
+}, { immediate: true })
 
 watch([to, subject], () => scheduleSave())
 
@@ -312,9 +313,11 @@ function addLink() {
 
 function onWindowKeydown(event: KeyboardEvent) {
   if (event.key !== 'Escape' || !props.open) return
+  if (document.querySelector('details[open]')) return
   event.preventDefault()
-  event.stopPropagation()
+  event.stopImmediatePropagation()
   if (confirmSend.value) confirmSend.value = false
+  else if (mode.value !== 'minimized') minimizeComposer()
   else void closeComposer()
 }
 
@@ -425,7 +428,7 @@ function formatSize(bytes: number) {
 }
 
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onWindowKeydown)
+  window.removeEventListener('keydown', onWindowKeydown, true)
   if (saveTimer) clearTimeout(saveTimer)
 })
 </script>
@@ -446,13 +449,13 @@ onBeforeUnmount(() => {
 .compose-icon-button:hover { background: var(--paper); color: var(--ink); }
 .compose-icon-button:focus-visible, .compose-minimized-main:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
 .compose-stage.is-popup .compose-icon-button:hover { background: var(--surface-soft); }
-.compose-minimized { position: absolute; right: 18px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; width: min(360px, calc(100vw - 32px)); min-height: 64px; align-items: center; gap: 4px; padding: 7px 8px 7px 16px; border: 1px solid var(--line); border-radius: 12px 12px 0 0; background: var(--paper); box-shadow: 0 12px 36px rgb(24 20 35 / 18%); pointer-events: auto; animation: compose-minimized-enter 220ms cubic-bezier(.2,.75,.25,1) both; }
+.compose-minimized { position: absolute; right: 18px; bottom: max(8px, env(safe-area-inset-bottom)); display: flex; width: min(220px, calc(100vw - 32px)); min-height: 48px; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border: 1px solid var(--line); border-radius: 10px 10px 0 0; background: var(--paper); box-shadow: 0 12px 36px rgb(24 20 35 / 18%); pointer-events: auto; animation: compose-minimized-enter 220ms cubic-bezier(.2,.75,.25,1) both; }
 .compose-minimized-main { display: flex; min-width: 0; flex: 1; align-items: center; padding: 2px 0; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .compose-minimized-copy { display: grid; min-width: 0; gap: 3px; }
 .compose-minimized-copy strong, .compose-minimized-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.compose-minimized-copy strong { font-size: 13px; }
-.compose-minimized-copy small { color: var(--quiet); font-size: 11px; }
-.compose-minimized-close { flex: 0 0 36px; }
+.compose-minimized-copy strong { font-size: 12px; }
+.compose-minimized-copy small { color: var(--quiet); font-size: 10px; }
+.compose-minimized-close { width: 30px; height: 30px; flex: 0 0 30px; }
 .compose-fields { display: grid; padding: 4px 18px 0; }
 .compose-field { display: grid; min-height: 43px; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 13px; }
 .compose-field input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
@@ -509,7 +512,7 @@ onBeforeUnmount(() => {
   .compose-window.is-popup { inset: auto 8px max(8px, env(safe-area-inset-bottom)) auto; width: calc(100vw - 16px); height: min(720px, calc(100dvh - 82px)); border-radius: 13px; }
   .compose-header { min-height: 56px; padding: 8px 10px; }
   .compose-header h2 { font-size: 18px; }
-  .compose-minimized { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: calc(100vw - 16px); }
+  .compose-minimized { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(220px, calc(100vw - 16px)); }
   .compose-footer { gap: 7px; padding: 10px; }
   .compose-discard { margin-left: auto; }
   .compose-save-status { width: 100%; }
