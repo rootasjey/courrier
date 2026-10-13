@@ -38,54 +38,63 @@
             <button class="compose-secondary" type="button" @click="loadDraft">Réessayer</button>
           </div>
           <template v-else>
-            <div class="compose-fields">
-              <label class="compose-field">
-                <span>À</span>
-                <input v-model="to" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr, autre@exemple.fr" :disabled="sending || draftStatus === 'sending'" @keydown.enter.prevent="saveDraft">
-              </label>
-              <label class="compose-field">
-                <span>Objet</span>
-                <input v-model="subject" type="text" placeholder="Objet du message" :disabled="sending || draftStatus === 'sending'">
-              </label>
-            </div>
-            <p v-if="recipientError" class="compose-field-error" role="alert">{{ recipientError }}</p>
-
-            <div class="compose-editor-shell">
-              <div class="compose-toolbar" role="toolbar" aria-label="Mise en forme">
-                <button type="button" :class="{ active: editor?.isActive('bold') }" aria-label="Gras" title="Gras" :disabled="!editor || sending || draftStatus === 'sending'" @click="editor?.chain().focus().toggleBold().run()"><strong>G</strong></button>
-                <button type="button" :class="{ active: editor?.isActive('italic') }" aria-label="Italique" title="Italique" :disabled="!editor || sending || draftStatus === 'sending'" @click="editor?.chain().focus().toggleItalic().run()"><em>I</em></button>
-                <button type="button" :class="{ active: editor?.isActive('strike') }" aria-label="Barré" title="Barré" :disabled="!editor || sending || draftStatus === 'sending'" @click="editor?.chain().focus().toggleStrike().run()"><s>S</s></button>
-                <span class="compose-toolbar-separator" aria-hidden="true" />
-                <button type="button" aria-label="Liste à puces" title="Liste à puces" :disabled="!editor || sending || draftStatus === 'sending'" @click="editor?.chain().focus().toggleBulletList().run()">• Liste</button>
-                <button type="button" aria-label="Ajouter un lien" title="Ajouter un lien" :disabled="!editor || sending || draftStatus === 'sending'" @click="addLink">Lien</button>
-                <button type="button" aria-label="Insérer une image" title="Insérer une image" :disabled="!editor || sending || draftStatus === 'sending'" @click="chooseFiles('inline')">Image</button>
-                <button type="button" aria-label="Joindre des fichiers" title="Joindre des fichiers" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">Joindre</button>
+            <div class="compose-body">
+              <div class="compose-fields">
+                <label class="compose-field">
+                  <span>À</span>
+                  <input v-model="to" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr, autre@exemple.fr" :disabled="sending || draftStatus === 'sending'" @keydown.enter.prevent="saveDraft">
+                </label>
+                <label class="compose-field">
+                  <span>Objet</span>
+                  <input v-model="subject" type="text" placeholder="Objet du message" :disabled="sending || draftStatus === 'sending'">
+                </label>
               </div>
-              <EditorContent v-if="editor" class="compose-editor" :editor="editor" />
-            </div>
+              <p v-if="recipientError" class="compose-field-error" role="alert">{{ recipientError }}</p>
 
-            <input ref="attachmentInput" class="sr-only" type="file" multiple @change="onFilesSelected">
-
-            <div v-if="attachments.length" class="compose-attachments" aria-label="Pièces jointes">
-              <div v-for="attachment in attachments" :key="attachment.id" class="compose-attachment">
-                <span class="compose-attachment-icon" aria-hidden="true">{{ attachment.disposition === 'inline' ? '▧' : '↗' }}</span>
-                <span class="compose-attachment-name"><strong>{{ attachment.filename }}</strong><small>{{ formatSize(attachment.sizeBytes) }}{{ attachment.disposition === 'inline' ? ' · image intégrée' : '' }}</small></span>
-                <button type="button" :aria-label="`Retirer ${attachment.filename}`" :disabled="sending || draftStatus === 'sending'" @click="removeAttachment(attachment)">×</button>
+              <div class="compose-editor-shell">
+                <BubbleMenu v-if="editor" :editor="editor" :options="{ placement: 'top', offset: 8 }" class="compose-bubble-menu">
+                  <button type="button" :class="{ active: editor.isActive('bold') }" aria-label="Gras" title="Gras" @mousedown.prevent @click="editor.chain().focus().toggleBold().run()"><strong>G</strong></button>
+                  <button type="button" :class="{ active: editor.isActive('italic') }" aria-label="Italique" title="Italique" @mousedown.prevent @click="editor.chain().focus().toggleItalic().run()"><em>I</em></button>
+                  <button type="button" :class="{ active: editor.isActive('strike') }" aria-label="Barré" title="Barré" @mousedown.prevent @click="editor.chain().focus().toggleStrike().run()"><s>S</s></button>
+                  <span class="compose-toolbar-separator" aria-hidden="true" />
+                  <button type="button" :class="{ active: editor.isActive('link') }" aria-label="Ajouter un lien" title="Ajouter un lien" @mousedown.prevent @click="addLink">Lien</button>
+                </BubbleMenu>
+                <div v-if="editor && slashState.open" class="compose-slash-menu" :style="slashMenuStyle" role="listbox" aria-label="Commandes d’insertion">
+                  <p class="compose-slash-heading">Insérer un bloc</p>
+                  <button v-for="(item, index) in filteredSlashCommands" :key="item.label" type="button" role="option" :aria-selected="slashIndex === index" :class="{ active: slashIndex === index }" @mousedown.prevent @click="applySlashCommand(item)">
+                    <span class="compose-slash-icon" aria-hidden="true">{{ item.icon }}</span>
+                    <span><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
+                  </button>
+                  <p v-if="!filteredSlashCommands.length" class="compose-slash-empty">Aucune commande trouvée</p>
+                </div>
+                <EditorContent v-if="editor" class="compose-editor" :editor="editor" @keydown.capture="onEditorKeydown" />
               </div>
+
+              <input ref="attachmentInput" class="sr-only" type="file" multiple @change="onFilesSelected">
+
+              <div v-if="attachments.length" class="compose-attachments" aria-label="Pièces jointes">
+                <div v-for="attachment in attachments" :key="attachment.id" class="compose-attachment">
+                  <span class="compose-attachment-icon" aria-hidden="true">{{ attachment.disposition === 'inline' ? '▧' : '↗' }}</span>
+                  <span class="compose-attachment-name"><strong>{{ attachment.filename }}</strong><small>{{ formatSize(attachment.sizeBytes) }}{{ attachment.disposition === 'inline' ? ' · image intégrée' : '' }}</small></span>
+                  <button type="button" :aria-label="`Retirer ${attachment.filename}`" :disabled="sending || draftStatus === 'sending'" @click="removeAttachment(attachment)">×</button>
+                </div>
+              </div>
+
+              <p class="compose-size-meter" :class="{ 'compose-size-over': estimatedEmailBytes > OUTBOUND_MESSAGE_BUDGET_BYTES }" role="status">
+                Taille estimée : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
+                <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> (limite de 5 Mio, marge incluse)</span>
+                <span v-else> · Réduis le corps ou retire une pièce jointe.</span>
+              </p>
+
+              <p v-if="uploading" class="compose-status" role="status">Ajout des fichiers…</p>
+              <p v-else-if="error" class="compose-error" role="alert">{{ error }}</p>
+              <p v-else-if="draftStatus === 'sending'" class="compose-status" role="status">Un envoi a déjà commencé. Vérifie la boîte destinataire avant toute nouvelle tentative.</p>
             </div>
-
-            <p class="compose-size-meter" :class="{ 'compose-size-over': estimatedEmailBytes > OUTBOUND_MESSAGE_BUDGET_BYTES }" role="status">
-              Taille estimée : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
-              <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> (limite de 5 Mio, marge incluse)</span>
-              <span v-else> · Réduis le corps ou retire une pièce jointe.</span>
-            </p>
-
-            <p v-if="uploading" class="compose-status" role="status">Ajout des fichiers…</p>
-            <p v-else-if="error" class="compose-error" role="alert">{{ error }}</p>
-            <p v-else-if="draftStatus === 'sending'" class="compose-status" role="status">Un envoi a déjà commencé. Vérifie la boîte destinataire avant toute nouvelle tentative.</p>
 
             <footer class="compose-footer">
               <span class="compose-save-status" role="status">{{ saving ? 'Enregistrement…' : saved ? 'Brouillon enregistré' : 'Brouillon en cours' }}</span>
+              <button class="compose-tool-button" type="button" aria-label="Insérer une image" title="Insérer une image" :disabled="!editor || sending || draftStatus === 'sending'" @click="chooseFiles('inline')">Image</button>
+              <button class="compose-tool-button" type="button" aria-label="Joindre des fichiers" title="Joindre des fichiers" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">Joindre</button>
               <button class="compose-discard" type="button" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">Supprimer le brouillon</button>
               <button class="compose-send" type="button" :disabled="!canSend" @click="requestSend">{{ sending ? 'Envoi…' : 'Envoyer' }}</button>
             </footer>
@@ -109,6 +118,7 @@
 </template>
 
 <script setup lang="ts">
+import { BubbleMenu } from '@tiptap/vue-3/menus'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
@@ -118,6 +128,7 @@ import { estimateOutgoingEmailBytes, formatEmailSize, OUTBOUND_MESSAGE_BUDGET_BY
 
 type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeBytes: number, contentId: string, disposition: 'attachment' | 'inline' }
 type ComposeDraft = { id: string, to: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', attachments: ComposeAttachment[] }
+type SlashCommand = { label: string, description: string, icon: string, apply: () => void }
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: string] }>()
@@ -141,6 +152,8 @@ const confirmSend = ref(false)
 const error = ref('')
 const attachmentInput = ref<HTMLInputElement | null>(null)
 const nextDisposition = ref<'attachment' | 'inline'>('attachment')
+const slashState = ref({ open: false, query: '', from: 0, to: 0 })
+const slashIndex = ref(0)
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let saveRevision = 0
 let hydrating = false
@@ -153,11 +166,110 @@ const editor = useEditor({
     Image.configure({ inline: false, allowBase64: false }),
     Placeholder.configure({ placeholder: 'Écrire votre message…' }),
   ],
+  editorProps: {
+    handleKeyDown: (_view, event) => onEditorKeydown(event),
+  },
   onUpdate: () => {
     editorRevision.value += 1
+    updateSlashState()
     scheduleSave()
   },
+  onSelectionUpdate: updateSlashState,
 })
+
+const slashCommands: SlashCommand[] = [
+  { label: 'Texte', description: 'Paragraphe simple', icon: '¶', apply: () => editor.value?.chain().focus().setParagraph().run() },
+  { label: 'Titre 1', description: 'Grand titre', icon: 'H1', apply: () => editor.value?.chain().focus().toggleHeading({ level: 1 }).run() },
+  { label: 'Titre 2', description: 'Titre secondaire', icon: 'H2', apply: () => editor.value?.chain().focus().toggleHeading({ level: 2 }).run() },
+  { label: 'Liste à puces', description: 'Liste non numérotée', icon: '•', apply: () => editor.value?.chain().focus().toggleBulletList().run() },
+  { label: 'Liste numérotée', description: 'Liste ordonnée', icon: '1.', apply: () => editor.value?.chain().focus().toggleOrderedList().run() },
+  { label: 'Citation', description: 'Mettre un passage en retrait', icon: '“', apply: () => editor.value?.chain().focus().toggleBlockquote().run() },
+  { label: 'Bloc de code', description: 'Afficher du texte préformaté', icon: '</>', apply: () => editor.value?.chain().focus().toggleCodeBlock().run() },
+  { label: 'Séparateur', description: 'Insérer une ligne horizontale', icon: '—', apply: () => editor.value?.chain().focus().setHorizontalRule().run() },
+  { label: 'Image', description: 'Insérer une image dans le message', icon: '▧', apply: () => chooseFiles('inline') },
+]
+
+const filteredSlashCommands = computed(() => {
+  const query = slashState.value.query.trim().toLocaleLowerCase('fr')
+  return slashCommands.filter(item => !query || `${item.label} ${item.description}`.toLocaleLowerCase('fr').includes(query))
+})
+
+const slashMenuStyle = computed(() => {
+  const current = editor.value
+  const shell = composerWindow.value?.querySelector<HTMLElement>('.compose-editor-shell')
+  if (!current || !shell || !slashState.value.open) return {}
+  try {
+    const caret = current.view.coordsAtPos(slashState.value.from)
+    const bounds = shell.getBoundingClientRect()
+    return {
+      left: `${Math.max(0, Math.min(bounds.width - 300, caret.left - bounds.left))}px`,
+      top: `${Math.max(0, caret.bottom - bounds.top + 8)}px`,
+    }
+  } catch {
+    return { left: '0px', top: '28px' }
+  }
+})
+
+function updateSlashState() {
+  const current = editor.value
+  const selection = current?.state.selection
+  if (!current || !selection?.empty || current.isActive('codeBlock')) {
+    slashState.value = { open: false, query: '', from: 0, to: 0 }
+    slashIndex.value = 0
+    return
+  }
+
+  const beforeCursor = selection.$from.parent.textContent.slice(0, selection.$from.parentOffset)
+  const match = /(^|\s)\/([^\s/]*)$/u.exec(beforeCursor)
+  if (!match) {
+    slashState.value = { open: false, query: '', from: 0, to: 0 }
+    slashIndex.value = 0
+    return
+  }
+
+  const from = selection.from - match[0].length + match[1].length
+  const query = match[2]
+  if (!slashState.value.open || slashState.value.query !== query) slashIndex.value = 0
+  slashState.value = { open: true, query, from, to: selection.from }
+}
+
+watch(editor, (current, previous) => {
+  previous?.off('transaction', updateSlashState)
+  current?.on('transaction', updateSlashState)
+  updateSlashState()
+})
+
+function onEditorKeydown(event: KeyboardEvent) {
+  if (!slashState.value.open) return false
+  const items = filteredSlashCommands.value
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    if (!items.length) return true
+    slashIndex.value = (slashIndex.value + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+    return true
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    slashState.value.open = false
+    return true
+  }
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    const item = items[slashIndex.value]
+    if (item) applySlashCommand(item)
+    return true
+  }
+  return false
+}
+
+function applySlashCommand(item: SlashCommand) {
+  const current = editor.value
+  if (!current) return
+  const { from, to } = slashState.value
+  slashState.value.open = false
+  current.chain().focus().deleteRange({ from, to }).run()
+  item.apply()
+}
 
 const recipientList = computed(() => to.value.split(/[;,\n]+/).map(address => address.trim()).filter(Boolean))
 const estimatedEmailBytes = computed(() => {
@@ -316,7 +428,8 @@ function onWindowKeydown(event: KeyboardEvent) {
   if (document.querySelector('details[open]')) return
   event.preventDefault()
   event.stopImmediatePropagation()
-  if (confirmSend.value) confirmSend.value = false
+  if (slashState.value.open) slashState.value.open = false
+  else if (confirmSend.value) confirmSend.value = false
   else if (mode.value !== 'minimized') minimizeComposer()
   else void closeComposer()
 }
@@ -438,9 +551,9 @@ onBeforeUnmount(() => {
 .compose-stage.is-full { background: transparent; pointer-events: none; }
 .compose-window.is-full { pointer-events: auto; }
 .compose-stage.is-popup, .compose-stage.is-minimized { background: transparent; pointer-events: none; }
-.compose-window { position: absolute; inset: 76px 0 0; display: grid; width: 100%; height: auto; grid-template-rows: auto auto minmax(180px, 1fr) auto auto; overflow: auto; border: 0; border-radius: 0; background: var(--paper); box-shadow: none; color: var(--ink); }
+.compose-window { position: absolute; inset: 76px 0 0; display: grid; width: 100%; height: auto; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 0; border-radius: 0; background: var(--paper); box-shadow: none; color: var(--ink); }
 .compose-window.is-popup { inset: auto 24px 24px auto; width: min(680px, calc(100vw - 48px)); height: min(780px, calc(100dvh - 120px)); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 80px rgb(24 20 35 / 25%); pointer-events: auto; }
-.compose-header { position: sticky; z-index: 2; top: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 68px; padding: 12px clamp(18px, 4vw, 64px); background: var(--paper); }
+.compose-header { position: relative; z-index: 2; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 86px; padding: 16px clamp(18px, 4vw, 64px); background: var(--paper); }
 .compose-header h2 { grid-column: 2; margin: 0; font-size: 22px; font-weight: 680; text-align: center; }
 .compose-window-actions { display: flex; gap: 4px; }
 .compose-window-actions { grid-column: 3; justify-self: end; }
@@ -456,27 +569,40 @@ onBeforeUnmount(() => {
 .compose-minimized-copy strong { font-size: 12px; }
 .compose-minimized-copy small { color: var(--quiet); font-size: 10px; }
 .compose-minimized-close { width: 30px; height: 30px; flex: 0 0 30px; }
-.compose-fields { display: grid; padding: 4px 18px 0; }
+.compose-body { display: grid; width: min(76vw, 1240px); min-height: 0; grid-template-rows: auto auto minmax(210px, 1fr) auto auto auto; align-content: stretch; margin: 0 auto; overflow-y: auto; scrollbar-gutter: stable; }
+.compose-fields { display: grid; padding: 4px 0 0; }
 .compose-field { display: grid; min-height: 43px; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 13px; }
 .compose-field input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
 .compose-field input::placeholder { color: var(--quiet); }
-.compose-field-error { margin: 5px 18px 0; color: #aa3d37; font-size: 11px; }
-.compose-editor-shell { display: grid; min-height: 230px; grid-template-rows: auto minmax(170px, 1fr); padding: 0 18px; }
-.compose-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 9px 0; border-bottom: 1px solid var(--line); }
-.compose-toolbar button { min-width: 31px; min-height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
-.compose-toolbar button:hover, .compose-toolbar button.active { background: var(--violet-wash); color: var(--violet); }
-.compose-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+.compose-field-error { margin: 5px 0 0; color: #aa3d37; font-size: 11px; }
+.compose-editor-shell { position: relative; display: grid; min-height: 230px; grid-template-rows: minmax(190px, 1fr); }
 .compose-toolbar-separator { width: 1px; height: 20px; margin: 0 3px; background: var(--line); }
-.compose-editor { min-height: 170px; padding: 16px 0; color: var(--ink); font-size: 14px; line-height: 1.65; }
-.compose-editor .tiptap { min-height: 170px; outline: 0; }
+.compose-editor { min-height: 210px; padding: 30px 0 36px; color: var(--ink); font-size: 15px; line-height: 1.75; }
+.compose-editor .tiptap { min-height: 210px; outline: 0; }
 .compose-editor .tiptap p { margin: 0 0 12px; }
 .compose-editor .tiptap p.is-editor-empty:first-child::before { float: left; height: 0; color: var(--quiet); content: attr(data-placeholder); pointer-events: none; }
 .compose-editor .tiptap ul, .compose-editor .tiptap ol { padding-left: 24px; }
 .compose-editor .tiptap blockquote { margin: 10px 0; padding-left: 14px; border-left: 1px solid var(--line); color: var(--muted); }
+.compose-editor .tiptap h1, .compose-editor .tiptap h2, .compose-editor .tiptap h3 { margin: 18px 0 10px; line-height: 1.3; }
+.compose-editor .tiptap h1 { font-size: 1.75em; }
+.compose-editor .tiptap h2 { font-size: 1.4em; }
+.compose-editor .tiptap h3 { font-size: 1.15em; }
 .compose-editor .tiptap img { display: block; max-width: 100%; max-height: 360px; margin: 10px 0; border-radius: 5px; object-fit: contain; }
 .compose-editor .tiptap a { color: var(--violet); text-decoration: underline; text-underline-offset: 2px; }
-.compose-attachments { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; padding: 0 18px 12px; }
-.compose-size-meter { margin: 0; padding: 0 18px 12px; color: var(--quiet); font-size: 11px; }
+.compose-bubble-menu { display: flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 8px 26px rgb(24 20 35 / 18%); }
+.compose-bubble-menu button { min-width: 32px; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.compose-bubble-menu button:hover, .compose-bubble-menu button.active { background: var(--violet-wash); color: var(--violet); }
+.compose-slash-menu { position: absolute; z-index: 5; width: min(300px, calc(100vw - 32px)); max-height: min(360px, 55vh); overflow: auto; padding: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 14px 38px rgb(24 20 35 / 18%); }
+.compose-slash-heading { margin: 2px 7px 6px; color: var(--quiet); font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.compose-slash-menu button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.compose-slash-menu button:hover, .compose-slash-menu button.active { background: var(--violet-wash); }
+.compose-slash-icon { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font-size: 11px; font-weight: 650; }
+.compose-slash-menu button > span:last-child { display: grid; gap: 2px; }
+.compose-slash-menu strong { font-size: 12px; font-weight: 600; }
+.compose-slash-menu small, .compose-slash-empty { color: var(--quiet); font-size: 10px; }
+.compose-slash-empty { margin: 8px; }
+.compose-attachments { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; padding: 0 0 12px; }
+.compose-size-meter { margin: 0; padding: 0 0 12px; color: var(--quiet); font-size: 11px; }
 .compose-size-meter span { color: var(--quiet); }
 .compose-size-meter.compose-size-over { color: #aa3d37; }
 .compose-attachment { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
@@ -486,10 +612,13 @@ onBeforeUnmount(() => {
 .compose-attachment-name small { color: var(--quiet); font-size: 10px; }
 .compose-attachment button { width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 18px; cursor: pointer; }
 .compose-attachment button:hover { background: var(--paper); }
-.compose-status, .compose-error { margin: 0; padding: 6px 18px; color: var(--muted); font-size: 12px; }
+.compose-status, .compose-error { margin: 0; padding: 6px 0; color: var(--muted); font-size: 12px; }
 .compose-error { color: #aa3d37; }
-.compose-footer { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); background: var(--paper); }
+.compose-footer { position: relative; display: flex; width: min(76vw, 1240px); flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 auto; padding: 14px 0 max(20px, env(safe-area-inset-bottom)); background: var(--paper); }
 .compose-save-status { margin-right: auto; color: var(--quiet); font-size: 11px; }
+.compose-tool-button { min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.compose-tool-button:hover { border-color: var(--violet); color: var(--violet); }
+.compose-tool-button:disabled { opacity: .5; cursor: not-allowed; }
 .compose-send, .compose-secondary, .compose-discard { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-send { border-color: var(--violet); background: var(--violet); color: white; font-weight: 650; }
 .compose-send:disabled, .compose-secondary:disabled, .compose-discard:disabled { opacity: .55; cursor: not-allowed; }
@@ -512,8 +641,11 @@ onBeforeUnmount(() => {
   .compose-window.is-popup { inset: auto 8px max(8px, env(safe-area-inset-bottom)) auto; width: calc(100vw - 16px); height: min(720px, calc(100dvh - 82px)); border-radius: 13px; }
   .compose-header { min-height: 56px; padding: 8px 10px; }
   .compose-header h2 { font-size: 18px; }
+  .compose-body, .compose-footer { width: calc(100% - 32px); }
+  .compose-body { grid-template-rows: auto auto minmax(180px, 1fr) auto auto auto; }
+  .compose-editor { padding: 22px 0 28px; }
   .compose-minimized { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(220px, calc(100vw - 16px)); }
-  .compose-footer { gap: 7px; padding: 10px; }
+  .compose-footer { gap: 7px; padding: 10px 0 max(14px, env(safe-area-inset-bottom)); }
   .compose-discard { margin-left: auto; }
   .compose-save-status { width: 100%; }
   .compose-confirm-actions { flex-direction: column-reverse; }
