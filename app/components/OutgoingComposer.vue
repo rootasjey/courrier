@@ -54,7 +54,7 @@
                     <span v-for="(address, index) in committedRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('to', address)">×</button></span>
                     <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'to')" @blur="commitRecipientEntry('to')" @keydown.enter.prevent="commitRecipientEntry('to')" @keydown.backspace="removeLastRecipient($event, 'to')">
                   </div>
-                  <div class="compose-recipient-toggles"><button v-if="!showCc" type="button" @click="showCc = true">Cc</button><button v-if="!showBcc" type="button" @click="showBcc = true">Cci</button></div>
+                  <div class="compose-recipient-toggles"><button v-if="!showCc" type="button" @click="showCc = true">{{ ccRecipientList.length ? `Cc (${ccRecipientList.length})` : 'Cc' }}</button><button v-if="!showBcc" type="button" @click="showBcc = true">{{ bccRecipientList.length ? `Cci (${bccRecipientList.length})` : 'Cci' }}</button></div>
                 </div>
                 <div v-if="showCc" class="compose-field">
                   <span>Cc</span>
@@ -62,7 +62,9 @@
                     <span v-for="(address, index) in ccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('cc', address)">×</button></span>
                     <input ref="ccInput" v-model="ccEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'cc')" @blur="commitRecipientEntry('cc')" @keydown.enter.prevent="commitRecipientEntry('cc')" @keydown.backspace="removeLastRecipient($event, 'cc')">
                   </div>
-                  <span />
+                  <NTooltip content="Masquer le champ Cc" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button class="compose-field-close" type="button" aria-label="Masquer le champ Cc" :disabled="sending || draftStatus === 'sending'" @click="showCc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
+                  </NTooltip>
                 </div>
                 <div v-if="showBcc" class="compose-field">
                   <span>Cci</span>
@@ -70,7 +72,9 @@
                     <span v-for="(address, index) in bccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('bcc', address)">×</button></span>
                     <input ref="bccInput" v-model="bccEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'bcc')" @blur="commitRecipientEntry('bcc')" @keydown.enter.prevent="commitRecipientEntry('bcc')" @keydown.backspace="removeLastRecipient($event, 'bcc')">
                   </div>
-                  <span />
+                  <NTooltip content="Masquer le champ Cci" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button class="compose-field-close" type="button" aria-label="Masquer le champ Cci" :disabled="sending || draftStatus === 'sending'" @click="showBcc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
+                  </NTooltip>
                 </div>
                 <label class="compose-field">
                   <span>Objet</span>
@@ -796,6 +800,10 @@ onBeforeUnmount(() => {
 .compose-recipient-toggles { display: flex; flex: 0 0 auto; gap: 8px; }
 .compose-recipient-toggles button { padding: 4px 2px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; }
 .compose-recipient-toggles button:hover { color: var(--violet); }
+.compose-field-close { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--quiet); cursor: pointer; }
+.compose-field-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.compose-field-close:hover { background: var(--surface-soft); color: var(--ink); }
+.compose-field-close:disabled { opacity: .5; cursor: not-allowed; }
 .compose-confirm-backdrop { position: absolute; z-index: 3; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(25 21 36 / 42%); }
 .compose-confirm { width: min(100%, 420px); padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 20px 55px rgb(24 20 35 / 24%); }
 .compose-confirm-kicker { margin: 0 0 7px; color: var(--violet); font-size: 11px; font-weight: 650; }
