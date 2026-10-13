@@ -42,7 +42,7 @@
               <div class="compose-fields">
                 <label class="compose-field">
                   <span>À</span>
-                  <input v-model="to" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr, autre@exemple.fr" :disabled="sending || draftStatus === 'sending'" @keydown.enter.prevent="saveDraft">
+                  <input ref="recipientInput" v-model="to" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr, autre@exemple.fr" :disabled="sending || draftStatus === 'sending'" @keydown.enter.prevent="saveDraft">
                 </label>
                 <label class="compose-field">
                   <span>Objet</span>
@@ -151,6 +151,7 @@ const sending = ref(false)
 const confirmSend = ref(false)
 const error = ref('')
 const attachmentInput = ref<HTMLInputElement | null>(null)
+const recipientInput = ref<HTMLInputElement | null>(null)
 const nextDisposition = ref<'attachment' | 'inline'>('attachment')
 const slashState = ref({ open: false, query: '', from: 0, to: 0 })
 const slashIndex = ref(0)
@@ -325,6 +326,8 @@ async function loadDraft() {
   } finally {
     hydrating = false
     loading.value = false
+    await nextTick()
+    if (props.open && mode.value !== 'minimized') recipientInput.value?.focus()
   }
 }
 
