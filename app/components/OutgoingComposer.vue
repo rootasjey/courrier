@@ -140,22 +140,55 @@
             </footer>
           </template>
 
-          <div v-if="confirmSend" class="compose-confirm-backdrop">
-            <section class="compose-confirm" role="alertdialog" aria-labelledby="compose-confirm-title" aria-describedby="compose-confirm-description">
-              <p class="compose-confirm-kicker">Vérification avant envoi</p>
-              <h3 id="compose-confirm-title">Envoyer ce message ?</h3>
-              <p id="compose-confirm-description">
-                Il sera envoyé depuis <strong>courrier-test@verbatims.cc</strong> à <strong>{{ toRecipientList.join(', ') }}</strong>
-                <template v-if="ccRecipientList.length">, en copie à <strong>{{ ccRecipientList.join(', ') }}</strong></template>
-                <template v-if="bccRecipientList.length">, et en copie cachée à <strong>{{ bccRecipientList.join(', ') }}</strong></template>.
-              </p>
-              <div class="compose-confirm-actions">
-                <button class="compose-secondary" type="button" :disabled="sending" @click="confirmSend = false">Continuer à écrire</button>
-                <button class="compose-send" type="button" :disabled="sending" @click="sendDraft">{{ sending ? 'Envoi…' : 'Confirmer l’envoi' }}</button>
-              </div>
-            </section>
-          </div>
         </section>
+
+        <NDialog
+          :open="confirmSend"
+          title="Envoyer ce message ?"
+          description="Vérifie les destinataires avant de confirmer l’envoi."
+          :show-close="false"
+          :_dialog-overlay="{ class: 'compose-confirm-overlay' }"
+          :_dialog-content="{ class: 'classification-dialog compose-confirm-dialog' }"
+          @update:open="(open: boolean) => { if (!sending) confirmSend = open }"
+        >
+          <template #content>
+            <header class="dialog-header">
+              <p class="dialog-kicker">Vérification avant envoi</p>
+              <NDialogTitle class="dialog-title">Envoyer ce message ?</NDialogTitle>
+              <NDialogDescription class="screener-confirm-copy">
+                Il sera envoyé depuis <strong>courrier-test@verbatims.cc</strong> à {{ toRecipientList.join(', ') }}
+                <template v-if="ccRecipientList.length">, en copie à {{ ccRecipientList.join(', ') }}</template>
+                <template v-if="bccRecipientList.length">, et en copie cachée à {{ bccRecipientList.join(', ') }}</template>.
+              </NDialogDescription>
+            </header>
+            <footer class="dialog-actions">
+              <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="sending">Continuer à écrire</button></NDialogClose>
+              <button class="dialog-save" type="button" :disabled="sending" @click="sendDraft">{{ sending ? 'Envoi…' : 'Confirmer l’envoi' }}</button>
+            </footer>
+          </template>
+        </NDialog>
+
+        <NDialog
+          :open="confirmDiscard"
+          title="Supprimer ce brouillon ?"
+          description="Le brouillon et ses pièces jointes seront supprimés définitivement."
+          :show-close="false"
+          :_dialog-overlay="{ class: 'compose-confirm-overlay' }"
+          :_dialog-content="{ class: 'classification-dialog compose-confirm-dialog' }"
+          @update:open="(open: boolean) => { if (!discarding) confirmDiscard = open }"
+        >
+          <template #content>
+            <header class="dialog-header">
+              <p class="dialog-kicker">Suppression définitive</p>
+              <NDialogTitle class="dialog-title">Supprimer ce brouillon ?</NDialogTitle>
+              <NDialogDescription class="screener-confirm-copy">Le brouillon et ses pièces jointes seront supprimés définitivement.</NDialogDescription>
+            </header>
+            <footer class="dialog-actions">
+              <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="discarding">Annuler</button></NDialogClose>
+              <button class="dialog-danger" type="button" :disabled="discarding" @click="confirmDiscardDraft">{{ discarding ? 'Suppression…' : 'Supprimer le brouillon' }}</button>
+            </footer>
+          </template>
+        </NDialog>
       </div>
     </Transition>
   </Teleport>
@@ -201,6 +234,8 @@ const saved = ref(false)
 const uploading = ref(false)
 const sending = ref(false)
 const confirmSend = ref(false)
+const confirmDiscard = ref(false)
+const discarding = ref(false)
 const error = ref('')
 const attachmentInput = ref<HTMLInputElement | null>(null)
 const recipientInput = ref<HTMLInputElement | null>(null)
@@ -576,6 +611,7 @@ function onWindowKeydown(event: KeyboardEvent) {
   event.stopImmediatePropagation()
   if (slashState.value.open) slashState.value.open = false
   else if (confirmSend.value) confirmSend.value = false
+  else if (confirmDiscard.value) confirmDiscard.value = false
   else if (mode.value !== 'minimized') minimizeComposer()
   else void closeComposer()
 }
@@ -608,13 +644,22 @@ async function sendDraft() {
 }
 
 async function discardDraft() {
-  if (!draftId.value || !window.confirm('Supprimer ce brouillon et ses pièces jointes ?')) return
+  if (!draftId.value || discarding.value) return
+  confirmDiscard.value = true
+}
+
+async function confirmDiscardDraft() {
+  if (!draftId.value || discarding.value) return
+  discarding.value = true
   try {
     await $fetch(`/api/outgoing-drafts/${encodeURIComponent(draftId.value)}`, { method: 'DELETE' })
+    confirmDiscard.value = false
     emit('update:open', false)
     reset()
   } catch (cause) {
     error.value = readError(cause, 'Le brouillon n’a pas pu être supprimé.')
+  } finally {
+    discarding.value = false
   }
 }
 
@@ -791,6 +836,7 @@ onBeforeUnmount(() => {
 .compose-tool-button:disabled { opacity: .5; cursor: not-allowed; }
 .compose-send, .compose-secondary, .compose-discard { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-send { border-color: var(--violet); background: var(--violet); color: white; font-weight: 650; }
+.compose-send { border-radius: 9px; }
 :root[data-theme="dark"] .compose-send:not(:disabled) { border-color: #6846ff; background: #6846ff; color: white; }
 :root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: #5634eb; background: #5634eb; }
 .compose-send:disabled, .compose-secondary:disabled, .compose-discard:disabled { opacity: .55; cursor: not-allowed; }
@@ -804,12 +850,6 @@ onBeforeUnmount(() => {
 .compose-field-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .compose-field-close:hover { background: var(--surface-soft); color: var(--ink); }
 .compose-field-close:disabled { opacity: .5; cursor: not-allowed; }
-.compose-confirm-backdrop { position: absolute; z-index: 3; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(25 21 36 / 42%); }
-.compose-confirm { width: min(100%, 420px); padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 20px 55px rgb(24 20 35 / 24%); }
-.compose-confirm-kicker { margin: 0 0 7px; color: var(--violet); font-size: 11px; font-weight: 650; }
-.compose-confirm h3 { margin: 0; font-size: 20px; }
-.compose-confirm > p:last-of-type { color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
-.compose-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .compose-state { display: grid; min-height: 220px; align-content: center; justify-items: center; gap: 10px; padding: 24px; color: var(--muted); text-align: center; }
 .compose-shell-enter-active, .compose-shell-leave-active { transition: opacity 180ms ease; }
 .compose-shell-enter-active .compose-window, .compose-shell-leave-active .compose-window { transition: transform 180ms cubic-bezier(.2,.75,.25,1), opacity 180ms ease; }

@@ -398,6 +398,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 /* UnaUI dialog for sender classification */
 .dialog-overlay.dialog-overlay { position: fixed; inset: 0; z-index: 50; background: rgb(24 19 39 / 44%); }
 .dialog-content.classification-dialog { position: fixed; top: 50%; left: 50%; z-index: 51; width: min(calc(100% - 32px), 510px); max-height: min(calc(100dvh - 32px), 780px); overflow: auto; transform: translate(-50%, -50%); padding: 28px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: 0 22px 70px rgb(33 25 54 / 21%); }
+.dialog-overlay.compose-confirm-overlay { z-index: 100; }
+.dialog-content.compose-confirm-dialog { z-index: 101; width: min(calc(100% - 32px), 460px); }
 .dialog-header { margin-bottom: 20px; }
 .dialog-kicker { margin: 0 0 9px; color: var(--violet); font-size: 11px; font-weight: 700; }
 .dialog-title { display: block; margin: 0; color: var(--ink); font-size: 24px; font-weight: 680; letter-spacing: -0.5px; }
