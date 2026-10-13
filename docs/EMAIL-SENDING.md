@@ -12,6 +12,21 @@ Le compositeur `Écrire` est maintenant activé dans le code local, mais n’est
 
 Les fichiers sont limités à 32. Courrier estime maintenant la taille du message MIME complet, y compris le corps, l’encodage base64 des pièces jointes et les en-têtes, et garde une marge de 64 Kio sous la limite Cloudflare de 5 Mio. Le compositeur affiche cette estimation et bloque l’ajout ou l’envoi qui dépasserait le budget. Les images intégrées sont limitées à JPEG, PNG, GIF et WebP. En local, Wrangler simule l’envoi : la vérification de l’interface ne prouve pas la livraison. Avant d’utiliser ce parcours en production, il reste à revoir le code, pousser les changements pour Workers Builds, vérifier la migration D1 distante, puis faire un envoi contrôlé vers une adresse convenue et confirmer sa réception ainsi que sa copie dans Courrier.
 
+## Piste différée — pièces jointes volumineuses via R2
+
+Cette piste est à explorer lors d’un cycle ultérieur ; elle ne fait pas partie du compositeur actuel. Pour les fichiers trop volumineux pour être joints directement au message, Courrier pourrait les stocker dans un bucket R2 privé et insérer un lien de téléchargement dans l’email. Les petites pièces jointes continueraient à être envoyées normalement.
+
+Pour une image volumineuse insérée dans le corps, étudier la génération d’une miniature légère affichée dans le message, avec un lien vers l’image originale. Si l’email dépasse le budget actuel, l’image originale serait partagée par lien plutôt qu’intégrée en MIME.
+
+Avant l’implémentation, décider :
+
+- combien de temps conserver les fichiers dans R2 et comment leur suppression automatique sera configurée ;
+- comment protéger les téléchargements et quelle durée donner aux liens ;
+- comment révoquer un lien avant son expiration (par exemple, via un endpoint Courrier contrôlé par un jeton révocable plutôt qu’une URL pré-signée seule) ;
+- quelles tailles et quels formats accepter, et si les miniatures sont générées à l’envoi ou à la demande.
+
+Les URL pré-signées R2 sont une option à évaluer, pas encore un choix arrêté : elles donnent accès à quiconque possède l’URL jusqu’à son expiration. Voir la documentation Cloudflare sur les [URL pré-signées R2](https://developers.cloudflare.com/r2/api/s3/presigned-urls/) et les [règles de cycle de vie des objets](https://developers.cloudflare.com/r2/buckets/object-lifecycles/).
+
 ## Garde-fous du prototype
 
 - Le binding `EMAIL` limite l’expéditeur à `courrier-test@verbatims.cc`. Courrier ne maintient pas d’allowlist applicative des destinataires ; l’accès à l’API est protégé par Cloudflare Access et chaque envoi est confirmé dans l’interface.
