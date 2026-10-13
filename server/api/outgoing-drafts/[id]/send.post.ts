@@ -7,6 +7,8 @@ const fromAddress = 'courrier-test@verbatims.cc'
 type DraftRow = {
   id: string
   to_address: string
+  cc_address: string
+  bcc_address: string
   subject: string
   html_body: string
   text_body: string
@@ -41,7 +43,7 @@ function attachmentPart(attachment: UploadedAttachment) {
   return `Content-Type: ${attachment.mime_type}; name*=UTF-8''${filename}\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: ${disposition}; filename*=UTF-8''${filename}\r\n${contentId}\r\n${encodeBase64(attachment.bytes).match(/.{1,76}/g)?.join('\r\n') || ''}`
 }
 
-function buildStoredMime(draft: DraftRow, recipients: string[], messageId: string, sentAt: string, files: UploadedAttachment[]) {
+function buildStoredMime(draft: DraftRow, recipients: string[], cc: string[], messageId: string, sentAt: string, files: UploadedAttachment[]) {
   const alternativeBoundary = `courrier-alt-${crypto.randomUUID()}`
   const relatedBoundary = `courrier-rel-${crypto.randomUUID()}`
   const mixedBoundary = `courrier-mix-${crypto.randomUUID()}`
@@ -79,6 +81,7 @@ function buildStoredMime(draft: DraftRow, recipients: string[], messageId: strin
   const headers = [
     `From: Courrier <${fromAddress}>`,
     `To: ${recipients.join(', ')}`,
+    ...(cc.length ? [`Cc: ${cc.join(', ')}`] : []),
     `Subject: ${encodeHeader(draft.subject.replace(/[\r\n\u0000-\u001f\u007f]/g, ' ').trim() || '(sans objet)')}`,
     `Date: ${new Date(sentAt).toUTCString()}`,
     `Message-ID: ${messageId}`,
@@ -97,14 +100,18 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Brouillon manquant.' })
 
   let draft = await bindings.DB.prepare(`
-    SELECT id, to_address, subject, html_body, text_body, status
+    SELECT id, to_address, cc_address, bcc_address, subject, html_body, text_body, status
     FROM outgoing_drafts WHERE id = ?
   `).bind(id).first<DraftRow>()
   if (!draft) throw createError({ statusCode: 404, statusMessage: 'Brouillon introuvable.' })
   if (draft.status !== 'draft') throw createError({ statusCode: 409, statusMessage: 'L’état de cet envoi est incertain. Vérifie la boîte destinataire avant de réessayer.' })
   const recipients = normalizeDraftRecipients(draft.to_address)
+  const ccRecipients = draft.cc_address ? normalizeDraftRecipients(draft.cc_address) : []
+  const bccRecipients = draft.bcc_address ? normalizeDraftRecipients(draft.bcc_address) : []
   const subject = draft.subject.replace(/[\r\n\u0000-\u001f\u007f]/g, ' ').trim() || '(sans objet)'
   if (!recipients) throw createError({ statusCode: 400, statusMessage: 'Ajoute au moins une adresse valide dans le champ À.' })
+  if (!ccRecipients || !bccRecipients) throw createError({ statusCode: 400, statusMessage: 'Vérifie les adresses des champs Cc et Cci.' })
+  if (recipients.length + ccRecipients.length + bccRecipients.length > 50) throw createError({ statusCode: 400, statusMessage: 'Un message ne peut pas dépasser 50 destinataires au total.' })
   if (!draft.text_body.trim() && !/<(?:img)\b/i.test(draft.html_body)) {
     const hasAttachments = await bindings.DB.prepare('SELECT 1 AS present FROM outgoing_draft_attachments WHERE draft_id = ? LIMIT 1')
       .bind(id).first<{ present: number }>()
@@ -117,7 +124,7 @@ export default defineEventHandler(async (event) => {
   if (!claim.meta.changes) throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est déjà en cours d’envoi.' })
 
   draft = await bindings.DB.prepare(`
-    SELECT id, to_address, subject, html_body, text_body, status FROM outgoing_drafts WHERE id = ? AND status = 'sending'
+    SELECT id, to_address, cc_address, bcc_address, subject, html_body, text_body, status FROM outgoing_drafts WHERE id = ? AND status = 'sending'
   `).bind(id).first<DraftRow>()
   if (!draft) throw createError({ statusCode: 409, statusMessage: 'Le brouillon a changé pendant la préparation de l’envoi.' })
 
@@ -145,12 +152,21 @@ export default defineEventHandler(async (event) => {
     uploaded.push({ ...attachment, bytes })
   }
   const claimRecipients = normalizeDraftRecipients(draft.to_address)
-  if (!claimRecipients) {
+  const claimCcRecipients = draft.cc_address ? normalizeDraftRecipients(draft.cc_address) : []
+  const claimBccRecipients = draft.bcc_address ? normalizeDraftRecipients(draft.bcc_address) : []
+  if (!claimRecipients || !claimCcRecipients || !claimBccRecipients) {
     await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
     throw createError({ statusCode: 400, statusMessage: 'Le destinataire ou le contenu du brouillon est invalide.' })
   }
+  const envelopeRecipients = [...new Set([...claimRecipients, ...claimCcRecipients, ...claimBccRecipients])]
+  if (claimRecipients.length + claimCcRecipients.length + claimBccRecipients.length > 50) {
+    await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+    throw createError({ statusCode: 400, statusMessage: 'Un message ne peut pas dépasser 50 destinataires au total.' })
+  }
   const estimatedMessageBytes = estimateOutgoingEmailBytes({
     to: claimRecipients,
+    cc: claimCcRecipients,
+    bcc: claimBccRecipients,
     subject,
     text: draft.text_body,
     html: draft.html_body,
@@ -170,6 +186,8 @@ export default defineEventHandler(async (event) => {
     result = await bindings.EMAIL.send({
       from: { email: fromAddress, name: 'Courrier' },
       to: claimRecipients,
+      ...(claimCcRecipients.length ? { cc: claimCcRecipients } : {}),
+      ...(claimBccRecipients.length ? { bcc: claimBccRecipients } : {}),
       subject,
       text: draft.text_body,
       html: draft.html_body,
@@ -197,7 +215,7 @@ export default defineEventHandler(async (event) => {
   const messageRowId = crypto.randomUUID()
   const messageId = result.messageId
   const rawObjectKey = `messages/${messageRowId}/sent-copy.eml`
-  const raw = buildStoredMime(draft, claimRecipients, messageId, sentAt, uploaded)
+  const raw = buildStoredMime(draft, claimRecipients, claimCcRecipients, messageId, sentAt, uploaded)
   const displayHtml = uploaded.reduce((html, file, index) => file.disposition === 'inline'
     ? html.replaceAll(`cid:${file.content_id}`, `/api/attachments/${messageRowId}-${index}?inline=1`)
     : html, draft.html_body)
@@ -205,7 +223,7 @@ export default defineEventHandler(async (event) => {
   try {
     await bindings.MAIL_STORE.put(rawObjectKey, raw, {
       httpMetadata: { contentType: 'message/rfc822' },
-      customMetadata: { messageId, envelopeTo: claimRecipients.join(', ') },
+      customMetadata: { messageId, envelopeTo: envelopeRecipients.join(', ') },
     })
     const copiedAttachments = await Promise.all(uploaded.map(async (file, index) => {
       const attachmentId = `${messageRowId}-${index}`
@@ -223,7 +241,7 @@ export default defineEventHandler(async (event) => {
           subject, sent_at, received_at, text_body, raw_object_key, mailbox_domain,
           folder, screener_state, is_read, trashed_at, is_outgoing, html_body
         ) VALUES (?, ?, ?, ?, 'Courrier', ?, ?, ?, ?, ?, ?, 'verbatims.cc', 'Imbox', 'cleared', 1, NULL, 1, ?)
-      `).bind(messageRowId, messageId, fromAddress, claimRecipients.join(', '), fromAddress, draft.subject.trim() || '(sans objet)', sentAt, sentAt, draft.text_body, rawObjectKey, displayHtml),
+      `).bind(messageRowId, messageId, fromAddress, envelopeRecipients.join(', '), fromAddress, draft.subject.trim() || '(sans objet)', sentAt, sentAt, draft.text_body, rawObjectKey, displayHtml),
       ...copiedAttachments.map(({ id: attachmentId, objectKey, file }) => bindings.DB.prepare(`
         INSERT INTO attachments (id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)

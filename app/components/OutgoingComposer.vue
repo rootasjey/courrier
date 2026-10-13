@@ -48,16 +48,30 @@
           <template v-else>
             <div class="compose-body">
               <div class="compose-fields">
-                <label class="compose-field">
+                <div class="compose-field">
                   <span>À</span>
                   <div class="compose-recipient-control" @click="recipientInput?.focus()">
-                    <span v-for="(address, index) in committedRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">
-                      {{ address }}
-                      <button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient(address)">×</button>
-                    </span>
-                    <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput" @blur="commitRecipientEntry" @keydown.enter.prevent="commitRecipientEntry" @keydown.backspace="removeLastRecipient">
+                    <span v-for="(address, index) in committedRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('to', address)">×</button></span>
+                    <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'to')" @blur="commitRecipientEntry('to')" @keydown.enter.prevent="commitRecipientEntry('to')" @keydown.backspace="removeLastRecipient($event, 'to')">
                   </div>
-                </label>
+                  <div class="compose-recipient-toggles"><button v-if="!showCc" type="button" @click="showCc = true">Cc</button><button v-if="!showBcc" type="button" @click="showBcc = true">Cci</button></div>
+                </div>
+                <div v-if="showCc" class="compose-field">
+                  <span>Cc</span>
+                  <div class="compose-recipient-control" @click="ccInput?.focus()">
+                    <span v-for="(address, index) in ccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('cc', address)">×</button></span>
+                    <input ref="ccInput" v-model="ccEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'cc')" @blur="commitRecipientEntry('cc')" @keydown.enter.prevent="commitRecipientEntry('cc')" @keydown.backspace="removeLastRecipient($event, 'cc')">
+                  </div>
+                  <span />
+                </div>
+                <div v-if="showBcc" class="compose-field">
+                  <span>Cci</span>
+                  <div class="compose-recipient-control" @click="bccInput?.focus()">
+                    <span v-for="(address, index) in bccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('bcc', address)">×</button></span>
+                    <input ref="bccInput" v-model="bccEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'bcc')" @blur="commitRecipientEntry('bcc')" @keydown.enter.prevent="commitRecipientEntry('bcc')" @keydown.backspace="removeLastRecipient($event, 'bcc')">
+                  </div>
+                  <span />
+                </div>
                 <label class="compose-field">
                   <span>Objet</span>
                   <input v-model="subject" type="text" placeholder="Objet du message" :disabled="sending || draftStatus === 'sending'">
@@ -126,7 +140,11 @@
             <section class="compose-confirm" role="alertdialog" aria-labelledby="compose-confirm-title" aria-describedby="compose-confirm-description">
               <p class="compose-confirm-kicker">Vérification avant envoi</p>
               <h3 id="compose-confirm-title">Envoyer ce message ?</h3>
-              <p id="compose-confirm-description">Il sera envoyé depuis <strong>courrier-test@verbatims.cc</strong> à <strong>{{ recipientList.join(', ') }}</strong>.</p>
+              <p id="compose-confirm-description">
+                Il sera envoyé depuis <strong>courrier-test@verbatims.cc</strong> à <strong>{{ toRecipientList.join(', ') }}</strong>
+                <template v-if="ccRecipientList.length">, en copie à <strong>{{ ccRecipientList.join(', ') }}</strong></template>
+                <template v-if="bccRecipientList.length">, et en copie cachée à <strong>{{ bccRecipientList.join(', ') }}</strong></template>.
+              </p>
               <div class="compose-confirm-actions">
                 <button class="compose-secondary" type="button" :disabled="sending" @click="confirmSend = false">Continuer à écrire</button>
                 <button class="compose-send" type="button" :disabled="sending" @click="sendDraft">{{ sending ? 'Envoi…' : 'Confirmer l’envoi' }}</button>
@@ -149,7 +167,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { estimateOutgoingEmailBytes, formatEmailSize, OUTBOUND_MESSAGE_BUDGET_BYTES } from '#shared/utils/outgoing-email-size'
 
 type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeBytes: number, contentId: string, disposition: 'attachment' | 'inline' }
-type ComposeDraft = { id: string, to: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', attachments: ComposeAttachment[] }
+type ComposeDraft = { id: string, to: string, cc?: string, bcc?: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', attachments: ComposeAttachment[] }
 type SlashCommand = { label: string, description: string, icon: string, apply: () => void }
 
 const props = defineProps<{ open: boolean }>()
@@ -158,6 +176,12 @@ const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: st
 const draftId = ref('')
 const to = ref('')
 const recipientEntry = ref('')
+const cc = ref('')
+const ccEntry = ref('')
+const bcc = ref('')
+const bccEntry = ref('')
+const showCc = ref(false)
+const showBcc = ref(false)
 const subject = ref('')
 const attachments = ref<ComposeAttachment[]>([])
 const draftStatus = ref<'draft' | 'sending'>('draft')
@@ -176,6 +200,8 @@ const confirmSend = ref(false)
 const error = ref('')
 const attachmentInput = ref<HTMLInputElement | null>(null)
 const recipientInput = ref<HTMLInputElement | null>(null)
+const ccInput = ref<HTMLInputElement | null>(null)
+const bccInput = ref<HTMLInputElement | null>(null)
 const nextDisposition = ref<'attachment' | 'inline'>('attachment')
 const slashState = ref({ open: false, query: '', from: 0, to: 0 })
 const slashIndex = ref(0)
@@ -313,58 +339,83 @@ function isValidRecipient(address: string) {
 }
 
 const committedRecipients = computed(() => splitRecipients(to.value))
-const recipientList = computed(() => [...committedRecipients.value, ...splitRecipients(recipientEntry.value)])
+const ccRecipients = computed(() => splitRecipients(cc.value))
+const bccRecipients = computed(() => splitRecipients(bcc.value))
+const toRecipientList = computed(() => [...committedRecipients.value, ...splitRecipients(recipientEntry.value)])
+const ccRecipientList = computed(() => [...ccRecipients.value, ...splitRecipients(ccEntry.value)])
+const bccRecipientList = computed(() => [...bccRecipients.value, ...splitRecipients(bccEntry.value)])
+const recipientList = computed(() => [...toRecipientList.value, ...ccRecipientList.value, ...bccRecipientList.value])
 
-function addRecipients(addresses: string[]) {
-  const recipients = [...committedRecipients.value]
+function recipientValue(field: 'to' | 'cc' | 'bcc') { return field === 'to' ? to : field === 'cc' ? cc : bcc }
+function recipientEntryValue(field: 'to' | 'cc' | 'bcc') { return field === 'to' ? recipientEntry : field === 'cc' ? ccEntry : bccEntry }
+
+function addRecipients(field: 'to' | 'cc' | 'bcc', addresses: string[]) {
+  const target = recipientValue(field)
+  const recipients = splitRecipients(target.value)
   const known = new Set(recipients.map(address => address.toLocaleLowerCase()))
   for (const address of addresses) {
     if (!isValidRecipient(address) || known.has(address.toLocaleLowerCase())) continue
     recipients.push(address)
     known.add(address.toLocaleLowerCase())
   }
-  to.value = recipients.join(', ')
+  target.value = recipients.join(', ')
 }
 
-function commitRecipientEntry() {
-  const entries = splitRecipients(recipientEntry.value)
-  addRecipients(entries)
-  recipientEntry.value = entries.filter(address => !isValidRecipient(address)).join(', ')
+function commitRecipientEntry(field: 'to' | 'cc' | 'bcc') {
+  const entry = recipientEntryValue(field)
+  const entries = splitRecipients(entry.value)
+  addRecipients(field, entries)
+  entry.value = entries.filter(address => !isValidRecipient(address)).join(', ')
 }
 
-function handleRecipientInput(event: Event) {
+function handleRecipientInput(event: Event, field: 'to' | 'cc' | 'bcc') {
+  const entry = recipientEntryValue(field)
   const value = (event.target as HTMLInputElement).value
-  if (!/[;,\n]/.test(value)) return
+  if (!/[;,\n]/.test(value)) {
+    if (!/\s$/.test(value)) return
+    const candidate = value.trim()
+    if (!isValidRecipient(candidate)) return
+    addRecipients(field, [candidate])
+    entry.value = ''
+    return
+  }
   const parts = value.split(/[;,\n]/)
   const remainder = parts.pop()?.trim() || ''
   const completed = parts.map(address => address.trim()).filter(Boolean)
-  addRecipients(completed)
-  recipientEntry.value = [...completed.filter(address => !isValidRecipient(address)), remainder].filter(Boolean).join(', ')
+  addRecipients(field, completed)
+  entry.value = [...completed.filter(address => !isValidRecipient(address)), remainder].filter(Boolean).join(', ')
 }
 
-function removeRecipient(address: string) {
-  to.value = committedRecipients.value.filter(item => item.toLocaleLowerCase() !== address.toLocaleLowerCase()).join(', ')
+function removeRecipient(field: 'to' | 'cc' | 'bcc', address: string) {
+  const target = recipientValue(field)
+  target.value = splitRecipients(target.value).filter(item => item.toLocaleLowerCase() !== address.toLocaleLowerCase()).join(', ')
 }
 
-function removeLastRecipient(event: KeyboardEvent) {
-  if (recipientEntry.value || !committedRecipients.value.length) return
+function removeLastRecipient(event: KeyboardEvent, field: 'to' | 'cc' | 'bcc') {
+  const entry = recipientEntryValue(field)
+  const recipients = splitRecipients(recipientValue(field).value)
+  if (entry.value || !recipients.length) return
   event.preventDefault()
-  removeRecipient(committedRecipients.value.at(-1)!)
+  removeRecipient(field, recipients.at(-1)!)
 }
 const estimatedEmailBytes = computed(() => {
   editorRevision.value
   return estimateOutgoingEmailBytes({
-    to: recipientList.value,
+    to: toRecipientList.value,
+    cc: ccRecipientList.value,
+    bcc: bccRecipientList.value,
     subject: subject.value,
     text: editor.value?.getText() || '',
     html: editor.value?.getHTML() || '',
     attachments: attachments.value,
   })
 })
-const recipientError = computed(() => recipientList.value.length > 50 || recipientList.value.some(address => !isValidRecipient(address))
-  ? 'Vérifie les adresses et sépare-les par une virgule.'
-  : '')
-const canSend = computed(() => Boolean(draftId.value && recipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
+const recipientError = computed(() => !toRecipientList.value.length
+  ? 'Ajoute au moins une adresse dans le champ À.'
+  : recipientList.value.length > 50 || recipientList.value.some(address => !isValidRecipient(address))
+    ? 'Vérifie les adresses et sépare-les par une virgule.'
+    : '')
+const canSend = computed(() => Boolean(draftId.value && toRecipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
 
 watch(() => props.open, (open) => {
   if (!import.meta.client) return
@@ -381,7 +432,7 @@ watch(() => props.open, (open) => {
   }
 }, { immediate: true })
 
-watch([to, recipientEntry, subject], () => scheduleSave())
+watch([to, recipientEntry, cc, ccEntry, bcc, bccEntry, subject], () => scheduleSave())
 
 async function loadDraft() {
   if (loading.value) return
@@ -395,6 +446,14 @@ async function loadDraft() {
     const loadedRecipients = splitRecipients(draft.to)
     to.value = loadedRecipients.filter(isValidRecipient).join(', ')
     recipientEntry.value = loadedRecipients.filter(address => !isValidRecipient(address)).join(', ')
+    const loadedCc = splitRecipients(draft.cc || '')
+    const loadedBcc = splitRecipients(draft.bcc || '')
+    cc.value = loadedCc.filter(isValidRecipient).join(', ')
+    ccEntry.value = loadedCc.filter(address => !isValidRecipient(address)).join(', ')
+    bcc.value = loadedBcc.filter(isValidRecipient).join(', ')
+    bccEntry.value = loadedBcc.filter(address => !isValidRecipient(address)).join(', ')
+    showCc.value = Boolean(draft.cc)
+    showBcc.value = Boolean(draft.bcc)
     subject.value = draft.subject
     attachments.value = draft.attachments || []
     draftStatus.value = draft.status
@@ -429,7 +488,7 @@ async function saveDraft() {
   try {
     await $fetch(`/api/outgoing-drafts/${encodeURIComponent(draftId.value)}`, {
       method: 'PATCH',
-      body: { to: recipientList.value.join(', '), subject: subject.value, content: editor.value.getJSON() },
+      body: { to: to.value, cc: cc.value, bcc: bcc.value, subject: subject.value, content: editor.value.getJSON() },
     })
     if (revision === saveRevision) saved.value = true
   } catch (cause) {
@@ -604,6 +663,12 @@ function reset() {
   draftId.value = ''
   to.value = ''
   recipientEntry.value = ''
+  cc.value = ''
+  ccEntry.value = ''
+  bcc.value = ''
+  bccEntry.value = ''
+  showCc.value = false
+  showBcc.value = false
   subject.value = ''
   attachments.value = []
   draftStatus.value = 'draft'
@@ -660,6 +725,7 @@ onBeforeUnmount(() => {
 .compose-body { display: block; width: min(76vw, 1240px); min-height: 0; margin: 0 auto; overflow-y: auto; scrollbar-gutter: stable; }
 .compose-fields { display: grid; padding: 4px 0 0; }
 .compose-field { display: grid; min-height: 43px; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 13px; }
+.compose-field:has(.compose-recipient-control) { grid-template-columns: 54px minmax(0, 1fr) auto; }
 .compose-field input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
 .compose-recipient-control { display: flex; min-width: 0; min-height: 42px; flex-wrap: wrap; align-items: center; gap: 5px; padding: 4px 0; cursor: text; }
 .compose-recipient-control input { flex: 1 0 150px; min-height: 28px; }
@@ -725,7 +791,11 @@ onBeforeUnmount(() => {
 :root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: #5634eb; background: #5634eb; }
 .compose-send:disabled, .compose-secondary:disabled, .compose-discard:disabled { opacity: .55; cursor: not-allowed; }
 .compose-discard { border-color: transparent; color: var(--muted); }
+.compose-discard.compose-icon-action { padding: 0; border-color: var(--line); border-radius: 9px; }
 .compose-discard:hover { border-color: color-mix(in srgb, #bd4940 30%, var(--line)); color: #aa3d37; }
+.compose-recipient-toggles { display: flex; flex: 0 0 auto; gap: 8px; }
+.compose-recipient-toggles button { padding: 4px 2px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; }
+.compose-recipient-toggles button:hover { color: var(--violet); }
 .compose-confirm-backdrop { position: absolute; z-index: 3; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(25 21 36 / 42%); }
 .compose-confirm { width: min(100%, 420px); padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 20px 55px rgb(24 20 35 / 24%); }
 .compose-confirm-kicker { margin: 0 0 7px; color: var(--violet); font-size: 11px; font-weight: 650; }

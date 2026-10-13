@@ -7,8 +7,8 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Brouillon manquant.' })
 
-  const body = await readBody<{ to?: unknown, subject?: unknown, content?: unknown }>(event)
-  if (typeof body?.to !== 'string' || body.to.length > 4_000) {
+  const body = await readBody<{ to?: unknown, cc?: unknown, bcc?: unknown, subject?: unknown, content?: unknown }>(event)
+  if (typeof body?.to !== 'string' || body.to.length > 4_000 || (body.cc !== undefined && (typeof body.cc !== 'string' || body.cc.length > 4_000)) || (body.bcc !== undefined && (typeof body.bcc !== 'string' || body.bcc.length > 4_000))) {
     throw createError({ statusCode: 400, statusMessage: 'Le champ des destinataires est invalide ou trop long.' })
   }
   if (typeof body?.subject !== 'string' || body.subject.length > 998) {
@@ -27,10 +27,12 @@ export default defineEventHandler(async (event) => {
   `).bind(id).all<OutgoingDraftAttachment>()
   const rendered = renderOutgoingDraft(body.content as TiptapNode, id, attachments.results)
   const updatedAt = new Date().toISOString()
+  const cc = typeof body.cc === 'string' ? body.cc.trim() : ''
+  const bcc = typeof body.bcc === 'string' ? body.bcc.trim() : ''
   const saved = await bindings.DB.prepare(`
-    UPDATE outgoing_drafts SET to_address = ?, subject = ?, content_json = ?, html_body = ?, text_body = ?, updated_at = ?
+    UPDATE outgoing_drafts SET to_address = ?, cc_address = ?, bcc_address = ?, subject = ?, content_json = ?, html_body = ?, text_body = ?, updated_at = ?
     WHERE id = ? AND status = 'draft'
-  `).bind(body.to.trim(), body.subject.trim(), contentJson, rendered.html, rendered.text, updatedAt, id).run()
+  `).bind(body.to.trim(), cc, bcc, body.subject.trim(), contentJson, rendered.html, rendered.text, updatedAt, id).run()
   if (!saved.meta.changes) throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est en cours d’envoi et ne peut plus être modifié.' })
-  return { id, to: body.to.trim(), subject: body.subject.trim(), content: body.content, status: 'draft', updatedAt }
+  return { id, to: body.to.trim(), cc, bcc, subject: body.subject.trim(), content: body.content, status: 'draft', updatedAt }
 })

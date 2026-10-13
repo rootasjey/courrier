@@ -7,5 +7,5 @@ export default defineEventHandler(async (event) => {
   const now = new Date().toISOString()
   const id = crypto.randomUUID()
   await bindings.DB.prepare('INSERT INTO outgoing_drafts (id, created_at, updated_at) VALUES (?, ?, ?)').bind(id, now, now).run()
-  return { id, to: '', subject: '', content: { type: 'doc', content: [{ type: 'paragraph' }] }, status: 'draft', updatedAt: now, attachments: [] }
+  return { id, to: '', cc: '', bcc: '', subject: '', content: { type: 'doc', content: [{ type: 'paragraph' }] }, status: 'draft', updatedAt: now, attachments: [] }
 })

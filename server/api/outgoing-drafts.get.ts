@@ -3,6 +3,8 @@ import type { MailStorageBindings } from '../utils/mail-store'
 type DraftRow = {
   id: string
   to_address: string
+  cc_address: string
+  bcc_address: string
   subject: string
   content_json: string
   status: 'draft' | 'sending'
@@ -14,7 +16,7 @@ export default defineEventHandler(async (event) => {
   if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des brouillons est indisponible.' })
 
   const draft = await bindings.DB.prepare(`
-    SELECT id, to_address, subject, content_json, status, updated_at
+    SELECT id, to_address, cc_address, bcc_address, subject, content_json, status, updated_at
     FROM outgoing_drafts
     ORDER BY CASE status WHEN 'draft' THEN 0 ELSE 1 END, updated_at DESC
     LIMIT 1
@@ -28,5 +30,5 @@ export default defineEventHandler(async (event) => {
 
   let content: unknown
   try { content = JSON.parse(draft.content_json) } catch { content = { type: 'doc', content: [{ type: 'paragraph' }] } }
-  return { id: draft.id, to: draft.to_address, subject: draft.subject, content, status: draft.status, updatedAt: draft.updated_at, attachments: attachments.results }
+  return { id: draft.id, to: draft.to_address, cc: draft.cc_address, bcc: draft.bcc_address, subject: draft.subject, content, status: draft.status, updatedAt: draft.updated_at, attachments: attachments.results }
 })

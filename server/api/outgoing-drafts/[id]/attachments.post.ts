@@ -15,9 +15,11 @@ export default defineEventHandler(async (event) => {
   const draftId = getRouterParam(event, 'id')
   if (!draftId) throw createError({ statusCode: 400, statusMessage: 'Brouillon manquant.' })
 
-  const draft = await bindings.DB.prepare('SELECT status, to_address, subject, html_body, text_body FROM outgoing_drafts WHERE id = ?').bind(draftId).first<{
+  const draft = await bindings.DB.prepare('SELECT status, to_address, cc_address, bcc_address, subject, html_body, text_body FROM outgoing_drafts WHERE id = ?').bind(draftId).first<{
     status: string
     to_address: string
+    cc_address: string
+    bcc_address: string
     subject: string
     html_body: string
     text_body: string
@@ -56,6 +58,8 @@ export default defineEventHandler(async (event) => {
   ]
   const estimatedBytes = estimateOutgoingEmailBytes({
     to: draft.to_address,
+    cc: draft.cc_address,
+    bcc: draft.bcc_address,
     subject: draft.subject,
     text: draft.text_body,
     html: draft.html_body,

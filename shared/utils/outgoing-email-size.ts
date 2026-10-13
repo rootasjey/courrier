@@ -29,12 +29,14 @@ function utf8Length(value: string) {
  */
 export function estimateOutgoingEmailBytes(input: {
   to: string | string[]
+  cc?: string | string[]
+  bcc?: string | string[]
   subject: string
   text: string
   html: string
   attachments: OutgoingEmailSizeAttachment[]
 }) {
-  const recipients = Array.isArray(input.to) ? input.to.join(', ') : input.to
+  const recipients = [input.to, input.cc || '', input.bcc || ''].map(value => Array.isArray(value) ? value.join(', ') : value).filter(Boolean).join(', ')
   const subjectBytes = utf8Length(input.subject)
   const bodyBytes = base64WrappedSize(utf8Length(input.text)) + base64WrappedSize(utf8Length(input.html))
   const headersBytes = utf8Length(recipients) + Math.ceil(subjectBytes * 4 / 3) + 1_500
