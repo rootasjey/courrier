@@ -1,13 +1,34 @@
 <template>
   <Teleport to="body">
-    <Transition name="compose-dialog">
-      <div v-if="open" class="compose-backdrop" @click.self="closeComposer">
-        <section class="compose-window" role="dialog" aria-modal="true" aria-labelledby="compose-title">
+    <Transition name="compose-shell">
+      <div v-if="open" class="compose-stage" :class="`is-${mode}`">
+        <div v-if="mode === 'minimized'" ref="minimizedElement" class="compose-minimized">
+          <button class="compose-minimized-main" type="button" @click="restoreComposer">
+            <span class="compose-minimized-copy">
+              <strong>{{ subject || 'Nouveau message' }}</strong>
+              <small>{{ to || 'Brouillon en cours' }}</small>
+            </span>
+            <span class="sr-only">Reprendre la rédaction</span>
+          </button>
+          <button class="compose-icon-button compose-minimized-close" type="button" aria-label="Fermer le compositeur" title="Fermer" :disabled="sending" @click="closeComposer">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+          </button>
+        </div>
+
+        <section ref="composerWindow" v-show="mode !== 'minimized'" class="compose-window" :class="`is-${mode}`" role="dialog" :aria-modal="mode === 'full' ? 'true' : undefined" aria-labelledby="compose-title">
           <header class="compose-header">
             <h2 id="compose-title">Nouveau message</h2>
             <div class="compose-window-actions">
-              <button class="compose-icon-button" type="button" aria-label="Réduire le compositeur" title="Réduire" @click="closeComposer">−</button>
-              <button class="compose-icon-button" type="button" aria-label="Fermer le compositeur" title="Fermer" :disabled="sending" @click="closeComposer">×</button>
+              <button class="compose-icon-button" type="button" aria-label="Réduire le compositeur" title="Réduire en bas de l’écran" :disabled="sending" @click="minimizeComposer">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 7 6 6 6-6" /></svg>
+              </button>
+              <button class="compose-icon-button" type="button" :aria-label="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :title="mode === 'popup' ? 'Pleine page' : 'Fenêtre flottante'" :disabled="sending" @click="togglePopupMode">
+                <svg v-if="mode === 'popup'" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m0-4 6 6m4 8h4v-4m0 4-6-6" /></svg>
+                <svg v-else viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6m0-6-8 8" /><path d="M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
+              </button>
+              <button class="compose-icon-button" type="button" aria-label="Fermer le compositeur" title="Fermer le brouillon" :disabled="sending" @click="closeComposer">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+              </button>
             </div>
           </header>
 
@@ -106,8 +127,12 @@ const to = ref('')
 const subject = ref('')
 const attachments = ref<ComposeAttachment[]>([])
 const draftStatus = ref<'draft' | 'sending'>('draft')
+const mode = ref<'full' | 'popup' | 'minimized'>('full')
+const expandedMode = ref<'full' | 'popup'>('full')
 const loading = ref(false)
 const editorRevision = ref(0)
+const composerWindow = ref<HTMLElement | null>(null)
+const minimizedElement = ref<HTMLElement | null>(null)
 const saving = ref(false)
 const saved = ref(false)
 const uploading = ref(false)
@@ -152,6 +177,8 @@ const canSend = computed(() => Boolean(draftId.value && recipientList.value.leng
 
 watch(() => props.open, (open) => {
   if (open) {
+    mode.value = 'full'
+    expandedMode.value = 'full'
     window.addEventListener('keydown', onWindowKeydown)
     void loadDraft()
   }
@@ -339,6 +366,41 @@ async function closeComposer() {
   emit('update:open', false)
 }
 
+async function transitionComposerMode(nextMode: 'full' | 'popup' | 'minimized') {
+  if (sending.value) return
+  await saveDraft()
+  if (mode.value === nextMode) return
+
+  const currentElement = mode.value === 'minimized' ? minimizedElement.value : composerWindow.value
+  const fromRect = currentElement?.getBoundingClientRect()
+  if (mode.value !== 'minimized') expandedMode.value = mode.value
+  mode.value = nextMode
+  await nextTick()
+
+  const targetElement = nextMode === 'minimized' ? minimizedElement.value : composerWindow.value
+  const toRect = targetElement?.getBoundingClientRect()
+  if (!fromRect || !toRect || !targetElement || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+  const scaleX = fromRect.width / Math.max(toRect.width, 1)
+  const scaleY = fromRect.height / Math.max(toRect.height, 1)
+  targetElement.animate([
+    { transform: `translate(${fromRect.left - toRect.left}px, ${fromRect.top - toRect.top}px) scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left' },
+    { transform: 'translate(0, 0) scale(1, 1)', transformOrigin: 'top left' },
+  ], { duration: 280, easing: 'cubic-bezier(.2,.75,.25,1)' })
+}
+
+function minimizeComposer() {
+  void transitionComposerMode('minimized')
+}
+
+function restoreComposer() {
+  void transitionComposerMode(expandedMode.value)
+}
+
+function togglePopupMode() {
+  void transitionComposerMode(mode.value === 'popup' ? 'full' : 'popup')
+}
+
 function reset() {
   draftId.value = ''
   to.value = ''
@@ -369,13 +431,28 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-.compose-backdrop { position: fixed; z-index: 80; inset: 0; display: grid; align-items: end; justify-items: end; padding: 24px; background: rgb(24 20 35 / 20%); }
-.compose-window { position: relative; display: grid; width: min(100%, 720px); max-height: min(780px, calc(100dvh - 48px)); grid-template-rows: auto auto minmax(180px, 1fr) auto auto; overflow: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); box-shadow: 0 24px 80px rgb(24 20 35 / 25%); color: var(--ink); }
-.compose-header { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 9px 14px 9px 18px; background: var(--surface-soft); }
-.compose-header h2 { margin: 0; font-size: 14px; font-weight: 650; }
+.compose-stage { position: fixed; z-index: 80; inset: 0; overflow: hidden; color: var(--ink); }
+.compose-stage.is-full { background: transparent; pointer-events: none; }
+.compose-window.is-full { pointer-events: auto; }
+.compose-stage.is-popup, .compose-stage.is-minimized { background: transparent; pointer-events: none; }
+.compose-window { position: absolute; inset: 76px 0 0; display: grid; width: 100%; height: auto; grid-template-rows: auto auto minmax(180px, 1fr) auto auto; overflow: auto; border: 0; border-radius: 0; background: var(--paper); box-shadow: none; color: var(--ink); }
+.compose-window.is-popup { inset: auto 24px 24px auto; width: min(680px, calc(100vw - 48px)); height: min(780px, calc(100dvh - 120px)); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 80px rgb(24 20 35 / 25%); pointer-events: auto; }
+.compose-header { position: sticky; z-index: 2; top: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 68px; padding: 12px clamp(18px, 4vw, 64px); background: var(--paper); }
+.compose-header h2 { grid-column: 2; margin: 0; font-size: 22px; font-weight: 680; text-align: center; }
 .compose-window-actions { display: flex; gap: 4px; }
-.compose-icon-button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 22px; cursor: pointer; }
+.compose-window-actions { grid-column: 3; justify-self: end; }
+.compose-icon-button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.compose-icon-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .compose-icon-button:hover { background: var(--paper); color: var(--ink); }
+.compose-icon-button:focus-visible, .compose-minimized-main:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.compose-stage.is-popup .compose-icon-button:hover { background: var(--surface-soft); }
+.compose-minimized { position: absolute; right: 18px; bottom: max(16px, env(safe-area-inset-bottom)); display: flex; width: min(360px, calc(100vw - 32px)); min-height: 64px; align-items: center; gap: 4px; padding: 7px 8px 7px 16px; border: 1px solid var(--line); border-radius: 12px 12px 0 0; background: var(--paper); box-shadow: 0 12px 36px rgb(24 20 35 / 18%); pointer-events: auto; animation: compose-minimized-enter 220ms cubic-bezier(.2,.75,.25,1) both; }
+.compose-minimized-main { display: flex; min-width: 0; flex: 1; align-items: center; padding: 2px 0; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.compose-minimized-copy { display: grid; min-width: 0; gap: 3px; }
+.compose-minimized-copy strong, .compose-minimized-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compose-minimized-copy strong { font-size: 13px; }
+.compose-minimized-copy small { color: var(--quiet); font-size: 11px; }
+.compose-minimized-close { flex: 0 0 36px; }
 .compose-fields { display: grid; padding: 4px 18px 0; }
 .compose-field { display: grid; min-height: 43px; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 13px; }
 .compose-field input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
@@ -392,7 +469,7 @@ onBeforeUnmount(() => {
 .compose-editor .tiptap p { margin: 0 0 12px; }
 .compose-editor .tiptap p.is-editor-empty:first-child::before { float: left; height: 0; color: var(--quiet); content: attr(data-placeholder); pointer-events: none; }
 .compose-editor .tiptap ul, .compose-editor .tiptap ol { padding-left: 24px; }
-.compose-editor .tiptap blockquote { margin: 10px 0; padding-left: 14px; border-left: 3px solid var(--line); color: var(--muted); }
+.compose-editor .tiptap blockquote { margin: 10px 0; padding-left: 14px; border-left: 1px solid var(--line); color: var(--muted); }
 .compose-editor .tiptap img { display: block; max-width: 100%; max-height: 360px; margin: 10px 0; border-radius: 5px; object-fit: contain; }
 .compose-editor .tiptap a { color: var(--violet); text-decoration: underline; text-underline-offset: 2px; }
 .compose-attachments { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; padding: 0 18px 12px; }
@@ -422,19 +499,24 @@ onBeforeUnmount(() => {
 .compose-confirm > p:last-of-type { color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .compose-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .compose-state { display: grid; min-height: 220px; align-content: center; justify-items: center; gap: 10px; padding: 24px; color: var(--muted); text-align: center; }
-.compose-dialog-enter-active, .compose-dialog-leave-active { transition: opacity 180ms ease; }
-.compose-dialog-enter-active .compose-window, .compose-dialog-leave-active .compose-window { transition: transform 180ms cubic-bezier(.2,.75,.25,1); }
-.compose-dialog-enter-from, .compose-dialog-leave-to { opacity: 0; }
-.compose-dialog-enter-from .compose-window, .compose-dialog-leave-to .compose-window { transform: translateY(14px) scale(.985); }
+.compose-shell-enter-active, .compose-shell-leave-active { transition: opacity 180ms ease; }
+.compose-shell-enter-active .compose-window, .compose-shell-leave-active .compose-window { transition: transform 180ms cubic-bezier(.2,.75,.25,1), opacity 180ms ease; }
+.compose-shell-enter-from, .compose-shell-leave-to { opacity: 0; }
+.compose-shell-enter-from .compose-window, .compose-shell-leave-to .compose-window { transform: translateY(10px); opacity: .96; }
+@keyframes compose-minimized-enter { from { transform: translateY(8px); } to { transform: translateY(0); } }
 @media (max-width: 640px) {
-  .compose-backdrop { align-items: stretch; justify-items: stretch; padding: 8px; }
-  .compose-window { width: 100%; max-height: calc(100dvh - 16px); border-radius: 13px; }
+  .compose-window { inset: 66px 0 0; }
+  .compose-window.is-popup { inset: auto 8px max(8px, env(safe-area-inset-bottom)) auto; width: calc(100vw - 16px); height: min(720px, calc(100dvh - 82px)); border-radius: 13px; }
+  .compose-header { min-height: 56px; padding: 8px 10px; }
+  .compose-header h2 { font-size: 18px; }
+  .compose-minimized { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: calc(100vw - 16px); }
   .compose-footer { gap: 7px; padding: 10px; }
   .compose-discard { margin-left: auto; }
   .compose-save-status { width: 100%; }
   .compose-confirm-actions { flex-direction: column-reverse; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .compose-dialog-enter-active, .compose-dialog-leave-active, .compose-dialog-enter-active .compose-window, .compose-dialog-leave-active .compose-window { transition: none; }
+  .compose-shell-enter-active, .compose-shell-leave-active, .compose-shell-enter-active .compose-window, .compose-shell-leave-active .compose-window { transition: none; }
+  .compose-minimized { animation: none; }
 }
 </style>
