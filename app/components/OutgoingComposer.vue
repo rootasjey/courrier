@@ -6,31 +6,37 @@
           <button class="compose-minimized-main" type="button" @click="restoreComposer">
             <span class="compose-minimized-copy">
               <strong>{{ subject || 'Nouveau message' }}</strong>
-              <small>{{ to || 'Brouillon en cours' }}</small>
+              <small>{{ to || recipientEntry || 'Brouillon en cours' }}</small>
             </span>
             <span class="sr-only">Reprendre la rédaction</span>
           </button>
-          <button class="compose-icon-button compose-minimized-close" type="button" aria-label="Fermer le compositeur" title="Fermer" :disabled="sending" @click="closeComposer">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
-          </button>
+          <NTooltip content="Fermer le brouillon" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+            <button class="compose-icon-button compose-minimized-close" type="button" aria-label="Fermer le compositeur" :disabled="sending" @click="closeComposer">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+            </button>
+          </NTooltip>
         </div>
 
         <section ref="composerWindow" v-show="mode !== 'minimized'" class="compose-window" :class="`is-${mode}`" role="dialog" :aria-modal="mode === 'full' ? 'true' : undefined" aria-labelledby="compose-title">
           <header class="compose-header">
             <h2 id="compose-title">Nouveau message</h2>
             <div class="compose-window-actions">
-              <button class="compose-icon-button" type="button" aria-label="Réduire le compositeur" title="Réduire en bas de l’écran" :disabled="sending" @click="minimizeComposer">
-                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 7 6 6 6-6" /></svg>
-              </button>
-              <NTooltip :content="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'">
-                <button class="compose-icon-button" type="button" :aria-label="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :title="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :disabled="sending" @click="togglePopupMode">
+              <NTooltip content="Réduire en bas de l’écran" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-icon-button" type="button" aria-label="Réduire le compositeur" :disabled="sending" @click="minimizeComposer">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 7 6 6 6-6" /></svg>
+                </button>
+              </NTooltip>
+              <NTooltip :content="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-icon-button" type="button" :aria-label="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :disabled="sending" @click="togglePopupMode">
                   <svg v-if="mode === 'popup'" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m0-4 6 6m4 8h4v-4m0 4-6-6" /></svg>
                   <svg v-else viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6m0-6-8 8" /><path d="M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
                 </button>
               </NTooltip>
-              <button class="compose-icon-button" type="button" aria-label="Fermer le compositeur" title="Fermer le brouillon" :disabled="sending" @click="closeComposer">
-                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
-              </button>
+              <NTooltip content="Fermer le brouillon" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-icon-button" type="button" aria-label="Fermer le compositeur" :disabled="sending" @click="closeComposer">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                </button>
+              </NTooltip>
             </div>
           </header>
 
@@ -44,7 +50,13 @@
               <div class="compose-fields">
                 <label class="compose-field">
                   <span>À</span>
-                  <input ref="recipientInput" v-model="to" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr, autre@exemple.fr" :disabled="sending || draftStatus === 'sending'" @keydown.enter.prevent="saveDraft">
+                  <div class="compose-recipient-control" @click="recipientInput?.focus()">
+                    <span v-for="(address, index) in committedRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">
+                      {{ address }}
+                      <button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient(address)">×</button>
+                    </span>
+                    <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput" @blur="commitRecipientEntry" @keydown.enter.prevent="commitRecipientEntry" @keydown.backspace="removeLastRecipient">
+                  </div>
                 </label>
                 <label class="compose-field">
                   <span>Objet</span>
@@ -82,26 +94,27 @@
                 </div>
               </div>
 
-              <p class="compose-size-meter" :class="{ 'compose-size-over': estimatedEmailBytes > OUTBOUND_MESSAGE_BUDGET_BYTES }" role="status">
-                Taille estimée : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
-                <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> (limite de 5 Mio, marge incluse)</span>
-                <span v-else> · Réduis le corps ou retire une pièce jointe.</span>
-              </p>
-
               <p v-if="uploading" class="compose-status" role="status">Ajout des fichiers…</p>
               <p v-else-if="error" class="compose-error" role="alert">{{ error }}</p>
               <p v-else-if="draftStatus === 'sending'" class="compose-status" role="status">Un envoi a déjà commencé. Vérifie la boîte destinataire avant toute nouvelle tentative.</p>
             </div>
 
             <footer class="compose-footer">
-              <span class="compose-save-status" role="status">{{ saving ? 'Enregistrement…' : saved ? 'Brouillon enregistré' : 'Brouillon en cours' }}</span>
-              <NTooltip content="Joindre un ou plusieurs fichiers au message">
-                <button class="compose-tool-button compose-icon-action" type="button" aria-label="Joindre des fichiers" title="Joindre des fichiers" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">
+              <div class="compose-footer-status">
+                <span class="compose-save-status" role="status">{{ saving ? 'Enregistrement…' : saved ? 'Brouillon enregistré' : 'Brouillon en cours' }}</span>
+                <p class="compose-size-meter" :class="{ 'compose-size-over': estimatedEmailBytes > OUTBOUND_MESSAGE_BUDGET_BYTES }" role="status">
+                  Taille estimée : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
+                  <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> (limite de 5 Mio, marge incluse)</span>
+                  <span v-else> · Réduis le corps ou retire une pièce jointe.</span>
+                </p>
+              </div>
+              <NTooltip content="Joindre des fichiers" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-tool-button compose-icon-action" type="button" aria-label="Joindre des fichiers" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.3 10.8 5.1-5.1a2.6 2.6 0 0 1 3.7 3.7l-7.2 7.2a4.2 4.2 0 0 1-5.9-5.9l7.1-7.1" /></svg>
                 </button>
               </NTooltip>
-              <NTooltip content="Supprimer le brouillon et ses pièces jointes">
-                <button class="compose-discard compose-icon-action" type="button" aria-label="Supprimer le brouillon" title="Supprimer le brouillon" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">
+              <NTooltip content="Supprimer le brouillon" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-discard compose-icon-action" type="button" aria-label="Supprimer le brouillon" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 5.5h13m-11.5 0 .7 11h8.6l.7-11M7.5 5.5V3.8h5v1.7m-3.5 3v5m2-5v5" /></svg>
                 </button>
               </NTooltip>
@@ -113,7 +126,7 @@
             <section class="compose-confirm" role="alertdialog" aria-labelledby="compose-confirm-title" aria-describedby="compose-confirm-description">
               <p class="compose-confirm-kicker">Vérification avant envoi</p>
               <h3 id="compose-confirm-title">Envoyer ce message ?</h3>
-              <p id="compose-confirm-description">Il sera envoyé depuis <strong>courrier-test@verbatims.cc</strong> à <strong>{{ to }}</strong>.</p>
+              <p id="compose-confirm-description">Il sera envoyé depuis <strong>courrier-test@verbatims.cc</strong> à <strong>{{ recipientList.join(', ') }}</strong>.</p>
               <div class="compose-confirm-actions">
                 <button class="compose-secondary" type="button" :disabled="sending" @click="confirmSend = false">Continuer à écrire</button>
                 <button class="compose-send" type="button" :disabled="sending" @click="sendDraft">{{ sending ? 'Envoi…' : 'Confirmer l’envoi' }}</button>
@@ -144,6 +157,7 @@ const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: st
 
 const draftId = ref('')
 const to = ref('')
+const recipientEntry = ref('')
 const subject = ref('')
 const attachments = ref<ComposeAttachment[]>([])
 const draftStatus = ref<'draft' | 'sending'>('draft')
@@ -290,7 +304,53 @@ function applySlashCommand(item: SlashCommand) {
   item.apply()
 }
 
-const recipientList = computed(() => to.value.split(/[;,\n]+/).map(address => address.trim()).filter(Boolean))
+function splitRecipients(value: string) {
+  return value.split(/[;,\n]+/).map(address => address.trim()).filter(Boolean)
+}
+
+function isValidRecipient(address: string) {
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)
+}
+
+const committedRecipients = computed(() => splitRecipients(to.value))
+const recipientList = computed(() => [...committedRecipients.value, ...splitRecipients(recipientEntry.value)])
+
+function addRecipients(addresses: string[]) {
+  const recipients = [...committedRecipients.value]
+  const known = new Set(recipients.map(address => address.toLocaleLowerCase()))
+  for (const address of addresses) {
+    if (!isValidRecipient(address) || known.has(address.toLocaleLowerCase())) continue
+    recipients.push(address)
+    known.add(address.toLocaleLowerCase())
+  }
+  to.value = recipients.join(', ')
+}
+
+function commitRecipientEntry() {
+  const entries = splitRecipients(recipientEntry.value)
+  addRecipients(entries)
+  recipientEntry.value = entries.filter(address => !isValidRecipient(address)).join(', ')
+}
+
+function handleRecipientInput(event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  if (!/[;,\n]/.test(value)) return
+  const parts = value.split(/[;,\n]/)
+  const remainder = parts.pop()?.trim() || ''
+  const completed = parts.map(address => address.trim()).filter(Boolean)
+  addRecipients(completed)
+  recipientEntry.value = [...completed.filter(address => !isValidRecipient(address)), remainder].filter(Boolean).join(', ')
+}
+
+function removeRecipient(address: string) {
+  to.value = committedRecipients.value.filter(item => item.toLocaleLowerCase() !== address.toLocaleLowerCase()).join(', ')
+}
+
+function removeLastRecipient(event: KeyboardEvent) {
+  if (recipientEntry.value || !committedRecipients.value.length) return
+  event.preventDefault()
+  removeRecipient(committedRecipients.value.at(-1)!)
+}
 const estimatedEmailBytes = computed(() => {
   editorRevision.value
   return estimateOutgoingEmailBytes({
@@ -301,7 +361,7 @@ const estimatedEmailBytes = computed(() => {
     attachments: attachments.value,
   })
 })
-const recipientError = computed(() => recipientList.value.length > 50 || recipientList.value.some(address => !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address))
+const recipientError = computed(() => recipientList.value.length > 50 || recipientList.value.some(address => !isValidRecipient(address))
   ? 'Vérifie les adresses et sépare-les par une virgule.'
   : '')
 const canSend = computed(() => Boolean(draftId.value && recipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
@@ -321,7 +381,7 @@ watch(() => props.open, (open) => {
   }
 }, { immediate: true })
 
-watch([to, subject], () => scheduleSave())
+watch([to, recipientEntry, subject], () => scheduleSave())
 
 async function loadDraft() {
   if (loading.value) return
@@ -332,7 +392,9 @@ async function loadDraft() {
     let draft = await $fetch<ComposeDraft | null>('/api/outgoing-drafts')
     if (!draft) draft = await $fetch<ComposeDraft>('/api/outgoing-drafts', { method: 'POST' })
     draftId.value = draft.id
-    to.value = draft.to
+    const loadedRecipients = splitRecipients(draft.to)
+    to.value = loadedRecipients.filter(isValidRecipient).join(', ')
+    recipientEntry.value = loadedRecipients.filter(address => !isValidRecipient(address)).join(', ')
     subject.value = draft.subject
     attachments.value = draft.attachments || []
     draftStatus.value = draft.status
@@ -367,7 +429,7 @@ async function saveDraft() {
   try {
     await $fetch(`/api/outgoing-drafts/${encodeURIComponent(draftId.value)}`, {
       method: 'PATCH',
-      body: { to: to.value, subject: subject.value, content: editor.value.getJSON() },
+      body: { to: recipientList.value.join(', '), subject: subject.value, content: editor.value.getJSON() },
     })
     if (revision === saveRevision) saved.value = true
   } catch (cause) {
@@ -541,6 +603,7 @@ function togglePopupMode() {
 function reset() {
   draftId.value = ''
   to.value = ''
+  recipientEntry.value = ''
   subject.value = ''
   attachments.value = []
   draftStatus.value = 'draft'
@@ -569,6 +632,7 @@ onBeforeUnmount(() => {
 
 <style>
 .compose-stage { position: fixed; z-index: 80; inset: 0; overflow: hidden; color: var(--ink); }
+.compose-tooltip-content { z-index: 100 !important; }
 .compose-stage.is-full { background: transparent; pointer-events: none; }
 .compose-window.is-full { pointer-events: auto; }
 .compose-stage.is-popup, .compose-stage.is-minimized { background: transparent; pointer-events: none; }
@@ -597,6 +661,11 @@ onBeforeUnmount(() => {
 .compose-fields { display: grid; padding: 4px 0 0; }
 .compose-field { display: grid; min-height: 43px; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--line); color: var(--quiet); font-size: 13px; }
 .compose-field input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
+.compose-recipient-control { display: flex; min-width: 0; min-height: 42px; flex-wrap: wrap; align-items: center; gap: 5px; padding: 4px 0; cursor: text; }
+.compose-recipient-control input { flex: 1 0 150px; min-height: 28px; }
+.compose-recipient-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; padding: 3px 5px 3px 9px; border: 1px solid color-mix(in srgb, var(--violet) 24%, var(--line)); border-radius: 999px; background: var(--violet-wash); color: var(--ink); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.compose-recipient-badge button { display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--quiet); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.compose-recipient-badge button:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
 .compose-field input::placeholder { color: var(--quiet); }
 .compose-field-error { margin: 5px 0 0; color: #aa3d37; font-size: 11px; }
 .compose-editor-shell { position: relative; display: block; min-height: 230px; }
@@ -629,7 +698,7 @@ onBeforeUnmount(() => {
 .compose-slash-menu small, .compose-slash-empty { color: var(--quiet); font-size: 10px; }
 .compose-slash-empty { margin: 8px; }
 .compose-attachments { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; padding: 0 0 12px; }
-.compose-size-meter { margin: 0; padding: 0 0 12px; color: var(--quiet); font-size: 11px; }
+.compose-size-meter { margin: 0; color: var(--quiet); font-size: 11px; line-height: 1.4; }
 .compose-size-meter span { color: var(--quiet); }
 .compose-size-meter.compose-size-over { color: #aa3d37; }
 .compose-attachment { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
@@ -642,7 +711,8 @@ onBeforeUnmount(() => {
 .compose-status, .compose-error { margin: 0; padding: 6px 0; color: var(--muted); font-size: 12px; }
 .compose-error { color: #aa3d37; }
 .compose-footer { position: relative; display: flex; width: min(76vw, 1240px); flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 auto; padding: 14px 0 max(20px, env(safe-area-inset-bottom)); background: var(--paper); }
-.compose-save-status { margin-right: auto; color: var(--quiet); font-size: 11px; }
+.compose-footer-status { display: flex; min-width: 0; flex: 1 1 300px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 14px; margin-right: auto; }
+.compose-save-status { color: var(--quiet); font-size: 11px; }
 .compose-tool-button { min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-icon-action { display: inline-grid; width: 36px; min-height: 36px; padding: 0; place-items: center; border-radius: 9px; }
 .compose-icon-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -651,6 +721,8 @@ onBeforeUnmount(() => {
 .compose-tool-button:disabled { opacity: .5; cursor: not-allowed; }
 .compose-send, .compose-secondary, .compose-discard { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-send { border-color: var(--violet); background: var(--violet); color: white; font-weight: 650; }
+:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: #6846ff; background: #6846ff; color: white; }
+:root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: #5634eb; background: #5634eb; }
 .compose-send:disabled, .compose-secondary:disabled, .compose-discard:disabled { opacity: .55; cursor: not-allowed; }
 .compose-discard { border-color: transparent; color: var(--muted); }
 .compose-discard:hover { border-color: color-mix(in srgb, #bd4940 30%, var(--line)); color: #aa3d37; }
@@ -676,7 +748,7 @@ onBeforeUnmount(() => {
   .compose-minimized { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(220px, calc(100vw - 16px)); }
   .compose-footer { gap: 7px; padding: 10px 0 max(14px, env(safe-area-inset-bottom)); }
   .compose-discard { margin-left: auto; }
-  .compose-save-status { width: 100%; }
+  .compose-footer-status { flex-basis: 100%; }
   .compose-confirm-actions { flex-direction: column-reverse; }
 }
 @media (prefers-reduced-motion: reduce) {
