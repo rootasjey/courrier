@@ -75,6 +75,62 @@
           </div>
         </section>
 
+        <section class="admin-section" aria-labelledby="admin-mailbox-access-heading">
+          <h2 id="admin-mailbox-access-heading">{{ $t('admin.mailboxAccess') }}</h2>
+          <p class="admin-section-description">{{ $t('admin.mailboxAccessDescription') }}</p>
+          <p v-if="mailboxAccess?.truncated.mailboxes || mailboxAccess?.truncated.members || mailboxAccess?.truncated.grants" class="admin-access-notice" role="status">
+            {{ $t('admin.mailboxAccessTruncated') }}
+          </p>
+          <p v-if="accessError" class="admin-access-error" role="alert">{{ accessError }}</p>
+          <p v-if="accessNotice" class="admin-access-notice" role="status">{{ accessNotice }}</p>
+
+          <template v-if="mailboxAccess?.mailboxes.length">
+            <div class="admin-access-controls">
+              <label class="admin-access-field">
+                <span>{{ $t('admin.mailbox') }}</span>
+                <select v-model="selectedMailboxId" :disabled="accessBusy || Boolean(accessToRevoke)">
+                  <option v-for="mailbox in mailboxAccess.mailboxes" :key="mailbox.id" :value="mailbox.id">
+                    {{ mailbox.address }} — {{ mailbox.workspace_name }}
+                  </option>
+                </select>
+              </label>
+              <label class="admin-access-field">
+                <span>{{ $t('admin.memberToGrant') }}</span>
+                <select v-model="selectedUserId" :disabled="accessBusy || !availableMembers.length">
+                  <option value="">{{ $t(mailboxAccess.truncated.members ? 'admin.memberListLimited' : availableMembers.length ? 'admin.chooseMember' : 'admin.allMembersGranted') }}</option>
+                  <option v-for="member in availableMembers" :key="member.user_id" :value="member.user_id">
+                    {{ member.display_name || member.email }} · {{ member.role }}
+                  </option>
+                </select>
+              </label>
+              <button class="admin-access-action" type="button" :disabled="!selectedUserId || accessBusy" @click="grantSelectedAccess">
+                {{ accessBusy ? $t('admin.savingAccess') : $t('admin.grantAccess') }}
+              </button>
+            </div>
+
+            <div v-if="selectedMailbox" class="admin-table-wrap admin-access-table">
+              <table>
+                <thead><tr><th>{{ $t('admin.user') }}</th><th>{{ $t('admin.role') }}</th><th>{{ $t('admin.accessStatus') }}</th><th>{{ $t('admin.action') }}</th></tr></thead>
+                <tbody>
+                  <tr v-for="grant in selectedMailboxGrants" :key="`${grant.mailbox_id}:${grant.user_id}`">
+                    <td><strong>{{ grant.display_name || grant.email }}</strong><small>{{ grant.email }}</small></td>
+                    <td><span class="admin-role">{{ grant.role }}</span></td>
+                    <td><span class="admin-status is-active">{{ $t('admin.accessGranted') }}</span></td>
+                    <td>
+                      <span v-if="grant.role === 'owner'" class="admin-access-protected">{{ $t('admin.ownerAccessProtected') }}</span>
+                      <button v-else class="admin-access-remove" type="button" :disabled="accessBusy" @click="accessToRevoke = grant">
+                        {{ $t('admin.revokeAccess') }}
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="!selectedMailboxGrants.length"><td colspan="4" class="admin-empty">{{ $t('admin.noMailboxGrants') }}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+          <p v-else class="admin-empty admin-access-empty">{{ $t('admin.noActiveMailboxes') }}</p>
+        </section>
+
         <section class="admin-section" aria-labelledby="admin-invitations-heading">
           <h2 id="admin-invitations-heading">{{ $t('admin.invitations') }}</h2>
           <div class="admin-table-wrap">
@@ -109,6 +165,28 @@
         </section>
       </template>
     </div>
+
+    <NDialog
+      :open="Boolean(accessToRevoke)"
+      :title="$t('admin.revokeAccess')"
+      :description="$t('admin.revokeAccessDescription', { member: accessToRevoke?.email || '', mailbox: accessToRevoke?.mailbox_address || '' })"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!open && !accessBusy) accessToRevoke = null }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t('admin.revokeAccess') }}</NDialogTitle>
+          <NDialogDescription>{{ $t('admin.revokeAccessDescription', { member: accessToRevoke?.email || '', mailbox: accessToRevoke?.mailbox_address || '' }) }}</NDialogDescription>
+        </header>
+        <div class="dialog-actions">
+          <button class="dialog-cancel" type="button" :disabled="accessBusy" @click="accessToRevoke = null">{{ $t('common.cancel') }}</button>
+          <button class="dialog-danger" type="button" :disabled="accessBusy" @click="revokeSelectedAccess">
+            {{ accessBusy ? $t('admin.savingAccess') : $t('admin.revokeAccess') }}
+          </button>
+        </div>
+      </template>
+    </NDialog>
   </main>
 </template>
 
@@ -123,11 +201,48 @@ type AdminOverview = {
   invitations: { id: string, workspace_id: string, workspace_name: string, email: string, role: string, expires_at: string, accepted_at: string | null, revoked_at: string | null, created_at: string, status: string }[]
   audit: { id: string, actor_user_id: string | null, actor_email: string | null, action: string, target_type: string, target_id: string | null, workspace_id: string | null, created_at: string }[]
 }
+type MailboxAccess = {
+  mailboxes: { id: string, workspace_id: string, workspace_name: string, address: string }[]
+  members: { workspace_id: string, user_id: string, email: string, display_name: string | null, role: string }[]
+  grants: { workspace_id: string, mailbox_id: string, user_id: string }[]
+  truncated: { mailboxes: boolean, members: boolean, grants: boolean }
+}
+type AccessGrant = { mailbox_id: string, user_id: string, email: string, display_name: string | null, role: string, mailbox_address: string }
 
 const { $t } = useI18n()
 const overview = ref<AdminOverview | null>(null)
+const mailboxAccess = ref<MailboxAccess | null>(null)
 const loading = ref(false)
 const failed = ref(false)
+const selectedMailboxId = ref('')
+const selectedUserId = ref('')
+const accessBusy = ref(false)
+const accessError = ref('')
+const accessNotice = ref('')
+const accessToRevoke = ref<AccessGrant | null>(null)
+
+const selectedMailbox = computed(() => mailboxAccess.value?.mailboxes.find(mailbox => mailbox.id === selectedMailboxId.value) ?? null)
+const selectedMailboxGrants = computed<AccessGrant[]>(() => {
+  if (!selectedMailbox.value || !mailboxAccess.value) return []
+  return mailboxAccess.value.grants
+    .filter(grant => grant.mailbox_id === selectedMailbox.value!.id && grant.workspace_id === selectedMailbox.value!.workspace_id)
+    .map((grant) => {
+      const member = mailboxAccess.value!.members.find(candidate => candidate.workspace_id === grant.workspace_id && candidate.user_id === grant.user_id)
+      return { mailbox_id: grant.mailbox_id, user_id: grant.user_id, email: member?.email ?? '', display_name: member?.display_name ?? null, role: member?.role ?? '', mailbox_address: selectedMailbox.value!.address }
+    })
+    .filter(grant => grant.email)
+})
+const availableMembers = computed(() => {
+  if (!selectedMailbox.value || !mailboxAccess.value) return []
+  const activeGrants = new Set(selectedMailboxGrants.value.map(grant => grant.user_id))
+  return mailboxAccess.value.members.filter(member => member.workspace_id === selectedMailbox.value!.workspace_id && !activeGrants.has(member.user_id))
+})
+
+watch(selectedMailboxId, () => {
+  selectedUserId.value = ''
+  accessError.value = ''
+  accessNotice.value = ''
+})
 
 useSeoMeta({ title: () => `${$t('admin.title')} — Courrier` })
 
@@ -146,11 +261,61 @@ async function loadOverview() {
   loading.value = true
   failed.value = false
   try {
-    overview.value = await $fetch<AdminOverview>('/api/admin/overview')
+    const [nextOverview, nextMailboxAccess] = await Promise.all([
+      $fetch<AdminOverview>('/api/admin/overview'),
+      $fetch<MailboxAccess>('/api/admin/mailbox-access'),
+    ])
+    overview.value = nextOverview
+    mailboxAccess.value = nextMailboxAccess
+    if (!nextMailboxAccess.mailboxes.some(mailbox => mailbox.id === selectedMailboxId.value)) {
+      selectedMailboxId.value = nextMailboxAccess.mailboxes[0]?.id ?? ''
+    }
+    if (!availableMembers.value.some(member => member.user_id === selectedUserId.value)) selectedUserId.value = ''
   } catch {
     failed.value = true
   } finally {
     loading.value = false
+  }
+}
+
+async function grantSelectedAccess() {
+  if (!selectedMailbox.value || !selectedUserId.value || accessBusy.value) return
+  accessBusy.value = true
+  accessError.value = ''
+  accessNotice.value = ''
+  try {
+    await $fetch('/api/admin/mailbox-access', {
+      method: 'POST',
+      body: { mailboxId: selectedMailbox.value.id, userId: selectedUserId.value },
+    })
+    accessNotice.value = $t('admin.accessGrantedNotice')
+    selectedUserId.value = ''
+    await loadOverview()
+  } catch {
+    accessError.value = $t('admin.accessSaveError')
+  } finally {
+    accessBusy.value = false
+  }
+}
+
+async function revokeSelectedAccess() {
+  const grant = accessToRevoke.value
+  if (!grant || accessBusy.value) return
+  accessBusy.value = true
+  accessError.value = ''
+  accessNotice.value = ''
+  try {
+    await $fetch('/api/admin/mailbox-access', {
+      method: 'DELETE',
+      body: { mailboxId: grant.mailbox_id, userId: grant.user_id },
+    })
+    accessToRevoke.value = null
+    accessNotice.value = $t('admin.accessRevokedNotice')
+    await loadOverview()
+  } catch {
+    accessError.value = $t('admin.accessSaveError')
+  } finally {
+    accessBusy.value = false
   }
 }
 

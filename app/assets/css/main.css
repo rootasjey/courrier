@@ -703,6 +703,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .admin-metric strong { font-size: 27px; font-weight: 720; font-variant-numeric: tabular-nums; }
 .admin-section { margin-top: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
 .admin-section h2 { margin: 0 0 15px; font-size: 17px; font-weight: 680; letter-spacing: -.3px; }
+.admin-section-description { max-width: 72ch; margin: -7px 0 16px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .admin-table-wrap { overflow-x: auto; }
 .admin-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
 .admin-table-wrap th { padding: 0 12px 10px; color: var(--quiet); font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
@@ -716,6 +717,21 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .admin-status.is-suspended, .admin-status.is-revoked { background: color-mix(in srgb, var(--error) 10%, var(--paper)); color: var(--error); }
 .admin-status.is-pending, .admin-status.is-legacy_unverified, .admin-status.is-expired { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
 .admin-empty { padding: 28px 12px !important; color: var(--quiet) !important; text-align: center; }
+.admin-access-controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }
+.admin-access-field { display: grid; min-width: 0; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 620; }
+.admin-access-field select { width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; }
+.admin-access-field select:focus-visible, .admin-access-action:focus-visible, .admin-access-remove:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.admin-access-action, .admin-access-remove { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; padding: 0 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--violet); color: #fff; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: background-color 150ms ease, opacity 150ms ease; }
+.admin-access-action:hover:not(:disabled) { background: var(--violet-hover); }
+.admin-access-remove { min-height: 32px; border-color: color-mix(in srgb, var(--error) 35%, var(--line)); background: transparent; color: var(--error); }
+.admin-access-remove:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 9%, var(--paper)); }
+.admin-access-action:disabled, .admin-access-remove:disabled { opacity: .55; cursor: wait; }
+.admin-access-table { margin-top: 18px; }
+.admin-access-protected { color: var(--quiet); font-size: 11px; }
+.admin-access-notice, .admin-access-error { margin: 12px 0; font-size: 12px; line-height: 1.5; }
+.admin-access-notice { color: #27815f; }
+.admin-access-error { color: var(--error); }
+.admin-access-empty { margin-top: 4px; }
 .login-page { display: grid; grid-template-columns: minmax(0, .92fr) minmax(380px, 1.08fr); gap: clamp(38px, 8vw, 112px); width: min(1120px, calc(100% - 64px)); min-height: 100svh; align-items: center; margin: 0 auto; padding: 58px 0; }
 .login-panel { width: min(100%, 440px); padding: 24px 0; }
 .login-brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); font-size: 22px; font-weight: 730; letter-spacing: -.6px; text-decoration: none; }
@@ -770,6 +786,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .admin-header { align-items: flex-start; flex-direction: column; gap: 16px; margin-bottom: 20px; }
   .admin-section { padding: 15px 13px; }
   .admin-table-wrap table { min-width: 620px; }
+  .admin-access-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .admin-access-action { justify-self: start; }
   .login-page { grid-template-columns: minmax(0, 1fr); gap: 26px; width: min(100% - 36px, 460px); align-content: center; padding: 28px 0; }
   .login-panel { width: 100%; padding: 0; }
   .login-copy { margin: 43px 0 26px; }

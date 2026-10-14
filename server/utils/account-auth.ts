@@ -1,14 +1,15 @@
 import type { H3Event } from 'h3'
 
 export type AccountDb = {
-  prepare: (query: string) => {
-    bind: (...values: unknown[]) => {
-      first: <T>() => Promise<T | null>
-      all: <T>() => Promise<{ results: T[] }>
-      run: () => Promise<unknown>
-    }
-    first: <T>() => Promise<T | null>
-  }
+  prepare: (query: string) => AccountDbStatement
+  batch: (statements: AccountDbStatement[]) => Promise<unknown[]>
+}
+
+export type AccountDbStatement = {
+  bind: (...values: unknown[]) => AccountDbStatement
+  first: <T>() => Promise<T | null>
+  all: <T>() => Promise<{ results: T[] }>
+  run: () => Promise<unknown>
 }
 
 export type AccountUser = {

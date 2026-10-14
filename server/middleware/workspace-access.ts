@@ -52,6 +52,10 @@ export default defineEventHandler(async (event) => {
       await requirePlatformAdmin(event)
       return
     }
+    if (path === '/api/admin/mailbox-access' && ['GET', 'POST', 'DELETE'].includes(method)) {
+      await requirePlatformAdmin(event)
+      return
+    }
     throw createError({ statusCode: 403, statusMessage: 'Cette route d’administration n’est pas ouverte.' })
   }
 
