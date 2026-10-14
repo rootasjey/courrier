@@ -28,7 +28,7 @@ Platform administration uses the separate `platform_admins` table and a separate
 
 Registration remains invite-only. A workspace owner/admin creates an invitation for an exact email and role. The database stores only a hash of the one-time token; acceptance checks the hash, expiry, revocation, normalized invited email, and workspace status in one transaction. A first platform administrator must be bootstrapped out of band while Cloudflare Access is still required; there is no public first-admin endpoint and no domain-name-based admin inference.
 
-Authentication sessions contain only the stable user id and a session version. The active workspace is selected separately and validated against D1 on each request. Changing a password, suspending a user, or revoking access increments the session version. Local development uses a host-only `courrier-dev-session` cookie name; production uses a distinct `courrier-session` name.
+Authentication sessions contain only the stable user id and a session version. The active workspace is selected separately and validated against D1 on each request. Changing a password, suspending a user, or revoking access increments the session version. Nuxt Auth Utils is now installed as the session foundation. Local Nuxt development uses a host-only `courrier-dev-session` cookie name; production uses a distinct `courrier-session` name. Production must provide `NUXT_SESSION_PASSWORD` as a Worker secret before any login flow is enabled.
 
 ## Data isolation rollout
 
@@ -50,4 +50,4 @@ The platform console should show workspaces, domain verification state, mailbox 
 
 ## Current implementation boundary
 
-At this stage, the current API remains protected by Cloudflare Access and retains its existing domain-based queries. Do not enable registration, expose an administrator API, remove Access, or apply the new model to production mail until the isolation rollout above is complete.
+At this stage, the current API remains protected by Cloudflare Access and retains its existing domain-based queries. The auth-utils session endpoint is exempted from application middleware so the module can function behind the still-required Access edge; this does not add login or change mail API authorization. Do not enable registration, expose an administrator API, remove Access, or apply the new model to production mail until the isolation rollout above is complete.

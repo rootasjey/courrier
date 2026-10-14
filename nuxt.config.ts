@@ -13,7 +13,18 @@ export default defineNuxtConfig({
     }
   },
 
-  modules: ["@una-ui/nuxt", "nitro-cloudflare-dev", "nuxt-i18n-micro"],
+  modules: ["@una-ui/nuxt", "nitro-cloudflare-dev", "nuxt-i18n-micro", "nuxt-auth-utils"],
+
+  runtimeConfig: {
+    session: {
+      name: process.env.NUXT_SESSION_NAME || (process.env.NODE_ENV === 'development' ? 'courrier-dev-session' : 'courrier-session'),
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development',
+        sameSite: 'lax',
+      },
+    },
+  },
 
   i18n: {
     locales: [
