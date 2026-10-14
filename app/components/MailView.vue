@@ -33,20 +33,32 @@
       </header>
 
       <div v-if="threadSelectionMode && selectedThreadIds.length" class="thread-selection-bar" role="status">
-        <span>{{ selectedThreadIds.length }} fil{{ selectedThreadIds.length > 1 ? 's' : '' }} sélectionné{{ selectedThreadIds.length > 1 ? 's' : '' }}</span>
-        <button type="button" class="thread-selection-cancel" @click="clearThreadSelection">Annuler</button>
-        <button type="button" class="thread-selection-merge" :disabled="selectedThreadIds.length < 2 || isMergingThreads" @click="mergeDialogOpen = true">
-          {{ isMergingThreads ? 'Fusion…' : 'Fusionner' }}
+        <span>{{ selectedThreadIds.length }} {{ $t(selectedThreadIds.length === 1 ? 'bulk.selectedOne' : 'bulk.selectedMany') }}</span>
+        <button type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('mark-seen')">{{ $t('bulk.markSeen') }}</button>
+        <button v-if="activeFolder !== 'Reply Later' && activeFolder !== 'Set Aside'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('reply-later', { enabled: true })">{{ $t('bulk.replyLater') }}</button>
+        <button v-if="activeFolder === 'Imbox'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('set-aside', { enabled: true })">{{ $t('bulk.setAside') }}</button>
+        <button v-if="activeFolder === 'Reply Later'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('reply-later', { enabled: false })">{{ $t('bulk.removeReplyLater') }}</button>
+        <button v-if="activeFolder === 'Set Aside'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('set-aside', { enabled: false })">{{ $t('bulk.returnInbox') }}</button>
+        <select v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)" class="thread-selection-move" :aria-label="$t('bulk.move')" :disabled="isApplyingBulkAction" @change="moveSelectedThreads">
+          <option value="">{{ $t('bulk.move') }}</option>
+          <option v-for="folder in bulkMoveDestinations" :key="folder" :value="folder">{{ mailboxByName(folder).label }}</option>
+        </select>
+        <button type="button" class="thread-selection-action thread-selection-trash" :disabled="isApplyingBulkAction" @click="applyBulkAction('trash')">{{ $t('bulk.trash') }}</button>
+        <button v-if="selectedThreadIds.length > 1" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction || isMergingThreads" @click="mergeDialogOpen = true">
+          {{ isMergingThreads ? $t('bulk.merging') : $t('bulk.merge') }}
         </button>
+        <button type="button" class="thread-selection-cancel" :disabled="isApplyingBulkAction" @click="clearThreadSelection">{{ $t('bulk.cancel') }}</button>
       </div>
 
-      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || threadMergeFeedback || threadMergeError" class="action-feedback">
+      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || bulkActionFeedback || bulkActionError || threadMergeFeedback || threadMergeError" class="action-feedback">
         <p v-if="classificationFeedback" class="classification-feedback" role="status">{{ classificationFeedback }}</p>
         <button v-if="undoClassificationId" class="undo-action" type="button" :disabled="isUndoingClassification" @click="undoSenderRule">
           {{ isUndoingClassification ? 'Annulation…' : 'Annuler' }}
         </button>
         <p v-if="classificationActionError" class="action-feedback-error" role="alert">{{ classificationActionError }}</p>
         <p v-if="screenerActionError" class="action-feedback-error" role="alert">{{ screenerActionError }}</p>
+        <p v-if="bulkActionFeedback" class="classification-feedback" role="status">{{ bulkActionFeedback }}</p>
+        <p v-if="bulkActionError" class="action-feedback-error" role="alert">{{ bulkActionError }}</p>
         <p v-if="threadMergeFeedback" class="classification-feedback" role="status">{{ threadMergeFeedback }}</p>
         <p v-if="threadMergeError" class="action-feedback-error" role="alert">{{ threadMergeError }}</p>
       </div>
@@ -352,26 +364,31 @@
               class="thread-subject-input"
               type="text"
               maxlength="200"
-              aria-label="Nouvel objet local du fil"
+              :aria-label="$t('rename.input')"
               autofocus
             >
             <div class="thread-subject-editor-actions">
               <span v-if="threadSubjectSaveError" class="thread-subject-error" role="alert">{{ threadSubjectSaveError }}</span>
-              <button type="button" class="thread-subject-cancel" @click="cancelThreadSubjectEdit">Annuler</button>
+              <button type="button" class="thread-subject-cancel" @click="cancelThreadSubjectEdit">{{ $t('rename.cancel') }}</button>
               <button type="submit" class="thread-subject-save" :disabled="isSavingThreadSubject">
-                {{ isSavingThreadSubject ? 'Enregistrement…' : 'Enregistrer' }}
+                {{ isSavingThreadSubject ? $t('rename.saving') : $t('rename.save') }}
               </button>
             </div>
           </form>
-          <p>Ce nom est privé à ta boîte et ne modifie pas les messages d’origine.</p>
+          <p>{{ $t('rename.privacy') }}</p>
         </div>
         <div v-else class="message-subject-heading">
-          <h1 class="message-subject">{{ selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}</h1>
-          <NTooltip content="Renommer l’objet du fil">
-            <button class="thread-subject-edit" type="button" aria-label="Renommer l’objet du fil" @click="beginThreadSubjectEdit">
+          <h1 ref="threadSubjectHeading" class="message-subject" @mouseup="updateSubjectSelection" @keyup="updateSubjectSelection" @contextmenu="openSubjectContextMenu">
+            {{ selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}
+          </h1>
+          <NTooltip v-if="subjectSelection.visible" :content="$t('rename.action')">
+            <button class="thread-subject-selection-edit" type="button" :aria-label="$t('rename.action')" :style="{ left: `${subjectSelection.left}px`, top: `${subjectSelection.top}px` }" @mousedown.prevent @click="beginThreadSubjectEdit">
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m13.5 3.5 3 3M4 16l3.6-.8L16 6.8a2.1 2.1 0 0 0-3-3l-8.4 8.4L4 16Z" /></svg>
             </button>
           </NTooltip>
+          <div v-if="subjectContextMenu.open" class="thread-subject-context-menu" role="menu" :style="{ left: `${subjectContextMenu.left}px`, top: `${subjectContextMenu.top}px` }" @pointerdown.stop>
+            <button type="button" role="menuitem" @click="beginThreadSubjectEdit">{{ $t('rename.action') }}</button>
+          </div>
         </div>
         <div v-if="selectedThread?.manualMergeIds.length" class="merged-thread-control">
           <span>Cette conversation réunit plusieurs fils.</span>
@@ -813,6 +830,7 @@ type SearchThread = MessageThread & {
 }
 
 const folders = mailboxes
+const { $t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const activeFolder = computed(() => mailboxFromPath(route.path))
@@ -856,6 +874,9 @@ const threadSubjectDraft = ref('')
 const threadSubjectSaveError = ref('')
 const isSavingThreadSubject = ref(false)
 const threadSubjectInput = ref<HTMLInputElement | null>(null)
+const threadSubjectHeading = ref<HTMLElement | null>(null)
+const subjectSelection = ref({ visible: false, left: 0, top: 0 })
+const subjectContextMenu = ref({ open: false, left: 0, top: 0 })
 const isSetAsideStackExpanded = ref(false)
 const isReplyLaterStackExpanded = ref(false)
 const viewportHeight = ref(800)
@@ -867,6 +888,9 @@ const isMergingThreads = ref(false)
 const isSplittingThread = ref(false)
 const threadMergeFeedback = ref('')
 const threadMergeError = ref('')
+const bulkActionFeedback = ref('')
+const bulkActionError = ref('')
+const isApplyingBulkAction = ref(false)
 const isClearingScreener = ref(false)
 const isSavingScreenerAction = ref(false)
 const isSavingSetAside = ref(false)
@@ -894,6 +918,8 @@ const replySaved = ref(false)
 let replySaveTimer: ReturnType<typeof setTimeout> | undefined
 let replySaveRevision = 0
 const isDevelopment = import.meta.dev
+const composeRequest = useState('courrier-compose-request', () => 0)
+let lastComposeRequest = composeRequest.value
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
 let undoTimer: ReturnType<typeof setTimeout> | undefined
@@ -929,6 +955,12 @@ watch([activeFolder, isGlobalSearch], () => {
   threadMergeError.value = ''
 })
 
+watch(composeRequest, (request) => {
+  if (request === lastComposeRequest) return
+  lastComposeRequest = request
+  openNewComposer()
+})
+
 watch([search, activeFolder], () => {
   if (!import.meta.client) return
   searchRevision += 1
@@ -955,6 +987,13 @@ const folderMessages = computed(() => {
     if (activeFolder.value === 'Imbox') return message.folder === 'Imbox' && !message.isSetAside && !message.isReplyLater
     return message.folder === activeFolder.value && !message.isReplyLater
   })
+})
+
+const bulkMoveDestinations = computed<MailboxFolder[]>(() => {
+  const destinations: MailboxFolder[] = ['Imbox', 'The Feed', 'Paper Trail']
+  return activeFolder.value === 'Reply Later' || activeFolder.value === 'Set Aside'
+    ? destinations
+    : destinations.filter(folder => folder !== activeFolder.value)
 })
 
 const folderThreads = computed<MessageThread[]>(() => {
@@ -1627,12 +1666,18 @@ onMounted(() => {
   window.addEventListener('keydown', handleThreadKeydown)
   window.addEventListener('pointerdown', handleScreenerOutsideClick)
   window.addEventListener('pointerdown', handleStackOutsideClick)
+  window.addEventListener('pointerdown', closeSubjectContextMenu)
+  window.addEventListener('keydown', closeSubjectContextMenuOnEscape)
+  document.addEventListener('selectionchange', updateSubjectSelection)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateStackPreviewLimit)
   window.removeEventListener('keydown', handleThreadKeydown)
   window.removeEventListener('pointerdown', handleScreenerOutsideClick)
   window.removeEventListener('pointerdown', handleStackOutsideClick)
+  window.removeEventListener('pointerdown', closeSubjectContextMenu)
+  window.removeEventListener('keydown', closeSubjectContextMenuOnEscape)
+  document.removeEventListener('selectionchange', updateSubjectSelection)
   threadRailResizeObserver?.disconnect()
 })
 
@@ -1692,12 +1737,55 @@ function openMessage(message: InboxMessage, mailbox: Folder = message.folder) {
 
 function beginThreadSubjectEdit() {
   if (!selectedThread.value) return
+  subjectSelection.value.visible = false
+  subjectContextMenu.value.open = false
   threadSubjectDraft.value = selectedThread.value.messages.find(message => message.threadSubject)?.threadSubject
     || chronologicalMessages.value[0]?.subject
     || selectedThread.value.subject
   threadSubjectSaveError.value = ''
   isEditingThreadSubject.value = true
   void nextTick(() => threadSubjectInput.value?.focus())
+}
+
+function updateSubjectSelection() {
+  const heading = threadSubjectHeading.value
+  const selection = window.getSelection()
+  if (!heading || !selection || selection.isCollapsed || !selection.toString().trim()
+    || !heading.contains(selection.anchorNode) || !heading.contains(selection.focusNode)) {
+    subjectSelection.value.visible = false
+    return
+  }
+
+  const rect = selection.getRangeAt(0).getBoundingClientRect()
+  subjectSelection.value = {
+    visible: rect.width > 0 && rect.height > 0,
+    left: Math.max(12, Math.min(window.innerWidth - 46, rect.right - 12)),
+    top: Math.max(12, rect.top - 44),
+  }
+}
+
+function openSubjectContextMenu(event: MouseEvent) {
+  // Ctrl-right-click deliberately keeps the browser's own context menu available.
+  if (event.ctrlKey) return
+  event.preventDefault()
+  subjectSelection.value.visible = false
+  subjectContextMenu.value = {
+    open: true,
+    left: Math.max(12, Math.min(window.innerWidth - 228, event.clientX)),
+    top: Math.max(12, Math.min(window.innerHeight - 54, event.clientY)),
+  }
+}
+
+function closeSubjectContextMenu(event: PointerEvent) {
+  if (!(event.target instanceof Element) || !event.target.closest('.thread-subject-context-menu')) {
+    subjectContextMenu.value.open = false
+  }
+}
+
+function closeSubjectContextMenuOnEscape(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !subjectContextMenu.value.open) return
+  event.preventDefault()
+  subjectContextMenu.value.open = false
 }
 
 function cancelThreadSubjectEdit() {
@@ -1712,7 +1800,7 @@ async function saveThreadSubject() {
 
   const subject = threadSubjectDraft.value.trim()
   if (subject.length > 200) {
-    threadSubjectSaveError.value = 'L’objet du fil doit contenir 200 caractères ou moins.'
+    threadSubjectSaveError.value = $t('rename.tooLong')
     return
   }
 
@@ -1726,7 +1814,7 @@ async function saveThreadSubject() {
     await refreshMessages()
     isEditingThreadSubject.value = false
   } catch (error) {
-    threadSubjectSaveError.value = error instanceof Error ? error.message : 'Le nom local du fil n’a pas pu être enregistré.'
+    threadSubjectSaveError.value = error instanceof Error ? error.message : $t('rename.error')
   } finally {
     isSavingThreadSubject.value = false
   }
@@ -1786,6 +1874,43 @@ function clearThreadSelection() {
   threadSelectionMode.value = false
   keyboardSelectionThreadId.value = ''
   selectionAnchorThreadId.value = ''
+}
+
+async function applyBulkAction(action: 'mark-seen' | 'reply-later' | 'set-aside' | 'move' | 'trash', options: { enabled?: boolean, folder?: MailboxFolder } = {}) {
+  if (!selectedThreadIds.value.length || isApplyingBulkAction.value) return
+  isApplyingBulkAction.value = true
+  bulkActionError.value = ''
+  bulkActionFeedback.value = ''
+  try {
+    const result = await $fetch<{ affectedThreads: number }>('/api/threads/bulk-action', {
+      method: 'PATCH',
+      body: { threadIds: selectedThreadIds.value, source: activeFolder.value, action, ...options },
+    })
+    await refreshMessages()
+    clearThreadSelection()
+    const count = result.affectedThreads
+    const plural = count === 1 ? 'One' : 'Many'
+    const key = action === 'mark-seen' ? `bulk.markSeenDone${plural}`
+      : action === 'reply-later' ? options.enabled ? `bulk.replyLaterDone${plural}` : `bulk.replyLaterRemoved${plural}`
+        : action === 'set-aside' ? options.enabled ? `bulk.setAsideDone${plural}` : `bulk.setAsideRemoved${plural}`
+          : action === 'move' ? `bulk.moveDone${plural}` : `bulk.trashDone${plural}`
+    bulkActionFeedback.value = $t(key, { count, folder: mailboxByName(options.folder ?? 'Imbox').label })
+  } catch (error) {
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    bulkActionError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : $t('bulk.error')
+  } finally {
+    isApplyingBulkAction.value = false
+  }
+}
+
+function moveSelectedThreads(event: Event) {
+  const select = event.target
+  if (!(select instanceof HTMLSelectElement) || !select.value) return
+  const destination = select.value as MailboxFolder
+  select.value = ''
+  void applyBulkAction('move', { folder: destination })
 }
 
 function moveSelectionCursor(direction: -1 | 1) {

@@ -26,7 +26,9 @@
     "@unocss/nuxt": "^66.10.5",
     "jose": "^6.2.12",
     "nuxt": "^4.5.2",
+    "nuxt-i18n-micro": "^3.21.2",
     "postal-mime": "^4.0.0",
+    "tronche": "^1.6.1",
     "unocss": "^66.10.5",
     "vue": "^3.5.43",
     "vue-router": "^5.3.1"

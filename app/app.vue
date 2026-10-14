@@ -10,6 +10,7 @@
       @select-folder="selectFolder"
     />
     <NuxtPage />
+    <CommandPalette v-model:open="commandPaletteOpen" />
   </div>
 </template>
 
@@ -22,6 +23,7 @@ const router = useRouter()
 const activeFolder = computed(() => mailboxFromPath(route.path))
 const search = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
+const commandPaletteOpen = useState('courrier-command-palette-open', () => false)
 
 function selectFolder(folder: MailboxKey) {
   const destination = mailboxPath(folder)
@@ -71,8 +73,7 @@ function handleGlobalShortcut(event: KeyboardEvent) {
 
   if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
     event.preventDefault()
-    if (!showSearch.value) void router.push(mailboxPath(activeFolder.value))
-    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#mail-search')?.focus())
+    commandPaletteOpen.value = !commandPaletteOpen.value
     return
   }
 

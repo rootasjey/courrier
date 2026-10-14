@@ -13,5 +13,18 @@ export default defineNuxtConfig({
     }
   },
 
-  modules: ["@una-ui/nuxt", "nitro-cloudflare-dev"]
+  modules: ["@una-ui/nuxt", "nitro-cloudflare-dev", "nuxt-i18n-micro"],
+
+  i18n: {
+    locales: [
+      { code: "fr", iso: "fr-FR", dir: "ltr" },
+      { code: "en", iso: "en-US", dir: "ltr" }
+    ],
+    defaultLocale: "fr",
+    translationDir: "locales",
+    strategy: "no_prefix",
+    localeCookie: "courrier-locale",
+    autoDetectLanguage: false,
+    meta: true
+  }
 })
