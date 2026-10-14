@@ -88,7 +88,7 @@ export default defineEventHandler(async (event) => {
     setResponseHeader(event, 'Cache-Control', 'private, no-store')
     return { domainId, verified: true, unchanged: true }
   }
-  if (domain.verification_status !== 'pending') {
+  if (domain.verification_status !== 'pending' && domain.verification_status !== 'legacy_unverified') {
     throw createError({ statusCode: 409, statusMessage: 'Ce domaine ne peut pas être vérifié dans son état actuel.' })
   }
   if (!domain.verification_token || !domain.expires_at) {
@@ -110,12 +110,12 @@ export default defineEventHandler(async (event) => {
     db.prepare(`
       UPDATE workspace_domains
       SET verification_status = 'verified', verification_method = 'dns_txt', verified_at = ?
-      WHERE id = ? AND verification_status = 'pending'
+      WHERE id = ? AND verification_status = ?
         AND EXISTS (
           SELECT 1 FROM domain_verification_challenges c
           WHERE c.domain_id = ? AND c.verification_token = ? AND c.expires_at > ?
         )
-    `).bind(now, domainId, domainId, domain.verification_token, now),
+    `).bind(now, domainId, domain.verification_status, domainId, domain.verification_token, now),
     db.prepare(`
       INSERT INTO platform_audit_log
         (id, actor_user_id, action, target_type, target_id, workspace_id, details_json, created_at)

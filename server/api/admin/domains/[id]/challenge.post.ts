@@ -24,8 +24,8 @@ export default defineEventHandler(async (event) => {
   `).bind(domainId).first<DomainChallenge>()
 
   if (!domain) throw createError({ statusCode: 404, statusMessage: 'Domaine introuvable.' })
-  if (domain.verification_status !== 'pending') {
-    throw createError({ statusCode: 409, statusMessage: 'Seuls les domaines en attente peuvent recevoir un défi DNS.' })
+  if (domain.verification_status !== 'pending' && domain.verification_status !== 'legacy_unverified') {
+    throw createError({ statusCode: 409, statusMessage: 'Seuls les domaines en attente ou historiques non vérifiés peuvent recevoir un défi DNS.' })
   }
 
   const expiresAt = domain.expires_at ? new Date(domain.expires_at) : null
@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
         SELECT ?, ?, ?, ?, ?
         WHERE EXISTS (
           SELECT 1 FROM workspace_domains
-          WHERE id = ? AND verification_status = 'pending'
+          WHERE id = ? AND verification_status IN ('pending', 'legacy_unverified')
         )
           AND NOT EXISTS (
             SELECT 1 FROM domain_verification_challenges
@@ -76,7 +76,7 @@ export default defineEventHandler(async (event) => {
         LEFT JOIN domain_verification_challenges c ON c.domain_id = d.id
         WHERE d.id = ? LIMIT 1
       `).bind(domainId).first<{ verification_status: string, verification_token: string | null, expires_at: string | null }>()
-      if (latest?.verification_status !== 'pending') {
+      if (latest?.verification_status !== 'pending' && latest?.verification_status !== 'legacy_unverified') {
         throw createError({ statusCode: 409, statusMessage: 'Ce domaine a changé pendant la préparation du défi DNS.' })
       }
       token = latest.verification_token

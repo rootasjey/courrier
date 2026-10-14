@@ -53,6 +53,7 @@
     "domainInvalid": "Check the domain name and selected workspace.",
     "domainSaveError": "The domain could not be added. Refresh the console and try again.",
     "configureDns": "Configure DNS",
+    "verifyLegacyDomain": "Verify DNS",
     "removePendingDomain": "Remove",
     "removePendingDomainDescription": "Remove {domain} from this workspace? Only pending domains without mailboxes can be removed.",
     "removingDomain": "Removing…",

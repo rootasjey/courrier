@@ -53,6 +53,7 @@
     "domainInvalid": "Vérifie le nom de domaine et l’espace sélectionné.",
     "domainSaveError": "Le domaine n’a pas pu être ajouté. Actualise la console et réessaie.",
     "configureDns": "Configurer le DNS",
+    "verifyLegacyDomain": "Vérifier le DNS",
     "removePendingDomain": "Retirer",
     "removePendingDomainDescription": "Retirer {domain} de cet espace ? Seuls les domaines en attente sans boîte peuvent être supprimés.",
     "removingDomain": "Suppression…",
