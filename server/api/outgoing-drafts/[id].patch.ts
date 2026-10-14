@@ -1,7 +1,9 @@
 import type { MailStorageBindings } from '../../utils/mail-store'
 import { renderOutgoingDraft, validateOutgoingDraftContent, type OutgoingDraftAttachment, type TiptapNode } from '../../utils/outgoing-draft-content'
+import { getWorkspaceUserFromContext } from '../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des brouillons est indisponible.' })
   const id = getRouterParam(event, 'id')
@@ -31,8 +33,8 @@ export default defineEventHandler(async (event) => {
   const bcc = typeof body.bcc === 'string' ? body.bcc.trim() : ''
   const saved = await bindings.DB.prepare(`
     UPDATE outgoing_drafts SET to_address = ?, cc_address = ?, bcc_address = ?, subject = ?, content_json = ?, html_body = ?, text_body = ?, updated_at = ?
-    WHERE id = ? AND status = 'draft'
-  `).bind(body.to.trim(), cc, bcc, body.subject.trim(), contentJson, rendered.html, rendered.text, updatedAt, id).run()
+    WHERE id = ? AND workspace_id = ? AND status = 'draft'
+  `).bind(body.to.trim(), cc, bcc, body.subject.trim(), contentJson, rendered.html, rendered.text, updatedAt, id, user.activeWorkspaceId).run()
   if (!saved.meta.changes) throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est en cours d’envoi et ne peut plus être modifié.' })
   return { id, to: body.to.trim(), cc, bcc, subject: body.subject.trim(), content: body.content, status: 'draft', updatedAt }
 })

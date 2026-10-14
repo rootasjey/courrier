@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
     '/api/account/session',
     '/api/account/workspaces',
     '/api/account/workspaces/active',
+    '/api/profile/avatar',
   ].includes(event.path)) return
 
   const identity = await requireAccessIdentity(event)

@@ -1,4 +1,5 @@
 import type { MailStorageBindings } from '../utils/mail-store'
+import { getWorkspaceUserFromContext } from '../utils/account-auth'
 
 type DraftRow = {
   id: string
@@ -19,6 +20,7 @@ function textFromContent(value: unknown): string {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des brouillons est indisponible.' })
 
@@ -26,9 +28,9 @@ export default defineEventHandler(async (event) => {
     SELECT d.id, d.to_address, d.cc_address, d.bcc_address, d.subject, d.content_json, d.status, d.updated_at,
       (SELECT COUNT(*) FROM outgoing_draft_attachments a WHERE a.draft_id = d.id) AS attachment_count
     FROM outgoing_drafts d
-    WHERE d.status = 'draft'
+    WHERE d.status = 'draft' AND d.workspace_id = ?
     ORDER BY d.updated_at DESC
-  `).all<DraftRow>()
+  `).bind(user.activeWorkspaceId).all<DraftRow>()
 
   return result.results.map((draft) => {
     let content: unknown

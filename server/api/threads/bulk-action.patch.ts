@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../../utils/mail-store'
 import { getThreadGrouping, type ManualThreadMergeMember, type ThreadableMessage } from '../../utils/threading'
+import { getWorkspaceUserFromContext, requireWorkspacePermission, workspaceDomainScope } from '../../utils/account-auth'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 type BulkMessage = ThreadableMessage & {
@@ -15,6 +16,7 @@ const sources = new Set(['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set
 const actions = new Set<Action>(['mark-seen', 'reply-later', 'set-aside', 'move', 'trash'])
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as Pick<MailStorageBindings, 'DB'> | undefined
   if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des emails n’est pas prêt.' })
 
@@ -31,6 +33,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const action = body.action as Action
+  if (action === 'trash') await requireWorkspacePermission(event, 'mail.trash')
   const source = body.source
   const destination = body.folder
   if (action === 'move' && (typeof destination !== 'string' || !folders.has(destination as MailFolder))) {
@@ -46,13 +49,15 @@ export default defineEventHandler(async (event) => {
         is_read, is_set_aside, is_reply_later, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
-    `).all<BulkMessage>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<BulkMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
   const messages = messagesResult.results

@@ -1,7 +1,8 @@
-import { getAccountDb, requireAccountUser } from '../../utils/account-auth'
+import { getAccountDb, requireSessionIdentity } from '../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
-  const user = await requireAccountUser(event)
+  const user = await requireSessionIdentity(event)
+  const session = await requireUserSession(event)
   const result = await getAccountDb(event).prepare(`
     SELECT w.id, w.name, wm.role
     FROM workspace_memberships wm
@@ -10,5 +11,8 @@ export default defineEventHandler(async (event) => {
     ORDER BY w.name COLLATE NOCASE, w.id
   `).bind(user.id).all<{ id: string, name: string, role: string }>()
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
-  return { activeWorkspaceId: user.activeWorkspaceId, workspaces: result.results }
+  return {
+    activeWorkspaceId: typeof session.activeWorkspaceId === 'string' ? session.activeWorkspaceId : null,
+    workspaces: result.results,
+  }
 })

@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../utils/mail-store'
 import { getThreadGrouping, type ManualThreadMergeMember } from '../utils/threading'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../utils/account-auth'
 
 type MessageRow = {
   id: string
@@ -37,6 +38,7 @@ type AttachmentRow = {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -60,17 +62,20 @@ export default defineEventHandler(async (event) => {
     LEFT JOIN blocked_senders
       ON blocked_senders.mailbox_domain = messages.mailbox_domain
       AND blocked_senders.sender_address = lower(trim(messages.sender_address))
+    WHERE ${workspaceDomainScope('messages.mailbox_domain')}
     ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
-  `).all<MessageRow>(),
+  `).bind(user.activeWorkspaceId).all<MessageRow>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
     bindings.DB.prepare(`
       SELECT mailbox_domain, thread_id, subject FROM thread_subject_overrides
-    `).all<{ mailbox_domain: string, thread_id: string, subject: string }>(),
+      WHERE ${workspaceDomainScope('thread_subject_overrides.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<{ mailbox_domain: string, thread_id: string, subject: string }>(),
   ])
   const results = messageResult.results
   const { threadIds, manualMergeIds } = getThreadGrouping(results, mergeResult.results)

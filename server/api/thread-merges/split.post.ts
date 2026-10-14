@@ -4,6 +4,7 @@ import {
   type ManualThreadMergeMember,
   type ThreadableMessage,
 } from '../../utils/threading'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../utils/account-auth'
 
 type MergeableMessage = ThreadableMessage & {
   sent_at: string | null
@@ -12,6 +13,7 @@ type MergeableMessage = ThreadableMessage & {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as Pick<MailStorageBindings, 'DB'> | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage des emails n’est pas prêt.' })
@@ -30,13 +32,15 @@ export default defineEventHandler(async (event) => {
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND trashed_at IS NULL
-    `).all<MergeableMessage>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<MergeableMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
   const messages = messageResult.results

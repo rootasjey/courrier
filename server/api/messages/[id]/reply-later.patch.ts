@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { getThreadGrouping, type ManualThreadMergeMember, type ThreadableMessage } from '../../../utils/threading.ts'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
 
 type ReplyLaterMessage = ThreadableMessage & {
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
@@ -9,6 +10,7 @@ type ReplyLaterMessage = ThreadableMessage & {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as Pick<MailStorageBindings, 'DB'> | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -28,13 +30,15 @@ export default defineEventHandler(async (event) => {
         references_header, is_set_aside, is_reply_later, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
-    `).all<ReplyLaterMessage>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ReplyLaterMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
   const selected = messageResult.results.find(message => message.id === id)
@@ -56,7 +60,8 @@ export default defineEventHandler(async (event) => {
     UPDATE messages
     SET is_reply_later = ?
     WHERE id IN (SELECT value FROM json_each(?))
-  `).bind(body.isReplyLater ? 1 : 0, JSON.stringify(affectedIds)).run()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(body.isReplyLater ? 1 : 0, JSON.stringify(affectedIds), user.activeWorkspaceId).run()
 
   return {
     isReplyLater: body.isReplyLater,

@@ -1,4 +1,5 @@
 import type { MailStorageBindings } from '../../utils/mail-store'
+import { getWorkspaceUserFromContext } from '../../utils/account-auth'
 
 type DraftRow = {
   id: string
@@ -12,6 +13,7 @@ type DraftRow = {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des brouillons est indisponible.' })
   const id = getRouterParam(event, 'id')
@@ -19,8 +21,8 @@ export default defineEventHandler(async (event) => {
 
   const draft = await bindings.DB.prepare(`
     SELECT id, to_address, cc_address, bcc_address, subject, content_json, status, updated_at
-    FROM outgoing_drafts WHERE id = ?
-  `).bind(id).first<DraftRow>()
+    FROM outgoing_drafts WHERE id = ? AND workspace_id = ?
+  `).bind(id, user.activeWorkspaceId).first<DraftRow>()
   if (!draft) throw createError({ statusCode: 404, statusMessage: 'Ce brouillon est introuvable.' })
   if (draft.status !== 'draft') throw createError({ statusCode: 409, statusMessage: 'Ce message est déjà en cours d’envoi.' })
 

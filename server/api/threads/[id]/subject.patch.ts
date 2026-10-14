@@ -1,6 +1,8 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as Pick<MailStorageBindings, 'DB'> | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage des emails n’est pas prêt.' })
@@ -13,7 +15,8 @@ export default defineEventHandler(async (event) => {
 
   const message = await bindings.DB.prepare(`
     SELECT id, mailbox_domain FROM messages WHERE id = ?
-  `).bind(threadId).first<{ id: string, mailbox_domain: string }>()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(threadId, user.activeWorkspaceId).first<{ id: string, mailbox_domain: string }>()
   if (!message) {
     throw createError({ statusCode: 404, statusMessage: 'Ce fil est introuvable.' })
   }

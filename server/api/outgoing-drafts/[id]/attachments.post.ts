@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { estimateOutgoingEmailBytes, formatEmailSize, OUTBOUND_MESSAGE_BUDGET_BYTES, type OutgoingEmailSizeAttachment } from '../../../../shared/utils/outgoing-email-size'
+import { getWorkspaceUserFromContext } from '../../../utils/account-auth'
 
 const MAX_DRAFT_ATTACHMENT_BYTES = 5 * 1024 * 1024
 const MAX_DRAFT_ATTACHMENTS = 32
@@ -10,12 +11,13 @@ function safeFilename(value: string) {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB || !bindings.MAIL_STORE) throw createError({ statusCode: 503, statusMessage: 'Le stockage des pièces jointes est indisponible.' })
   const draftId = getRouterParam(event, 'id')
   if (!draftId) throw createError({ statusCode: 400, statusMessage: 'Brouillon manquant.' })
 
-  const draft = await bindings.DB.prepare('SELECT status, to_address, cc_address, bcc_address, subject, html_body, text_body FROM outgoing_drafts WHERE id = ?').bind(draftId).first<{
+  const draft = await bindings.DB.prepare('SELECT status, to_address, cc_address, bcc_address, subject, html_body, text_body FROM outgoing_drafts WHERE id = ? AND workspace_id = ?').bind(draftId, user.activeWorkspaceId).first<{
     status: string
     to_address: string
     cc_address: string
@@ -80,8 +82,8 @@ export default defineEventHandler(async (event) => {
     const inserted = await bindings.DB.prepare(`
       INSERT INTO outgoing_draft_attachments (id, draft_id, filename, mime_type, size_bytes, object_key, content_id, disposition, created_at)
       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
-      WHERE EXISTS (SELECT 1 FROM outgoing_drafts WHERE id = ? AND status = 'draft')
-    `).bind(id, draftId, filename, mimeType, file.data.byteLength, objectKey, contentId, disposition, new Date().toISOString(), draftId).run()
+      WHERE EXISTS (SELECT 1 FROM outgoing_drafts WHERE id = ? AND workspace_id = ? AND status = 'draft')
+    `).bind(id, draftId, filename, mimeType, file.data.byteLength, objectKey, contentId, disposition, new Date().toISOString(), draftId, user.activeWorkspaceId).run()
     if (!inserted.meta.changes) throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est en cours d’envoi.' })
   } catch (error) {
     await bindings.MAIL_STORE.delete(objectKey)

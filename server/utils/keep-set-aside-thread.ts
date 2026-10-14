@@ -1,4 +1,5 @@
 import { getThreadGrouping, messageReferences, type ManualThreadMergeMember, type ThreadableMessage } from './threading.ts'
+import { workspaceDomainScope } from './account-auth'
 
 type SetAsideMessage = ThreadableMessage & {
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
@@ -6,20 +7,22 @@ type SetAsideMessage = ThreadableMessage & {
   trashed_at?: string | null
 }
 
-async function getSetAsideMessages(db: D1Database) {
+async function getSetAsideMessages(db: D1Database, workspaceId: string) {
   const [messageResult, mergeResult] = await Promise.all([
     db.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
         references_header, is_set_aside, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
-    `).all<SetAsideMessage>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(workspaceId).all<SetAsideMessage>(),
     db.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(workspaceId).all<ManualThreadMergeMember>(),
   ])
 
   return { messages: messageResult.results, merges: mergeResult.results }
@@ -51,8 +54,8 @@ export async function isLinkedToSetAsideThread(
 }
 
 /** Keep a newly active RFC/manual-merge group in Set Aside when it is already there. */
-export async function keepSetAsideThread(db: D1Database, messageId: string) {
-  const { messages, merges } = await getSetAsideMessages(db)
+export async function keepSetAsideThread(db: D1Database, messageId: string, workspaceId: string) {
+  const { messages, merges } = await getSetAsideMessages(db, workspaceId)
   const current = messages.find(message => message.id === messageId)
   if (!current) return 0
 
@@ -67,7 +70,8 @@ export async function keepSetAsideThread(db: D1Database, messageId: string) {
     UPDATE messages
     SET is_set_aside = 1
     WHERE id IN (SELECT value FROM json_each(?))
-  `).bind(JSON.stringify(members.map(message => message.id))).run()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(JSON.stringify(members.map(message => message.id)), workspaceId).run()
 
   return members.length
 }

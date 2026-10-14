@@ -98,8 +98,12 @@ export default defineEventHandler(async (event) => {
       LIMIT 1
     `).bind(credential.id).first<{ workspace_id: string }>()
     : null
+  const platformAdmin = credential && passwordMatches
+    ? await db.prepare('SELECT 1 AS allowed FROM platform_admins WHERE user_id = ? LIMIT 1')
+      .bind(credential.id).first<{ allowed: number }>()
+    : null
 
-  if (!credential || !passwordMatches || !membership) {
+  if (!credential || !passwordMatches || (!membership && !platformAdmin)) {
     const [emailIpFailures, ipFailures] = await Promise.all([
       incrementFailures(db, keyHash, MAX_FAILURES),
       incrementFailures(db, ipKeyHash, MAX_IP_FAILURES),
@@ -117,7 +121,7 @@ export default defineEventHandler(async (event) => {
   await replaceUserSession(event, {
     user: { id: credential.id, email: credential.email, displayName: credential.display_name },
     secure: { sessionVersion: credential.session_version },
-    activeWorkspaceId: membership.workspace_id,
+    activeWorkspaceId: membership?.workspace_id ?? null,
   })
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
   return { user: { id: credential.id, email: credential.email, displayName: credential.display_name } }

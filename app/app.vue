@@ -1,14 +1,14 @@
 <template>
   <div class="app-shell">
-    <AppTopbar
+    <AppTopbar v-if="!isLoginRoute"
       :folders="folderOptions"
       :active-folder="activeFolder"
       :show-back-link="showBackLink"
       :back-to="backTo"
       @select-folder="selectFolder"
     />
-    <NuxtPage :transition="{ name: 'page', mode: 'out-in' }" />
-    <CommandPalette v-model:open="commandPaletteOpen" />
+    <NuxtPage :transition="pageTransition" />
+    <CommandPalette v-if="!isLoginRoute" v-model:open="commandPaletteOpen" />
   </div>
 </template>
 
@@ -18,6 +18,10 @@ import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/util
 
 const route = useRoute()
 const router = useRouter()
+const isLoginRoute = computed(() => route.path === '/login')
+const pageTransition = computed(() => isLoginRoute.value || route.path.startsWith('/admin')
+  ? false
+  : { name: 'page', mode: 'out-in' as const })
 const activeFolder = computed(() => mailboxFromPath(route.path))
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 const commandPaletteOpen = useState('courrier-command-palette-open', () => false)

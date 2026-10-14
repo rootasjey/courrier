@@ -1,7 +1,8 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
+import { assertSameOrigin, requireAccountUser } from '../../utils/account-auth'
+import { accountAvatarObjectKey } from '../../utils/account-profile'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
-const AVATAR_KEY = 'courrier/profile/avatar'
 
 function imageType(data: Uint8Array): string | null {
   if (data.length >= 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47
@@ -13,6 +14,8 @@ function imageType(data: Uint8Array): string | null {
 }
 
 export default defineEventHandler(async (event) => {
+  assertSameOrigin(event)
+  const user = await requireAccountUser(event)
   const bindings = event.context.cloudflare?.env as Pick<MailStorageBindings, 'MAIL_STORE'> | undefined
   if (!bindings?.MAIL_STORE) throw createError({ statusCode: 503, statusMessage: 'Le stockage du profil est indisponible.' })
 
@@ -25,9 +28,9 @@ export default defineEventHandler(async (event) => {
   const mimeType = imageType(file.data)
   if (!mimeType) throw createError({ statusCode: 400, statusMessage: 'Utilise une image JPEG, PNG ou WebP.' })
 
-  await bindings.MAIL_STORE.put(AVATAR_KEY, file.data, {
+  await bindings.MAIL_STORE.put(accountAvatarObjectKey(user.id), file.data, {
     httpMetadata: { contentType: mimeType, cacheControl: 'private, no-store' },
-    customMetadata: { purpose: 'courrier-profile-avatar' },
+    customMetadata: { purpose: 'courrier-profile-avatar', userId: user.id },
   })
   return { saved: true, mimeType, sizeBytes: file.data.byteLength }
 })

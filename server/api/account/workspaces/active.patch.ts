@@ -1,8 +1,8 @@
-import { assertSameOrigin, getAccountDb, requireAccountUser } from '../../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, requireSessionIdentity } from '../../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
-  const user = await requireAccountUser(event)
+  const user = await requireSessionIdentity(event)
   const body = await readBody<{ workspaceId?: unknown }>(event)
   const workspaceId = typeof body?.workspaceId === 'string' ? body.workspaceId : ''
   if (!workspaceId || workspaceId.length > 128) {

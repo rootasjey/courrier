@@ -3,6 +3,7 @@ import {
   type ManualThreadMergeMember,
   type ThreadableMessage,
 } from '../../../utils/threading.ts'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 type ClassifiableMessage = ThreadableMessage & { is_reply_later: number }
@@ -14,6 +15,7 @@ type ClassificationBindings = {
 const folders = new Set<MailFolder>(['Imbox', 'The Feed', 'Paper Trail'])
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as ClassificationBindings | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -31,14 +33,16 @@ export default defineEventHandler(async (event) => {
   const pendingScreenerMessage = await bindings.DB.prepare(`
     SELECT id FROM messages
     WHERE id = ? AND folder = 'Screener' AND screener_state = 'pending' AND trashed_at IS NULL
-  `).bind(messageId).first<{ id: string }>()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(messageId, user.activeWorkspaceId).first<{ id: string }>()
 
   if (pendingScreenerMessage) {
     const result = await bindings.DB.prepare(`
       UPDATE messages
       SET folder = ?, screener_state = 'cleared'
       WHERE id = ? AND folder = 'Screener' AND screener_state = 'pending' AND trashed_at IS NULL
-    `).bind(folder, messageId).run()
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(folder, messageId, user.activeWorkspaceId).run()
 
     if (!result.meta.changes) {
       throw createError({ statusCode: 404, statusMessage: 'Message Screener introuvable.' })
@@ -52,13 +56,15 @@ export default defineEventHandler(async (event) => {
       SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header, is_reply_later
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
-    `).all<ClassifiableMessage>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ClassifiableMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
   const message = messageResult.results.find(row => row.id === messageId)
@@ -77,7 +83,8 @@ export default defineEventHandler(async (event) => {
 
   await bindings.DB.prepare(`
     UPDATE messages SET folder = ? WHERE id = ?
-  `).bind(folder, messageId).run()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(folder, messageId, user.activeWorkspaceId).run()
 
   return { folder }
 })

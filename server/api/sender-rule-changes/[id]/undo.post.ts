@@ -1,3 +1,5 @@
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
+
 type UndoBindings = {
   DB?: D1Database
 }
@@ -14,6 +16,7 @@ type SenderRuleChangeRow = {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as UndoBindings | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -26,7 +29,8 @@ export default defineEventHandler(async (event) => {
     SELECT id, mailbox_domain, sender_address, previous_rule_folder, previous_change_id,
       next_folder, expires_at, undone_at
     FROM sender_rule_changes WHERE id = ?
-  `).bind(changeId).first<SenderRuleChangeRow>()
+      AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+  `).bind(changeId, user.activeWorkspaceId).first<SenderRuleChangeRow>()
 
   if (!change) throw createError({ statusCode: 404, statusMessage: 'Annulation introuvable ou expirée.' })
   if (change.undone_at || change.expires_at <= new Date().toISOString()) {
@@ -43,13 +47,14 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       UPDATE sender_rule_changes SET undone_at = ?
       WHERE id = ? AND undone_at IS NULL AND expires_at > ?
+        AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
         AND EXISTS (
           SELECT 1 FROM sender_rules
           WHERE mailbox_domain = sender_rule_changes.mailbox_domain
             AND sender_address = sender_rule_changes.sender_address
             AND last_change_id = sender_rule_changes.id
         )
-    `).bind(now, changeId, now),
+    `).bind(now, changeId, now, user.activeWorkspaceId),
     bindings.DB.prepare(`
       UPDATE messages
       SET folder = (

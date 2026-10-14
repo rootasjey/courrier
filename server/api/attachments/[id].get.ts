@@ -1,4 +1,5 @@
 import type { MailStorageBindings } from '../../utils/mail-store'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../utils/account-auth'
 
 type AttachmentRow = {
   object_key: string
@@ -19,6 +20,7 @@ function safeDownloadFilename(filename: string) {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB || !bindings.MAIL_STORE) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage des pièces jointes n’est pas prêt.' })
@@ -30,10 +32,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const attachment = await bindings.DB.prepare(`
-    SELECT object_key, filename, mime_type
+    SELECT attachments.object_key, attachments.filename, attachments.mime_type
     FROM attachments
-    WHERE id = ?
-  `).bind(id).first<AttachmentRow>()
+    JOIN messages ON messages.id = attachments.message_id
+    WHERE attachments.id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(id, user.activeWorkspaceId).first<AttachmentRow>()
 
   if (!attachment) {
     throw createError({ statusCode: 404, statusMessage: 'Pièce jointe introuvable.' })

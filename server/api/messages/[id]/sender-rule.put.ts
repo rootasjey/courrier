@@ -3,6 +3,7 @@ import {
   type ManualThreadMergeMember,
   type ThreadableMessage,
 } from '../../../utils/threading.ts'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 
@@ -25,6 +26,7 @@ type ClassifiedMessage = ThreadableMessage & {
 const folders = new Set<MailFolder>(['Imbox', 'The Feed', 'Paper Trail'])
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as ClassificationBindings | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -42,8 +44,8 @@ export default defineEventHandler(async (event) => {
   const message = await bindings.DB.prepare(`
     SELECT mailbox_domain, lower(trim(sender_address)) AS sender_address
     FROM messages
-    WHERE id = ?
-  `).bind(messageId).first<{ mailbox_domain: string, sender_address: string }>()
+    WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(messageId, user.activeWorkspaceId).first<{ mailbox_domain: string, sender_address: string }>()
 
   if (!message) throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
   if (!message.mailbox_domain || !message.sender_address) {
@@ -56,13 +58,15 @@ export default defineEventHandler(async (event) => {
         references_header, sender_address, is_set_aside, is_reply_later, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
-    `).all<ClassifiedMessage>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ClassifiedMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
   const messages = messagesResult.results
   const grouping = getThreadGrouping(messages, mergesResult.results)
@@ -111,9 +115,15 @@ export default defineEventHandler(async (event) => {
   await bindings.DB.batch([
     bindings.DB.prepare(`
       DELETE FROM sender_rule_change_messages
-      WHERE change_id IN (SELECT id FROM sender_rule_changes WHERE expires_at <= ?)
-    `).bind(now),
-    bindings.DB.prepare('DELETE FROM sender_rule_changes WHERE expires_at <= ?').bind(now),
+      WHERE change_id IN (
+        SELECT id FROM sender_rule_changes WHERE expires_at <= ?
+          AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+      )
+    `).bind(now, user.activeWorkspaceId),
+    bindings.DB.prepare(`
+      DELETE FROM sender_rule_changes WHERE expires_at <= ?
+        AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+    `).bind(now, user.activeWorkspaceId),
     bindings.DB.prepare(`
       INSERT INTO sender_rule_changes (
         id, mailbox_domain, sender_address, previous_rule_folder, previous_change_id,

@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../utils/mail-store'
 import { getThreadGrouping, type ManualThreadMergeMember } from '../utils/threading'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../utils/account-auth'
 
 type SearchMessageRow = {
   id: string
@@ -26,6 +27,7 @@ function toFtsQuery(query: string) {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -49,7 +51,8 @@ export default defineEventHandler(async (event) => {
       WHERE messages_search MATCH ?
         AND messages.folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND messages.trashed_at IS NULL
-    `).bind(...bindingsList).first<{ total: number }>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(...bindingsList, user.activeWorkspaceId).first<{ total: number }>(),
     bindings.DB.prepare(`
       SELECT messages.id, messages.folder, messages.sent_at, messages.received_at,
         snippet(messages_search, 3, '', '', ' … ', 14) AS snippet
@@ -58,22 +61,25 @@ export default defineEventHandler(async (event) => {
       WHERE messages_search MATCH ?
         AND messages.folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND messages.trashed_at IS NULL
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
       ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
       LIMIT ? OFFSET ?
-    `).bind(matchQuery, pageSize + 1, offset).all<SearchMessageRow>(),
+    `).bind(matchQuery, user.activeWorkspaceId, pageSize + 1, offset).all<SearchMessageRow>(),
     bindings.DB.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
         references_header, sent_at, received_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND trashed_at IS NULL
-    `).all<ThreadRow>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ThreadRow>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
   const hasMore = page.results.length > pageSize

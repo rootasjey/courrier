@@ -1,6 +1,7 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { keepSetAsideThread } from '../../../utils/keep-set-aside-thread'
 import { clearReplyLaterThread } from '../../../utils/reply-later-thread'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
@@ -80,6 +81,7 @@ function replySubject(subject: string) {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB || !bindings.MAIL_STORE || !bindings.EMAIL) {
     throw createError({ statusCode: 503, statusMessage: 'L’envoi de réponses n’est pas configuré.' })
@@ -96,7 +98,9 @@ export default defineEventHandler(async (event) => {
     FROM drafts
     JOIN messages ON messages.id = drafts.reply_to_message_id
     WHERE messages.id = ?
-  `).bind(messageId).first<ReplyRow>()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+  `).bind(messageId, user.activeWorkspaceId, user.activeWorkspaceId).first<ReplyRow>()
 
   if (!row) throw createError({ statusCode: 404, statusMessage: 'Brouillon introuvable.' })
   if (row.status !== 'draft') {
@@ -111,8 +115,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const claim = await bindings.DB.prepare(`
-    UPDATE drafts SET status = 'sending', updated_at = ? WHERE id = ? AND status = 'draft'
-  `).bind(new Date().toISOString(), row.draft_id).run()
+    UPDATE drafts SET status = 'sending', updated_at = ?
+    WHERE id = ? AND mailbox_domain = ? AND status = 'draft'
+      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+  `).bind(new Date().toISOString(), row.draft_id, row.mailbox_domain, user.activeWorkspaceId).run()
   if (!claim.meta.changes) {
     throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est déjà en cours d’envoi.' })
   }
@@ -127,7 +133,9 @@ export default defineEventHandler(async (event) => {
     FROM drafts
     JOIN messages ON messages.id = drafts.reply_to_message_id
     WHERE messages.id = ? AND drafts.status = 'sending'
-  `).bind(messageId).first<ReplyRow>()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+  `).bind(messageId, user.activeWorkspaceId, user.activeWorkspaceId).first<ReplyRow>()
   if (!claimedRow) {
     throw createError({ statusCode: 409, statusMessage: 'Le brouillon a changé pendant la préparation de l’envoi.' })
   }
@@ -154,8 +162,9 @@ export default defineEventHandler(async (event) => {
   } catch (error) {
     const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
     if (code && !['E_INTERNAL_SERVER_ERROR', 'E_RATE_LIMIT_EXCEEDED', 'E_DELIVERY_FAILED'].includes(code)) {
-      await bindings.DB.prepare("UPDATE drafts SET status = 'draft', updated_at = ? WHERE id = ?")
-        .bind(new Date().toISOString(), row.draft_id).run()
+      await bindings.DB.prepare(`UPDATE drafts SET status = 'draft', updated_at = ? WHERE id = ?
+        AND mailbox_domain = ? AND ${workspaceDomainScope('drafts.mailbox_domain')}`)
+        .bind(new Date().toISOString(), row.draft_id, row.mailbox_domain, user.activeWorkspaceId).run()
     }
     throw createError({
       statusCode: code ? 502 : 503,
@@ -186,7 +195,9 @@ export default defineEventHandler(async (event) => {
         id, result.messageId, fromAddress, row.to_address, fromAddress, replySubject(row.subject),
         sentAt, sentAt, row.message_id, references.join(' '), row.text_body, rawObjectKey, row.folder,
       ),
-      bindings.DB.prepare('DELETE FROM drafts WHERE id = ?').bind(row.draft_id),
+      bindings.DB.prepare(`DELETE FROM drafts WHERE id = ? AND mailbox_domain = ?
+        AND ${workspaceDomainScope('drafts.mailbox_domain')}`)
+        .bind(row.draft_id, row.mailbox_domain, user.activeWorkspaceId),
     ])
   } catch {
     // The provider accepted the email. Leave the draft locked so the user checks delivery before retrying.
@@ -194,13 +205,13 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    await keepSetAsideThread(bindings.DB, id)
+    await keepSetAsideThread(bindings.DB, id, user.activeWorkspaceId)
   } catch (error) {
     console.error('[courrier] Could not keep the Set Aside thread together after sending a reply.', { id, error })
   }
 
   try {
-    await clearReplyLaterThread(bindings.DB, id)
+    await clearReplyLaterThread(bindings.DB, id, user.activeWorkspaceId)
   } catch (error) {
     console.error('[courrier] Could not clear the Reply Later queue after sending a reply.', { id, error })
   }

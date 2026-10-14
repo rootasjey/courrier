@@ -1,6 +1,7 @@
 import type { MailStorageBindings } from '../utils/mail-store'
 import { createMailboxExportManifest } from '../utils/mailbox-export'
 import { createZipStream } from '../utils/zip-stream'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../utils/account-auth'
 
 type MessageRow = {
   id: string
@@ -37,6 +38,7 @@ type AttachmentRow = {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB || !bindings.MAIL_STORE) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage des emails n’est pas prêt.' })
@@ -49,55 +51,72 @@ export default defineEventHandler(async (event) => {
         mailbox_domain, folder, screener_state, is_read, is_set_aside, is_reply_later,
         is_outgoing, trashed_at
       FROM messages
+      WHERE ${workspaceDomainScope('messages.mailbox_domain')}
       ORDER BY received_at ASC, id ASC
-    `).all<MessageRow>(),
+    `).bind(user.activeWorkspaceId).all<MessageRow>(),
     bindings.DB.prepare(`
-      SELECT id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition
+      SELECT attachments.id, attachments.message_id, attachments.filename, attachments.mime_type,
+        attachments.size_bytes, attachments.object_key, attachments.content_id, attachments.disposition
       FROM attachments
-      ORDER BY message_id ASC, id ASC
-    `).all<AttachmentRow>(),
+      JOIN messages ON messages.id = attachments.message_id
+      WHERE ${workspaceDomainScope('messages.mailbox_domain')}
+      ORDER BY attachments.message_id ASC, attachments.id ASC
+    `).bind(user.activeWorkspaceId).all<AttachmentRow>(),
     bindings.DB.prepare(`
       SELECT mailbox_domain, sender_address, folder, created_at, updated_at, last_change_id
       FROM sender_rules
+      WHERE ${workspaceDomainScope('sender_rules.mailbox_domain')}
       ORDER BY mailbox_domain ASC, sender_address ASC
-    `).all(),
+    `).bind(user.activeWorkspaceId).all(),
     bindings.DB.prepare(`
       SELECT mailbox_domain, sender_address, created_at
       FROM blocked_senders
+      WHERE ${workspaceDomainScope('blocked_senders.mailbox_domain')}
       ORDER BY mailbox_domain ASC, sender_address ASC
-    `).all(),
+    `).bind(user.activeWorkspaceId).all(),
     bindings.DB.prepare(`
       SELECT id, mailbox_domain, sender_address, previous_rule_folder, previous_change_id,
         next_folder, created_at, expires_at, undone_at
       FROM sender_rule_changes
+      WHERE ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
       ORDER BY created_at ASC, id ASC
-    `).all(),
+    `).bind(user.activeWorkspaceId).all(),
     bindings.DB.prepare(`
-      SELECT change_id, message_id, previous_folder
+      SELECT sender_rule_change_messages.change_id, sender_rule_change_messages.message_id,
+        sender_rule_change_messages.previous_folder
       FROM sender_rule_change_messages
-      ORDER BY change_id ASC, message_id ASC
-    `).all(),
+      JOIN sender_rule_changes ON sender_rule_changes.id = sender_rule_change_messages.change_id
+      WHERE ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+      ORDER BY sender_rule_change_messages.change_id ASC, sender_rule_change_messages.message_id ASC
+    `).bind(user.activeWorkspaceId).all(),
     bindings.DB.prepare(`
-      SELECT change_id, merge_id, previous_folder
+      SELECT sender_rule_change_merges.change_id, sender_rule_change_merges.merge_id,
+        sender_rule_change_merges.previous_folder
       FROM sender_rule_change_merges
-      ORDER BY change_id ASC, merge_id ASC
-    `).all(),
+      JOIN sender_rule_changes ON sender_rule_changes.id = sender_rule_change_merges.change_id
+      WHERE ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+      ORDER BY sender_rule_change_merges.change_id ASC, sender_rule_change_merges.merge_id ASC
+    `).bind(user.activeWorkspaceId).all(),
     bindings.DB.prepare(`
       SELECT id, reply_to_message_id, mailbox_domain, to_address, subject, text_body,
         status, created_at, updated_at
       FROM drafts
+      WHERE ${workspaceDomainScope('drafts.mailbox_domain')}
       ORDER BY created_at ASC, id ASC
-    `).all(),
+    `).bind(user.activeWorkspaceId).all(),
     bindings.DB.prepare(`
       SELECT id, mailbox_domain, folder, created_at
       FROM thread_merges
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
       ORDER BY created_at ASC, id ASC
-    `).all(),
+    `).bind(user.activeWorkspaceId).all(),
     bindings.DB.prepare(`
-      SELECT merge_id, root_message_id
+      SELECT thread_merge_members.merge_id, thread_merge_members.root_message_id
       FROM thread_merge_members
-      ORDER BY merge_id ASC, root_message_id ASC
-    `).all(),
+      JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      ORDER BY thread_merge_members.merge_id ASC, thread_merge_members.root_message_id ASC
+    `).bind(user.activeWorkspaceId).all(),
   ])
 
   const createdAt = new Date()

@@ -5,6 +5,7 @@ import {
   type ManualThreadMergeMember,
   type ThreadableMessage,
 } from '../../../utils/threading'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 type GroupMessage = ThreadableMessage & {
@@ -16,6 +17,7 @@ type GroupMessage = ThreadableMessage & {
 const folders = new Set<MailFolder>(['Imbox', 'The Feed', 'Paper Trail'])
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as Pick<MailStorageBindings, 'DB'> | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage des emails n’est pas prêt.' })
@@ -34,13 +36,15 @@ export default defineEventHandler(async (event) => {
       SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header, is_reply_later
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
-    `).all<GroupMessage>(),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<GroupMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-    `).all<ManualThreadMergeMember>(),
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
   const messages = messageResult.results
@@ -91,11 +95,13 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       UPDATE messages SET folder = ?
       WHERE mailbox_domain = ? AND folder = ? AND id IN (SELECT value FROM json_each(?))
-    `).bind(folder, selected.mailbox_domain, selected.folder, JSON.stringify(groupMessages.map(message => message.id))),
+        AND ${workspaceDomainScope('messages.mailbox_domain')}
+    `).bind(folder, selected.mailbox_domain, selected.folder, JSON.stringify(groupMessages.map(message => message.id)), user.activeWorkspaceId),
     bindings.DB.prepare(`
       UPDATE thread_merges SET folder = ?
       WHERE mailbox_domain = ? AND folder = ? AND id IN (SELECT value FROM json_each(?))
-    `).bind(folder, selected.mailbox_domain, selected.folder, JSON.stringify([...mergeIds])),
+        AND ${workspaceDomainScope('thread_merges.mailbox_domain')}
+    `).bind(folder, selected.mailbox_domain, selected.folder, JSON.stringify([...mergeIds]), user.activeWorkspaceId),
   ])
 
   return { folder, movedMessages: groupMessages.length }

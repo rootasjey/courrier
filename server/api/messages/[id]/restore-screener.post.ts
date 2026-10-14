@@ -1,8 +1,10 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
+import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
 
 type ScreenerBindings = Pick<MailStorageBindings, 'DB'>
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as ScreenerBindings | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -14,7 +16,8 @@ export default defineEventHandler(async (event) => {
   const message = await bindings.DB.prepare(`
     SELECT mailbox_domain, lower(trim(sender_address)) AS sender_address
     FROM messages WHERE id = ? AND folder = 'Screener'
-  `).bind(messageId).first<{ mailbox_domain: string, sender_address: string }>()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(messageId, user.activeWorkspaceId).first<{ mailbox_domain: string, sender_address: string }>()
 
   if (!message) throw createError({ statusCode: 404, statusMessage: 'Message Screener introuvable.' })
 
@@ -22,7 +25,8 @@ export default defineEventHandler(async (event) => {
     UPDATE messages SET screener_state = 'pending'
     WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
       AND folder = 'Screener' AND screener_state = 'cleared'
-  `).bind(message.mailbox_domain, message.sender_address).run()
+      AND ${workspaceDomainScope('messages.mailbox_domain')}
+  `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId).run()
 
   return { restored: true }
 })

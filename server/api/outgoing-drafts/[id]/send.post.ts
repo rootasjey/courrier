@@ -1,6 +1,7 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { normalizeDraftRecipients, type OutgoingDraftAttachment } from '../../../utils/outgoing-draft-content'
 import { estimateOutgoingEmailBytes, OUTBOUND_MESSAGE_BUDGET_BYTES } from '../../../../shared/utils/outgoing-email-size'
+import { getWorkspaceUserFromContext } from '../../../utils/account-auth'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
@@ -92,6 +93,7 @@ function buildStoredMime(draft: DraftRow, recipients: string[], cc: string[], me
 }
 
 export default defineEventHandler(async (event) => {
+  const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB || !bindings.MAIL_STORE || !bindings.EMAIL) {
     throw createError({ statusCode: 503, statusMessage: 'L’envoi de nouveaux messages n’est pas configuré.' })
@@ -99,10 +101,23 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Brouillon manquant.' })
 
+  const sendingDomain = await bindings.DB.prepare(`
+    SELECT 1 AS allowed FROM workspace_domains
+    WHERE workspace_id = ? AND domain = 'verbatims.cc'
+      AND verification_status IN ('verified', 'legacy_unverified')
+    LIMIT 1
+  `).bind(user.activeWorkspaceId).first<{ allowed: number }>()
+  if (!sendingDomain) throw createError({ statusCode: 403, statusMessage: 'Cet espace ne possède pas encore de domaine autorisé pour l’envoi.' })
+
+  const resetDraft = (updatedAt = new Date().toISOString()) => bindings.DB!.prepare(`
+    UPDATE outgoing_drafts SET status = 'draft', updated_at = ?
+    WHERE id = ? AND workspace_id = ? AND status = 'sending'
+  `).bind(updatedAt, id, user.activeWorkspaceId)
+
   let draft = await bindings.DB.prepare(`
     SELECT id, to_address, cc_address, bcc_address, subject, html_body, text_body, status
-    FROM outgoing_drafts WHERE id = ?
-  `).bind(id).first<DraftRow>()
+    FROM outgoing_drafts WHERE id = ? AND workspace_id = ?
+  `).bind(id, user.activeWorkspaceId).first<DraftRow>()
   if (!draft) throw createError({ statusCode: 404, statusMessage: 'Brouillon introuvable.' })
   if (draft.status !== 'draft') throw createError({ statusCode: 409, statusMessage: 'L’état de cet envoi est incertain. Vérifie la boîte destinataire avant de réessayer.' })
   const recipients = normalizeDraftRecipients(draft.to_address)
@@ -113,27 +128,34 @@ export default defineEventHandler(async (event) => {
   if (!ccRecipients || !bccRecipients) throw createError({ statusCode: 400, statusMessage: 'Vérifie les adresses des champs Cc et Cci.' })
   if (recipients.length + ccRecipients.length + bccRecipients.length > 50) throw createError({ statusCode: 400, statusMessage: 'Un message ne peut pas dépasser 50 destinataires au total.' })
   if (!draft.text_body.trim() && !/<(?:img)\b/i.test(draft.html_body)) {
-    const hasAttachments = await bindings.DB.prepare('SELECT 1 AS present FROM outgoing_draft_attachments WHERE draft_id = ? LIMIT 1')
-      .bind(id).first<{ present: number }>()
+    const hasAttachments = await bindings.DB.prepare(`
+      SELECT 1 AS present FROM outgoing_draft_attachments WHERE draft_id = ?
+        AND EXISTS (SELECT 1 FROM outgoing_drafts WHERE id = ? AND workspace_id = ?)
+      LIMIT 1
+    `).bind(id, id, user.activeWorkspaceId).first<{ present: number }>()
     if (!hasAttachments) throw createError({ statusCode: 400, statusMessage: 'Écris un message ou ajoute une pièce jointe avant de l’envoyer.' })
   }
 
   const claim = await bindings.DB.prepare(`
-    UPDATE outgoing_drafts SET status = 'sending', updated_at = ? WHERE id = ? AND status = 'draft'
-  `).bind(new Date().toISOString(), id).run()
+    UPDATE outgoing_drafts SET status = 'sending', updated_at = ?
+    WHERE id = ? AND workspace_id = ? AND status = 'draft'
+  `).bind(new Date().toISOString(), id, user.activeWorkspaceId).run()
   if (!claim.meta.changes) throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est déjà en cours d’envoi.' })
 
   draft = await bindings.DB.prepare(`
-    SELECT id, to_address, cc_address, bcc_address, subject, html_body, text_body, status FROM outgoing_drafts WHERE id = ? AND status = 'sending'
-  `).bind(id).first<DraftRow>()
+    SELECT id, to_address, cc_address, bcc_address, subject, html_body, text_body, status FROM outgoing_drafts
+    WHERE id = ? AND workspace_id = ? AND status = 'sending'
+  `).bind(id, user.activeWorkspaceId).first<DraftRow>()
   if (!draft) throw createError({ statusCode: 409, statusMessage: 'Le brouillon a changé pendant la préparation de l’envoi.' })
 
   const attachmentRows = await bindings.DB.prepare(`
     SELECT id, filename, mime_type, size_bytes, object_key, content_id, disposition
-    FROM outgoing_draft_attachments WHERE draft_id = ? ORDER BY created_at
-  `).bind(id).all<OutgoingDraftAttachment>()
+    FROM outgoing_draft_attachments WHERE draft_id = ?
+      AND EXISTS (SELECT 1 FROM outgoing_drafts WHERE id = ? AND workspace_id = ?)
+    ORDER BY created_at
+  `).bind(id, id, user.activeWorkspaceId).all<OutgoingDraftAttachment>()
   if (attachmentRows.results.length > 32) {
-    await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+    await resetDraft().run()
     throw createError({ statusCode: 413, statusMessage: 'Un message ne peut pas contenir plus de 32 fichiers.' })
   }
 
@@ -141,12 +163,12 @@ export default defineEventHandler(async (event) => {
   for (const attachment of attachmentRows.results) {
     const object = await bindings.MAIL_STORE.get(attachment.object_key)
     if (!object) {
-      await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+      await resetDraft().run()
       throw createError({ statusCode: 409, statusMessage: `La pièce jointe « ${attachment.filename} » est introuvable.` })
     }
     const bytes = new Uint8Array(await object.arrayBuffer())
     if (bytes.byteLength !== attachment.size_bytes) {
-      await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+      await resetDraft().run()
       throw createError({ statusCode: 409, statusMessage: `La pièce jointe « ${attachment.filename} » est incomplète.` })
     }
     uploaded.push({ ...attachment, bytes })
@@ -155,12 +177,12 @@ export default defineEventHandler(async (event) => {
   const claimCcRecipients = draft.cc_address ? normalizeDraftRecipients(draft.cc_address) : []
   const claimBccRecipients = draft.bcc_address ? normalizeDraftRecipients(draft.bcc_address) : []
   if (!claimRecipients || !claimCcRecipients || !claimBccRecipients) {
-    await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+    await resetDraft().run()
     throw createError({ statusCode: 400, statusMessage: 'Le destinataire ou le contenu du brouillon est invalide.' })
   }
   const envelopeRecipients = [...new Set([...claimRecipients, ...claimCcRecipients, ...claimBccRecipients])]
   if (claimRecipients.length + claimCcRecipients.length + claimBccRecipients.length > 50) {
-    await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+    await resetDraft().run()
     throw createError({ statusCode: 400, statusMessage: 'Un message ne peut pas dépasser 50 destinataires au total.' })
   }
   const estimatedMessageBytes = estimateOutgoingEmailBytes({
@@ -173,12 +195,12 @@ export default defineEventHandler(async (event) => {
     attachments: uploaded,
   })
   if (estimatedMessageBytes > OUTBOUND_MESSAGE_BUDGET_BYTES) {
-    await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+    await resetDraft().run()
     throw createError({ statusCode: 413, statusMessage: 'Le message complet dépasse la limite estimée de 5 Mio. Réduis le corps du message ou retire une pièce jointe.' })
   }
 
   if (!draft.text_body.trim() && !/<(?:img)\b/i.test(draft.html_body) && attachmentRows.results.length === 0) {
-    await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft' WHERE id = ? AND status = 'sending'").bind(id).run()
+    await resetDraft().run()
     throw createError({ statusCode: 400, statusMessage: 'Le destinataire ou le contenu du brouillon est invalide.' })
   }
   let result: Awaited<ReturnType<SendEmail['send']>>
@@ -202,8 +224,7 @@ export default defineEventHandler(async (event) => {
   } catch (error) {
     const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
     if (code && !['E_INTERNAL_SERVER_ERROR', 'E_RATE_LIMIT_EXCEEDED', 'E_DELIVERY_FAILED'].includes(code)) {
-      await bindings.DB.prepare("UPDATE outgoing_drafts SET status = 'draft', updated_at = ? WHERE id = ? AND status = 'sending'")
-        .bind(new Date().toISOString(), id).run()
+      await resetDraft().run()
     }
     throw createError({
       statusCode: code ? 502 : 503,
@@ -246,7 +267,8 @@ export default defineEventHandler(async (event) => {
         INSERT INTO attachments (id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(attachmentId, messageRowId, file.filename, file.mime_type, file.size_bytes, objectKey, file.disposition === 'inline' ? file.content_id : null, file.disposition)),
-      bindings.DB.prepare('DELETE FROM outgoing_drafts WHERE id = ? AND status = \'sending\'').bind(id),
+      bindings.DB.prepare('DELETE FROM outgoing_drafts WHERE id = ? AND workspace_id = ? AND status = \'sending\'')
+        .bind(id, user.activeWorkspaceId),
     ])
   } catch {
     throw createError({ statusCode: 500, statusMessage: 'Le message a été accepté par Cloudflare, mais Courrier n’a pas pu terminer son archivage. Vérifie la boîte destinataire avant de réessayer.' })
