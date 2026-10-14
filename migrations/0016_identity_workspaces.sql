@@ -163,7 +163,9 @@ INSERT OR IGNORE INTO workspace_domains
 SELECT 'legacy-domain-' || lower(trim(mailbox_domain)),
   'legacy-courrier-workspace', lower(trim(mailbox_domain)), 'legacy_unverified', datetime('now')
 FROM (
-  SELECT mailbox_domain FROM messages WHERE trim(mailbox_domain) <> ''
+  SELECT mailbox_domain
+  FROM messages
+  WHERE COALESCE(is_outgoing, 0) = 0 AND trim(mailbox_domain) <> ''
   UNION
   SELECT mailbox_domain FROM drafts WHERE trim(mailbox_domain) <> ''
 )
