@@ -175,7 +175,9 @@ SELECT 'legacy-mailbox-' || lower(trim(address)),
   'legacy-domain-' || lower(trim(substr(address, instr(address, '@') + 1))),
   lower(trim(address)), datetime('now')
 FROM (
-  SELECT envelope_to AS address FROM messages WHERE instr(envelope_to, '@') > 0
+  SELECT envelope_to AS address
+  FROM messages
+  WHERE COALESCE(is_outgoing, 0) = 0 AND instr(envelope_to, '@') > 0
 )
 WHERE trim(address) <> ''
   AND instr(address, ' ') = 0
