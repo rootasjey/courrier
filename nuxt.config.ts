@@ -3,6 +3,11 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-09-28',
   devtools: { enabled: false },
   css: ['~/assets/css/main.css'],
+  routeRules: {
+    '/_locales/**': {
+      headers: { 'Cache-Control': 'no-store' }
+    }
+  },
 
   nitro: {
     preset: "cloudflare_module",
