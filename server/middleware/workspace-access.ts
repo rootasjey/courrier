@@ -56,6 +56,12 @@ export default defineEventHandler(async (event) => {
       await requirePlatformAdmin(event)
       return
     }
+    if ((path === '/api/admin/domains' && method === 'POST')
+      || (/^\/api\/admin\/domains\/[^/]+$/.test(path) && method === 'DELETE')
+      || (/^\/api\/admin\/domains\/[^/]+\/(?:challenge|verify)$/.test(path) && method === 'POST')) {
+      await requirePlatformAdmin(event)
+      return
+    }
     throw createError({ statusCode: 403, statusMessage: 'Cette route d’administration n’est pas ouverte.' })
   }
 

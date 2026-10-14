@@ -1,0 +1,52 @@
+import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../utils/account-auth'
+
+type D1MutationResult = { meta?: { changes?: number } }
+
+export default defineEventHandler(async (event) => {
+  assertSameOrigin(event)
+  const actor = await requirePlatformAdmin(event)
+  const db = getAccountDb(event)
+  const domainId = getRouterParam(event, 'id')?.trim() ?? ''
+
+  if (!domainId || domainId.length > 256 || /[\u0000-\u001f\u007f]/u.test(domainId)) {
+    throw createError({ statusCode: 400, statusMessage: 'Domaine invalide.' })
+  }
+
+  const domain = await db.prepare(`
+    SELECT id, workspace_id, domain, verification_status,
+      (SELECT COUNT(*) FROM mailboxes WHERE domain_id = workspace_domains.id) AS mailbox_count
+    FROM workspace_domains WHERE id = ? LIMIT 1
+  `).bind(domainId).first<{
+    id: string, workspace_id: string, domain: string, verification_status: string, mailbox_count: number,
+  }>()
+
+  if (!domain) throw createError({ statusCode: 404, statusMessage: 'Domaine introuvable.' })
+  if (domain.verification_status !== 'pending' || domain.mailbox_count > 0) {
+    throw createError({ statusCode: 409, statusMessage: 'Seul un domaine en attente sans boîte peut être supprimé.' })
+  }
+
+  const now = new Date().toISOString()
+  const results = await db.batch([
+    db.prepare(`
+      DELETE FROM workspace_domains
+      WHERE id = ? AND verification_status = 'pending'
+        AND NOT EXISTS (SELECT 1 FROM mailboxes WHERE domain_id = ?)
+    `).bind(domainId, domainId),
+    db.prepare(`
+      INSERT INTO platform_audit_log
+        (id, actor_user_id, action, target_type, target_id, workspace_id, details_json, created_at)
+      SELECT ?, ?, 'workspace_domain.delete_pending', 'workspace_domain', ?, ?, ?, ?
+      WHERE changes() > 0
+    `).bind(
+      crypto.randomUUID(), actor.id, domainId, domain.workspace_id,
+      JSON.stringify({ domain: domain.domain }), now,
+    ),
+  ])
+
+  if (Number((results[0] as D1MutationResult | undefined)?.meta?.changes ?? 0) < 1) {
+    throw createError({ statusCode: 409, statusMessage: 'Le domaine a changé ou possède maintenant une boîte.' })
+  }
+
+  setResponseHeader(event, 'Cache-Control', 'private, no-store')
+  return { domainId, deleted: true }
+})

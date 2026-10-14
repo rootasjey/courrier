@@ -717,6 +717,22 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .admin-status.is-suspended, .admin-status.is-revoked { background: color-mix(in srgb, var(--error) 10%, var(--paper)); color: var(--error); }
 .admin-status.is-pending, .admin-status.is-legacy_unverified, .admin-status.is-expired { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
 .admin-empty { padding: 28px 12px !important; color: var(--quiet) !important; text-align: center; }
+.admin-domain-controls { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
+.admin-domain-controls input { width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; }
+.admin-domain-controls input:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.admin-domain-challenge { margin: 18px 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--violet) 28%, var(--line)); border-radius: 12px; background: var(--surface-soft); }
+.admin-domain-challenge-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.admin-domain-challenge-heading h3 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 680; }
+.admin-domain-challenge-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.admin-domain-challenge-heading p strong { color: var(--ink); font-weight: 620; }
+.admin-domain-dismiss { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--muted); font: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+.admin-domain-record { display: grid; gap: 9px; margin: 14px 0; }
+.admin-domain-record > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: start; gap: 10px; }
+.admin-domain-record dt { color: var(--muted); font-size: 11px; }
+.admin-domain-record dd { min-width: 0; margin: 0; }
+.admin-domain-record code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 4px 7px; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 11px; user-select: all; }
+.admin-domain-challenge-actions { display: flex; justify-content: flex-end; }
+.admin-domain-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .admin-access-controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }
 .admin-access-field { display: grid; min-width: 0; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 620; }
 .admin-access-field select { width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; }
@@ -794,6 +810,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .admin-section { padding: 15px 13px; }
   .admin-table-wrap table { min-width: 620px; }
   .admin-access-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .admin-domain-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .admin-domain-record > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .admin-access-action { justify-self: start; }
   .login-page { grid-template-columns: minmax(0, 1fr); gap: 26px; width: min(100% - 36px, 460px); align-content: center; padding: 28px 0; }
   .login-panel { width: 100%; padding: 0; }
