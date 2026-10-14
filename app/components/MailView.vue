@@ -337,32 +337,6 @@
           <span>Retour à {{ mailboxByName(activeFolder).label }}</span>
           <kbd>Esc</kbd>
         </button>
-        <div class="reading-toolbar-actions">
-          <button v-if="activeFolder === 'Trash'" class="message-classify" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
-            Restaurer ce message
-          </button>
-          <template v-else>
-            <button v-if="activeFolder === 'Set Aside'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
-              {{ isSavingSetAside ? 'Remise en boîte…' : 'Remettre dans la boîte correspondante' }}
-              <kbd>A</kbd>
-            </button>
-            <button v-else-if="activeFolder === 'Imbox'" class="message-set-aside" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
-              {{ isSavingSetAside ? 'Mise de côté…' : 'Set Aside' }}
-              <kbd>A</kbd>
-            </button>
-            <button v-else-if="activeFolder !== 'Reply Later'" class="message-classify" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
-              {{ selectedThread?.manualMergeIds.length ? 'Classer cette conversation' : 'Classer ce message' }}
-            </button>
-            <button v-if="activeFolder === 'Reply Later'" class="message-reply-later" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(false)">
-              {{ isSavingReplyLater ? 'Remise dans la boîte…' : 'Remettre dans la boîte d’origine' }}
-              <kbd>L</kbd>
-            </button>
-            <button v-else-if="activeFolder !== 'Set Aside'" class="message-reply-later" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(true)">
-              {{ isSavingReplyLater ? 'Ajout à la file…' : 'Reply Later' }}
-              <kbd>L</kbd>
-            </button>
-          </template>
-        </div>
       </div>
       <div v-if="messageReadError" class="message-read-error" role="alert">
         <span>{{ messageReadError }}</span>
@@ -574,11 +548,34 @@
           </button>
         </div>
       </form>
-      <button v-else class="reply-placeholder" type="button" @click="openReplyComposer">
-        <span class="reply-icon" aria-hidden="true">↩</span>
-        <span>Répondre à {{ activeThreadMessage?.sender }}</span>
-        <span class="reply-shortcut">R</span>
-      </button>
+      <div class="message-action-dock" role="toolbar" aria-label="Actions du message">
+        <div class="message-action-group">
+          <button v-if="!replyComposerOpen && activeFolder !== 'Trash'" class="message-action-reply" type="button" @click="openReplyComposer">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
+            <span>Répondre</span><kbd>R</kbd>
+          </button>
+          <button v-if="activeFolder === 'Trash'" class="message-action-button" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
+            {{ isSavingScreenerAction ? 'Restauration…' : 'Restaurer' }}
+          </button>
+          <template v-else>
+            <button v-if="activeFolder === 'Set Aside'" class="message-action-button" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
+              {{ isSavingSetAside ? 'Remise en boîte…' : 'Remettre dans la boîte' }}<kbd>A</kbd>
+            </button>
+            <button v-else-if="activeFolder === 'Imbox'" class="message-action-button" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
+              {{ isSavingSetAside ? 'Mise de côté…' : 'Set Aside' }}<kbd>A</kbd>
+            </button>
+            <button v-else-if="activeFolder !== 'Reply Later'" class="message-action-button" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
+              {{ selectedThread?.manualMergeIds.length ? 'Classer' : 'Déplacer' }}
+            </button>
+            <button v-if="activeFolder === 'Reply Later'" class="message-action-button" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(false)">
+              {{ isSavingReplyLater ? 'Remise dans la boîte…' : 'Retirer de Reply Later' }}<kbd>L</kbd>
+            </button>
+            <button v-else-if="activeFolder !== 'Set Aside'" class="message-action-button" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(true)">
+              {{ isSavingReplyLater ? 'Ajout à la file…' : 'Reply Later' }}<kbd>L</kbd>
+            </button>
+          </template>
+        </div>
+      </div>
     </section>
 
     <NDialog
