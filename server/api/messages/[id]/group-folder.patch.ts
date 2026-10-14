@@ -36,14 +36,14 @@ export default defineEventHandler(async (event) => {
       SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header, is_reply_later
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<GroupMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -95,12 +95,12 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       UPDATE messages SET folder = ?
       WHERE mailbox_domain = ? AND folder = ? AND id IN (SELECT value FROM json_each(?))
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(folder, selected.mailbox_domain, selected.folder, JSON.stringify(groupMessages.map(message => message.id)), user.activeWorkspaceId),
     bindings.DB.prepare(`
       UPDATE thread_merges SET folder = ?
       WHERE mailbox_domain = ? AND folder = ? AND id IN (SELECT value FROM json_each(?))
-        AND ${workspaceDomainScope('thread_merges.mailbox_domain')}
+        AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(folder, selected.mailbox_domain, selected.folder, JSON.stringify([...mergeIds]), user.activeWorkspaceId),
   ])
 

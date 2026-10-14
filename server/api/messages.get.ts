@@ -1,6 +1,6 @@
 import type { MailStorageBindings } from '../utils/mail-store'
 import { getThreadGrouping, type ManualThreadMergeMember } from '../utils/threading'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope } from '../utils/account-auth'
 
 type MessageRow = {
   id: string
@@ -59,22 +59,24 @@ export default defineEventHandler(async (event) => {
     LEFT JOIN sender_rules
       ON sender_rules.mailbox_domain = messages.mailbox_domain
       AND sender_rules.sender_address = lower(trim(messages.sender_address))
+      AND ${workspaceDomainScope('sender_rules.mailbox_domain', user.id)}
     LEFT JOIN blocked_senders
       ON blocked_senders.mailbox_domain = messages.mailbox_domain
       AND blocked_senders.sender_address = lower(trim(messages.sender_address))
-    WHERE ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceDomainScope('blocked_senders.mailbox_domain', user.id)}
+    WHERE ${workspaceMessageScope('messages', user.id)}
     ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
-  `).bind(user.activeWorkspaceId).all<MessageRow>(),
+  `).bind(user.activeWorkspaceId, user.activeWorkspaceId, user.activeWorkspaceId).all<MessageRow>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
     bindings.DB.prepare(`
       SELECT mailbox_domain, thread_id, subject FROM thread_subject_overrides
-      WHERE ${workspaceDomainScope('thread_subject_overrides.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_subject_overrides.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<{ mailbox_domain: string, thread_id: string, subject: string }>(),
   ])
   const results = messageResult.results

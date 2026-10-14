@@ -1,6 +1,6 @@
 import type { MailStorageBindings } from '../../utils/mail-store'
 import { renderOutgoingDraft, validateOutgoingDraftContent, type OutgoingDraftAttachment, type TiptapNode } from '../../utils/outgoing-draft-content'
-import { getWorkspaceUserFromContext } from '../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceOutgoingDraftScope } from '../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
@@ -8,6 +8,12 @@ export default defineEventHandler(async (event) => {
   if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des brouillons est indisponible.' })
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Brouillon manquant.' })
+
+  const accessible = await bindings.DB.prepare(`
+    SELECT 1 AS allowed FROM outgoing_drafts
+    WHERE id = ? AND ${workspaceOutgoingDraftScope('outgoing_drafts', user.id)}
+  `).bind(id, user.activeWorkspaceId).first<{ allowed: number }>()
+  if (!accessible) throw createError({ statusCode: 404, statusMessage: 'Ce brouillon est introuvable.' })
 
   const body = await readBody<{ to?: unknown, cc?: unknown, bcc?: unknown, subject?: unknown, content?: unknown }>(event)
   if (typeof body?.to !== 'string' || body.to.length > 4_000 || (body.cc !== undefined && (typeof body.cc !== 'string' || body.cc.length > 4_000)) || (body.bcc !== undefined && (typeof body.bcc !== 'string' || body.bcc.length > 4_000))) {
@@ -33,7 +39,7 @@ export default defineEventHandler(async (event) => {
   const bcc = typeof body.bcc === 'string' ? body.bcc.trim() : ''
   const saved = await bindings.DB.prepare(`
     UPDATE outgoing_drafts SET to_address = ?, cc_address = ?, bcc_address = ?, subject = ?, content_json = ?, html_body = ?, text_body = ?, updated_at = ?
-    WHERE id = ? AND workspace_id = ? AND status = 'draft'
+    WHERE id = ? AND status = 'draft' AND ${workspaceOutgoingDraftScope('outgoing_drafts', user.id)}
   `).bind(body.to.trim(), cc, bcc, body.subject.trim(), contentJson, rendered.html, rendered.text, updatedAt, id, user.activeWorkspaceId).run()
   if (!saved.meta.changes) throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est en cours d’envoi et ne peut plus être modifié.' })
   return { id, to: body.to.trim(), cc, bcc, subject: body.subject.trim(), content: body.content, status: 'draft', updatedAt }

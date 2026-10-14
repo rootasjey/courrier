@@ -35,14 +35,14 @@ export default defineEventHandler(async (event) => {
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<MergeableMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -93,12 +93,17 @@ export default defineEventHandler(async (event) => {
   const statements = [
     bindings.DB.prepare(`
       INSERT INTO thread_merges (id, mailbox_domain, folder, created_at)
-      VALUES (?, ?, ?, ?)
-    `).bind(mergeId, mailboxDomain, folder, createdAt),
+      SELECT ?, ?, ?, ? FROM workspace_domains
+      WHERE lower(workspace_domains.domain) = lower(?)
+        AND ${workspaceDomainScope('workspace_domains.domain', user.id)}
+    `).bind(mergeId, mailboxDomain, folder, createdAt, mailboxDomain, user.activeWorkspaceId),
     ...rootMessageIds.map(rootMessageId => bindings.DB.prepare(`
       INSERT INTO thread_merge_members (merge_id, root_message_id)
-      VALUES (?, ?)
-    `).bind(mergeId, rootMessageId)),
+      SELECT ?, ? WHERE EXISTS (
+        SELECT 1 FROM thread_merges
+        WHERE id = ? AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
+      )
+    `).bind(mergeId, rootMessageId, mergeId, user.activeWorkspaceId)),
   ]
   await bindings.DB.batch(statements)
 

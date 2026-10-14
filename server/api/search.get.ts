@@ -1,6 +1,6 @@
 import type { MailStorageBindings } from '../utils/mail-store'
 import { getThreadGrouping, type ManualThreadMergeMember } from '../utils/threading'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope } from '../utils/account-auth'
 
 type SearchMessageRow = {
   id: string
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
       WHERE messages_search MATCH ?
         AND messages.folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND messages.trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceMessageScope('messages', user.id)}
     `).bind(...bindingsList, user.activeWorkspaceId).first<{ total: number }>(),
     bindings.DB.prepare(`
       SELECT messages.id, messages.folder, messages.sent_at, messages.received_at,
@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
       WHERE messages_search MATCH ?
         AND messages.folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND messages.trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceMessageScope('messages', user.id)}
       ORDER BY COALESCE(messages.sent_at, messages.received_at) DESC
       LIMIT ? OFFSET ?
     `).bind(matchQuery, user.activeWorkspaceId, pageSize + 1, offset).all<SearchMessageRow>(),
@@ -71,14 +71,14 @@ export default defineEventHandler(async (event) => {
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceMessageScope('messages', user.id)}
     `).bind(user.activeWorkspaceId).all<ThreadRow>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 

@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../../utils/mail-store'
-import { getWorkspaceUserFromContext } from '../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceOutgoingDraftScope } from '../../utils/account-auth'
 
 type DraftRow = {
   id: string
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   const draft = await bindings.DB.prepare(`
     SELECT id, to_address, cc_address, bcc_address, subject, content_json, status, updated_at
-    FROM outgoing_drafts WHERE id = ? AND workspace_id = ?
+    FROM outgoing_drafts WHERE id = ? AND ${workspaceOutgoingDraftScope('outgoing_drafts', user.id)}
   `).bind(id, user.activeWorkspaceId).first<DraftRow>()
   if (!draft) throw createError({ statusCode: 404, statusMessage: 'Ce brouillon est introuvable.' })
   if (draft.status !== 'draft') throw createError({ statusCode: 409, statusMessage: 'Ce message est déjà en cours d’envoi.' })

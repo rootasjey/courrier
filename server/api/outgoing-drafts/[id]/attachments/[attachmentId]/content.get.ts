@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../../../../../utils/mail-store'
-import { getWorkspaceUserFromContext } from '../../../../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceOutgoingDraftScope } from '../../../../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
@@ -13,7 +13,11 @@ export default defineEventHandler(async (event) => {
     SELECT object_key, mime_type
     FROM outgoing_draft_attachments
     WHERE id = ? AND draft_id = ? AND disposition = 'inline'
-      AND EXISTS (SELECT 1 FROM outgoing_drafts WHERE id = ? AND workspace_id = ?)
+      AND EXISTS (
+        SELECT 1 FROM outgoing_drafts AS accessible_draft
+        WHERE accessible_draft.id = ?
+          AND ${workspaceOutgoingDraftScope('accessible_draft', user.id)}
+      )
   `).bind(attachmentId, draftId, draftId, user.activeWorkspaceId).first<{ object_key: string, mime_type: string }>()
   if (!attachment) throw createError({ statusCode: 404, statusMessage: 'Image intégrée introuvable.' })
 

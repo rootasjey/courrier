@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../utils/mail-store'
-import { getWorkspaceUserFromContext } from '../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceOutgoingDraftScope } from '../utils/account-auth'
 
 type DraftRow = {
   id: string
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
     SELECT d.id, d.to_address, d.cc_address, d.bcc_address, d.subject, d.content_json, d.status, d.updated_at,
       (SELECT COUNT(*) FROM outgoing_draft_attachments a WHERE a.draft_id = d.id) AS attachment_count
     FROM outgoing_drafts d
-    WHERE d.status = 'draft' AND d.workspace_id = ?
+    WHERE d.status = 'draft' AND ${workspaceOutgoingDraftScope('d', user.id)}
     ORDER BY d.updated_at DESC
   `).bind(user.activeWorkspaceId).all<DraftRow>()
 

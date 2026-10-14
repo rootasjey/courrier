@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope, workspaceReplyDraftScope } from '../../../utils/account-auth'
 
 type ReplyTarget = {
   id: string
@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
 
   const target = await bindings.DB.prepare(`
     SELECT id, envelope_from, envelope_to, sender_address, subject, mailbox_domain, folder, trashed_at, is_outgoing
-    FROM messages WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+    FROM messages WHERE id = ? AND ${workspaceMessageScope('messages', user.id)}
   `).bind(messageId, user.activeWorkspaceId).first<ReplyTarget>()
 
   if (!target) throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
 
   const existing = await bindings.DB.prepare(`
     SELECT status FROM drafts WHERE reply_to_message_id = ?
-      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+      AND ${workspaceReplyDraftScope('drafts', user.id)}
   `).bind(messageId, user.activeWorkspaceId).first<ExistingDraft>()
   if (existing?.status === 'sending') {
     throw createError({ statusCode: 409, statusMessage: 'Cet envoi est en cours ou son état est incertain.' })
@@ -77,7 +77,7 @@ export default defineEventHandler(async (event) => {
   const draft = await bindings.DB.prepare(`
     SELECT drafts.id, drafts.to_address, drafts.subject, drafts.text_body, drafts.status, drafts.updated_at
     FROM drafts WHERE drafts.reply_to_message_id = ?
-      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+      AND ${workspaceReplyDraftScope('drafts', user.id)}
   `).bind(messageId, user.activeWorkspaceId).first<{ id: string, to_address: string, subject: string, text_body: string, status: 'draft' | 'sending', updated_at: string }>()
 
   return { id: draft!.id, to: draft!.to_address, subject: draft!.subject, textBody: draft!.text_body, status: draft!.status, updatedAt: draft!.updated_at }

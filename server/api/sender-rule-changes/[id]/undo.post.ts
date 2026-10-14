@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     SELECT id, mailbox_domain, sender_address, previous_rule_folder, previous_change_id,
       next_folder, expires_at, undone_at
     FROM sender_rule_changes WHERE id = ?
-      AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+      AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain', user.id)}
   `).bind(changeId, user.activeWorkspaceId).first<SenderRuleChangeRow>()
 
   if (!change) throw createError({ statusCode: 404, statusMessage: 'Annulation introuvable ou expirée.' })
@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
       UPDATE sender_rule_changes SET undone_at = ?
       WHERE id = ? AND undone_at IS NULL AND expires_at > ?
-        AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+        AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain', user.id)}
         AND EXISTS (
           SELECT 1 FROM sender_rules
           WHERE mailbox_domain = sender_rule_changes.mailbox_domain
@@ -65,13 +65,15 @@ export default defineEventHandler(async (event) => {
         AND id IN (SELECT message_id FROM sender_rule_change_messages WHERE change_id = ?)
         AND is_set_aside = 0 AND is_reply_later = 0
         AND ${guard}
-    `).bind(changeId, change.mailbox_domain, change.sender_address, changeId, changeId, now),
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(changeId, change.mailbox_domain, change.sender_address, changeId, changeId, now, user.activeWorkspaceId),
     bindings.DB.prepare(`
       UPDATE messages SET folder = ?
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
         AND id NOT IN (SELECT message_id FROM sender_rule_change_messages WHERE change_id = ?)
         AND is_set_aside = 0 AND is_reply_later = 0
         AND ${guard}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(
       change.previous_rule_folder ?? 'Screener',
       change.mailbox_domain,
@@ -79,6 +81,7 @@ export default defineEventHandler(async (event) => {
       changeId,
       changeId,
       now,
+      user.activeWorkspaceId,
     ),
     bindings.DB.prepare(`
       UPDATE thread_merges
@@ -89,11 +92,13 @@ export default defineEventHandler(async (event) => {
       WHERE mailbox_domain = ?
         AND id IN (SELECT merge_id FROM sender_rule_change_merges WHERE change_id = ?)
         AND ${guard}
-    `).bind(changeId, change.mailbox_domain, changeId, changeId, now),
+        AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
+    `).bind(changeId, change.mailbox_domain, changeId, changeId, now, user.activeWorkspaceId),
     change.previous_rule_folder
       ? bindings.DB.prepare(`
           UPDATE sender_rules SET folder = ?, last_change_id = ?, updated_at = ?
           WHERE mailbox_domain = ? AND sender_address = ? AND last_change_id = ? AND ${guard}
+            AND ${workspaceDomainScope('sender_rules.mailbox_domain', user.id)}
         `).bind(
           change.previous_rule_folder,
           change.previous_change_id,
@@ -103,11 +108,13 @@ export default defineEventHandler(async (event) => {
           changeId,
           changeId,
           now,
+          user.activeWorkspaceId,
         )
       : bindings.DB.prepare(`
           DELETE FROM sender_rules
           WHERE mailbox_domain = ? AND sender_address = ? AND last_change_id = ? AND ${guard}
-        `).bind(change.mailbox_domain, change.sender_address, changeId, changeId, now),
+            AND ${workspaceDomainScope('sender_rules.mailbox_domain', user.id)}
+        `).bind(change.mailbox_domain, change.sender_address, changeId, changeId, now, user.activeWorkspaceId),
   ])
 
   if (!statements[0]?.meta.changes) {

@@ -18,8 +18,8 @@ export default defineEventHandler(async (event) => {
   const rawEmail = await new Response(rawBody).arrayBuffer()
   const result = await storeIncomingEmail(rawEmail, {
     from: 'demo@courrier.example',
-    to: 'test@verbatims.cc',
+    to: 'courrier-test@verbatims.cc',
   }, bindings)
 
-  return { ...result, recipient: 'test@verbatims.cc' }
+  return { ...result, recipient: 'courrier-test@verbatims.cc' }
 })

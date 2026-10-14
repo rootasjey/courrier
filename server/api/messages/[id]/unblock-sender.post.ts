@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const message = await bindings.DB.prepare(`
     SELECT mailbox_domain, lower(trim(sender_address)) AS sender_address
-    FROM messages WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+    FROM messages WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
   `).bind(messageId, user.activeWorkspaceId).first<{ mailbox_domain: string, sender_address: string }>()
 
   if (!message) throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
@@ -23,12 +23,14 @@ export default defineEventHandler(async (event) => {
   await bindings.DB.batch([
     bindings.DB.prepare(`
       DELETE FROM blocked_senders WHERE mailbox_domain = ? AND sender_address = ?
-    `).bind(message.mailbox_domain, message.sender_address),
+        AND ${workspaceDomainScope('blocked_senders.mailbox_domain', user.id)}
+    `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId),
     bindings.DB.prepare(`
       UPDATE messages SET screener_state = 'pending'
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
         AND folder = 'Screener' AND screener_state = 'blocked'
-    `).bind(message.mailbox_domain, message.sender_address),
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId),
   ])
 
   return { blocked: false }

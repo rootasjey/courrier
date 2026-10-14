@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope } from '../../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
   const result = await bindings.DB.prepare(`
     UPDATE messages SET is_read = ?
-    WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+    WHERE id = ? AND ${workspaceMessageScope('messages', user.id)}
   `).bind(body.isRead ? 1 : 0, id, user.activeWorkspaceId)
     .run()
 

@@ -1,7 +1,7 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { keepSetAsideThread } from '../../../utils/keep-set-aside-thread'
 import { clearReplyLaterThread } from '../../../utils/reply-later-thread'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
+import { getWorkspaceUserFromContext, requireMailboxAddressAccess, workspaceMessageScope, workspaceReplyDraftScope } from '../../../utils/account-auth'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
@@ -86,6 +86,7 @@ export default defineEventHandler(async (event) => {
   if (!bindings?.DB || !bindings.MAIL_STORE || !bindings.EMAIL) {
     throw createError({ statusCode: 503, statusMessage: 'L’envoi de réponses n’est pas configuré.' })
   }
+  await requireMailboxAddressAccess(bindings.DB, user.id, user.activeWorkspaceId, fromAddress)
 
   const messageId = getRouterParam(event, 'id')
   if (!messageId) throw createError({ statusCode: 400, statusMessage: 'Message manquant.' })
@@ -98,8 +99,8 @@ export default defineEventHandler(async (event) => {
     FROM drafts
     JOIN messages ON messages.id = drafts.reply_to_message_id
     WHERE messages.id = ?
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
-      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', user.id)}
+      AND ${workspaceReplyDraftScope('drafts', user.id)}
   `).bind(messageId, user.activeWorkspaceId, user.activeWorkspaceId).first<ReplyRow>()
 
   if (!row) throw createError({ statusCode: 404, statusMessage: 'Brouillon introuvable.' })
@@ -117,7 +118,7 @@ export default defineEventHandler(async (event) => {
   const claim = await bindings.DB.prepare(`
     UPDATE drafts SET status = 'sending', updated_at = ?
     WHERE id = ? AND mailbox_domain = ? AND status = 'draft'
-      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+      AND ${workspaceReplyDraftScope('drafts', user.id)}
   `).bind(new Date().toISOString(), row.draft_id, row.mailbox_domain, user.activeWorkspaceId).run()
   if (!claim.meta.changes) {
     throw createError({ statusCode: 409, statusMessage: 'Ce brouillon est déjà en cours d’envoi.' })
@@ -133,16 +134,18 @@ export default defineEventHandler(async (event) => {
     FROM drafts
     JOIN messages ON messages.id = drafts.reply_to_message_id
     WHERE messages.id = ? AND drafts.status = 'sending'
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
-      AND ${workspaceDomainScope('drafts.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', user.id)}
+      AND ${workspaceReplyDraftScope('drafts', user.id)}
   `).bind(messageId, user.activeWorkspaceId, user.activeWorkspaceId).first<ReplyRow>()
   if (!claimedRow) {
     throw createError({ statusCode: 409, statusMessage: 'Le brouillon a changé pendant la préparation de l’envoi.' })
   }
   row = claimedRow
   if (!row.text_body.trim()) {
-    await bindings.DB.prepare("UPDATE drafts SET status = 'draft', updated_at = ? WHERE id = ? AND status = 'sending'")
-      .bind(new Date().toISOString(), row.draft_id).run()
+    await bindings.DB.prepare(`UPDATE drafts SET status = 'draft', updated_at = ?
+      WHERE id = ? AND mailbox_domain = ? AND status = 'sending'
+        AND ${workspaceReplyDraftScope('drafts', user.id)}`)
+      .bind(new Date().toISOString(), row.draft_id, row.mailbox_domain, user.activeWorkspaceId).run()
     throw createError({ statusCode: 400, statusMessage: 'Écris un message avant de l’envoyer.' })
   }
 
@@ -163,7 +166,7 @@ export default defineEventHandler(async (event) => {
     const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
     if (code && !['E_INTERNAL_SERVER_ERROR', 'E_RATE_LIMIT_EXCEEDED', 'E_DELIVERY_FAILED'].includes(code)) {
       await bindings.DB.prepare(`UPDATE drafts SET status = 'draft', updated_at = ? WHERE id = ?
-        AND mailbox_domain = ? AND ${workspaceDomainScope('drafts.mailbox_domain')}`)
+        AND mailbox_domain = ? AND ${workspaceReplyDraftScope('drafts', user.id)}`)
         .bind(new Date().toISOString(), row.draft_id, row.mailbox_domain, user.activeWorkspaceId).run()
     }
     throw createError({
@@ -196,7 +199,7 @@ export default defineEventHandler(async (event) => {
         sentAt, sentAt, row.message_id, references.join(' '), row.text_body, rawObjectKey, row.folder,
       ),
       bindings.DB.prepare(`DELETE FROM drafts WHERE id = ? AND mailbox_domain = ?
-        AND ${workspaceDomainScope('drafts.mailbox_domain')}`)
+        AND ${workspaceReplyDraftScope('drafts', user.id)}`)
         .bind(row.draft_id, row.mailbox_domain, user.activeWorkspaceId),
     ])
   } catch {
@@ -205,13 +208,13 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    await keepSetAsideThread(bindings.DB, id, user.activeWorkspaceId)
+    await keepSetAsideThread(bindings.DB, id, user.activeWorkspaceId, user.id)
   } catch (error) {
     console.error('[courrier] Could not keep the Set Aside thread together after sending a reply.', { id, error })
   }
 
   try {
-    await clearReplyLaterThread(bindings.DB, id, user.activeWorkspaceId)
+    await clearReplyLaterThread(bindings.DB, id, user.activeWorkspaceId, user.id)
   } catch (error) {
     console.error('[courrier] Could not clear the Reply Later queue after sending a reply.', { id, error })
   }

@@ -38,14 +38,14 @@ export default defineEventHandler(async (event) => {
         references_header, is_set_aside, is_reply_later, sender_address, is_outgoing, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<SetAsideMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -91,14 +91,14 @@ export default defineEventHandler(async (event) => {
     UPDATE messages
     SET is_set_aside = ?, folder = ?
     WHERE id IN (SELECT value FROM json_each(?))
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
   `).bind(body.isSetAside ? 1 : 0, destinationFolder, JSON.stringify(threadMessageIds), user.activeWorkspaceId)]
 
   if (!body.isSetAside && destinationFolder !== selected.folder) {
     const mergeIds = [...new Set(threadMessages.flatMap(message => grouping.manualMergeIds.get(message.id) ?? []))]
     statements.push(...mergeIds.map(mergeId => bindings.DB.prepare(`
       UPDATE thread_merges SET folder = ? WHERE id = ? AND mailbox_domain = ?
-        AND ${workspaceDomainScope('thread_merges.mailbox_domain')}
+        AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(destinationFolder, mergeId, selected.mailbox_domain, user.activeWorkspaceId)))
   }
 

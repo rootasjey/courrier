@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope } from '../../../utils/account-auth'
 
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const result = await bindings.DB.prepare(`
     UPDATE messages SET trashed_at = ?
     WHERE id = ? AND folder = 'Screener' AND screener_state = 'pending' AND trashed_at IS NULL
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', user.id)}
   `).bind(new Date().toISOString(), id, user.activeWorkspaceId).run()
 
   if (!result.meta.changes) {

@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
   const message = await bindings.DB.prepare(`
     SELECT mailbox_domain, lower(trim(sender_address)) AS sender_address
     FROM messages
-    WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+    WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
   `).bind(messageId, user.activeWorkspaceId).first<{ mailbox_domain: string, sender_address: string }>()
 
   if (!message) throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
@@ -58,14 +58,14 @@ export default defineEventHandler(async (event) => {
         references_header, sender_address, is_set_aside, is_reply_later, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ClassifiedMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
   const messages = messagesResult.results
@@ -97,7 +97,8 @@ export default defineEventHandler(async (event) => {
   const previousRule = await bindings.DB.prepare(`
     SELECT folder, last_change_id FROM sender_rules
     WHERE mailbox_domain = ? AND sender_address = ?
-  `).bind(message.mailbox_domain, message.sender_address).first<SenderRuleRow>()
+      AND ${workspaceDomainScope('sender_rules.mailbox_domain', user.id)}
+  `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId).first<SenderRuleRow>()
 
   const now = new Date().toISOString()
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -108,7 +109,8 @@ export default defineEventHandler(async (event) => {
     const activePreviousChange = await bindings.DB.prepare(`
       SELECT id FROM sender_rule_changes
       WHERE id = ? AND undone_at IS NULL AND expires_at > ?
-    `).bind(previousRule.last_change_id, now).first<{ id: string }>()
+          AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain', user.id)}
+    `).bind(previousRule.last_change_id, now, user.activeWorkspaceId).first<{ id: string }>()
     previousChangeId = activePreviousChange?.id ?? null
   }
 
@@ -117,18 +119,21 @@ export default defineEventHandler(async (event) => {
       DELETE FROM sender_rule_change_messages
       WHERE change_id IN (
         SELECT id FROM sender_rule_changes WHERE expires_at <= ?
-          AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+          AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain', user.id)}
       )
     `).bind(now, user.activeWorkspaceId),
     bindings.DB.prepare(`
       DELETE FROM sender_rule_changes WHERE expires_at <= ?
-        AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain')}
+        AND ${workspaceDomainScope('sender_rule_changes.mailbox_domain', user.id)}
     `).bind(now, user.activeWorkspaceId),
     bindings.DB.prepare(`
       INSERT INTO sender_rule_changes (
         id, mailbox_domain, sender_address, previous_rule_folder, previous_change_id,
         next_folder, created_at, expires_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      )
+      SELECT ?, ?, ?, ?, ?, ?, ?, ? FROM workspace_domains
+      WHERE lower(workspace_domains.domain) = lower(?)
+        AND ${workspaceDomainScope('workspace_domains.domain', user.id)}
     `).bind(
       changeId,
       message.mailbox_domain,
@@ -138,46 +143,58 @@ export default defineEventHandler(async (event) => {
       folder,
       now,
       expiresAt,
+      message.mailbox_domain,
+      user.activeWorkspaceId,
     ),
     bindings.DB.prepare(`
       INSERT INTO sender_rule_change_messages (change_id, message_id, previous_folder)
       SELECT ?, id, folder FROM messages
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
         AND trashed_at IS NULL
-    `).bind(changeId, message.mailbox_domain, message.sender_address),
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(changeId, message.mailbox_domain, message.sender_address, user.activeWorkspaceId),
     ...[...mergeIdsToSnapshot].flatMap((mergeId) => {
       const previousFolder = mergesResult.results.find(row => row.merge_id === mergeId)?.folder
       if (!previousFolder || !folders.has(previousFolder as MailFolder)) return []
       return [bindings.DB.prepare(`
         INSERT INTO sender_rule_change_merges (change_id, merge_id, previous_folder)
-        VALUES (?, ?, ?)
-      `).bind(changeId, mergeId, previousFolder)]
+        SELECT ?, ?, ? WHERE EXISTS (
+          SELECT 1 FROM thread_merges
+          WHERE id = ? AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
+        )
+      `).bind(changeId, mergeId, previousFolder, mergeId, user.activeWorkspaceId)]
     }),
     bindings.DB.prepare(`
       INSERT INTO sender_rules (
         mailbox_domain, sender_address, folder, created_at, updated_at, last_change_id
-      ) VALUES (?, ?, ?, ?, ?, ?)
+      )
+      SELECT ?, ?, ?, ?, ?, ? FROM workspace_domains
+      WHERE lower(workspace_domains.domain) = lower(?)
+        AND ${workspaceDomainScope('workspace_domains.domain', user.id)}
       ON CONFLICT(mailbox_domain, sender_address) DO UPDATE SET
         folder = excluded.folder,
         updated_at = excluded.updated_at,
         last_change_id = excluded.last_change_id
-    `).bind(message.mailbox_domain, message.sender_address, folder, now, now, changeId),
+    `).bind(message.mailbox_domain, message.sender_address, folder, now, now, changeId, message.mailbox_domain, user.activeWorkspaceId),
     bindings.DB.prepare(`
       UPDATE messages
       SET folder = ?
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
         AND trashed_at IS NULL AND is_set_aside = 0 AND is_reply_later = 0
-    `).bind(folder, message.mailbox_domain, message.sender_address),
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(folder, message.mailbox_domain, message.sender_address, user.activeWorkspaceId),
     ...[...mergeIdsToMove].map(mergeId => bindings.DB.prepare(`
       UPDATE thread_merges SET folder = ? WHERE id = ? AND mailbox_domain = ?
-    `).bind(folder, mergeId, message.mailbox_domain)),
+        AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
+    `).bind(folder, mergeId, message.mailbox_domain, user.activeWorkspaceId)),
   ])
 
   const { results } = await bindings.DB.prepare(`
     SELECT COUNT(*) AS count FROM messages
     WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ?
       AND trashed_at IS NULL AND is_set_aside = 0 AND is_reply_later = 0
-  `).bind(message.mailbox_domain, message.sender_address).all<{ count: number }>()
+      AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+  `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId).all<{ count: number }>()
 
   return {
     folder,

@@ -1,5 +1,5 @@
 import { getThreadGrouping, messageReferences, type ManualThreadMergeMember, type ThreadableMessage } from './threading.ts'
-import { workspaceDomainScope } from './account-auth'
+import { workspaceDomainScope, workspaceMessageScope } from './account-auth'
 
 type SetAsideMessage = ThreadableMessage & {
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
@@ -7,21 +7,21 @@ type SetAsideMessage = ThreadableMessage & {
   trashed_at?: string | null
 }
 
-async function getSetAsideMessages(db: D1Database, workspaceId: string) {
+async function getSetAsideMessages(db: D1Database, workspaceId: string, userId: string) {
   const [messageResult, mergeResult] = await Promise.all([
     db.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
         references_header, is_set_aside, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceMessageScope('messages', userId)}
     `).bind(workspaceId).all<SetAsideMessage>(),
     db.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', userId)}
     `).bind(workspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -32,6 +32,7 @@ async function getSetAsideMessages(db: D1Database, workspaceId: string) {
 export async function isLinkedToSetAsideThread(
   db: D1Database,
   mailboxDomain: string,
+  mailboxAddress: string,
   inReplyTo: string | null,
   referencesHeader: string | null,
 ) {
@@ -46,16 +47,17 @@ export async function isLinkedToSetAsideThread(
     FROM messages
     WHERE mailbox_domain = ? AND folder = 'Imbox' AND is_set_aside = 1
       AND trashed_at IS NULL
+      AND lower(trim(envelope_to)) = lower(trim(?))
       AND message_id IN (SELECT value FROM json_each(?))
     LIMIT 1
-  `).bind(mailboxDomain, JSON.stringify(references)).first<{ linked: number }>()
+  `).bind(mailboxDomain, mailboxAddress, JSON.stringify(references)).first<{ linked: number }>()
 
   return Boolean(result)
 }
 
 /** Keep a newly active RFC/manual-merge group in Set Aside when it is already there. */
-export async function keepSetAsideThread(db: D1Database, messageId: string, workspaceId: string) {
-  const { messages, merges } = await getSetAsideMessages(db, workspaceId)
+export async function keepSetAsideThread(db: D1Database, messageId: string, workspaceId: string, userId: string) {
+  const { messages, merges } = await getSetAsideMessages(db, workspaceId, userId)
   const current = messages.find(message => message.id === messageId)
   if (!current) return 0
 
@@ -70,7 +72,7 @@ export async function keepSetAsideThread(db: D1Database, messageId: string, work
     UPDATE messages
     SET is_set_aside = 1
     WHERE id IN (SELECT value FROM json_each(?))
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', userId)}
   `).bind(JSON.stringify(members.map(message => message.id)), workspaceId).run()
 
   return members.length

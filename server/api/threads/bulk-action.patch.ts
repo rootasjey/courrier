@@ -49,14 +49,14 @@ export default defineEventHandler(async (event) => {
         is_read, is_set_aside, is_reply_later, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<BulkMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -92,7 +92,8 @@ export default defineEventHandler(async (event) => {
   if (action === 'mark-seen') {
     statements.push(bindings.DB.prepare(`
       UPDATE messages SET is_read = 1 WHERE id IN (SELECT value FROM json_each(?))
-    `).bind(messageIdsJson))
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(messageIdsJson, user.activeWorkspaceId))
   } else if (action === 'reply-later') {
     const enabled = body.enabled as boolean
     if (enabled && affectedMessages.some(message => message.is_set_aside)) {
@@ -100,7 +101,8 @@ export default defineEventHandler(async (event) => {
     }
     statements.push(bindings.DB.prepare(`
       UPDATE messages SET is_reply_later = ? WHERE id IN (SELECT value FROM json_each(?))
-    `).bind(enabled ? 1 : 0, messageIdsJson))
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(enabled ? 1 : 0, messageIdsJson, user.activeWorkspaceId))
   } else if (action === 'set-aside') {
     const enabled = body.enabled as boolean
     if (source !== 'Imbox' && source !== 'Set Aside') {
@@ -111,22 +113,26 @@ export default defineEventHandler(async (event) => {
     }
     statements.push(bindings.DB.prepare(`
       UPDATE messages SET is_set_aside = ? WHERE id IN (SELECT value FROM json_each(?))
-    `).bind(enabled ? 1 : 0, messageIdsJson))
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(enabled ? 1 : 0, messageIdsJson, user.activeWorkspaceId))
   } else if (action === 'move') {
     const folder = destination as MailFolder
     statements.push(bindings.DB.prepare(`
       UPDATE messages SET folder = ?, is_set_aside = 0, is_reply_later = 0
       WHERE id IN (SELECT value FROM json_each(?))
-    `).bind(folder, messageIdsJson))
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(folder, messageIdsJson, user.activeWorkspaceId))
     if (mergeIds.length) {
       statements.push(bindings.DB.prepare(`
         UPDATE thread_merges SET folder = ? WHERE id IN (SELECT value FROM json_each(?))
-      `).bind(folder, mergeIdsJson))
+          AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
+      `).bind(folder, mergeIdsJson, user.activeWorkspaceId))
     }
   } else {
     statements.push(bindings.DB.prepare(`
       UPDATE messages SET trashed_at = ? WHERE id IN (SELECT value FROM json_each(?))
-    `).bind(new Date().toISOString(), messageIdsJson))
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(new Date().toISOString(), messageIdsJson, user.activeWorkspaceId))
   }
 
   await bindings.DB.batch(statements)

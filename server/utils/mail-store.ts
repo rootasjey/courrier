@@ -69,6 +69,21 @@ export async function storeIncomingEmail(
   parsedEmail?: ParsedEmail,
 ) {
   const parsed = parsedEmail ?? await parseIncomingEmail(rawEmail)
+  const recipientAddress = envelope.to.trim().toLocaleLowerCase('en-US')
+  const mailbox = await bindings.DB.prepare(`
+    SELECT mb.id, mb.workspace_id, lower(wd.domain) AS domain
+    FROM mailboxes mb
+    JOIN workspace_domains wd ON wd.id = mb.domain_id AND wd.workspace_id = mb.workspace_id
+    JOIN workspaces w ON w.id = mb.workspace_id
+    WHERE lower(mb.address) = ? AND mb.status = 'active'
+      AND wd.verification_status IN ('verified', 'legacy_unverified')
+      AND w.status = 'active'
+    LIMIT 1
+  `).bind(recipientAddress).first<{ id: string, workspace_id: string, domain: string }>()
+  if (!mailbox) {
+    throw new Error('The incoming envelope recipient is not an active configured Courrier mailbox.')
+  }
+
   const contentHash = await sha256(rawEmail)
   const messageId = parsed.messageId?.trim() || `<${contentHash}@courrier.local>`
   const existing = await bindings.DB
@@ -94,6 +109,7 @@ export async function storeIncomingEmail(
     replyBelongsToSetAsideThread = await isLinkedToSetAsideThread(
       bindings.DB,
       mailboxDomain,
+      recipientAddress,
       parsed.inReplyTo || null,
       parsed.references || null,
     )
@@ -105,6 +121,7 @@ export async function storeIncomingEmail(
     replyLaterFolder = await linkedReplyLaterFolder(
       bindings.DB,
       mailboxDomain,
+      recipientAddress,
       parsed.inReplyTo || null,
       parsed.references || null,
     )

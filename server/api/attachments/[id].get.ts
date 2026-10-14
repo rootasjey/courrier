@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../../utils/mail-store'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope } from '../../utils/account-auth'
 
 type AttachmentRow = {
   object_key: string
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
     SELECT attachments.object_key, attachments.filename, attachments.mime_type
     FROM attachments
     JOIN messages ON messages.id = attachments.message_id
-    WHERE attachments.id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+    WHERE attachments.id = ? AND ${workspaceMessageScope('messages', user.id)}
   `).bind(id, user.activeWorkspaceId).first<AttachmentRow>()
 
   if (!attachment) {

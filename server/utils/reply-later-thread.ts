@@ -1,5 +1,5 @@
 import { getThreadGrouping, messageReferences, type ManualThreadMergeMember, type ThreadableMessage } from './threading.ts'
-import { workspaceDomainScope } from './account-auth'
+import { workspaceDomainScope, workspaceMessageScope } from './account-auth'
 
 type ReplyLaterMessage = ThreadableMessage & {
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
@@ -7,21 +7,21 @@ type ReplyLaterMessage = ThreadableMessage & {
   trashed_at: string | null
 }
 
-async function getActiveMessages(db: D1Database, workspaceId: string) {
+async function getActiveMessages(db: D1Database, workspaceId: string, userId: string) {
   const [messageResult, mergeResult] = await Promise.all([
     db.prepare(`
       SELECT id, message_id, mailbox_domain, folder, in_reply_to,
         references_header, is_reply_later, trashed_at
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceMessageScope('messages', userId)}
     `).bind(workspaceId).all<ReplyLaterMessage>(),
     db.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', userId)}
     `).bind(workspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -32,6 +32,7 @@ async function getActiveMessages(db: D1Database, workspaceId: string) {
 export async function linkedReplyLaterFolder(
   db: D1Database,
   mailboxDomain: string,
+  mailboxAddress: string,
   inReplyTo: string | null,
   referencesHeader: string | null,
 ) {
@@ -46,17 +47,18 @@ export async function linkedReplyLaterFolder(
     FROM messages
     WHERE mailbox_domain = ? AND is_reply_later = 1
       AND trashed_at IS NULL
+      AND lower(trim(envelope_to)) = lower(trim(?))
       AND message_id IN (SELECT value FROM json_each(?))
     ORDER BY received_at DESC
     LIMIT 1
-  `).bind(mailboxDomain, JSON.stringify(references)).first<{ folder: 'Imbox' | 'The Feed' | 'Paper Trail' }>()
+  `).bind(mailboxDomain, mailboxAddress, JSON.stringify(references)).first<{ folder: 'Imbox' | 'The Feed' | 'Paper Trail' }>()
 
   return result?.folder ?? null
 }
 
 /** Propagate the queue state to every member of an RFC or manually merged thread. */
-export async function keepReplyLaterThread(db: D1Database, messageId: string, workspaceId: string) {
-  const { messages, merges } = await getActiveMessages(db, workspaceId)
+export async function keepReplyLaterThread(db: D1Database, messageId: string, workspaceId: string, userId: string) {
+  const { messages, merges } = await getActiveMessages(db, workspaceId, userId)
   const current = messages.find(message => message.id === messageId)
   if (!current) return 0
 
@@ -71,15 +73,15 @@ export async function keepReplyLaterThread(db: D1Database, messageId: string, wo
     UPDATE messages
     SET is_reply_later = 1
     WHERE id IN (SELECT value FROM json_each(?))
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', userId)}
   `).bind(JSON.stringify(members.map(message => message.id)), workspaceId).run()
 
   return members.length
 }
 
 /** Clear Reply Later for the whole conversation after a reply has been sent. */
-export async function clearReplyLaterThread(db: D1Database, messageId: string, workspaceId: string) {
-  const { messages, merges } = await getActiveMessages(db, workspaceId)
+export async function clearReplyLaterThread(db: D1Database, messageId: string, workspaceId: string, userId: string) {
+  const { messages, merges } = await getActiveMessages(db, workspaceId, userId)
   const current = messages.find(message => message.id === messageId)
   if (!current) return 0
 
@@ -94,7 +96,7 @@ export async function clearReplyLaterThread(db: D1Database, messageId: string, w
     UPDATE messages
     SET is_reply_later = 0
     WHERE id IN (SELECT value FROM json_each(?))
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', userId)}
   `).bind(JSON.stringify(members.map(message => message.id)), workspaceId).run()
 
   return members.length

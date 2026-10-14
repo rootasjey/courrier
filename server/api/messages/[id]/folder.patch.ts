@@ -3,7 +3,7 @@ import {
   type ManualThreadMergeMember,
   type ThreadableMessage,
 } from '../../../utils/threading.ts'
-import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
+import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope } from '../../../utils/account-auth'
 
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 type ClassifiableMessage = ThreadableMessage & { is_reply_later: number }
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   const pendingScreenerMessage = await bindings.DB.prepare(`
     SELECT id FROM messages
     WHERE id = ? AND folder = 'Screener' AND screener_state = 'pending' AND trashed_at IS NULL
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', user.id)}
   `).bind(messageId, user.activeWorkspaceId).first<{ id: string }>()
 
   if (pendingScreenerMessage) {
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
       UPDATE messages
       SET folder = ?, screener_state = 'cleared'
       WHERE id = ? AND folder = 'Screener' AND screener_state = 'pending' AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceMessageScope('messages', user.id)}
     `).bind(folder, messageId, user.activeWorkspaceId).run()
 
     if (!result.meta.changes) {
@@ -56,14 +56,14 @@ export default defineEventHandler(async (event) => {
       SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header, is_reply_later
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ClassifiableMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -83,7 +83,7 @@ export default defineEventHandler(async (event) => {
 
   await bindings.DB.prepare(`
     UPDATE messages SET folder = ? WHERE id = ?
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceMessageScope('messages', user.id)}
   `).bind(folder, messageId, user.activeWorkspaceId).run()
 
   return { folder }

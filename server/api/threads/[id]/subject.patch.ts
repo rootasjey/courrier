@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const message = await bindings.DB.prepare(`
     SELECT id, mailbox_domain FROM messages WHERE id = ?
-      AND ${workspaceDomainScope('messages.mailbox_domain')}
+      AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
   `).bind(threadId, user.activeWorkspaceId).first<{ id: string, mailbox_domain: string }>()
   if (!message) {
     throw createError({ statusCode: 404, statusMessage: 'Ce fil est introuvable.' })
@@ -34,17 +34,20 @@ export default defineEventHandler(async (event) => {
   if (!subject) {
     await bindings.DB.prepare(`
       DELETE FROM thread_subject_overrides WHERE mailbox_domain = ? AND thread_id = ?
-    `).bind(message.mailbox_domain, message.id).run()
+        AND ${workspaceDomainScope('thread_subject_overrides.mailbox_domain', user.id)}
+    `).bind(message.mailbox_domain, message.id, user.activeWorkspaceId).run()
     return { threadId: message.id, subject: null }
   }
 
   await bindings.DB.prepare(`
     INSERT INTO thread_subject_overrides (mailbox_domain, thread_id, subject, updated_at)
-    VALUES (?, ?, ?, ?)
+    SELECT ?, ?, ?, ? FROM workspace_domains
+    WHERE lower(workspace_domains.domain) = lower(?)
+      AND ${workspaceDomainScope('workspace_domains.domain', user.id)}
     ON CONFLICT(mailbox_domain, thread_id) DO UPDATE SET
       subject = excluded.subject,
       updated_at = excluded.updated_at
-  `).bind(message.mailbox_domain, message.id, subject, new Date().toISOString()).run()
+  `).bind(message.mailbox_domain, message.id, subject, new Date().toISOString(), message.mailbox_domain, user.activeWorkspaceId).run()
 
   return { threadId: message.id, subject }
 })

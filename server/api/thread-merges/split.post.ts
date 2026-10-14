@@ -32,14 +32,14 @@ export default defineEventHandler(async (event) => {
       FROM messages
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail')
         AND trashed_at IS NULL
-        AND ${workspaceDomainScope('messages.mailbox_domain')}
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<MergeableMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
-      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain')}
+      WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
   ])
 
@@ -72,8 +72,16 @@ export default defineEventHandler(async (event) => {
   }
 
   const statements = [...mergeIds].flatMap(mergeId => [
-    bindings.DB.prepare('DELETE FROM thread_merge_members WHERE merge_id = ?').bind(mergeId),
-    bindings.DB.prepare('DELETE FROM thread_merges WHERE id = ?').bind(mergeId),
+    bindings.DB.prepare(`
+      DELETE FROM thread_merge_members WHERE merge_id = ? AND EXISTS (
+        SELECT 1 FROM thread_merges
+        WHERE id = ? AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
+      )
+    `).bind(mergeId, mergeId, user.activeWorkspaceId),
+    bindings.DB.prepare(`
+      DELETE FROM thread_merges WHERE id = ?
+        AND ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
+    `).bind(mergeId, user.activeWorkspaceId),
   ])
   await bindings.DB.batch(statements)
 

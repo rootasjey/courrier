@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const message = await bindings.DB.prepare(`
     SELECT mailbox_domain, lower(trim(sender_address)) AS sender_address
-    FROM messages WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain')}
+    FROM messages WHERE id = ? AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
   `).bind(messageId, user.activeWorkspaceId).first<{ mailbox_domain: string, sender_address: string }>()
 
   if (!message) throw createError({ statusCode: 404, statusMessage: 'Message introuvable.' })
@@ -27,20 +27,24 @@ export default defineEventHandler(async (event) => {
   await bindings.DB.batch([
     bindings.DB.prepare(`
       INSERT INTO blocked_senders (mailbox_domain, sender_address, created_at)
-      VALUES (?, ?, ?)
+      SELECT ?, ?, ? FROM workspace_domains
+      WHERE lower(workspace_domains.domain) = lower(?)
+        AND ${workspaceDomainScope('workspace_domains.domain', user.id)}
       ON CONFLICT(mailbox_domain, sender_address) DO NOTHING
-    `).bind(message.mailbox_domain, message.sender_address, now),
+    `).bind(message.mailbox_domain, message.sender_address, now, message.mailbox_domain, user.activeWorkspaceId),
     bindings.DB.prepare(`
       UPDATE messages
       SET screener_state = 'blocked'
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND folder = 'Screener' AND trashed_at IS NULL
-    `).bind(message.mailbox_domain, message.sender_address),
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId),
   ])
 
   const count = await bindings.DB.prepare(`
     SELECT COUNT(*) AS count FROM messages
     WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND folder = 'Screener' AND trashed_at IS NULL
-  `).bind(message.mailbox_domain, message.sender_address).first<{ count: number }>()
+      AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+  `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId).first<{ count: number }>()
 
   return { blocked: true, preservedMessages: count?.count ?? 0 }
 })
