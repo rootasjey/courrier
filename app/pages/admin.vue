@@ -59,17 +59,33 @@
 
         <section class="admin-section" aria-labelledby="admin-members-heading">
           <h2 id="admin-members-heading">{{ $t('admin.memberships') }}</h2>
+          <p class="admin-section-description">{{ $t('admin.membershipLifecycleDescription') }}</p>
+          <p v-if="membershipError" class="admin-access-error" role="alert">{{ membershipError }}</p>
+          <p v-if="membershipNotice" class="admin-access-notice" role="status">{{ membershipNotice }}</p>
           <div class="admin-table-wrap">
             <table>
-              <thead><tr><th>{{ $t('admin.user') }}</th><th>{{ $t('admin.workspace') }}</th><th>{{ $t('admin.role') }}</th><th>{{ $t('admin.status') }}</th><th>{{ $t('admin.created') }}</th></tr></thead>
+              <thead><tr><th>{{ $t('admin.user') }}</th><th>{{ $t('admin.workspace') }}</th><th>{{ $t('admin.role') }}</th><th>{{ $t('admin.status') }}</th><th>{{ $t('admin.created') }}</th><th>{{ $t('admin.action') }}</th></tr></thead>
               <tbody>
                 <tr v-for="membership in overview.memberships" :key="membership.id">
                   <td><strong>{{ membership.display_name || membership.email }}</strong><small>{{ membership.email }}</small></td><td>{{ membership.workspace_name }}</td>
                   <td><span class="admin-role">{{ membership.role }}</span></td>
                   <td><span class="admin-status" :class="`is-${membership.membership_status}`">{{ statusLabel(membership.membership_status) }}</span><small v-if="membership.user_status !== 'active'">{{ statusLabel(membership.user_status) }}</small></td>
                   <td>{{ formatDate(membership.created_at) }}</td>
+                  <td>
+                    <span v-if="membership.membership_status === 'active' && membership.is_last_active_owner" class="admin-access-protected">{{ $t('admin.lastOwnerProtected') }}</span>
+                    <button
+                      v-else
+                      class="admin-membership-action"
+                      :class="membership.membership_status === 'active' ? 'is-suspend' : 'is-reactivate'"
+                      type="button"
+                      :disabled="membershipBusy"
+                      @click="membershipToChange = membership"
+                    >
+                      {{ $t(membership.membership_status === 'active' ? 'admin.suspendMember' : 'admin.reactivateMember') }}
+                    </button>
+                  </td>
                 </tr>
-                <tr v-if="!overview.memberships.length"><td colspan="5" class="admin-empty">{{ $t('admin.noRows') }}</td></tr>
+                <tr v-if="!overview.memberships.length"><td colspan="6" class="admin-empty">{{ $t('admin.noRows') }}</td></tr>
               </tbody>
             </table>
           </div>
@@ -167,6 +183,33 @@
     </div>
 
     <NDialog
+      :open="Boolean(membershipToChange)"
+      :title="$t(membershipToChange?.membership_status === 'active' ? 'admin.suspendMember' : 'admin.reactivateMember')"
+      :description="membershipDialogDescription"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!open && !membershipBusy) membershipToChange = null }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t(membershipToChange?.membership_status === 'active' ? 'admin.suspendMember' : 'admin.reactivateMember') }}</NDialogTitle>
+          <NDialogDescription>{{ membershipDialogDescription }}</NDialogDescription>
+        </header>
+        <div class="dialog-actions">
+          <button class="dialog-cancel" type="button" :disabled="membershipBusy" @click="membershipToChange = null">{{ $t('common.cancel') }}</button>
+          <button
+            :class="membershipToChange?.membership_status === 'active' ? 'dialog-danger' : 'dialog-save'"
+            type="button"
+            :disabled="membershipBusy"
+            @click="updateMembershipStatus"
+          >
+            {{ membershipBusy ? $t('admin.savingMembership') : $t(membershipToChange?.membership_status === 'active' ? 'admin.suspendMember' : 'admin.reactivateMember') }}
+          </button>
+        </div>
+      </template>
+    </NDialog>
+
+    <NDialog
       :open="Boolean(accessToRevoke)"
       :title="$t('admin.revokeAccess')"
       :description="$t('admin.revokeAccessDescription', { member: accessToRevoke?.email || '', mailbox: accessToRevoke?.mailbox_address || '' })"
@@ -193,11 +236,12 @@
 <script setup lang="ts">
 definePageMeta({ pageTransition: false })
 
+type AdminMembership = { id: string, workspace_id: string, workspace_name: string, user_id: string, email: string, display_name: string, user_status: string, role: string, membership_status: string, created_at: string, is_last_active_owner: number }
 type AdminOverview = {
   counts: { workspace_count: number, domain_count: number, membership_count: number, pending_invitation_count: number }
   workspaces: { id: string, name: string, status: string, created_at: string, domain_count: number, mailbox_count: number, member_count: number }[]
   domains: { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string, verified_at: string | null, mailbox_count: number }[]
-  memberships: { id: string, workspace_id: string, workspace_name: string, user_id: string, email: string, display_name: string, user_status: string, role: string, membership_status: string, created_at: string }[]
+  memberships: AdminMembership[]
   invitations: { id: string, workspace_id: string, workspace_name: string, email: string, role: string, expires_at: string, accepted_at: string | null, revoked_at: string | null, created_at: string, status: string }[]
   audit: { id: string, actor_user_id: string | null, actor_email: string | null, action: string, target_type: string, target_id: string | null, workspace_id: string | null, created_at: string }[]
 }
@@ -220,6 +264,10 @@ const accessBusy = ref(false)
 const accessError = ref('')
 const accessNotice = ref('')
 const accessToRevoke = ref<AccessGrant | null>(null)
+const membershipBusy = ref(false)
+const membershipError = ref('')
+const membershipNotice = ref('')
+const membershipToChange = ref<AdminMembership | null>(null)
 
 const selectedMailbox = computed(() => mailboxAccess.value?.mailboxes.find(mailbox => mailbox.id === selectedMailboxId.value) ?? null)
 const selectedMailboxGrants = computed<AccessGrant[]>(() => {
@@ -236,6 +284,15 @@ const availableMembers = computed(() => {
   if (!selectedMailbox.value || !mailboxAccess.value) return []
   const activeGrants = new Set(selectedMailboxGrants.value.map(grant => grant.user_id))
   return mailboxAccess.value.members.filter(member => member.workspace_id === selectedMailbox.value!.workspace_id && !activeGrants.has(member.user_id))
+})
+
+const membershipDialogDescription = computed(() => {
+  const membership = membershipToChange.value
+  if (!membership) return ''
+  return $t(
+    membership.membership_status === 'active' ? 'admin.suspendMemberDescription' : 'admin.reactivateMemberDescription',
+    { member: membership.email, workspace: membership.workspace_name },
+  )
 })
 
 watch(selectedMailboxId, () => {
@@ -316,6 +373,29 @@ async function revokeSelectedAccess() {
     accessError.value = $t('admin.accessSaveError')
   } finally {
     accessBusy.value = false
+  }
+}
+
+async function updateMembershipStatus() {
+  const membership = membershipToChange.value
+  if (!membership || membershipBusy.value) return
+
+  const nextStatus = membership.membership_status === 'active' ? 'suspended' : 'active'
+  membershipBusy.value = true
+  membershipError.value = ''
+  membershipNotice.value = ''
+  try {
+    await $fetch(`/api/admin/memberships/${encodeURIComponent(membership.id)}`, {
+      method: 'PATCH',
+      body: { status: nextStatus },
+    })
+    membershipToChange.value = null
+    membershipNotice.value = $t(nextStatus === 'suspended' ? 'admin.membershipSuspendedNotice' : 'admin.membershipReactivatedNotice')
+    await loadOverview()
+  } catch {
+    membershipError.value = $t('admin.membershipSaveError')
+  } finally {
+    membershipBusy.value = false
   }
 }
 

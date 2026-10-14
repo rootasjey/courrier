@@ -726,6 +726,13 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .admin-access-remove { min-height: 32px; border-color: color-mix(in srgb, var(--error) 35%, var(--line)); background: transparent; color: var(--error); }
 .admin-access-remove:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 9%, var(--paper)); }
 .admin-access-action:disabled, .admin-access-remove:disabled { opacity: .55; cursor: wait; }
+.admin-membership-action { display: inline-flex; min-height: 32px; align-items: center; justify-content: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; font: inherit; font-size: 11px; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background-color 150ms ease, opacity 150ms ease; }
+.admin-membership-action.is-suspend { border-color: color-mix(in srgb, var(--error) 35%, var(--line)); color: var(--error); }
+.admin-membership-action.is-suspend:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 9%, var(--paper)); }
+.admin-membership-action.is-reactivate { border-color: color-mix(in srgb, var(--violet) 38%, var(--line)); color: var(--violet); }
+.admin-membership-action.is-reactivate:hover:not(:disabled) { background: var(--violet-wash); }
+.admin-membership-action:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.admin-membership-action:disabled { opacity: .55; cursor: wait; }
 .admin-access-table { margin-top: 18px; }
 .admin-access-protected { color: var(--quiet); font-size: 11px; }
 .admin-access-notice, .admin-access-error { margin: 12px 0; font-size: 12px; line-height: 1.5; }

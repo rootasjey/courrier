@@ -41,7 +41,16 @@ export default defineEventHandler(async (event) => {
     db.prepare(`
       SELECT wm.id, wm.workspace_id, w.name AS workspace_name, wm.user_id,
         u.email, u.display_name, u.status AS user_status, wm.role, wm.status AS membership_status,
-        wm.created_at
+        wm.created_at,
+        CASE WHEN wm.role = 'owner' AND NOT EXISTS (
+          SELECT 1
+          FROM workspace_memberships other_owner
+          JOIN users other_owner_user ON other_owner_user.id = other_owner.user_id AND other_owner_user.status = 'active'
+          WHERE other_owner.workspace_id = wm.workspace_id
+            AND other_owner.role = 'owner'
+            AND other_owner.status = 'active'
+            AND other_owner.id <> wm.id
+        ) THEN 1 ELSE 0 END AS is_last_active_owner
       FROM workspace_memberships wm
       JOIN users u ON u.id = wm.user_id
       JOIN workspaces w ON w.id = wm.workspace_id
@@ -50,7 +59,7 @@ export default defineEventHandler(async (event) => {
     `).all<{
       id: string, workspace_id: string, workspace_name: string, user_id: string,
       email: string, display_name: string, user_status: string, role: string,
-      membership_status: string, created_at: string,
+      membership_status: string, created_at: string, is_last_active_owner: number,
     }>(),
     db.prepare(`
       SELECT i.id, i.workspace_id, w.name AS workspace_name, i.email, i.role,
