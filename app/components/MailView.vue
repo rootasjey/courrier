@@ -1,12 +1,12 @@
 <template>
   <main class="mail-page">
-    <section v-if="!isReadingMessage" class="mailbox-view" :class="{ 'has-mail-stacks': showSetAsideStack || showReplyLaterStack }" aria-label="Boîte de réception">
+    <section v-if="!isReadingMessage" class="mailbox-view" :class="{ 'has-mail-stacks': showSetAsideStack || showReplyLaterStack }" :aria-label="$t('mail.inboxLabel')">
       <header class="inbox-heading">
       <div v-if="!isGlobalSearch" class="heading-actions">
           <template v-if="activeFolder === 'Screener'">
             <div class="screener-header-actions">
-              <button class="screener-help-trigger" type="button" aria-label="Afficher les raccourcis du Screener" title="Raccourcis clavier (?)" @click="screenerShortcutHelpOpen = true">?</button>
-              <button class="screener-done" type="button" @click="doneScreener">Done</button>
+              <button class="screener-help-trigger" type="button" :aria-label="$t('mail.screenerShortcuts')" :title="$t('mail.screenerShortcutTitle')" @click="screenerShortcutHelpOpen = true">?</button>
+              <button class="screener-done" type="button" @click="doneScreener">{{ $t('mail.screenerDone') }}</button>
             </div>
             <span aria-hidden="true" />
           </template>
@@ -18,18 +18,16 @@
               @click="navigateToFolder('Screener')"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1.2A4.8 4.8 0 0 1 6.8 14h.4A4.8 4.8 0 0 1 12 18.8V20m0-1.2a4.8 4.8 0 0 1 4.8-4.8h.4a4.8 4.8 0 0 1 4.8 4.8V20" /></svg>
-              <span>{{ allScreenerSenders.length }} expéditeur{{ allScreenerSenders.length > 1 ? 's' : '' }} à examiner</span>
+              <span>{{ $t(allScreenerSenders.length === 1 ? 'mail.reviewSenderOne' : 'mail.reviewSenderMany', { count: allScreenerSenders.length }) }}</span>
             </button>
-            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" title="Nouveau message" @click="openNewComposer">
+            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" :title="$t('mail.newMessage')" @click="openNewComposer">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-              <span>Écrire</span>
+              <span>{{ $t('mail.write') }}</span>
             </button>
           </template>
         </div>
-        <h1>{{ isGlobalSearch ? 'Recherche' : mailboxByName(activeFolder).label }}</h1>
-        <p v-if="activeFolder === 'Screener'" class="screener-intro">
-          « Non » bloque l’adresse et rejette ses prochains messages. « Clear all » écarte ceux déjà reçus sans bloquer leurs expéditeurs.
-        </p>
+        <h1>{{ isGlobalSearch ? $t('mail.search') : mailboxByName(activeFolder).label }}</h1>
+        <p v-if="activeFolder === 'Screener'" class="screener-intro">{{ $t('mail.screenerIntro') }}</p>
       </header>
 
       <div v-if="threadSelectionMode && selectedThreadIds.length" class="thread-selection-bar" role="status">
@@ -45,7 +43,7 @@
         </select>
         <button type="button" class="thread-selection-action thread-selection-trash" :disabled="isApplyingBulkAction" @click="applyBulkAction('trash')">{{ $t('bulk.trash') }}</button>
         <button v-if="selectedThreadIds.length > 1" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction || isMergingThreads" @click="mergeDialogOpen = true">
-          {{ isMergingThreads ? $t('bulk.merging') : $t('bulk.merge') }}
+          {{ isMergingThreads ? $t('mail.merging') : $t('bulk.merge') }}
         </button>
         <button type="button" class="thread-selection-cancel" :disabled="isApplyingBulkAction" @click="clearThreadSelection">{{ $t('bulk.cancel') }}</button>
       </div>
@@ -66,17 +64,17 @@
       </div>
 
       <div v-if="inboxMessagesError" class="empty-list error-state" role="alert">
-        <strong>La boîte n’a pas pu se charger.</strong>
-        <span>Vérifie ta connexion, puis réessaie.</span>
+        <strong>{{ $t('mail.loadErrorTitle') }}</strong>
+        <span>{{ $t('mail.loadErrorBody') }}</span>
         <button class="fixture-button" type="button" :disabled="isRefreshingInbox" @click="retryInboxLoad">
-          {{ isRefreshingInbox ? 'Chargement…' : 'Réessayer' }}
+          {{ isRefreshingInbox ? $t('mail.loading') : $t('mail.retry') }}
         </button>
       </div>
 
-      <section v-else-if="isGlobalSearch" class="search-results" aria-label="Résultats de recherche">
+      <section v-else-if="isGlobalSearch" class="search-results" :aria-label="$t('mail.searchResults')">
         <p class="search-results-summary" aria-live="polite">
-          <span v-if="searchLoading">Recherche en cours…</span>
-          <span v-else>{{ searchTotal }} message{{ searchTotal > 1 ? 's' : '' }} trouvé{{ searchTotal > 1 ? 's' : '' }} · {{ globalSearchThreads.length }} fil{{ globalSearchThreads.length > 1 ? 's' : '' }} affiché{{ globalSearchThreads.length > 1 ? 's' : '' }}</span>
+          <span v-if="searchLoading">{{ $t('mail.searching') }}</span>
+          <span v-else>{{ $t(searchTotal === 1 ? 'mail.searchSummaryOne' : 'mail.searchSummaryMany', { messages: searchTotal, threads: globalSearchThreads.length }) }}</span>
         </p>
         <p v-if="searchExceedsLimit" class="search-limit-notice" role="status">
           <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -84,15 +82,15 @@
             <path d="M10 7v4" />
             <circle cx="10" cy="13.7" r=".6" fill="currentColor" stroke="none" />
           </svg>
-          <span>La recherche est limitée aux 200 premiers caractères. La suite est ignorée.</span>
+          <span>{{ $t('mail.searchLimit') }}</span>
         </p>
         <p v-if="searchError" class="search-error" role="alert">{{ searchError }}</p>
-        <p v-else-if="searchLoading && !globalSearchThreads.length" class="search-empty">Recherche dans les messages…</p>
-        <p v-else-if="!globalSearchThreads.length" class="search-empty">Aucun message ne correspond à « {{ search.trim() }} ».</p>
+        <p v-else-if="searchLoading && !globalSearchThreads.length" class="search-empty">{{ $t('mail.searchingMessages') }}</p>
+        <p v-else-if="!globalSearchThreads.length" class="search-empty">{{ $t('mail.searchNoResults', { query: search.trim() }) }}</p>
         <div v-else class="thread-list search-result-list" role="list">
           <div v-for="thread in globalSearchThreads" :key="thread.id" role="listitem">
             <button class="thread-row search-result-row" type="button" @click="openMessage(thread.latest)">
-              <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }" :title="thread.manualMergeIds.length ? 'Fil fusionné' : undefined">
+                <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }" :title="thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : undefined">
                 <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                 <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
               </span>
@@ -106,40 +104,40 @@
           </div>
         </div>
         <button v-if="searchHasMore" class="search-load-more" type="button" :disabled="searchLoading" @click="loadMoreSearchResults">
-          {{ searchLoading ? 'Chargement…' : 'Afficher plus de résultats' }}
+          {{ searchLoading ? $t('mail.loading') : $t('mail.showMoreResults') }}
         </button>
       </section>
 
-      <div v-else-if="activeFolder === 'Screener'" class="thread-list screener-list" role="list" aria-label="Expéditeurs à classer">
+      <div v-else-if="activeFolder === 'Screener'" class="thread-list screener-list" role="list" :aria-label="$t('mail.screenerSenders')">
         <div class="screener-list-tools">
-          <div class="screener-view-switch" role="group" aria-label="Messages du Screener">
-            <button type="button" :aria-pressed="screenerView === 'pending'" @click="screenerView = 'pending'">À examiner <span>{{ allScreenerSenders.length }}</span></button>
-            <button type="button" :aria-pressed="screenerView === 'history'" @click="screenerView = 'history'">Historique <span>{{ screenerHistorySenders.length }}</span></button>
+          <div class="screener-view-switch" role="group" :aria-label="$t('mail.screenerMessages')">
+            <button type="button" :aria-pressed="screenerView === 'pending'" @click="screenerView = 'pending'">{{ $t('mail.screenerPending') }} <span>{{ allScreenerSenders.length }}</span></button>
+            <button type="button" :aria-pressed="screenerView === 'history'" @click="screenerView = 'history'">{{ $t('mail.screenerHistory') }} <span>{{ screenerHistorySenders.length }}</span></button>
           </div>
           <button v-if="screenerView === 'pending' && allScreenerSenders.length" class="screener-clear-all" type="button" :disabled="isClearingScreener" @click="requestClearScreener">
-            {{ isClearingScreener ? 'Écart…' : 'Clear all…' }}
+            {{ isClearingScreener ? $t('mail.screenerClearPending') : $t('mail.screenerClearAll') }}
           </button>
         </div>
         <template v-if="screenerView === 'pending'">
-          <p v-if="!screenerSenders.length" class="screener-empty">Aucun expéditeur en attente.</p>
+          <p v-if="!screenerSenders.length" class="screener-empty">{{ $t('mail.screenerEmptyPending') }}</p>
           <article v-for="sender in screenerSenders" :key="sender.address" class="screener-row" :class="{ 'is-keyboard-selected': selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US') }" :aria-current="selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US') ? 'true' : undefined" role="listitem">
             <svg v-if="selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US')" class="screener-current-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
             <div class="screener-actions">
-              <button class="screener-choice screener-yes transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="`Autoriser ${sender.address} et classer ses messages dans Inbox`" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, 'Imbox', 'sender')">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm0 0 4-8c2.2 0 3.1 1.7 2.5 3.6L12.5 10h6a3 3 0 0 1 2.9 3.8l-1.7 6A3 3 0 0 1 16.8 22H7" /></svg><strong>Oui</strong>
+              <button class="screener-choice screener-yes transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="$t('mail.authorizeAddress', { address: sender.address })" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, 'Imbox', 'sender')">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm0 0 4-8c2.2 0 3.1 1.7 2.5 3.6L12.5 10h6a3 3 0 0 1 2.9 3.8l-1.7 6A3 3 0 0 1 16.8 22H7" /></svg><strong>{{ $t('mail.allow') }}</strong>
               </button>
-              <button class="screener-choice screener-no transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="`Bloquer ${sender.address} et rejeter ses prochains messages`" :disabled="isSavingScreenerAction" @click="blockScreenerSender(sender.latest)">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14V3H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3Zm0 0 4 8c2.2 0 3.1-1.7 2.5-3.6L12.5 14h6a3 3 0 0 0 2.9-3.8l-1.7-6A3 3 0 0 0 16.8 2H7" /></svg><strong>Non</strong>
+              <button class="screener-choice screener-no transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="$t('mail.blockAddress', { address: sender.address })" :disabled="isSavingScreenerAction" @click="blockScreenerSender(sender.latest)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14V3H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3Zm0 0 4 8c2.2 0 3.1-1.7 2.5-3.6L12.5 14h6a3 3 0 0 0 2.9-3.8l-1.7-6A3 3 0 0 0 16.8 2H7" /></svg><strong>{{ $t('mail.block') }}</strong>
               </button>
               <div class="screener-options-wrap">
-                <button class="screener-options-trigger" type="button" :aria-label="`Options pour ${sender.address}`" :aria-expanded="openScreenerOptionsFor === sender.address" @click="toggleScreenerOptions(sender.address, sender.latest)">
+                <button class="screener-options-trigger" type="button" :aria-label="$t('mail.screenerOptions', { address: sender.address })" :aria-expanded="openScreenerOptionsFor === sender.address" @click="toggleScreenerOptions(sender.address, sender.latest)">
                   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
                 </button>
                 <Transition name="screener-popover">
-                  <div v-if="openScreenerOptionsFor === sender.address" class="screener-popover" role="dialog" :aria-label="`Classement de ${sender.address}`">
-                  <strong>Oui, et classer dans…</strong>
-                  <div class="screener-destinations" role="group" aria-label="Boîte de destination">
-                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside' && item.name !== 'Reply Later')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="`Destination ${destination.label} — ${destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P'}`" @click="screenerDestination = destination.name">
+                  <div v-if="openScreenerOptionsFor === sender.address" class="screener-popover" role="dialog" :aria-label="$t('mail.classifyAddress', { address: sender.address })">
+                  <strong>{{ $t('mail.allowAndClassify') }}</strong>
+                  <div class="screener-destinations" role="group" :aria-label="$t('mail.destination')">
+                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside' && item.name !== 'Reply Later')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="$t('mail.destinationShortcut', { destination: destination.label, shortcut: destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P' })" @click="screenerDestination = destination.name">
                       <svg v-if="destination.name === 'Imbox'" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></svg>
                       <svg v-else-if="destination.name === 'The Feed'" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5c3.3-.9 6.3-.4 9 1.5v13c-2.7-1.9-5.7-2.4-9-1.5v-13Zm18 0c-3.3-.9-6.3-.4-9 1.5v13c2.7-1.9 5.7-2.4 9-1.5v-13Z" /></svg>
                       <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21V3Zm3 5h6m-6 4h6m-6 4h4" /></svg>
@@ -147,19 +145,19 @@
                       <kbd>{{ destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P' }}</kbd>
                     </button>
                   </div>
-                  <div class="screener-scope" role="group" aria-label="Appliquer à">
-                    <button class="screener-scope-label" type="button" :aria-pressed="screenerScope === 'sender'" @click="screenerScope = 'sender'">Cet expéditeur</button>
-                    <button class="screener-scope-toggle" type="button" role="switch" :aria-checked="screenerScope === 'message'" aria-label="Basculer entre cet expéditeur et ce message" title="Raccourci G" @click="screenerScope = screenerScope === 'sender' ? 'message' : 'sender'">
+                  <div class="screener-scope" role="group" :aria-label="$t('mail.applyTo')">
+                    <button class="screener-scope-label" type="button" :aria-pressed="screenerScope === 'sender'" @click="screenerScope = 'sender'">{{ $t('mail.sender') }}</button>
+                    <button class="screener-scope-toggle" type="button" role="switch" :aria-checked="screenerScope === 'message'" :aria-label="$t('mail.switchScope')" title="G" @click="screenerScope = screenerScope === 'sender' ? 'message' : 'sender'">
                       <span />
                     </button>
-                    <button class="screener-scope-label screener-scope-message" type="button" :aria-pressed="screenerScope === 'message'" @click="screenerScope = 'message'">Ce message <kbd>G</kbd></button>
+                    <button class="screener-scope-label screener-scope-message" type="button" :aria-pressed="screenerScope === 'message'" @click="screenerScope = 'message'">{{ $t('mail.thisMessage') }} <kbd>G</kbd></button>
                   </div>
-                  <button class="screener-apply" type="button" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, screenerDestination, screenerScope)"><span>Appliquer</span><kbd>Y</kbd></button>
+                  <button class="screener-apply" type="button" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, screenerDestination, screenerScope)"><span>{{ $t('mail.apply') }}</span><kbd>Y</kbd></button>
                   </div>
                 </Transition>
               </div>
             </div>
-            <button class="thread-row screener-message" type="button" :aria-label="`Lire le dernier message de ${sender.address}`" @click="openMessage(sender.latest)">
+            <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
               <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
               <span class="thread-content">
                 <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time>{{ sender.latest.date }}</time></span>
@@ -171,10 +169,10 @@
           </article>
         </template>
         <template v-else>
-          <p v-if="!visibleScreenerHistory.length" class="screener-empty">Aucun message dans l’historique.</p>
+          <p v-if="!visibleScreenerHistory.length" class="screener-empty">{{ $t('mail.screenerEmptyHistory') }}</p>
           <article v-for="sender in visibleScreenerHistory" :key="`${sender.address}-${sender.state}`" class="screener-row screener-history-row" role="listitem">
-            <span class="screener-history-state" :class="`is-${sender.state}`">{{ sender.state === 'blocked' ? 'Bloqué' : 'Écarté' }}</span>
-            <button class="thread-row screener-message" type="button" :aria-label="`Lire le dernier message de ${sender.address}`" @click="openMessage(sender.latest)">
+            <span class="screener-history-state" :class="`is-${sender.state}`">{{ $t(sender.state === 'blocked' ? 'mail.blocked' : 'mail.dismissed') }}</span>
+            <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
               <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
               <span class="thread-content">
                 <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time>{{ sender.latest.date }}</time></span>
@@ -183,7 +181,7 @@
               </span>
               <span v-if="sender.count > 1" class="sender-message-count">{{ sender.count }}</span>
             </button>
-            <button class="screener-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreScreenerSender(sender.latest, sender.state)">{{ sender.state === 'blocked' ? 'Autoriser' : 'Remettre en attente' }}</button>
+            <button class="screener-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreScreenerSender(sender.latest, sender.state)">{{ $t(sender.state === 'blocked' ? 'mail.restoreSender' : 'mail.restoreSenderPending') }}</button>
           </article>
         </template>
       </div>
@@ -191,15 +189,15 @@
       <template v-else-if="activeFolder === 'Imbox' && visibleThreads.length">
         <section v-if="newThreads.length" class="message-group message-group-new" aria-labelledby="new-messages-heading">
           <header class="group-heading">
-            <h2 id="new-messages-heading">Nouveaux messages</h2>
+            <h2 id="new-messages-heading">{{ $t('mail.newMessages') }}</h2>
             <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
             <div v-for="thread in newThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
-              <span class="unread-indicator" :class="{ 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`">
+              <span class="unread-indicator" :class="{ 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :aria-label="$t(thread.unreadCount === 1 ? 'mail.unreadOne' : 'mail.unreadMany', { count: thread.unreadCount })">
                 <svg v-if="keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
               </span>
-              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
+              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="$t(threadSelectionMode ? 'mail.selectionToggle' : 'mail.selectionHint')" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
                   <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
@@ -220,13 +218,13 @@
 
         <section v-if="previouslySeenThreads.length" class="message-group message-group-seen" aria-labelledby="seen-messages-heading">
           <header class="group-heading">
-            <h2 id="seen-messages-heading">Déjà consultés</h2>
+            <h2 id="seen-messages-heading">{{ $t('mail.previouslySeen') }}</h2>
             <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
             <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
               <span v-if="keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
-              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
+              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="$t(threadSelectionMode ? 'mail.selectionToggle' : 'mail.selectionHint')" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
                   <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
@@ -252,7 +250,7 @@
             <svg v-if="keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
           </span>
           <span v-else-if="keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
-          <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="`${threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'Désélectionner' : 'Sélectionner'} le fil ${thread.latest.subject}${thread.manualMergeIds.length ? ', fil fusionné' : ''}`" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="threadSelectionMode ? 'Basculer la sélection' : 'Cliquer pour sélectionner ce fil'" @click="handleThreadAvatarClick(thread.id, $event)">
+          <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="$t(threadSelectionMode ? 'mail.selectionToggle' : 'mail.selectionHint')" @click="handleThreadAvatarClick(thread.id, $event)">
             <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
               <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
               <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
@@ -262,28 +260,28 @@
           <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
             <span class="thread-content">
               <span class="thread-subject">{{ thread.subject }}</span>
-              <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">Nouveau message</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
+              <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">{{ $t('mail.newMessageInThread') }}</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
             </span>
             <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
             <time class="thread-date">{{ thread.latest.date }}</time>
           </button>
-          <button v-if="activeFolder === 'Trash'" class="screener-restore trash-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(thread.latest)">Restaurer</button>
+          <button v-if="activeFolder === 'Trash'" class="screener-restore trash-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(thread.latest)">{{ $t('mail.restore') }}</button>
         </div>
       </div>
 
       <div v-else class="empty-list">
         <svg class="empty-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="8.5" /><path d="m20 20 6 6" /></svg>
-        <strong>{{ activeFolder === 'Screener' ? 'Aucun expéditeur en attente' : activeFolder === 'Trash' ? 'La corbeille est vide' : activeFolder === 'Set Aside' ? 'Rien de côté pour le moment' : activeFolder === 'Reply Later' ? 'Aucune réponse en attente' : 'Aucun message ici' }}</strong>
-        <span>{{ search ? 'Essaie avec un autre mot.' : activeFolder === 'Screener' ? 'Les nouveaux expéditeurs apparaîtront ici.' : activeFolder === 'Trash' ? 'Les messages que tu y déplaces apparaîtront ici.' : activeFolder === 'Set Aside' ? 'Les conversations mises de côté depuis Inbox apparaîtront ici.' : activeFolder === 'Reply Later' ? 'Les conversations à reprendre plus tard apparaîtront ici.' : 'Ce dossier attend ses premiers messages.' }}</span>
+        <strong>{{ $t(activeFolder === 'Screener' ? 'mail.emptyScreenerTitle' : activeFolder === 'Trash' ? 'mail.emptyTrashTitle' : activeFolder === 'Set Aside' ? 'mail.emptySetAsideTitle' : activeFolder === 'Reply Later' ? 'mail.emptyReplyLaterTitle' : 'mail.emptyFolderTitle') }}</strong>
+        <span>{{ $t(search ? 'mail.emptySearchHint' : activeFolder === 'Screener' ? 'mail.emptyScreenerHint' : activeFolder === 'Trash' ? 'mail.emptyTrashHint' : activeFolder === 'Set Aside' ? 'mail.emptySetAsideHint' : activeFolder === 'Reply Later' ? 'mail.emptyReplyLaterHint' : 'mail.emptyFolderHint') }}</span>
         <button v-if="isDevelopment && activeFolder === 'Imbox' && !search" class="fixture-button" type="button" :disabled="isImportingFixture" @click="importFixture">
-          {{ isImportingFixture ? 'Import en cours…' : 'Charger un message de test' }}
+          {{ isImportingFixture ? $t('mail.importFixture') : $t('mail.loadFixture') }}
         </button>
         <span v-if="fixtureError" class="fixture-error" role="alert">{{ fixtureError }}</span>
       </div>
 
-      <section v-if="showSetAsideStack" class="mail-stack set-aside-stack" data-stack-kind="set-aside" :class="{ 'is-expanded': isSetAsideStackExpanded, 'is-paired': showReplyLaterStack }" :style="{ '--set-aside-expanded-height': setAsideStackExpandedHeight }" aria-label="Conversations mises de côté">
+      <section v-if="showSetAsideStack" class="mail-stack set-aside-stack" data-stack-kind="set-aside" :class="{ 'is-expanded': isSetAsideStackExpanded, 'is-paired': showReplyLaterStack }" :style="{ '--set-aside-expanded-height': setAsideStackExpandedHeight }" :aria-label="$t('mail.setAsideStackLabel')">
         <div class="set-aside-stack-stage">
-          <div id="set-aside-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="isSetAsideStackExpanded ? 'Pile Set Aside dépliée' : 'Pile Set Aside repliée'">
+          <div id="set-aside-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="$t(isSetAsideStackExpanded ? 'mail.setAsideStackExpanded' : 'mail.setAsideStackCollapsed')">
             <div class="set-aside-stack-cards" :class="{ 'is-expanded': isSetAsideStackExpanded }">
               <button
                 v-for="(thread, index) in setAsideStackPreview"
@@ -291,7 +289,7 @@
                 class="set-aside-stack-card"
                 type="button"
                 :class="{ 'is-front-card': index === 0 }"
-                :aria-label="!isSetAsideStackExpanded && index === 0 ? 'Déplier la pile Set Aside' : undefined"
+                :aria-label="!isSetAsideStackExpanded && index === 0 ? $t('mail.expandSetAsideStack') : undefined"
                 :aria-hidden="!isSetAsideStackExpanded && index > 0 ? 'true' : undefined"
                 :tabindex="!isSetAsideStackExpanded && index > 0 ? -1 : undefined"
                 :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: setAsideStackPreview.length - index + 1 }"
@@ -306,15 +304,15 @@
                 <span v-if="!isSetAsideStackExpanded && index === 0" class="set-aside-stack-count">{{ setAsideThreads.length }}</span>
               </button>
             </div>
-            <NuxtLink class="set-aside-stack-all" :class="{ 'is-visible': isSetAsideStackExpanded }" :aria-hidden="!isSetAsideStackExpanded ? 'true' : undefined" :tabindex="isSetAsideStackExpanded ? undefined : -1" :to="mailboxPath('Set Aside')">Voir Set Aside <span aria-hidden="true">→</span></NuxtLink>
+            <NuxtLink class="set-aside-stack-all" :class="{ 'is-visible': isSetAsideStackExpanded }" :aria-hidden="!isSetAsideStackExpanded ? 'true' : undefined" :tabindex="isSetAsideStackExpanded ? undefined : -1" :to="mailboxPath('Set Aside')">{{ $t('mail.viewSetAside') }} <span aria-hidden="true">→</span></NuxtLink>
           </div>
         </div>
-        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">Pile Set Aside {{ isSetAsideStackExpanded ? 'dépliée' : 'repliée' }}.</span>
+        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ $t(isSetAsideStackExpanded ? 'mail.setAsideStackExpanded' : 'mail.setAsideStackCollapsed') }}.</span>
       </section>
 
-      <section v-if="showReplyLaterStack" class="mail-stack set-aside-stack reply-later-stack" data-stack-kind="reply-later" :class="{ 'is-expanded': isReplyLaterStackExpanded, 'is-paired': showSetAsideStack }" :style="{ '--set-aside-expanded-height': replyLaterStackExpandedHeight }" aria-label="Conversations à reprendre plus tard">
+      <section v-if="showReplyLaterStack" class="mail-stack set-aside-stack reply-later-stack" data-stack-kind="reply-later" :class="{ 'is-expanded': isReplyLaterStackExpanded, 'is-paired': showSetAsideStack }" :style="{ '--set-aside-expanded-height': replyLaterStackExpandedHeight }" :aria-label="$t('mail.replyLaterStackLabel')">
         <div class="set-aside-stack-stage">
-          <div id="reply-later-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="isReplyLaterStackExpanded ? 'Pile Reply Later dépliée' : 'Pile Reply Later repliée'">
+          <div id="reply-later-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="$t(isReplyLaterStackExpanded ? 'mail.replyLaterStackExpanded' : 'mail.replyLaterStackCollapsed')">
             <div class="set-aside-stack-cards" :class="{ 'is-expanded': isReplyLaterStackExpanded }">
               <button
                 v-for="(thread, index) in replyLaterStackPreview"
@@ -322,7 +320,7 @@
                 class="set-aside-stack-card reply-later-stack-card"
                 type="button"
                 :class="{ 'is-front-card': index === 0 }"
-                :aria-label="!isReplyLaterStackExpanded && index === 0 ? 'Déplier la pile Reply Later' : undefined"
+                :aria-label="!isReplyLaterStackExpanded && index === 0 ? $t('mail.expandReplyLaterStack') : undefined"
                 :aria-hidden="!isReplyLaterStackExpanded && index > 0 ? 'true' : undefined"
                 :tabindex="!isReplyLaterStackExpanded && index > 0 ? -1 : undefined"
                 :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: replyLaterStackPreview.length - index + 1 }"
@@ -337,24 +335,24 @@
                 <span v-if="!isReplyLaterStackExpanded && index === 0" class="set-aside-stack-count reply-later-stack-count">{{ replyLaterThreads.length }}</span>
               </button>
             </div>
-            <NuxtLink class="set-aside-stack-all reply-later-stack-all" :class="{ 'is-visible': isReplyLaterStackExpanded }" :aria-hidden="!isReplyLaterStackExpanded ? 'true' : undefined" :tabindex="isReplyLaterStackExpanded ? undefined : -1" :to="mailboxPath('Reply Later')">Voir Reply Later <span aria-hidden="true">→</span></NuxtLink>
+            <NuxtLink class="set-aside-stack-all reply-later-stack-all" :class="{ 'is-visible': isReplyLaterStackExpanded }" :aria-hidden="!isReplyLaterStackExpanded ? 'true' : undefined" :tabindex="isReplyLaterStackExpanded ? undefined : -1" :to="mailboxPath('Reply Later')">{{ $t('mail.viewReplyLater') }} <span aria-hidden="true">→</span></NuxtLink>
           </div>
         </div>
-        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">Pile Reply Later {{ isReplyLaterStackExpanded ? 'dépliée' : 'repliée' }}.</span>
+        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ $t(isReplyLaterStackExpanded ? 'mail.replyLaterStackExpanded' : 'mail.replyLaterStackCollapsed') }}.</span>
       </section>
     </section>
 
-    <section v-else-if="selectedMessage" class="reading-column" aria-label="Message sélectionné">
+    <section v-else-if="selectedMessage" class="reading-column" :aria-label="$t('mail.selectedMessage')">
       <div class="reading-toolbar">
         <button class="back-to-list" type="button" @click="closeMessage">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5M7.5 10h9" /></svg>
-          <span>Retour à {{ mailboxByName(activeFolder).label }}</span>
+          <span>{{ $t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) }}</span>
           <kbd>Esc</kbd>
         </button>
       </div>
       <div v-if="messageReadError" class="message-read-error" role="alert">
         <span>{{ messageReadError }}</span>
-        <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">Réessayer</button>
+        <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">{{ $t('mail.retryMarkRead') }}</button>
       </div>
 
       <article class="message-paper">
@@ -393,20 +391,20 @@
           </div>
         </div>
         <div v-if="selectedThread?.manualMergeIds.length" class="merged-thread-control">
-          <span>Cette conversation réunit plusieurs fils.</span>
+          <span>{{ $t('mail.mergedConversationNote') }}</span>
           <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
-            {{ isSplittingThread ? 'Séparation…' : 'Séparer les fils' }}
+            {{ isSplittingThread ? $t('mail.splitting') : $t('mail.splitThreads') }}
           </button>
         </div>
         <div class="thread-carousel">
           <div v-if="chronologicalMessages.length > 1" class="thread-carousel-header">
             <div class="thread-carousel-status">
-              <span class="thread-carousel-position" aria-live="polite">Message {{ activeThreadMessageIndex + 1 }} sur {{ chronologicalMessages.length }}</span>
-              <NTooltip :content="isReadingAll ? 'Lire un message à la fois' : 'Lire toute la conversation'">
+              <span class="thread-carousel-position" aria-live="polite">{{ $t('mail.messagePosition', { current: activeThreadMessageIndex + 1, total: chronologicalMessages.length }) }}</span>
+              <NTooltip :content="$t(isReadingAll ? 'mail.readOneAtATime' : 'mail.readWholeConversation')">
                 <button
                   class="thread-read-all"
                   type="button"
-                  :aria-label="isReadingAll ? 'Lire un message à la fois' : 'Lire toute la conversation'"
+                  :aria-label="$t(isReadingAll ? 'mail.readOneAtATime' : 'mail.readWholeConversation')"
                   :aria-pressed="isReadingAll"
                   @click="toggleReadAll"
                 >
@@ -427,12 +425,12 @@
             v-if="chronologicalMessages.length > 1"
             class="thread-carousel-navigation"
             :style="{ '--thread-navigation-width': Math.min(chronologicalMessages.length * 240 + 96, 1050) + 'px' }"
-            aria-label="Navigation dans la conversation"
+            :aria-label="$t('mail.conversationNavigation')"
           >
             <button
               class="thread-carousel-arrow"
               type="button"
-              aria-label="Message précédent"
+              :aria-label="$t('mail.previousMessage')"
               :disabled="activeThreadMessageIndex <= 0"
               @click="navigateThreadMessage(-1)"
             >‹</button>
@@ -441,7 +439,7 @@
               :class="{ 'can-scroll-start': railCanScrollStart, 'can-scroll-end': railCanScrollEnd }"
             >
               <span v-if="railCanScrollStart" class="thread-message-rail-fade thread-message-rail-fade-start" aria-hidden="true" />
-              <div ref="threadMessageRail" class="thread-message-rail" role="group" aria-label="Messages de la conversation" @scroll="updateThreadRailOverflow">
+              <div ref="threadMessageRail" class="thread-message-rail" role="group" :aria-label="$t('mail.conversationMessages')" @scroll="updateThreadRailOverflow">
                 <button
                   v-for="(message, index) in chronologicalMessages"
                   :id="'thread-message-tab-' + message.id"
@@ -458,7 +456,7 @@
                     <time>{{ message.date }}</time>
                   </span>
                   <span class="thread-tab-preview">{{ message.subject }} · {{ message.preview }}</span>
-                  <span class="sr-only">Message {{ index + 1 }} sur {{ chronologicalMessages.length }}</span>
+                  <span class="sr-only">{{ $t('mail.messagePosition', { current: index + 1, total: chronologicalMessages.length }) }}</span>
                 </button>
               </div>
               <span v-if="railCanScrollEnd" class="thread-message-rail-fade thread-message-rail-fade-end" aria-hidden="true" />
@@ -466,7 +464,7 @@
             <button
               class="thread-carousel-arrow"
               type="button"
-              aria-label="Message suivant"
+              :aria-label="$t('mail.nextMessage')"
               :disabled="activeThreadMessageIndex >= chronologicalMessages.length - 1"
               @click="navigateThreadMessage(1)"
             >›</button>
@@ -479,13 +477,13 @@
               :key="activeThreadMessage.id"
               id="thread-message-panel"
               class="thread-message-card"
-              :aria-label="'Message de ' + activeThreadMessage.sender"
+              :aria-label="$t('mail.messageFrom', { sender: activeThreadMessage.sender })"
             >
               <div class="message-meta">
                 <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
                 <span class="meta-copy">
                   <strong>{{ activeThreadMessage.sender }}</strong>
-                  <span v-if="activeThreadMessage.isOutgoing">À {{ activeThreadMessage.recipient }}</span>
+                  <span v-if="activeThreadMessage.isOutgoing">{{ $t('mail.recipient') }} {{ activeThreadMessage.recipient }}</span>
                   <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
                 </span>
                 <time>{{ activeThreadMessage.date }}</time>
@@ -494,15 +492,15 @@
               <div class="message-rule" />
               <div v-if="activeThreadMessage.isOutgoing && activeThreadMessage.htmlBody" class="message-rich-body" v-html="activeThreadMessage.htmlBody" />
               <template v-else><p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-              <div v-if="activeThreadMessage.attachments.length" class="attachment-list" aria-label="Pièces jointes">
-                <span class="attachment-heading">{{ activeThreadMessage.attachments.length }} pièce{{ activeThreadMessage.attachments.length > 1 ? 's' : '' }} jointe{{ activeThreadMessage.attachments.length > 1 ? 's' : '' }}</span>
+              <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
+                <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
                 <a
                   v-for="attachment in activeThreadMessage.attachments"
                   :key="attachment.id"
                   class="attachment-item"
                   :href="`/api/attachments/${attachment.id}`"
                   :download="attachment.filename"
-                  :aria-label="`Télécharger ${attachment.filename}`"
+                  :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
                 >
                   <span aria-hidden="true">↳</span>
                   <strong>{{ attachment.filename }}</strong>
@@ -520,13 +518,13 @@
               :key="message.id"
               class="thread-message-card thread-full-message"
               :class="message.id === activeThreadMessage?.id ? 'is-selected' : undefined"
-              :aria-label="'Message de ' + message.sender"
+              :aria-label="$t('mail.messageFrom', { sender: message.sender })"
             >
               <div class="message-meta">
                 <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
               <span class="meta-copy">
                 <strong>{{ message.sender }}</strong>
-                <span v-if="message.isOutgoing">À {{ message.recipient }}</span>
+                <span v-if="message.isOutgoing">{{ $t('mail.recipient') }} {{ message.recipient }}</span>
                 <NuxtLink v-else class="sender-profile-link" :to="senderPath(message.address)">{{ message.address }}</NuxtLink>
                 </span>
                 <time>{{ message.date }}</time>
@@ -534,15 +532,15 @@
               <div class="message-rule" />
               <div v-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
               <template v-else><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-              <div v-if="message.attachments.length" class="attachment-list" aria-label="Pièces jointes">
-                <span class="attachment-heading">{{ message.attachments.length }} pièce{{ message.attachments.length > 1 ? 's' : '' }} jointe{{ message.attachments.length > 1 ? 's' : '' }}</span>
+              <div v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
+                <span class="attachment-heading">{{ $t(message.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: message.attachments.length }) }}</span>
                 <a
                   v-for="attachment in message.attachments"
                   :key="attachment.id"
                   class="attachment-item"
                   :href="`/api/attachments/${attachment.id}`"
                   :download="attachment.filename"
-                  :aria-label="`Télécharger ${attachment.filename}`"
+                  :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
                 >
                   <span aria-hidden="true">↳</span>
                   <strong>{{ attachment.filename }}</strong>
@@ -555,42 +553,42 @@
       </article>
 
       <form v-if="replyComposerOpen" class="reply-composer" @submit.prevent="requestReplySend">
-        <div class="reply-composer-to"><span>À</span><strong>{{ replyRecipient }}</strong></div>
-        <label class="sr-only" for="reply-body">Votre réponse</label>
-        <textarea id="reply-body" v-model="replyBody" autofocus placeholder="Écrire une réponse…" :disabled="replyLoading || replySending || replyDraftStatus === 'sending'" />
+        <div class="reply-composer-to"><span>{{ $t('mail.recipient') }}</span><strong>{{ replyRecipient }}</strong></div>
+        <label class="sr-only" for="reply-body">{{ $t('mail.yourReply') }}</label>
+        <textarea id="reply-body" v-model="replyBody" autofocus :placeholder="$t('mail.replyPlaceholder')" :disabled="replyLoading || replySending || replyDraftStatus === 'sending'" />
         <p v-if="replyError" class="reply-error" role="alert">{{ replyError }}</p>
         <div class="reply-composer-footer">
-          <span class="reply-save-status" role="status">{{ replyLoading ? 'Chargement du brouillon…' : replyDraftStatus === 'sending' ? 'Envoi déjà lancé — vérifie la boîte destinataire.' : replySaving ? 'Enregistrement…' : replySaved ? 'Brouillon enregistré dans Courrier' : 'Brouillon non enregistré' }}</span>
-          <button type="button" class="reply-secondary" :disabled="replySending" @click="replyComposerOpen = false">Réduire</button>
+          <span class="reply-save-status" role="status">{{ replyLoading ? $t('mail.replyLoading') : replyDraftStatus === 'sending' ? $t('mail.replyAlreadySending') : replySaving ? $t('mail.saving') : replySaved ? $t('mail.replySaved') : $t('mail.replyNotSaved') }}</span>
+          <button type="button" class="reply-secondary" :disabled="replySending" @click="replyComposerOpen = false">{{ $t('mail.reduce') }}</button>
           <button type="submit" class="reply-send" :disabled="replySending || replySaving || replyDraftStatus === 'sending' || !replyBody.trim()">
-            {{ replySending ? 'Envoi…' : 'Envoyer' }}
+            {{ replySending ? $t('mail.sending') : $t('palette.send') }}
           </button>
         </div>
       </form>
-      <div class="message-action-dock" role="toolbar" aria-label="Actions du message">
+      <div class="message-action-dock" role="toolbar" :aria-label="$t('mail.messageActions')">
         <div class="message-action-group">
           <button v-if="!replyComposerOpen && activeFolder !== 'Trash'" class="message-action-reply" type="button" @click="openReplyComposer">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
-            <span>Répondre</span><kbd>R</kbd>
+            <span>{{ $t('mail.reply') }}</span><kbd>R</kbd>
           </button>
           <button v-if="activeFolder === 'Trash'" class="message-action-button" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
-            {{ isSavingScreenerAction ? 'Restauration…' : 'Restaurer' }}
+            {{ isSavingScreenerAction ? $t('mail.restoring') : $t('mail.restore') }}
           </button>
           <template v-else>
             <button v-if="activeFolder === 'Set Aside'" class="message-action-button" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
-              {{ isSavingSetAside ? 'Remise en boîte…' : 'Remettre dans la boîte' }}<kbd>A</kbd>
+              {{ isSavingSetAside ? $t('mail.restoring') : $t('mail.restoreToMailbox') }}<kbd>A</kbd>
             </button>
             <button v-else-if="activeFolder === 'Imbox'" class="message-action-button" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
-              {{ isSavingSetAside ? 'Mise de côté…' : 'Set Aside' }}<kbd>A</kbd>
+              {{ isSavingSetAside ? $t('mail.setAsideSaving') : 'Set Aside' }}<kbd>A</kbd>
             </button>
             <button v-else-if="activeFolder !== 'Reply Later'" class="message-action-button" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
-              {{ selectedThread?.manualMergeIds.length ? 'Classer' : 'Déplacer' }}
+              {{ $t(selectedThread?.manualMergeIds.length ? 'mail.classify' : 'mail.move') }}
             </button>
             <button v-if="activeFolder === 'Reply Later'" class="message-action-button" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(false)">
-              {{ isSavingReplyLater ? 'Remise dans la boîte…' : 'Retirer de Reply Later' }}<kbd>L</kbd>
+              {{ isSavingReplyLater ? $t('mail.replyLaterRemoveSaving') : $t('mail.removeFromReplyLater') }}<kbd>L</kbd>
             </button>
             <button v-else-if="activeFolder !== 'Set Aside'" class="message-action-button" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(true)">
-              {{ isSavingReplyLater ? 'Ajout à la file…' : 'Reply Later' }}<kbd>L</kbd>
+              {{ isSavingReplyLater ? $t('mail.replyLaterSaving') : 'Reply Later' }}<kbd>L</kbd>
             </button>
           </template>
           <NTooltip v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)" :content="$t('palette.trashActionDescription')">
@@ -627,7 +625,7 @@
 
     <NDialog
       :open="Boolean(classificationTarget)"
-      :title="'Où ranger ses messages ?'"
+      :title="$t('mail.classifyDialogTitle')"
       :description="classificationTarget ? `${classificationTarget.sender} — ${classificationTarget.address}` : undefined"
       :show-close="false"
       :_dialog-content="{ class: 'classification-dialog' }"
@@ -635,33 +633,33 @@
     >
       <template #content>
         <header class="dialog-header">
-          <p class="dialog-kicker">{{ classificationTarget?.folder === 'Screener' ? 'Nouvel expéditeur' : 'Classement' }}</p>
-          <NDialogTitle class="dialog-title">Où ranger ses messages ?</NDialogTitle>
-          <NDialogDescription class="sr-only">Choisissez une boîte pour cet expéditeur, ce groupe ou ce message.</NDialogDescription>
+          <p class="dialog-kicker">{{ $t(classificationTarget?.folder === 'Screener' ? 'mail.newSender' : 'mail.classification') }}</p>
+          <NDialogTitle class="dialog-title">{{ $t('mail.classifyDialogTitle') }}</NDialogTitle>
+          <NDialogDescription class="sr-only">{{ $t('mail.chooseDestinationDescription') }}</NDialogDescription>
           <p class="dialog-sender">{{ classificationTarget?.sender }} <span>{{ classificationTarget?.address }}</span></p>
         </header>
 
         <fieldset class="classification-scope">
-          <legend>Portée</legend>
+          <legend>{{ $t('mail.scope') }}</legend>
           <label v-if="selectedThread?.manualMergeIds.length" class="scope-option">
             <input v-model="classificationScope" type="radio" value="group">
-            <span><strong>Cette conversation</strong><small>Tous ses messages actuels. Les règles des expéditeurs restent inchangées.</small></span>
+            <span><strong>{{ $t('mail.thisConversation') }}</strong><small>{{ $t('mail.currentMessagesOnly') }}</small></span>
           </label>
           <label v-if="!selectedThread?.manualMergeIds.length" class="scope-option">
             <input v-model="classificationScope" type="radio" value="sender">
-            <span><strong>Cet expéditeur</strong><small>Ses messages déjà reçus et les prochains.</small></span>
+            <span><strong>{{ $t('mail.sender') }}</strong><small>{{ $t('mail.senderExistingAndFuture') }}</small></span>
           </label>
           <label v-if="!selectedThread?.manualMergeIds.length" class="scope-option">
             <input v-model="classificationScope" type="radio" value="message">
-            <span><strong>Ce message seulement</strong><small>{{ classificationTarget?.hasSenderRule ? 'Les prochains suivront la règle actuelle.' : 'Les autres et les prochains resteront au Screener.' }}</small></span>
+            <span><strong>{{ $t('mail.thisMessageOnly') }}</strong><small>{{ $t(classificationTarget?.hasSenderRule ? 'mail.futureFollowRule' : 'mail.othersRemainScreener') }}</small></span>
           </label>
           <p v-if="selectedThread?.manualMergeIds.length" class="classification-scope-note">
-            Le reclassement d’un expéditeur ne se fait pas depuis cette conversation. Pour déplacer un seul message, sépare d’abord les fils.
+            {{ $t('mail.mergedClassificationWarning') }}
           </p>
         </fieldset>
 
         <fieldset class="classification-destinations">
-          <legend>Destination</legend>
+          <legend>{{ $t('mail.folderDestination') }}</legend>
           <label v-for="folder in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside' && item.name !== 'Reply Later')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
             <input v-model="classificationFolder" type="radio" :value="folder.name">
             <span><strong>{{ folder.label }}</strong><small>{{ folder.description }}</small></span>
@@ -671,10 +669,10 @@
         <p v-if="classificationError" class="dialog-error" role="alert">{{ classificationError }}</p>
         <footer class="dialog-actions">
           <NDialogClose as-child>
-            <button class="dialog-cancel" type="button" :disabled="isSavingClassification">Annuler</button>
+            <button class="dialog-cancel" type="button" :disabled="isSavingClassification">{{ $t('mail.cancel') }}</button>
           </NDialogClose>
           <button class="dialog-save" type="button" :disabled="isSavingClassification" @click="saveClassification">
-            {{ isSavingClassification ? 'Enregistrement…' : classificationScope === 'sender' ? 'Classer l’expéditeur' : classificationScope === 'group' ? 'Déplacer la conversation' : 'Déplacer ce message' }}
+            {{ $t(isSavingClassification ? 'mail.classifying' : classificationScope === 'sender' ? 'mail.classifySender' : classificationScope === 'group' ? 'mail.moveConversation' : 'mail.moveMessage') }}
           </button>
         </footer>
       </template>
@@ -682,99 +680,99 @@
 
     <NDialog
       :open="replySendConfirmOpen"
-      title="Envoyer cette réponse ?"
-      description="Vérifie le destinataire et le contenu avant de confirmer l’envoi."
+      :title="$t('mail.sendReplyTitle')"
+      :description="$t('mail.verifyRecipient')"
       :_dialog-content="{ class: 'classification-dialog reply-confirm-dialog' }"
       @update:open="(open: boolean) => { replySendConfirmOpen = open }"
     >
       <template #content>
         <header class="dialog-header">
-          <p class="dialog-kicker">Vérification avant envoi</p>
-          <NDialogTitle class="dialog-title">Envoyer cette réponse ?</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">Elle sera envoyée depuis courrier-test@verbatims.cc à {{ replyRecipient }}.</NDialogDescription>
+          <p class="dialog-kicker">{{ $t('mail.sendCheck') }}</p>
+          <NDialogTitle class="dialog-title">{{ $t('mail.sendReplyTitle') }}</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.replyWillSend', { recipient: replyRecipient }) }}</NDialogDescription>
         </header>
         <footer class="dialog-actions">
-          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="replySending">Continuer à écrire</button></NDialogClose>
-          <button class="dialog-save" type="button" :disabled="replySending" @click="sendReply">{{ replySending ? 'Envoi…' : 'Envoyer' }}</button>
+          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="replySending">{{ $t('mail.continueWriting') }}</button></NDialogClose>
+          <button class="dialog-save" type="button" :disabled="replySending" @click="sendReply">{{ replySending ? $t('mail.sending') : $t('palette.send') }}</button>
         </footer>
       </template>
     </NDialog>
 
     <NDialog
       :open="mergeDialogOpen"
-      title="Fusionner ces fils ?"
-      :description="`${selectedThreadIds.length} fils seront réunis dans une conversation. Les messages originaux resteront intacts.`"
+      :title="$t('mail.mergeTitle')"
+      :description="$t('mail.mergeDescription', { count: selectedThreadIds.length })"
       :_dialog-content="{ class: 'classification-dialog thread-merge-dialog' }"
       @update:open="(open: boolean) => { if (!isMergingThreads) mergeDialogOpen = open }"
     >
       <template #content>
         <header class="dialog-header">
           <p class="dialog-kicker">{{ mailboxByName(activeFolder).label }}</p>
-          <NDialogTitle class="dialog-title">Fusionner ces fils ?</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">Les {{ selectedThreadIds.length }} fils seront réunis dans une conversation. Tu pourras ensuite les séparer ; les messages originaux ne seront pas modifiés.</NDialogDescription>
+          <NDialogTitle class="dialog-title">{{ $t('mail.mergeTitle') }}</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.mergeDescriptionDetailed', { count: selectedThreadIds.length }) }}</NDialogDescription>
         </header>
         <p v-if="threadMergeError" class="dialog-error" role="alert">{{ threadMergeError }}</p>
         <footer class="dialog-actions">
-          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isMergingThreads">Annuler</button></NDialogClose>
-          <button class="dialog-save" type="button" :disabled="isMergingThreads" @click="mergeSelectedThreads">{{ isMergingThreads ? 'Fusion…' : 'Fusionner les fils' }}</button>
+          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isMergingThreads">{{ $t('mail.cancel') }}</button></NDialogClose>
+          <button class="dialog-save" type="button" :disabled="isMergingThreads" @click="mergeSelectedThreads">{{ isMergingThreads ? $t('mail.merging') : $t('mail.mergeThreads') }}</button>
         </footer>
       </template>
     </NDialog>
 
     <NDialog
       :open="splitDialogOpen"
-      title="Séparer les fils ?"
-      description="Les messages resteront dans Courrier et retrouveront leur regroupement d’origine."
+      :title="$t('mail.splitTitle')"
+      :description="$t('mail.splitDescription')"
       :_dialog-content="{ class: 'classification-dialog thread-merge-dialog' }"
       @update:open="(open: boolean) => { if (!isSplittingThread) splitDialogOpen = open }"
     >
       <template #content>
         <header class="dialog-header">
-          <p class="dialog-kicker">Conversation fusionnée</p>
-          <NDialogTitle class="dialog-title">Séparer les fils ?</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">Les messages resteront dans Courrier et retrouveront leur regroupement d’origine.</NDialogDescription>
+          <p class="dialog-kicker">{{ $t('mail.mergedConversation') }}</p>
+          <NDialogTitle class="dialog-title">{{ $t('mail.splitTitle') }}</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.splitDescription') }}</NDialogDescription>
         </header>
         <p v-if="threadMergeError" class="dialog-error" role="alert">{{ threadMergeError }}</p>
         <footer class="dialog-actions">
-          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isSplittingThread">Annuler</button></NDialogClose>
-          <button class="dialog-save" type="button" :disabled="isSplittingThread" @click="splitSelectedThread">{{ isSplittingThread ? 'Séparation…' : 'Séparer les fils' }}</button>
+          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isSplittingThread">{{ $t('mail.cancel') }}</button></NDialogClose>
+          <button class="dialog-save" type="button" :disabled="isSplittingThread" @click="splitSelectedThread">{{ isSplittingThread ? $t('mail.splitting') : $t('mail.splitThreads') }}</button>
         </footer>
       </template>
     </NDialog>
 
     <NDialog
       :open="screenerShortcutHelpOpen"
-      title="Raccourcis du Screener"
-      description="Raccourcis clavier disponibles dans la file À examiner."
+      :title="$t('mail.screenerShortcutTitle')"
+      :description="$t('mail.screenerShortcutDescription')"
       :_dialog-content="{ class: 'classification-dialog screener-shortcut-dialog-content' }"
       @update:open="(open: boolean) => { screenerShortcutHelpOpen = open }"
     >
       <template #content>
         <div class="screener-shortcut-dialog">
           <header class="dialog-header">
-            <p class="dialog-kicker">Navigation rapide</p>
-            <NDialogTitle class="dialog-title">Raccourcis du Screener</NDialogTitle>
-            <NDialogDescription class="sr-only">Raccourcis clavier disponibles dans la file À examiner.</NDialogDescription>
+            <p class="dialog-kicker">{{ $t('mail.quickNavigation') }}</p>
+            <NDialogTitle class="dialog-title">{{ $t('mail.screenerShortcutTitle') }}</NDialogTitle>
+            <NDialogDescription class="sr-only">{{ $t('mail.screenerShortcutDescription') }}</NDialogDescription>
           </header>
           <dl>
-            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Parcourir les expéditeurs</dd></div>
-            <div><dt><kbd>N</kbd></dt><dd>Bloquer l’adresse sélectionnée</dd></div>
-            <div><dt><kbd>Y</kbd></dt><dd>Ouvrir ses options de classement</dd></div>
-            <div><dt><kbd>T</kbd></dt><dd>Mettre son message en Corbeille</dd></div>
-            <div><dt><kbd>C</kbd></dt><dd>Écarter tous les messages en attente</dd></div>
-            <div class="shortcut-dialog-divider"><dt><kbd>I</kbd> <kbd>F</kbd> <kbd>P</kbd></dt><dd>Choisir Inbox, Feed ou Paper</dd></div>
-            <div><dt><kbd>G</kbd></dt><dd>Alterner expéditeur et message</dd></div>
-            <div><dt><kbd>Entrée</kbd> <kbd>Espace</kbd> <kbd>Y</kbd></dt><dd>Appliquer le classement choisi</dd></div>
+            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{{ $t('mail.browseSenders') }}</dd></div>
+            <div><dt><kbd>N</kbd></dt><dd>{{ $t('mail.blockSelectedAddress') }}</dd></div>
+            <div><dt><kbd>Y</kbd></dt><dd>{{ $t('mail.openClassificationOptions') }}</dd></div>
+            <div><dt><kbd>T</kbd></dt><dd>{{ $t('mail.trashSelectedMessage') }}</dd></div>
+            <div><dt><kbd>C</kbd></dt><dd>{{ $t('mail.dismissAllPending') }}</dd></div>
+            <div class="shortcut-dialog-divider"><dt><kbd>I</kbd> <kbd>F</kbd> <kbd>P</kbd></dt><dd>{{ $t('mail.chooseMailbox') }}</dd></div>
+            <div><dt><kbd>G</kbd></dt><dd>{{ $t('mail.toggleSenderMessage') }}</dd></div>
+            <div><dt><kbd>Enter</kbd> <kbd>Space</kbd> <kbd>Y</kbd></dt><dd>{{ $t('mail.applyClassification') }}</dd></div>
           </dl>
-          <p class="screener-shortcut-footnote"><kbd>Échap</kbd> ferme cette aide ou le menu d’options.</p>
+          <p class="screener-shortcut-footnote"><kbd>Esc</kbd> {{ $t('mail.escapeClosesHelp') }}</p>
         </div>
       </template>
     </NDialog>
 
     <NDialog
       :open="screenerClearDialogOpen"
-      title="Écarter les messages du Screener ?"
-      description="Ils resteront conservés dans l’historique et les prochains messages de ces expéditeurs pourront encore arriver."
+      :title="$t('mail.screenerClearTitle')"
+      :description="$t('mail.screenerClearDescription')"
       :show-close="false"
       :_dialog-content="{ class: 'classification-dialog screener-confirm-dialog' }"
       @update:open="(open: boolean) => { screenerClearDialogOpen = open }"
@@ -782,15 +780,15 @@
       <template #content>
         <header class="dialog-header">
           <p class="dialog-kicker">Screener</p>
-          <NDialogTitle class="dialog-title">Écarter tous les messages ?</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">Les messages reçus resteront consultables dans l’historique. Les expéditeurs ne seront pas bloqués.</NDialogDescription>
+          <NDialogTitle class="dialog-title">{{ $t('mail.screenerClearAllTitle') }}</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.screenerClearAllDescription') }}</NDialogDescription>
         </header>
         <footer class="dialog-actions">
           <NDialogClose as-child>
-            <button class="dialog-cancel" type="button" :disabled="isClearingScreener">Annuler</button>
+            <button class="dialog-cancel" type="button" :disabled="isClearingScreener">{{ $t('mail.cancel') }}</button>
           </NDialogClose>
           <button class="dialog-danger" type="button" :disabled="isClearingScreener" @click="clearAllScreener">
-            {{ isClearingScreener ? 'Écart…' : 'Clear all' }}
+            {{ isClearingScreener ? $t('mail.clearing') : $t('mail.clearAll') }}
           </button>
         </footer>
       </template>
