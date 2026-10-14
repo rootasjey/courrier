@@ -44,8 +44,8 @@ Les priorités ci-dessous viennent des usages HEY que l’utilisateur considère
 ### Fonctions appréciées ensuite
 
 - Set Aside et Reply Later pour suivre les messages à garder sous la main ou auxquels répondre, sans encombrer l’Imbox.
-- Renommer localement l’objet d’un fil, sans modifier l’objet reçu ou l’affichage chez les autres correspondants.
-- Priorité de regroupement : fusionner plusieurs fils en une conversation unique ; proposer aussi les Collections pour garder plusieurs conversations distinctes sur une page, à un rang inférieur.
+- **Renommage local de l’objet d’un fil : implémenté.** Le nom est conservé dans D1, affiché pour le fil dans Courrier, et réinitialisable sans toucher aux objets ni aux contenus des messages originaux.
+- **Fusion manuelle de fils : terminée**, avec séparation, classement atomique, annulation et garde-fous décrits en § 1. Les Collections pour regrouper plusieurs conversations sans fusion restent une piste distincte et moins prioritaire.
 - Clips pour conserver et retrouver un extrait de texte, par exemple un code promotionnel.
 - Alias par boîte/domaine.
 
@@ -136,9 +136,9 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 ### 4. Envoi et réponses
 
-- Vérifier l’envoi depuis le domaine, les en-têtes de conversation, SPF/DKIM/DMARC, les rejets et la réputation. Deux envois contrôlés vers Gmail et HEY sont arrivés ; les deux originaux indiquent SPF, DKIM et DMARC PASS. Le tableau de bord Cloudflare compte 2 envois livrés sur 2, sans bounce ni plainte observés à ce stade. Continuer à suivre la délivrabilité à mesure que l’usage augmente.
+- Vérifier l’envoi depuis le domaine, les en-têtes de conversation, SPF/DKIM/DMARC, les rejets et la réputation. Les deux premiers envois contrôlés (par réponse) vers Gmail et HEY sont arrivés ; leurs originaux indiquent SPF, DKIM et DMARC PASS. Le 14 octobre, deux envois du compositeur autonome avec HTML et pièce jointe texte ont été marqués Delivered par Cloudflare et vérifiés dans Gmail et HEY ; les originaux confirment SPF/DKIM/DMARC PASS dans les deux boîtes. Le journal Cloudflare affiche 3 événements livrés sur les dernières 24 heures et un quota quotidien à 3/1 000. Continuer à observer la délivrabilité ; aucun bounce réel n’a été provoqué.
 - Garder l’envoi en bêta/essai tant que la délivrabilité n’a pas été observée.
-- La confirmation d’envoi est en place pour les réponses et le compositeur autonome. Le parcours de réponse est déployé et deux envois contrôlés vers Gmail et HEY sont confirmés, avec SPF/DKIM/DMARC PASS. Le compositeur autonome est déployé, mais aucun envoi réel par ce parcours n’a encore validé la livraison, la copie dans Courrier ou les pièces jointes. Prochaine étape utile : un envoi contrôlé vers une adresse convenue, puis vérifier la réception et la copie dans le fil Courrier. Aucun bounce réel n’a été provoqué ; surveiller les statistiques Cloudflare à mesure que le périmètre d’usage s’élargit.
+- La confirmation d’envoi est en place pour les réponses et le compositeur autonome. Les envois contrôlés vers Gmail, HEY et Outlook ont été reçus ; le message Outlook avec HTML et fichier texte apparaît dans sa boîte de réception et sa copie est archivée dans Inbox de Courrier. Une réponse envoyée depuis HEY est arrivée dans Courrier et a été regroupée avec le message d’origine (2 messages dans le fil). Les originaux Gmail, HEY et Outlook confirment SPF/DKIM/DMARC PASS. Les migrations D1 distantes sont à jour. Aucun bounce réel n’a été provoqué. La fusion manuelle de fils est déjà implémentée et vérifiée localement et en production (voir § 1) ; aucune nouvelle implémentation n’est nécessaire pour cette étape de roadmap.
 
 **Critère de sortie :** une réponse part avec une identité cohérente, apparaît dans le fil local et arrive correctement chez plusieurs destinataires de test.
 

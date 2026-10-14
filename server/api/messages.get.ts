@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
   }
 
-  const [messageResult, mergeResult] = await Promise.all([
+  const [messageResult, mergeResult, subjectResult] = await Promise.all([
     bindings.DB.prepare(`
     SELECT messages.id, messages.envelope_from, messages.envelope_to,
       messages.sender_name, messages.sender_address, messages.subject,
@@ -68,6 +68,9 @@ export default defineEventHandler(async (event) => {
       FROM thread_merge_members
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
     `).all<ManualThreadMergeMember>(),
+    bindings.DB.prepare(`
+      SELECT mailbox_domain, thread_id, subject FROM thread_subject_overrides
+    `).all<{ mailbox_domain: string, thread_id: string, subject: string }>(),
   ])
   const results = messageResult.results
   const { threadIds, manualMergeIds } = getThreadGrouping(results, mergeResult.results)
@@ -85,7 +88,13 @@ export default defineEventHandler(async (event) => {
     if (timestamp < existingTimestamp) threadRouteIds.set(threadRoot, message.id)
   }
 
+  const subjectOverrides = new Map(subjectResult.results.map(override => [
+    `${override.mailbox_domain}\u0000${override.thread_id}`,
+    override.subject,
+  ]))
+
   return Promise.all(results.map(async (message) => {
+    const threadId = threadRouteIds.get(threadIds.get(message.id) || message.id) || message.id
     const attachmentResult = await bindings.DB.prepare(`
       SELECT id, filename, mime_type, size_bytes
       FROM attachments
@@ -95,7 +104,8 @@ export default defineEventHandler(async (event) => {
 
     return {
       id: message.id,
-      threadId: threadRouteIds.get(threadIds.get(message.id) || message.id) || message.id,
+      threadId,
+      threadSubject: subjectOverrides.get(`${message.mailbox_domain}\u0000${threadId}`) ?? null,
       manualMergeIds: manualMergeIds.get(message.id) ?? [],
       sender: message.sender_name || message.sender_address || message.envelope_from,
       address: message.sender_address || message.envelope_from,

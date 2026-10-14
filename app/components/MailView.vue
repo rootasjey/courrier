@@ -83,7 +83,7 @@
                 <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
               </span>
               <span class="thread-content">
-                <span class="thread-subject">{{ thread.latest.subject }}</span>
+                <span class="thread-subject">{{ thread.subject }}</span>
                 <span class="thread-preview"><span class="search-folder-label">{{ mailboxByName(thread.latest.folder).label }}</span><span aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.snippet || thread.latest.preview }}</span>
               </span>
               <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
@@ -194,7 +194,7 @@
               </button>
               <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
                 <span class="thread-content">
-                  <span class="thread-subject">{{ thread.latest.subject }}</span>
+                  <span class="thread-subject">{{ thread.subject }}</span>
                   <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
                 </span>
                 <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
@@ -221,7 +221,7 @@
               </button>
               <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
                 <span class="thread-content">
-                  <span class="thread-subject">{{ thread.latest.subject }}</span>
+                  <span class="thread-subject">{{ thread.subject }}</span>
                   <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
                 </span>
                 <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
@@ -247,7 +247,7 @@
           </button>
           <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
             <span class="thread-content">
-              <span class="thread-subject">{{ thread.latest.subject }}</span>
+              <span class="thread-subject">{{ thread.subject }}</span>
               <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">Nouveau message</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
             </span>
             <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
@@ -285,7 +285,7 @@
               >
                 <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                 <span class="set-aside-stack-copy">
-                  <strong>{{ thread.latest.subject }}</strong>
+                  <strong>{{ thread.subject }}</strong>
                   <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
                 </span>
                 <time>{{ thread.latest.date }}</time>
@@ -316,7 +316,7 @@
               >
                 <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                 <span class="set-aside-stack-copy">
-                  <strong>{{ thread.latest.subject }}</strong>
+                  <strong>{{ thread.subject }}</strong>
                   <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
                 </span>
                 <time>{{ thread.latest.date }}</time>
@@ -370,7 +370,35 @@
       </div>
 
       <article class="message-paper">
-        <h1 class="message-subject">{{ chronologicalMessages[0]?.subject || selectedMessage.subject }}</h1>
+        <div v-if="isEditingThreadSubject" class="thread-subject-editor">
+          <form @submit.prevent="saveThreadSubject">
+            <input
+              ref="threadSubjectInput"
+              v-model="threadSubjectDraft"
+              class="thread-subject-input"
+              type="text"
+              maxlength="200"
+              aria-label="Nouvel objet local du fil"
+              autofocus
+            >
+            <div class="thread-subject-editor-actions">
+              <span v-if="threadSubjectSaveError" class="thread-subject-error" role="alert">{{ threadSubjectSaveError }}</span>
+              <button type="button" class="thread-subject-cancel" @click="cancelThreadSubjectEdit">Annuler</button>
+              <button type="submit" class="thread-subject-save" :disabled="isSavingThreadSubject">
+                {{ isSavingThreadSubject ? 'Enregistrement…' : 'Enregistrer' }}
+              </button>
+            </div>
+          </form>
+          <p>Ce nom est privé à ta boîte et ne modifie pas les messages d’origine.</p>
+        </div>
+        <div v-else class="message-subject-heading">
+          <h1 class="message-subject">{{ selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}</h1>
+          <NTooltip content="Renommer l’objet du fil">
+            <button class="thread-subject-edit" type="button" aria-label="Renommer l’objet du fil" @click="beginThreadSubjectEdit">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m13.5 3.5 3 3M4 16l3.6-.8L16 6.8a2.1 2.1 0 0 0-3-3l-8.4 8.4L4 16Z" /></svg>
+            </button>
+          </NTooltip>
+        </div>
         <div v-if="selectedThread?.manualMergeIds.length" class="merged-thread-control">
           <span>Cette conversation réunit plusieurs fils.</span>
           <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
@@ -741,6 +769,7 @@ type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash' | 'Set Aside' | 'Reply
 type InboxMessage = {
   id: string
   threadId: string
+  threadSubject: string | null
   manualMergeIds: string[]
   sender: string
   address: string
@@ -770,6 +799,7 @@ type MessageThread = {
   id: string
   messages: InboxMessage[]
   latest: InboxMessage
+  subject: string
   unreadCount: number
   manualMergeIds: string[]
 }
@@ -824,6 +854,11 @@ const screenerScope = ref<'sender' | 'message'>('sender')
 const screenerActionError = ref('')
 const threadSelectionMode = ref(false)
 const selectedThreadIds = ref<string[]>([])
+const isEditingThreadSubject = ref(false)
+const threadSubjectDraft = ref('')
+const threadSubjectSaveError = ref('')
+const isSavingThreadSubject = ref(false)
+const threadSubjectInput = ref<HTMLInputElement | null>(null)
 const isSetAsideStackExpanded = ref(false)
 const isReplyLaterStackExpanded = ref(false)
 const viewportHeight = ref(800)
@@ -939,6 +974,7 @@ const folderThreads = computed<MessageThread[]>(() => {
       id,
       messages,
       latest: messages[0]!,
+      subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
       unreadCount: messages.filter(message => !message.isRead).length,
       manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
     }
@@ -952,7 +988,7 @@ const visibleThreads = computed(() => {
     : folderThreads.value
   if (!query) return threads
 
-  return threads.filter(thread => thread.messages.some(message =>
+  return threads.filter(thread => thread.subject.toLocaleLowerCase('fr').includes(query) || thread.messages.some(message =>
     `${message.sender} ${message.subject} ${message.body}`.toLocaleLowerCase('fr').includes(query),
   ))
 })
@@ -971,6 +1007,7 @@ const setAsideThreads = computed<MessageThread[]>(() => {
       id,
       messages,
       latest: messages[0]!,
+      subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
       unreadCount: messages.filter(message => !message.isRead).length,
       manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
     }
@@ -999,6 +1036,7 @@ const replyLaterThreads = computed<MessageThread[]>(() => {
       id,
       messages,
       latest: messages[0]!,
+      subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
       unreadCount: messages.filter(message => !message.isRead).length,
       manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
     }
@@ -1021,7 +1059,7 @@ const canNavigateThreads = computed(() => !isGlobalSearch.value
 const globalSearchThreads = computed<SearchThread[]>(() => {
   const messages = inboxMessages.value ?? []
   const messagesById = new Map(messages.map(message => [message.id, message]))
-  const groups = new Map<string, { latest: InboxMessage, messages: InboxMessage[], snippet: string }>()
+  const groups = new Map<string, { latest: InboxMessage, messages: InboxMessage[], snippet: string, subject: string }>()
 
   for (const hit of searchResults.value) {
     const matchedMessage = messagesById.get(hit.id)
@@ -1036,6 +1074,7 @@ const globalSearchThreads = computed<SearchThread[]>(() => {
       latest: matchedMessage,
       messages: threadMessages,
       snippet: hit.snippet,
+      subject: threadMessages.find(message => message.threadSubject)?.threadSubject || matchedMessage.subject,
     })
   }
 
@@ -1043,6 +1082,7 @@ const globalSearchThreads = computed<SearchThread[]>(() => {
     id,
     messages: group.messages,
     latest: group.latest,
+    subject: group.subject,
     unreadCount: group.messages.filter(message => !message.isRead).length,
     manualMergeIds: [...new Set(group.messages.flatMap(message => message.manualMergeIds))],
     snippet: group.snippet,
@@ -1139,6 +1179,8 @@ watch(replyBody, () => {
 })
 
 watch(selectedId, (threadId) => {
+  isEditingThreadSubject.value = false
+  threadSubjectSaveError.value = ''
   const thread = selectedThread.value
   if (!threadId) {
     activeThreadMessageId.value = ''
@@ -1649,6 +1691,48 @@ function openMessage(message: InboxMessage, mailbox: Folder = message.folder) {
       messageReadError.value = 'Le fil est ouvert, mais certains états de lecture n’ont pas été enregistrés.'
     }
   })
+}
+
+function beginThreadSubjectEdit() {
+  if (!selectedThread.value) return
+  threadSubjectDraft.value = selectedThread.value.messages.find(message => message.threadSubject)?.threadSubject
+    || chronologicalMessages.value[0]?.subject
+    || selectedThread.value.subject
+  threadSubjectSaveError.value = ''
+  isEditingThreadSubject.value = true
+  void nextTick(() => threadSubjectInput.value?.focus())
+}
+
+function cancelThreadSubjectEdit() {
+  if (isSavingThreadSubject.value) return
+  isEditingThreadSubject.value = false
+  threadSubjectSaveError.value = ''
+}
+
+async function saveThreadSubject() {
+  const thread = selectedThread.value
+  if (!thread || isSavingThreadSubject.value) return
+
+  const subject = threadSubjectDraft.value.trim()
+  if (subject.length > 200) {
+    threadSubjectSaveError.value = 'L’objet du fil doit contenir 200 caractères ou moins.'
+    return
+  }
+
+  isSavingThreadSubject.value = true
+  threadSubjectSaveError.value = ''
+  try {
+    await $fetch(`/api/threads/${encodeURIComponent(thread.id)}/subject`, {
+      method: 'PATCH',
+      body: { subject: subject || null },
+    })
+    await refreshMessages()
+    isEditingThreadSubject.value = false
+  } catch (error) {
+    threadSubjectSaveError.value = error instanceof Error ? error.message : 'Le nom local du fil n’a pas pu être enregistré.'
+  } finally {
+    isSavingThreadSubject.value = false
+  }
 }
 
 function handleThreadRowClick(thread: MessageThread, event?: MouseEvent) {
