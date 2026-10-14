@@ -10,7 +10,7 @@ Courrier is a clear, tactile inbox for people who use several personal domains. 
 
 ## First viewport
 
-- A slim three-part top bar: search at left, Courrier menu centered, personal profile at right.
+- A slim top bar: Courrier menu at left, personal profile at right. Search lives in the global command palette (`⌘/Ctrl + K`).
 - Mailbox views are absent from the default chrome and live inside the Courrier menu.
 - The active mailbox title anchors a generous chronological list, with unread mail above previously seen mail in Imbox.
 - New senders have one mint screening action; the compose action uses electric violet.
@@ -34,6 +34,7 @@ Use a confident sans-serif UI with large, compact mailbox titles and smaller, qu
 - Keyboard shortcuts remain active without being printed beside navigation items.
 - Opening an unread message marks it as read and moves it to the previously-seen section.
 - Keep keyboard focus visible, respect reduced motion, and retain light, dark and system themes.
+- Page changes use a short, restrained transition that preserves orientation without delaying routine navigation.
 - Local test messages are synthetic and named as test data at the point where they are loaded.
 
 ## Responsive behavior

@@ -3,13 +3,11 @@
     <AppTopbar
       :folders="folderOptions"
       :active-folder="activeFolder"
-      :search="search"
-      :show-search="showSearch"
+      :show-back-link="showBackLink"
       :back-to="backTo"
-      @update:search="updateSearch"
       @select-folder="selectFolder"
     />
-    <NuxtPage />
+    <NuxtPage :transition="{ name: 'page', mode: 'out-in' }" />
     <CommandPalette v-model:open="commandPaletteOpen" />
   </div>
 </template>
@@ -21,7 +19,6 @@ import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/util
 const route = useRoute()
 const router = useRouter()
 const activeFolder = computed(() => mailboxFromPath(route.path))
-const search = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 const commandPaletteOpen = useState('courrier-command-palette-open', () => false)
 
@@ -30,19 +27,8 @@ function selectFolder(folder: MailboxKey) {
   if (route.path !== destination) void router.push(destination)
 }
 
-function updateSearch(value: string) {
-  if (!route.path.startsWith('/mail/')) return
-  const query = { ...route.query }
-  if (value.trim()) query.q = value
-  else delete query.q
-
-  if (value !== search.value) {
-    void router.replace({ path: route.path, query })
-  }
-}
-
 const backTo = computed(() => mailboxPath(activeFolder.value))
-const showSearch = computed(() => route.path.startsWith('/mail/'))
+const showBackLink = computed(() => !route.path.startsWith('/mail/'))
 const folderOptions = mailboxes.map(mailbox => ({ ...mailbox }))
 
 function shortcutFolder(key: string, code: string, shiftKey: boolean): MailboxKey | undefined {
