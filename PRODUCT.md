@@ -36,7 +36,7 @@ The initial mailbox is for `verbatims.cc`, with a dedicated pilot address. Cloud
 
 ## Brand Commitments
 
-The product name is Courrier. The interface is in French while the mailbox names Imbox, The Feed and Paper Trail remain in English. The user wants the interface to take clear inspiration from HEY's spacious, chronological mail-list and focused reading experience, while giving Courrier its own visual personality.
+The product name is Courrier. The interface is available in French and English; mailbox names Imbox, The Feed and Paper Trail remain in English. The user wants the interface to take clear inspiration from HEY's spacious, chronological mail-list and focused reading experience, while giving Courrier its own visual personality.
 
 ## Evidence on Hand
 
@@ -52,4 +52,4 @@ The repository contains a working Cloudflare email-receive pilot for `courrier-t
 
 ## Open Decisions
 
-The long-term mailbox, user and conversation data model remains to be designed before multi-user use or thread merging.
+Thread merging and splitting are available for the current single-user mailbox. The long-term user and mailbox model remains to be designed before multi-user access or sharing is introduced.

@@ -5,13 +5,13 @@
         <div v-if="mode === 'minimized'" ref="minimizedElement" class="compose-minimized">
           <button class="compose-minimized-main" type="button" @click="restoreComposer">
             <span class="compose-minimized-copy">
-              <strong>{{ subject || 'Nouveau message' }}</strong>
-              <small>{{ to || recipientEntry || 'Brouillon en cours' }}</small>
+              <strong>{{ subject || $t('composer.newMessage') }}</strong>
+              <small>{{ to || recipientEntry || $t('composer.draftInProgress') }}</small>
             </span>
-            <span class="sr-only">Reprendre la rédaction</span>
+            <span class="sr-only">{{ $t('composer.resumeWriting') }}</span>
           </button>
-          <NTooltip content="Fermer le brouillon" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-            <button class="compose-icon-button compose-minimized-close" type="button" aria-label="Fermer le compositeur" :disabled="sending" @click="closeComposer">
+          <NTooltip :content="$t('composer.closeDraft')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+            <button class="compose-icon-button compose-minimized-close" type="button" :aria-label="$t('composer.closeComposer')" :disabled="sending" @click="closeComposer">
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
             </button>
           </NTooltip>
@@ -19,127 +19,135 @@
 
         <section ref="composerWindow" v-show="mode !== 'minimized'" class="compose-window" :class="`is-${mode}`" role="dialog" :aria-modal="mode === 'full' ? 'true' : undefined" aria-labelledby="compose-title">
           <header class="compose-header">
-            <h2 id="compose-title">Nouveau message</h2>
+            <h2 id="compose-title">{{ $t('composer.newMessage') }}</h2>
             <div class="compose-window-actions">
               <button class="compose-drafts-count" type="button" :disabled="loading || saving" @click="openDrafts">
-                {{ draftCount }} brouillon{{ draftCount === 1 ? '' : 's' }}
+                {{ $t(draftCount === 1 ? 'composer.draftCountOne' : 'composer.draftCountMany', { count: draftCount }) }}
               </button>
-              <NTooltip content="Réduire en bas de l’écran" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                <button class="compose-icon-button" type="button" aria-label="Réduire le compositeur" :disabled="sending" @click="minimizeComposer">
+              <NTooltip :content="$t('composer.minimize')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-icon-button" type="button" :aria-label="$t('composer.minimize')" :disabled="sending" @click="minimizeComposer">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 7 6 6 6-6" /></svg>
                 </button>
               </NTooltip>
-              <NTooltip :content="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                <button class="compose-icon-button" type="button" :aria-label="mode === 'popup' ? 'Afficher en pleine page' : 'Ouvrir dans une fenêtre flottante'" :disabled="sending" @click="togglePopupMode">
+              <NTooltip :content="$t(mode === 'popup' ? 'composer.fullPage' : 'composer.openPopup')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-icon-button" type="button" :aria-label="$t(mode === 'popup' ? 'composer.fullPage' : 'composer.openPopup')" :disabled="sending" @click="togglePopupMode">
                   <svg v-if="mode === 'popup'" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3H3v4m0-4 6 6m4 8h4v-4m0 4-6-6" /></svg>
                   <svg v-else viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6m0-6-8 8" /><path d="M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
                 </button>
               </NTooltip>
-              <NTooltip content="Fermer le brouillon" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                <button class="compose-icon-button" type="button" aria-label="Fermer le compositeur" :disabled="sending" @click="closeComposer">
+              <NTooltip :content="$t('composer.closeDraft')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-icon-button" type="button" :aria-label="$t('composer.closeComposer')" :disabled="sending" @click="closeComposer">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
                 </button>
               </NTooltip>
             </div>
           </header>
 
-          <div v-if="loading" class="compose-state">Chargement du brouillon…</div>
+          <div v-if="loading" class="compose-state">{{ $t('composer.loading') }}</div>
           <div v-else-if="error && !draftId" class="compose-state compose-error" role="alert">
             <p>{{ error }}</p>
-            <button class="compose-secondary" type="button" @click="loadDraft">Réessayer</button>
+            <button class="compose-secondary" type="button" @click="loadDraft">{{ $t('common.retry') }}</button>
           </div>
           <template v-else>
             <div class="compose-body">
               <div class="compose-fields">
                 <div class="compose-field">
-                  <span>À</span>
+                  <span>{{ $t('composer.to') }}</span>
                   <div class="compose-recipient-control" @click="recipientInput?.focus()">
-                    <span v-for="(address, index) in committedRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('to', address)">×</button></span>
-                    <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'to')" @blur="commitRecipientEntry('to')" @keydown.enter.prevent="commitRecipientEntry('to')" @keydown.backspace="removeLastRecipient($event, 'to')">
+                    <span v-for="(address, index) in committedRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="$t('composer.removeRecipient', { address })" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('to', address)">×</button></span>
+                    <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="email" :placeholder="$t('composer.emailPlaceholder')" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'to')" @blur="commitRecipientEntry('to')" @keydown.enter.prevent="commitRecipientEntry('to')" @keydown.backspace="removeLastRecipient($event, 'to')">
                   </div>
-                  <div class="compose-recipient-toggles"><button v-if="!showCc" type="button" @click="showCc = true">{{ ccRecipientList.length ? `Cc (${ccRecipientList.length})` : 'Cc' }}</button><button v-if="!showBcc" type="button" @click="showBcc = true">{{ bccRecipientList.length ? `Cci (${bccRecipientList.length})` : 'Cci' }}</button></div>
+                  <div class="compose-recipient-toggles"><button v-if="!showCc" type="button" @click="showCc = true">{{ $t(ccRecipientList.length ? 'composer.ccCount' : 'composer.cc', { count: ccRecipientList.length }) }}</button><button v-if="!showBcc" type="button" @click="showBcc = true">{{ $t(bccRecipientList.length ? 'composer.bccCount' : 'composer.bcc', { count: bccRecipientList.length }) }}</button></div>
                 </div>
                 <div v-if="showCc" class="compose-field">
                   <span>Cc</span>
                   <div class="compose-recipient-control" @click="ccInput?.focus()">
-                    <span v-for="(address, index) in ccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('cc', address)">×</button></span>
-                    <input ref="ccInput" v-model="ccEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'cc')" @blur="commitRecipientEntry('cc')" @keydown.enter.prevent="commitRecipientEntry('cc')" @keydown.backspace="removeLastRecipient($event, 'cc')">
+                    <span v-for="(address, index) in ccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="$t('composer.removeRecipient', { address })" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('cc', address)">×</button></span>
+                    <input ref="ccInput" v-model="ccEntry" type="text" inputmode="email" autocomplete="email" :placeholder="$t('composer.emailPlaceholder')" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'cc')" @blur="commitRecipientEntry('cc')" @keydown.enter.prevent="commitRecipientEntry('cc')" @keydown.backspace="removeLastRecipient($event, 'cc')">
                   </div>
-                  <NTooltip content="Masquer le champ Cc" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                    <button class="compose-field-close" type="button" aria-label="Masquer le champ Cc" :disabled="sending || draftStatus === 'sending'" @click="showCc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
+                  <NTooltip :content="$t('composer.hideCc')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button class="compose-field-close" type="button" :aria-label="$t('composer.hideCc')" :disabled="sending || draftStatus === 'sending'" @click="showCc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
                   </NTooltip>
                 </div>
                 <div v-if="showBcc" class="compose-field">
-                  <span>Cci</span>
+                  <span>{{ $t('composer.bcc') }}</span>
                   <div class="compose-recipient-control" @click="bccInput?.focus()">
-                    <span v-for="(address, index) in bccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="`Retirer ${address}`" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('bcc', address)">×</button></span>
-                    <input ref="bccInput" v-model="bccEntry" type="text" inputmode="email" autocomplete="email" placeholder="nom@exemple.fr" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'bcc')" @blur="commitRecipientEntry('bcc')" @keydown.enter.prevent="commitRecipientEntry('bcc')" @keydown.backspace="removeLastRecipient($event, 'bcc')">
+                    <span v-for="(address, index) in bccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="$t('composer.removeRecipient', { address })" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('bcc', address)">×</button></span>
+                    <input ref="bccInput" v-model="bccEntry" type="text" inputmode="email" autocomplete="email" :placeholder="$t('composer.emailPlaceholder')" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'bcc')" @blur="commitRecipientEntry('bcc')" @keydown.enter.prevent="commitRecipientEntry('bcc')" @keydown.backspace="removeLastRecipient($event, 'bcc')">
                   </div>
-                  <NTooltip content="Masquer le champ Cci" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                    <button class="compose-field-close" type="button" aria-label="Masquer le champ Cci" :disabled="sending || draftStatus === 'sending'" @click="showBcc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
+                  <NTooltip :content="$t('composer.hideBcc')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button class="compose-field-close" type="button" :aria-label="$t('composer.hideBcc')" :disabled="sending || draftStatus === 'sending'" @click="showBcc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
                   </NTooltip>
                 </div>
                 <label class="compose-field">
-                  <span>Objet</span>
-                  <input v-model="subject" type="text" placeholder="Objet du message" :disabled="sending || draftStatus === 'sending'">
+                  <span>{{ $t('composer.subject') }}</span>
+                  <input v-model="subject" type="text" :placeholder="$t('composer.subjectPlaceholder')" :disabled="sending || draftStatus === 'sending'">
                 </label>
               </div>
               <p v-if="recipientError" class="compose-field-error" role="alert">{{ recipientError }}</p>
 
               <div class="compose-editor-shell">
                 <BubbleMenu v-if="editor" :editor="editor" :options="{ placement: 'top', offset: 8 }" class="compose-bubble-menu">
-                  <button type="button" :class="{ active: editor.isActive('bold') }" aria-label="Gras" title="Gras" @mousedown.prevent @click="editor.chain().focus().toggleBold().run()"><strong>G</strong></button>
-                  <button type="button" :class="{ active: editor.isActive('italic') }" aria-label="Italique" title="Italique" @mousedown.prevent @click="editor.chain().focus().toggleItalic().run()"><em>I</em></button>
-                  <button type="button" :class="{ active: editor.isActive('strike') }" aria-label="Barré" title="Barré" @mousedown.prevent @click="editor.chain().focus().toggleStrike().run()"><s>S</s></button>
+                  <NTooltip :content="$t('composer.bold')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button type="button" :class="{ active: editor.isActive('bold') }" :aria-label="$t('composer.bold')" @mousedown.prevent @click="editor.chain().focus().toggleBold().run()"><strong>G</strong></button>
+                  </NTooltip>
+                  <NTooltip :content="$t('composer.italic')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button type="button" :class="{ active: editor.isActive('italic') }" :aria-label="$t('composer.italic')" @mousedown.prevent @click="editor.chain().focus().toggleItalic().run()"><em>I</em></button>
+                  </NTooltip>
+                  <NTooltip :content="$t('composer.strikethrough')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button type="button" :class="{ active: editor.isActive('strike') }" :aria-label="$t('composer.strikethrough')" @mousedown.prevent @click="editor.chain().focus().toggleStrike().run()"><s>S</s></button>
+                  </NTooltip>
                   <span class="compose-toolbar-separator" aria-hidden="true" />
-                  <button type="button" :class="{ active: editor.isActive('link') }" aria-label="Ajouter un lien" title="Ajouter un lien" @mousedown.prevent @click="addLink">Lien</button>
+                  <NTooltip :content="$t('composer.addLink')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                    <button type="button" :class="{ active: editor.isActive('link') }" :aria-label="$t('composer.addLink')" @mousedown.prevent @click="addLink">{{ $t('composer.link') }}</button>
+                  </NTooltip>
                 </BubbleMenu>
-                <div v-if="editor && slashState.open" ref="slashMenu" class="compose-slash-menu" :style="slashMenuStyle" role="listbox" aria-label="Commandes d’insertion">
-                  <p class="compose-slash-heading">Insérer un bloc</p>
+                <div v-if="editor && slashState.open" ref="slashMenu" class="compose-slash-menu" :style="slashMenuStyle" role="listbox" :aria-label="$t('composer.insertCommands')">
+                  <p class="compose-slash-heading">{{ $t('composer.insertBlock') }}</p>
                   <button v-for="(item, index) in filteredSlashCommands" :key="item.label" type="button" role="option" :aria-selected="slashIndex === index" :class="{ active: slashIndex === index }" @mousedown.prevent @click="applySlashCommand(item)">
                     <span class="compose-slash-icon" aria-hidden="true">{{ item.icon }}</span>
                     <span><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
                   </button>
-                  <p v-if="!filteredSlashCommands.length" class="compose-slash-empty">Aucune commande trouvée</p>
+                  <p v-if="!filteredSlashCommands.length" class="compose-slash-empty">{{ $t('composer.noCommands') }}</p>
                 </div>
                 <EditorContent v-if="editor" class="compose-editor" :editor="editor" @keydown.capture="onEditorKeydown" />
               </div>
 
               <input ref="attachmentInput" class="sr-only" type="file" multiple @change="onFilesSelected">
 
-              <div v-if="attachments.length" class="compose-attachments" aria-label="Pièces jointes">
+              <div v-if="attachments.length" class="compose-attachments" :aria-label="$t('composer.attachments')">
                 <div v-for="attachment in attachments" :key="attachment.id" class="compose-attachment">
                   <span class="compose-attachment-icon" aria-hidden="true">{{ attachment.disposition === 'inline' ? '▧' : '↗' }}</span>
-                  <span class="compose-attachment-name"><strong>{{ attachment.filename }}</strong><small>{{ formatSize(attachment.sizeBytes) }}{{ attachment.disposition === 'inline' ? ' · image intégrée' : '' }}</small></span>
-                  <button type="button" :aria-label="`Retirer ${attachment.filename}`" :disabled="sending || draftStatus === 'sending'" @click="removeAttachment(attachment)">×</button>
+                  <span class="compose-attachment-name"><strong>{{ attachment.filename }}</strong><small>{{ formatSize(attachment.sizeBytes) }}{{ attachment.disposition === 'inline' ? ` · ${$t('composer.inlineImage')}` : '' }}</small></span>
+                  <button type="button" :aria-label="$t('composer.removeAttachment', { filename: attachment.filename })" :disabled="sending || draftStatus === 'sending'" @click="removeAttachment(attachment)">×</button>
                 </div>
               </div>
 
-              <p v-if="uploading" class="compose-status" role="status">Ajout des fichiers…</p>
+              <p v-if="uploading" class="compose-status" role="status">{{ $t('composer.addingFiles') }}</p>
               <p v-else-if="error" class="compose-error" role="alert">{{ error }}</p>
-              <p v-else-if="draftStatus === 'sending'" class="compose-status" role="status">Un envoi a déjà commencé. Vérifie la boîte destinataire avant toute nouvelle tentative.</p>
+              <p v-else-if="draftStatus === 'sending'" class="compose-status" role="status">{{ $t('composer.sendUncertain') }}</p>
             </div>
 
             <footer class="compose-footer">
               <div class="compose-footer-status">
-                <span class="compose-save-status" role="status">{{ saving ? 'Enregistrement…' : saved ? 'Brouillon enregistré' : 'Brouillon en cours' }}</span>
+                <span class="compose-save-status" role="status">{{ saving ? $t('composer.saving') : saved ? $t('composer.saved') : $t('composer.draftInProgress') }}</span>
                 <p class="compose-size-meter" :class="{ 'compose-size-over': estimatedEmailBytes > OUTBOUND_MESSAGE_BUDGET_BYTES }" role="status">
-                  Taille estimée : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
-                  <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> (limite de 5 Mio, marge incluse)</span>
-                  <span v-else> · Réduis le corps ou retire une pièce jointe.</span>
+                  {{ $t('composer.estimatedSize') }} : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
+                  <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> ({{ $t('composer.sizeLimit') }})</span>
+                  <span v-else> · {{ $t('composer.reduceMessage') }}</span>
                 </p>
               </div>
-              <NTooltip content="Joindre des fichiers" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                <button class="compose-tool-button compose-icon-action" type="button" aria-label="Joindre des fichiers" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">
+              <NTooltip :content="$t('composer.attachFiles')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-tool-button compose-icon-action" type="button" :aria-label="$t('composer.attachFiles')" :disabled="sending || draftStatus === 'sending'" @click="chooseFiles('attachment')">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.3 10.8 5.1-5.1a2.6 2.6 0 0 1 3.7 3.7l-7.2 7.2a4.2 4.2 0 0 1-5.9-5.9l7.1-7.1" /></svg>
                 </button>
               </NTooltip>
-              <NTooltip content="Supprimer le brouillon" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                <button class="compose-discard compose-icon-action" type="button" aria-label="Supprimer le brouillon" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">
+              <NTooltip :content="$t('composer.deleteDraft')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-discard compose-icon-action" type="button" :aria-label="$t('composer.deleteDraft')" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 5.5h13m-11.5 0 .7 11h8.6l.7-11M7.5 5.5V3.8h5v1.7m-3.5 3v5m2-5v5" /></svg>
                 </button>
               </NTooltip>
-              <button class="compose-send" type="button" :disabled="!canSend" @click="requestSend">{{ sending ? 'Envoi…' : 'Envoyer' }}</button>
+              <button class="compose-send" type="button" :disabled="!canSend" @click="requestSend">{{ sending ? $t('composer.sending') : $t('composer.send') }}</button>
             </footer>
           </template>
 
@@ -147,8 +155,8 @@
 
         <NDialog
           :open="confirmSend"
-          title="Envoyer ce message ?"
-          description="Vérifie les destinataires avant de confirmer l’envoi."
+          :title="$t('composer.confirmSendTitle')"
+          :description="$t('composer.confirmSendDescription')"
           :show-close="false"
           :_dialog-overlay="{ class: 'compose-confirm-overlay' }"
           :_dialog-content="{ class: 'classification-dialog compose-confirm-dialog' }"
@@ -156,25 +164,25 @@
         >
           <template #content>
             <header class="dialog-header">
-              <p class="dialog-kicker">Vérification avant envoi</p>
-              <NDialogTitle class="dialog-title">Envoyer ce message ?</NDialogTitle>
+              <p class="dialog-kicker">{{ $t('composer.reviewBeforeSend') }}</p>
+              <NDialogTitle class="dialog-title">{{ $t('composer.confirmSendTitle') }}</NDialogTitle>
               <NDialogDescription class="screener-confirm-copy">
-                Il sera envoyé depuis <strong>courrier-test@verbatims.cc</strong> à {{ toRecipientList.join(', ') }}
-                <template v-if="ccRecipientList.length">, en copie à {{ ccRecipientList.join(', ') }}</template>
-                <template v-if="bccRecipientList.length">, et en copie cachée à {{ bccRecipientList.join(', ') }}</template>.
+                {{ $t('composer.willSendFrom') }} <strong>courrier-test@verbatims.cc</strong> {{ $t('composer.to') }} {{ toRecipientList.join(', ') }}
+                <template v-if="ccRecipientList.length">, {{ $t('composer.ccTo') }} {{ ccRecipientList.join(', ') }}</template>
+                <template v-if="bccRecipientList.length">, {{ $t('composer.bccTo') }} {{ bccRecipientList.join(', ') }}</template>.
               </NDialogDescription>
             </header>
             <footer class="dialog-actions">
-              <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="sending">Continuer à écrire</button></NDialogClose>
-              <button class="dialog-save" type="button" :disabled="sending" @click="sendDraft">{{ sending ? 'Envoi…' : 'Confirmer l’envoi' }}</button>
+              <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="sending">{{ $t('composer.continueWriting') }}</button></NDialogClose>
+              <button class="dialog-save" type="button" :disabled="sending" @click="sendDraft">{{ sending ? $t('composer.sending') : $t('composer.confirmSend') }}</button>
             </footer>
           </template>
         </NDialog>
 
         <NDialog
           :open="confirmDiscard"
-          title="Supprimer ce brouillon ?"
-          description="Le brouillon et ses pièces jointes seront supprimés définitivement."
+          :title="$t('composer.deleteDraftTitle')"
+          :description="$t('composer.deleteDraftDescription')"
           :show-close="false"
           :_dialog-overlay="{ class: 'compose-confirm-overlay' }"
           :_dialog-content="{ class: 'classification-dialog compose-confirm-dialog' }"
@@ -182,13 +190,13 @@
         >
           <template #content>
             <header class="dialog-header">
-              <p class="dialog-kicker">Suppression définitive</p>
-              <NDialogTitle class="dialog-title">Supprimer ce brouillon ?</NDialogTitle>
-              <NDialogDescription class="screener-confirm-copy">Le brouillon et ses pièces jointes seront supprimés définitivement.</NDialogDescription>
+              <p class="dialog-kicker">{{ $t('composer.permanentDelete') }}</p>
+              <NDialogTitle class="dialog-title">{{ $t('composer.deleteDraftTitle') }}</NDialogTitle>
+              <NDialogDescription class="screener-confirm-copy">{{ $t('composer.deleteDraftDescription') }}</NDialogDescription>
             </header>
             <footer class="dialog-actions">
-              <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="discarding">Annuler</button></NDialogClose>
-              <button class="dialog-danger" type="button" :disabled="discarding" @click="confirmDiscardDraft">{{ discarding ? 'Suppression…' : 'Supprimer le brouillon' }}</button>
+              <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="discarding">{{ $t('common.cancel') }}</button></NDialogClose>
+              <button class="dialog-danger" type="button" :disabled="discarding" @click="confirmDiscardDraft">{{ discarding ? $t('composer.deleting') : $t('composer.deleteDraft') }}</button>
             </footer>
           </template>
         </NDialog>
@@ -212,6 +220,8 @@ type SlashCommand = { label: string, description: string, icon: string, apply: (
 
 const props = defineProps<{ open: boolean, draftId?: string | null }>()
 const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: string], 'show-drafts': [] }>()
+const { $t } = useI18n()
+const { locale } = useI18nLocale()
 
 const draftId = ref('')
 const draftCount = ref(0)
@@ -258,7 +268,7 @@ const editor = useEditor({
     StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: false }),
     Link.configure({ openOnClick: false, autolink: true, protocols: ['mailto'] }),
     Image.configure({ inline: false, allowBase64: false }),
-    Placeholder.configure({ placeholder: 'Écrire votre message…' }),
+    Placeholder.configure({ placeholder: () => $t('composer.bodyPlaceholder') }),
   ],
   editorProps: {
     handleKeyDown: (_view, event) => onEditorKeydown(event),
@@ -271,21 +281,21 @@ const editor = useEditor({
   onSelectionUpdate: updateSlashState,
 })
 
-const slashCommands: SlashCommand[] = [
-  { label: 'Texte', description: 'Paragraphe simple', icon: '¶', apply: () => editor.value?.chain().focus().setParagraph().run() },
-  { label: 'Titre 1', description: 'Grand titre', icon: 'H1', apply: () => editor.value?.chain().focus().toggleHeading({ level: 1 }).run() },
-  { label: 'Titre 2', description: 'Titre secondaire', icon: 'H2', apply: () => editor.value?.chain().focus().toggleHeading({ level: 2 }).run() },
-  { label: 'Liste à puces', description: 'Liste non numérotée', icon: '•', apply: () => editor.value?.chain().focus().toggleBulletList().run() },
-  { label: 'Liste numérotée', description: 'Liste ordonnée', icon: '1.', apply: () => editor.value?.chain().focus().toggleOrderedList().run() },
-  { label: 'Citation', description: 'Mettre un passage en retrait', icon: '“', apply: () => editor.value?.chain().focus().toggleBlockquote().run() },
-  { label: 'Bloc de code', description: 'Afficher du texte préformaté', icon: '</>', apply: () => editor.value?.chain().focus().toggleCodeBlock().run() },
-  { label: 'Séparateur', description: 'Insérer une ligne horizontale', icon: '—', apply: () => editor.value?.chain().focus().setHorizontalRule().run() },
-  { label: 'Image', description: 'Insérer une image dans le message', icon: '▧', apply: () => chooseFiles('inline') },
-]
+const slashCommands = computed<SlashCommand[]>(() => [
+  { label: $t('composer.slash.text'), description: $t('composer.slash.textDescription'), icon: '¶', apply: () => editor.value?.chain().focus().setParagraph().run() },
+  { label: $t('composer.slash.heading1'), description: $t('composer.slash.heading1Description'), icon: 'H1', apply: () => editor.value?.chain().focus().toggleHeading({ level: 1 }).run() },
+  { label: $t('composer.slash.heading2'), description: $t('composer.slash.heading2Description'), icon: 'H2', apply: () => editor.value?.chain().focus().toggleHeading({ level: 2 }).run() },
+  { label: $t('composer.slash.bullets'), description: $t('composer.slash.bulletsDescription'), icon: '•', apply: () => editor.value?.chain().focus().toggleBulletList().run() },
+  { label: $t('composer.slash.numbered'), description: $t('composer.slash.numberedDescription'), icon: '1.', apply: () => editor.value?.chain().focus().toggleOrderedList().run() },
+  { label: $t('composer.slash.quote'), description: $t('composer.slash.quoteDescription'), icon: '“', apply: () => editor.value?.chain().focus().toggleBlockquote().run() },
+  { label: $t('composer.slash.code'), description: $t('composer.slash.codeDescription'), icon: '</>', apply: () => editor.value?.chain().focus().toggleCodeBlock().run() },
+  { label: $t('composer.slash.divider'), description: $t('composer.slash.dividerDescription'), icon: '—', apply: () => editor.value?.chain().focus().setHorizontalRule().run() },
+  { label: $t('composer.slash.image'), description: $t('composer.slash.imageDescription'), icon: '▧', apply: () => chooseFiles('inline') },
+])
 
 const filteredSlashCommands = computed(() => {
-  const query = slashState.value.query.trim().toLocaleLowerCase('fr')
-  return slashCommands.filter(item => !query || `${item.label} ${item.description}`.toLocaleLowerCase('fr').includes(query))
+  const query = slashState.value.query.trim().toLocaleLowerCase(locale.value)
+  return slashCommands.value.filter(item => !query || `${item.label} ${item.description}`.toLocaleLowerCase(locale.value).includes(query))
 })
 
 watch([slashIndex, filteredSlashCommands], async () => {
@@ -454,9 +464,9 @@ const estimatedEmailBytes = computed(() => {
   })
 })
 const recipientError = computed(() => !toRecipientList.value.length
-  ? 'Ajoute au moins une adresse dans le champ À.'
+  ? $t('composer.recipientRequired')
   : recipientList.value.length > 50 || recipientList.value.some(address => !isValidRecipient(address))
-    ? 'Vérifie les adresses et sépare-les par une virgule.'
+    ? $t('composer.recipientInvalid')
     : '')
 const canSend = computed(() => Boolean(draftId.value && toRecipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
 
@@ -511,7 +521,7 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
     saved.value = Boolean(draft.updatedAt)
     await refreshDraftCount()
   } catch (cause) {
-    error.value = readError(cause, 'Le brouillon n’a pas pu être chargé.')
+    error.value = readError(cause, $t('composer.loadError'))
   } finally {
     hydrating = false
     loading.value = false
@@ -551,7 +561,7 @@ async function saveDraft() {
     })
     if (revision === saveRevision) saved.value = true
   } catch (cause) {
-    error.value = readError(cause, 'Le brouillon n’a pas pu être enregistré.')
+    error.value = readError(cause, $t('composer.saveError'))
   } finally {
     saving.value = false
     if (revision !== saveRevision && draftStatus.value === 'draft') void saveDraft()
@@ -591,7 +601,7 @@ async function onFilesSelected(event: Event) {
     }
     scheduleSave()
   } catch (cause) {
-    error.value = readError(cause, 'Un fichier n’a pas pu être ajouté.')
+    error.value = readError(cause, $t('composer.addFileError'))
   } finally {
     uploading.value = false
   }
@@ -611,7 +621,7 @@ async function removeAttachment(attachment: ComposeAttachment) {
     }
     scheduleSave()
   } catch (cause) {
-    error.value = readError(cause, 'Cette pièce jointe n’a pas pu être retirée.')
+    error.value = readError(cause, $t('composer.removeAttachmentError'))
   }
 }
 
@@ -653,7 +663,7 @@ async function sendDraft() {
     emit('update:open', false)
     reset()
   } catch (cause) {
-    error.value = readError(cause, 'Le message n’a pas pu être envoyé. Le brouillon est conservé.')
+    error.value = readError(cause, $t('composer.sendError'))
     if (error.value.includes('état est incertain') || error.value.includes('accepté par Cloudflare')) {
       draftStatus.value = 'sending'
       editor.value?.setEditable(false)
@@ -677,7 +687,7 @@ async function confirmDiscardDraft() {
     emit('update:open', false)
     reset()
   } catch (cause) {
-    error.value = readError(cause, 'Le brouillon n’a pas pu être supprimé.')
+    error.value = readError(cause, $t('composer.deleteError'))
   } finally {
     discarding.value = false
   }

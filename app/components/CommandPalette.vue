@@ -30,7 +30,7 @@
           <kbd>ESC</kbd>
         </label>
 
-        <div id="command-palette-options" class="command-palette-options" role="listbox" aria-label="Suggestions">
+        <div id="command-palette-options" class="command-palette-options" role="listbox" :aria-label="$t('palette.suggestions')">
           <template v-if="filteredCommands.length">
             <p class="command-palette-heading">{{ prefix === '/' ? $t('palette.actions') : prefix === '@' ? $t('palette.navigation') : $t('palette.quickAccess') }}</p>
             <button

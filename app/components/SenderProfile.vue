@@ -4,19 +4,19 @@
       <NuxtLink class="sender-profile-back" :to="returnTo">← {{ returnLabel }}</NuxtLink>
 
       <section v-if="error" class="sender-profile-state" role="alert">
-        <strong>Cette fiche n’a pas pu être chargée.</strong>
-        <span>Vérifie ta connexion, puis réessaie.</span>
-        <button type="button" :disabled="pending" @click="refresh()">{{ pending ? 'Chargement…' : 'Réessayer' }}</button>
+        <strong>{{ $t('sender.loadErrorTitle') }}</strong>
+        <span>{{ $t('sender.loadErrorDescription') }}</span>
+        <button type="button" :disabled="pending" @click="refresh()">{{ pending ? $t('sender.loading') : $t('common.retry') }}</button>
       </section>
       <section v-else-if="!messages.length" class="sender-profile-state">
-        <strong>Aucun message trouvé pour cette adresse.</strong>
-        <span>Elle a peut-être été supprimée ou n’est plus disponible.</span>
+        <strong>{{ $t('sender.emptyTitle') }}</strong>
+        <span>{{ $t('sender.emptyDescription') }}</span>
       </section>
       <template v-else>
         <header class="sender-profile-heading">
           <span class="sender-profile-avatar" :class="`avatar-${latestMessage.color}`">{{ latestMessage.initials }}</span>
           <div>
-            <p class="sender-profile-kicker">Expéditeur</p>
+            <p class="sender-profile-kicker">{{ $t('sender.sender') }}</p>
             <h1>{{ latestMessage.sender }}</h1>
             <p class="sender-profile-address">{{ address }}</p>
           </div>
@@ -24,7 +24,7 @@
 
         <section class="sender-profile-history" aria-labelledby="sender-history-title">
           <div class="sender-profile-section-heading">
-            <h2 id="sender-history-title">Messages reçus</h2>
+            <h2 id="sender-history-title">{{ $t('sender.receivedMessages') }}</h2>
             <span>{{ messages.length }}</span>
           </div>
 
@@ -32,19 +32,19 @@
             <header class="sender-rule-panel">
               <div class="sender-rule-description">
                 <span class="sender-rule-domain">{{ group.domain }}</span>
-                <span v-if="group.blocked" class="sender-blocked-status">Adresse bloquée · les prochains messages sont rejetés</span>
-                <span v-else class="sender-rule-status">{{ group.rule ? 'Classement automatique' : 'Aucune règle enregistrée' }}</span>
-                <span class="sender-rule-hint">{{ group.blocked ? 'Le choix reclasse l’historique ; les nouveaux messages resteront rejetés tant que l’adresse est bloquée.' : 'Le choix s’applique aux prochains messages et reclasse l’historique. Set Aside et Reply Later restent intactes.' }}</span>
+                <span v-if="group.blocked" class="sender-blocked-status">{{ $t('sender.blockedStatus') }}</span>
+                <span v-else class="sender-rule-status">{{ $t(group.rule ? 'sender.automaticRule' : 'sender.noRule') }}</span>
+                <span class="sender-rule-hint">{{ $t(group.blocked ? 'sender.blockedHint' : 'sender.ruleHint') }}</span>
               </div>
               <form class="sender-rule-form" @submit.prevent="applyRule(group)">
-                <label class="sr-only" :for="`sender-folder-${group.domain}`">Boîte pour {{ address }} sur {{ group.domain }}</label>
+                <label class="sr-only" :for="`sender-folder-${group.domain}`">{{ $t('sender.mailboxFor', { address, domain: group.domain }) }}</label>
                 <select :id="`sender-folder-${group.domain}`" :value="selectedFolder(group)" :disabled="savingDomain === group.domain" @change="selectFolder(group.domain, $event)">
                   <option value="Imbox">Inbox</option>
                   <option value="The Feed">Feed</option>
                   <option value="Paper Trail">Paper</option>
                 </select>
                 <button type="submit" :disabled="savingDomain === group.domain || selectedFolder(group) === group.rule">
-                  {{ savingDomain === group.domain ? 'Enregistrement…' : 'Reclasser les messages' }}
+                  {{ savingDomain === group.domain ? $t('sender.saving') : $t('sender.refileMessages') }}
                 </button>
               </form>
             </header>
@@ -52,14 +52,14 @@
             <p v-if="ruleNotice[group.domain]" class="sender-rule-notice" role="status">{{ ruleNotice[group.domain] }}</p>
             <p v-if="ruleErrors[group.domain]" class="sender-rule-error" role="alert">{{ ruleErrors[group.domain] }}</p>
             <button v-if="undoDomain === group.domain && undoClassificationId" class="sender-rule-undo" type="button" :disabled="isUndoingRule" @click="undoRule(group)">
-              {{ isUndoingRule ? 'Annulation…' : 'Annuler' }}
+              {{ isUndoingRule ? $t('sender.undoing') : $t('common.undo') }}
             </button>
 
-            <div class="sender-history-list" role="list" :aria-label="`Messages de ${address} reçus par ${group.domain}`">
+            <div class="sender-history-list" role="list" :aria-label="$t('sender.messagesReceivedBy', { address, domain: group.domain })">
               <NuxtLink v-for="message in group.messages" :key="message.id" class="sender-history-row" role="listitem" :to="messagePath(message)">
                 <span class="sender-history-copy">
                   <strong>{{ message.subject || '(sans objet)' }}</strong>
-                  <span>{{ message.preview || 'Aucun aperçu disponible.' }}</span>
+                  <span>{{ message.preview || $t('sender.noPreview') }}</span>
                 </span>
                 <span class="sender-history-meta">
                   <span class="sender-folder-label" :class="{ 'is-queue': message.isSetAside || message.isReplyLater }">{{ folderLabel(message) }}</span>
@@ -110,6 +110,8 @@ type SenderMailboxGroup = { domain: string, messages: SenderMessage[], rule: Mai
 
 const route = useRoute()
 const router = useRouter()
+const { $t } = useI18n()
+const { locale } = useI18nLocale()
 const returnTo = ref(mailboxPath('Imbox'))
 onMounted(() => {
   const back = router.options.history.state.back
@@ -117,7 +119,7 @@ onMounted(() => {
     returnTo.value = back
   }
 })
-const returnLabel = computed(() => returnTo.value === mailboxPath('Imbox') ? 'Retour à Inbox' : 'Retour au message')
+const returnLabel = computed(() => $t(returnTo.value === mailboxPath('Imbox') ? 'sender.backInbox' : 'sender.backMessage'))
 const rawAddress = Array.isArray(route.params.address) ? route.params.address[0] : route.params.address
 const address = computed(() => {
   try {
@@ -178,7 +180,7 @@ async function applyRule(group: SenderMailboxGroup) {
       body: { folder: selectedFolder(group) },
     })
     ruleSelections[group.domain] = result.folder
-    ruleNotice[group.domain] = `${result.affectedMessages} message${result.affectedMessages === 1 ? '' : 's'} classé${result.affectedMessages === 1 ? '' : 's'} dans ${mailboxByName(result.folder).label}.`
+    ruleNotice[group.domain] = $t(result.affectedMessages === 1 ? 'sender.refiledOne' : 'sender.refiledMany', { count: result.affectedMessages, folder: mailboxByName(result.folder).label })
     classificationFeedback.value = ruleNotice[group.domain]
     undoClassificationId.value = result.undoId
     undoDomain.value = group.domain
@@ -193,7 +195,7 @@ async function applyRule(group: SenderMailboxGroup) {
     await refresh()
   } catch (cause) {
     const statusMessage = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage
-    ruleErrors[group.domain] = statusMessage || 'Le classement n’a pas pu être enregistré. Réessaie.'
+    ruleErrors[group.domain] = statusMessage || $t('sender.saveError')
   } finally {
     savingDomain.value = ''
   }
@@ -212,22 +214,20 @@ async function undoRule(group: SenderMailboxGroup) {
     undoTimer = undefined
     delete ruleSelections[group.domain]
     const restored = result.restoredMessages
-    ruleNotice[group.domain] = restored === 1
-      ? 'Règle annulée : 1 message restauré à son emplacement précédent.'
-      : `Règle annulée : ${restored} messages restaurés à leurs emplacements précédents.`
+    ruleNotice[group.domain] = $t(restored === 1 ? 'sender.restoredOne' : 'sender.restoredMany', { count: restored })
     classificationFeedback.value = ruleNotice[group.domain]
     await refresh()
   } catch (cause) {
     const statusMessage = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage
-    ruleErrors[group.domain] = statusMessage || 'L’annulation n’a pas abouti. Recharge la fiche et vérifie le classement.'
+    ruleErrors[group.domain] = statusMessage || $t('sender.undoError')
   } finally {
     isUndoingRule.value = false
   }
 }
 
 function folderLabel(message: SenderMessage) {
-  if (message.isSetAside) return 'Set Aside'
-  if (message.isReplyLater) return 'Reply Later'
+  if (message.isSetAside) return $t('mail.setAside')
+  if (message.isReplyLater) return $t('mail.replyLater')
   return mailboxByName(message.folder).label
 }
 
@@ -239,7 +239,7 @@ function messagePath(message: SenderMessage) {
 }
 
 function formatDate(timestamp: string) {
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp))
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp))
 }
 
 useSeoMeta({

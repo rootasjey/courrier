@@ -41,7 +41,7 @@
           <option value="">{{ $t('bulk.move') }}</option>
           <option v-for="folder in bulkMoveDestinations" :key="folder" :value="folder">{{ mailboxByName(folder).label }}</option>
         </select>
-        <button type="button" class="thread-selection-action thread-selection-trash" :disabled="isApplyingBulkAction" @click="applyBulkAction('trash')">{{ $t('bulk.trash') }}</button>
+        <button type="button" class="thread-selection-action thread-selection-trash" :disabled="isApplyingBulkAction" @click="bulkTrashDialogOpen = true">{{ $t('bulk.trash') }}</button>
         <button v-if="selectedThreadIds.length > 1" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction || isMergingThreads" @click="mergeDialogOpen = true">
           {{ isMergingThreads ? $t('mail.merging') : $t('bulk.merge') }}
         </button>
@@ -51,7 +51,7 @@
       <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || bulkActionFeedback || bulkActionError || threadMergeFeedback || threadMergeError || paletteFeedback || paletteError" class="action-feedback">
         <p v-if="classificationFeedback" class="classification-feedback" role="status">{{ classificationFeedback }}</p>
         <button v-if="undoClassificationId" class="undo-action" type="button" :disabled="isUndoingClassification" @click="undoSenderRule">
-          {{ isUndoingClassification ? 'Annulation…' : 'Annuler' }}
+          {{ isUndoingClassification ? $t('mail.undoing') : $t('mail.undoClassification') }}
         </button>
         <p v-if="classificationActionError" class="action-feedback-error" role="alert">{{ classificationActionError }}</p>
         <p v-if="screenerActionError" class="action-feedback-error" role="alert">{{ screenerActionError }}</p>
@@ -246,7 +246,7 @@
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
         <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
-          <span v-if="thread.unreadCount" class="unread-indicator" :class="{ 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :aria-label="`${thread.unreadCount} message${thread.unreadCount > 1 ? 's' : ''} non lu${thread.unreadCount > 1 ? 's' : ''}`">
+          <span v-if="thread.unreadCount" class="unread-indicator" :class="{ 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :aria-label="$t(thread.unreadCount === 1 ? 'mail.unreadOne' : 'mail.unreadMany', { count: thread.unreadCount })">
             <svg v-if="keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
           </span>
           <span v-else-if="keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
@@ -624,6 +624,29 @@
     </NDialog>
 
     <NDialog
+      :open="bulkTrashDialogOpen"
+      :title="$t('palette.trashTitle')"
+      :description="$t(selectedThreadIds.length === 1 ? 'palette.trashDescriptionOne' : 'palette.trashDescriptionMany', { count: selectedThreadIds.length })"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!isApplyingBulkAction) bulkTrashDialogOpen = open }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t('palette.trashTitle') }}</NDialogTitle>
+          <NDialogDescription>{{ $t(selectedThreadIds.length === 1 ? 'palette.trashDescriptionOne' : 'palette.trashDescriptionMany', { count: selectedThreadIds.length }) }}</NDialogDescription>
+        </header>
+        <p v-if="bulkActionError" class="action-feedback-error" role="alert">{{ bulkActionError }}</p>
+        <div class="dialog-actions">
+          <button class="dialog-cancel" type="button" :disabled="isApplyingBulkAction" @click="bulkTrashDialogOpen = false">{{ $t('palette.cancel') }}</button>
+          <button class="dialog-danger" type="button" :disabled="isApplyingBulkAction" @click="applyBulkAction('trash')">
+            {{ isApplyingBulkAction ? $t('palette.applying') : $t('palette.confirmTrash') }}
+          </button>
+        </div>
+      </template>
+    </NDialog>
+
+    <NDialog
       :open="Boolean(classificationTarget)"
       :title="$t('mail.classifyDialogTitle')"
       :description="classificationTarget ? `${classificationTarget.sender} — ${classificationTarget.address}` : undefined"
@@ -917,6 +940,7 @@ const isSplittingThread = ref(false)
 const threadMergeFeedback = ref('')
 const threadMergeError = ref('')
 const threadTrashDialogOpen = ref(false)
+const bulkTrashDialogOpen = ref(false)
 const isTrashingThread = ref(false)
 const bulkActionFeedback = ref('')
 const bulkActionError = ref('')
@@ -971,7 +995,7 @@ async function onOutgoingMessageSent() {
   try {
     await refreshMessages()
   } catch {
-    classificationActionError.value = 'Message envoyé, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
+    classificationActionError.value = $t('mail.messageSentReloadError')
   }
 }
 
@@ -1363,7 +1387,7 @@ async function openReplyComposer() {
     replyDraftStatus.value = draft?.status ?? 'draft'
     replySaved.value = Boolean(draft)
   } catch {
-    replyError.value = 'Impossible de charger le brouillon. Vérifie ta connexion et réessaie.'
+    replyError.value = $t('mail.replyLoadError')
   } finally {
     replyLoading.value = false
   }
@@ -1390,7 +1414,7 @@ async function saveReplyDraft() {
     replySaved.value = true
   } catch {
     replySaved.value = false
-    replyError.value = 'Le brouillon n’a pas pu être enregistré.'
+    replyError.value = $t('mail.replySaveError')
   } finally {
     replySaving.value = false
     if (revision !== replySaveRevision && replyDraftStatus.value !== 'sending') void saveReplyDraft()
@@ -1424,7 +1448,7 @@ async function sendReply() {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     replyError.value = data && typeof data === 'object' && 'statusMessage' in data
       ? String(data.statusMessage)
-      : 'La réponse n’a pas pu être envoyée.'
+      : $t('mail.replySendError')
     if (replyError.value.includes('état est incertain') || replyError.value.includes('accepté par Cloudflare')) {
       replyDraftStatus.value = 'sending'
     }
@@ -1441,7 +1465,7 @@ async function sendReply() {
       await router.replace({ path: route.path, query: { ...route.query, message: sent.id } })
     }
   } catch {
-    replyError.value = 'La réponse est partie, mais la vue n’a pas pu se recharger. Actualise la page pour la retrouver.'
+    replyError.value = $t('mail.replySentReloadError')
   }
 }
 
@@ -1729,7 +1753,7 @@ async function importFixture() {
 
   try {
     const fixture = await fetch('/fixtures/courrier-test.eml')
-    if (!fixture.ok) throw new Error('Le message de démonstration est introuvable.')
+    if (!fixture.ok) throw new Error($t('mail.fixtureNotFound'))
 
     const result = await $fetch<{ id: string }>('/api/dev/ingest', {
       method: 'POST',
@@ -1741,7 +1765,7 @@ async function importFixture() {
     const imported = inboxMessages.value?.find(message => message.id === result.id)
     if (imported) openMessage(imported)
   } catch (error) {
-    fixtureError.value = error instanceof Error ? error.message : 'Impossible d’importer le message de test.'
+    fixtureError.value = error instanceof Error ? error.message : $t('mail.fixtureImportError')
   } finally {
     isImportingFixture.value = false
   }
@@ -1772,7 +1796,7 @@ function openMessage(message: InboxMessage, mailbox: Folder = message.folder) {
     }
   })).then((results) => {
     if (results.some(result => result.status === 'rejected')) {
-      messageReadError.value = 'Le fil est ouvert, mais certains états de lecture n’ont pas été enregistrés.'
+      messageReadError.value = $t('mail.messageReadPartialError')
     }
   })
 }
@@ -1928,6 +1952,7 @@ async function applyBulkAction(action: 'mark-seen' | 'reply-later' | 'set-aside'
       method: 'PATCH',
       body: { threadIds: selectedThreadIds.value, source: activeFolder.value, action, ...options },
     })
+    if (action === 'trash') bulkTrashDialogOpen.value = false
     await refreshMessages()
     clearThreadSelection()
     const count = result.affectedThreads
@@ -2010,12 +2035,12 @@ async function mergeSelectedThreads() {
     keyboardSelectionThreadId.value = ''
     selectionAnchorThreadId.value = ''
     await refreshMessages()
-    threadMergeFeedback.value = `${result.mergedThreads} fils réunis. Tu pourras les séparer depuis la conversation.`
+    threadMergeFeedback.value = $t('mail.mergeDone', { count: result.mergedThreads })
   } catch (error) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     threadMergeError.value = data && typeof data === 'object' && 'statusMessage' in data
       ? String(data.statusMessage)
-      : 'La fusion n’a pas pu être enregistrée. Réessaie.'
+      : $t('mail.mergeError')
   } finally {
     isMergingThreads.value = false
   }
@@ -2034,12 +2059,12 @@ async function splitSelectedThread() {
     splitDialogOpen.value = false
     await refreshMessages()
     closeMessage()
-    threadMergeFeedback.value = `La conversation a retrouvé ses ${result.originalThreads} fils d’origine.`
+    threadMergeFeedback.value = $t('mail.splitDone', { count: result.originalThreads })
   } catch (error) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     threadMergeError.value = data && typeof data === 'object' && 'statusMessage' in data
       ? String(data.statusMessage)
-      : 'Les fils n’ont pas pu être séparés. Réessaie.'
+      : $t('mail.splitError')
   } finally {
     isSplittingThread.value = false
   }
@@ -2079,7 +2104,7 @@ async function loadSearchPage(reset = false) {
     searchHasMore.value = response.hasMore
     searchOffset.value = response.nextOffset ?? offset + response.results.length
   } catch {
-    if (revision === searchRevision) searchError.value = 'La recherche a échoué. Vérifie ta connexion et réessaie.'
+    if (revision === searchRevision) searchError.value = $t('mail.searchError')
   } finally {
     if (revision === searchRevision) searchLoading.value = false
   }
@@ -2116,7 +2141,7 @@ async function setAsideThread(isSetAside: boolean) {
     try {
       await refreshMessages()
     } catch {
-      classificationActionError.value = 'Le changement est enregistré, mais la boîte n’a pas pu se recharger.'
+      classificationActionError.value = $t('mail.changeSavedReloadError')
     }
     classificationFeedback.value = ''
     void router.push(mailboxPath(result.folder))
@@ -2124,7 +2149,7 @@ async function setAsideThread(isSetAside: boolean) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     classificationActionError.value = data && typeof data === 'object' && 'statusMessage' in data
       ? String(data.statusMessage)
-      : 'Le changement Set Aside n’a pas pu être enregistré. Vérifie la connexion et réessaie.'
+      : $t('mail.setAsideError')
   } finally {
     isSavingSetAside.value = false
   }
@@ -2144,7 +2169,7 @@ async function setReplyLater(isReplyLater: boolean) {
     try {
       await refreshMessages()
     } catch {
-      classificationActionError.value = 'Le changement est enregistré, mais la boîte n’a pas pu se recharger.'
+      classificationActionError.value = $t('mail.changeSavedReloadError')
     }
     classificationFeedback.value = ''
     void router.push(mailboxPath(isReplyLater ? 'Reply Later' : result.folder))
@@ -2152,7 +2177,7 @@ async function setReplyLater(isReplyLater: boolean) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     classificationActionError.value = data && typeof data === 'object' && 'statusMessage' in data
       ? String(data.statusMessage)
-      : 'Le changement Reply Later n’a pas pu être enregistré. Vérifie la connexion et réessaie.'
+      : $t('mail.replyLaterError')
   } finally {
     isSavingReplyLater.value = false
   }
@@ -2192,18 +2217,18 @@ async function applyScreenerChoice(message: InboxMessage, folder: MailboxFolder,
         method: 'PUT',
         body: { folder },
       })
-      showClassificationFeedback(`${result.affectedMessages} message${result.affectedMessages > 1 ? 's' : ''} classé${result.affectedMessages > 1 ? 's' : ''} dans ${mailboxByName(result.folder).label}.`, result.undoId)
+      showClassificationFeedback($t(result.affectedMessages === 1 ? 'mail.classificationDoneOne' : 'mail.classificationDoneMany', { count: result.affectedMessages, folder: mailboxByName(result.folder).label }), result.undoId)
     } else {
       await $fetch(`/api/messages/${encodeURIComponent(message.id)}/folder`, {
         method: 'PATCH',
         body: { folder },
       })
-      showClassificationFeedback('Message classé. Les autres et les prochains restent dans le Screener.')
+      showClassificationFeedback($t('mail.messageClassified'))
     }
     classificationTarget.value = null
     await refreshMessages()
   } catch {
-    screenerActionError.value = 'Le classement n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
+    screenerActionError.value = $t('mail.classificationError')
   } finally {
     isSavingScreenerAction.value = false
   }
@@ -2217,10 +2242,10 @@ async function blockScreenerSender(message: InboxMessage) {
     const result = await $fetch<{ preservedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/block-sender`, {
       method: 'POST',
     })
-    showClassificationFeedback(`Adresse bloquée. ${result.preservedMessages} message${result.preservedMessages > 1 ? 's reçus restent consultables' : ' reçu reste consultable'} dans l’historique.`)
+    showClassificationFeedback($t(result.preservedMessages === 1 ? 'mail.blockedOne' : 'mail.blockedMany', { count: result.preservedMessages }))
     await refreshMessages()
   } catch {
-    screenerActionError.value = 'Le blocage n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
+    screenerActionError.value = $t('mail.screenerBlockError')
   } finally {
     isSavingScreenerAction.value = false
   }
@@ -2232,10 +2257,10 @@ async function trashScreenerMessage(message: InboxMessage) {
   screenerActionError.value = ''
   try {
     await $fetch(`/api/messages/${encodeURIComponent(message.id)}/trash`, { method: 'POST' })
-    showClassificationFeedback('Message déplacé dans la corbeille. Tu pourras le restaurer depuis cette boîte.')
+    showClassificationFeedback($t('mail.screenerMessageTrashed'))
     await refreshMessages()
   } catch {
-    screenerActionError.value = 'Le message n’a pas pu être déplacé dans la corbeille. Vérifie ta connexion et réessaie.'
+    screenerActionError.value = $t('mail.screenerTrashError')
   } finally {
     isSavingScreenerAction.value = false
   }
@@ -2248,11 +2273,11 @@ async function restoreTrashedMessage(message: InboxMessage) {
   screenerActionError.value = ''
   try {
     await $fetch(`/api/messages/${encodeURIComponent(message.id)}/restore-trash`, { method: 'POST' })
-    showClassificationFeedback('Message restauré dans sa boîte d’origine.')
+    showClassificationFeedback($t('mail.screenerMessageRestored'))
     await refreshMessages()
     if (wasReadingFromTrash) void router.push(mailboxPath('Trash'))
   } catch {
-    screenerActionError.value = 'Le message n’a pas pu être restauré. Vérifie ta connexion et réessaie.'
+    screenerActionError.value = $t('mail.screenerRestoreError')
   } finally {
     isSavingScreenerAction.value = false
   }
@@ -2265,10 +2290,10 @@ async function clearAllScreener() {
   screenerActionError.value = ''
   try {
     const result = await $fetch<{ clearedMessages: number }>('/api/screener/clear', { method: 'POST' })
-    showClassificationFeedback(`${result.clearedMessages} message${result.clearedMessages > 1 ? 's écartés' : ' écarté'} de la file. Ils restent consultables dans l’historique.`)
+    showClassificationFeedback($t(result.clearedMessages === 1 ? 'mail.screenerClearedOne' : 'mail.screenerClearedMany', { count: result.clearedMessages }))
     await refreshMessages()
   } catch {
-    screenerActionError.value = 'La file n’a pas pu être vidée. Vérifie ta connexion et réessaie.'
+    screenerActionError.value = $t('mail.screenerClearError')
   } finally {
     isClearingScreener.value = false
   }
@@ -2281,14 +2306,14 @@ async function restoreScreenerSender(message: InboxMessage, state: 'cleared' | '
   try {
     if (state === 'blocked') {
       await $fetch(`/api/messages/${encodeURIComponent(message.id)}/unblock-sender`, { method: 'POST' })
-      showClassificationFeedback('Adresse autorisée à nouveau. Les messages conservés sont de retour dans la file du Screener.')
+      showClassificationFeedback($t('mail.senderAllowed'))
     } else {
       await $fetch(`/api/messages/${encodeURIComponent(message.id)}/restore-screener`, { method: 'POST' })
-      showClassificationFeedback('Messages remis dans la file du Screener.')
+      showClassificationFeedback($t('mail.messagesRestoredToScreener'))
     }
     await refreshMessages()
   } catch {
-    screenerActionError.value = 'La modification n’a pas pu être enregistrée. Vérifie ta connexion et réessaie.'
+    screenerActionError.value = $t('mail.screenerUpdateError')
   } finally {
     isSavingScreenerAction.value = false
   }
@@ -2307,7 +2332,7 @@ async function retryMarkRead() {
     setMessageRead(message, true)
   }))
   if (results.some(result => result.status === 'rejected')) {
-    messageReadError.value = 'Impossible d’enregistrer la lecture. Vérifie ta connexion et réessaie.'
+      messageReadError.value = $t('mail.messageReadError')
   }
 }
 
@@ -2367,14 +2392,14 @@ async function undoSenderRule() {
     undoClassificationId.value = ''
     if (undoTimer) clearTimeout(undoTimer)
     undoTimer = undefined
-    showClassificationFeedback(`Règle annulée : ${result.restoredMessages} message${result.restoredMessages > 1 ? 's' : ''} restauré${result.restoredMessages > 1 ? 's' : ''} dans son emplacement précédent${result.restoredMessages > 1 ? ' respectif' : ''}.`)
+    showClassificationFeedback($t(result.restoredMessages === 1 ? 'mail.undoDoneOne' : 'mail.undoDoneMany', { count: result.restoredMessages }))
     try {
       await refreshMessages()
     } catch {
-      classificationActionError.value = 'Règle annulée, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
+      classificationActionError.value = $t('mail.undoRefreshError')
     }
   } catch {
-    classificationActionError.value = 'L’annulation n’a pas abouti. Recharge la boîte et vérifie le classement avant de réessayer.'
+    classificationActionError.value = $t('mail.undoError')
   } finally {
     isUndoingClassification.value = false
   }
@@ -2394,19 +2419,19 @@ async function saveClassification() {
         method: 'PATCH',
         body: { folder: classificationFolder.value },
       })
-      showClassificationFeedback(`${result.movedMessages} message${result.movedMessages > 1 ? 's' : ''} déplacé${result.movedMessages > 1 ? 's' : ''} dans ${mailboxByName(result.folder).label}. Les règles des expéditeurs restent inchangées.`)
+      showClassificationFeedback($t(result.movedMessages === 1 ? 'mail.groupMessagesMovedOne' : 'mail.groupMessagesMovedMany', { count: result.movedMessages, folder: mailboxByName(result.folder).label }))
     } else if (classificationScope.value === 'sender') {
       const result = await $fetch<{ folder: MailboxFolder, affectedMessages: number, undoId: string }>(`/api/messages/${encodeURIComponent(message.id)}/sender-rule`, {
         method: 'PUT',
         body: { folder: classificationFolder.value },
       })
-      showClassificationFeedback(`${result.affectedMessages} message${result.affectedMessages > 1 ? 's' : ''} classé${result.affectedMessages > 1 ? 's' : ''} dans ${mailboxByName(result.folder).label}.`, result.undoId)
+      showClassificationFeedback($t(result.affectedMessages === 1 ? 'mail.classificationDoneOne' : 'mail.classificationDoneMany', { count: result.affectedMessages, folder: mailboxByName(result.folder).label }), result.undoId)
     } else {
       const result = await $fetch<{ folder: MailboxFolder }>(`/api/messages/${encodeURIComponent(message.id)}/folder`, {
         method: 'PATCH',
         body: { folder: classificationFolder.value },
       })
-      showClassificationFeedback(`Message déplacé dans ${mailboxByName(result.folder).label}. La règle de l’expéditeur reste inchangée.`)
+      showClassificationFeedback($t('mail.messageMovedKeepingSenderRule', { folder: mailboxByName(result.folder).label }))
     }
 
     classificationTarget.value = null
@@ -2414,13 +2439,13 @@ async function saveClassification() {
     try {
       await refreshMessages()
     } catch {
-      classificationActionError.value = 'Classement enregistré, mais la boîte n’a pas pu se recharger. Utilise Réessayer.'
+      classificationActionError.value = $t('mail.changeSavedReloadError')
     }
   } catch (error) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     classificationError.value = data && typeof data === 'object' && 'statusMessage' in data
       ? String(data.statusMessage)
-      : 'Le classement n’a pas pu être enregistré. Vérifie ta connexion et réessaie.'
+      : $t('mail.classificationError')
   } finally {
     isSavingClassification.value = false
   }

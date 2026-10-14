@@ -2,34 +2,34 @@
   <main class="mail-page drafts-page">
     <section class="drafts-view" aria-labelledby="drafts-title">
       <header class="drafts-heading">
-        <NuxtLink class="drafts-back" to="/mail/inbox">← Boîte de réception</NuxtLink>
-        <h1 id="drafts-title">Brouillons</h1>
-        <p>{{ drafts.length }} brouillon{{ drafts.length === 1 ? '' : 's' }}</p>
+        <NuxtLink class="drafts-back" to="/mail/inbox">← {{ $t('drafts.back') }}</NuxtLink>
+        <h1 id="drafts-title">{{ $t('drafts.title') }}</h1>
+        <p>{{ $t(drafts.length === 1 ? 'drafts.countOne' : 'drafts.countMany', { count: drafts.length }) }}</p>
       </header>
 
       <div v-if="error" class="drafts-error" role="alert">
         <p>{{ error }}</p>
-        <button type="button" @click="loadDrafts">Réessayer</button>
+        <button type="button" @click="loadDrafts">{{ $t('common.retry') }}</button>
       </div>
-      <div v-else-if="loading" class="drafts-state" role="status">Chargement des brouillons…</div>
+      <div v-else-if="loading" class="drafts-state" role="status">{{ $t('drafts.loading') }}</div>
       <div v-else-if="!drafts.length" class="drafts-empty">
-        <h2>Aucun brouillon</h2>
-        <p>Les messages que tu commenceras à écrire apparaîtront ici.</p>
-        <button class="drafts-primary" type="button" @click="startNewDraft">Écrire un message</button>
+        <h2>{{ $t('drafts.emptyTitle') }}</h2>
+        <p>{{ $t('drafts.emptyDescription') }}</p>
+        <button class="drafts-primary" type="button" @click="startNewDraft">{{ $t('drafts.writeMessage') }}</button>
       </div>
-      <ul v-else class="drafts-list" aria-label="Liste des brouillons">
+      <ul v-else class="drafts-list" :aria-label="$t('drafts.listLabel')">
         <li v-for="draft in drafts" :key="draft.id" class="draft-row">
           <button class="draft-open" type="button" @click="openDraft(draft.id)">
             <span class="draft-avatar" aria-hidden="true">{{ avatarLabel(draft.to) }}</span>
             <span class="draft-copy">
-              <strong>{{ draft.subject || 'Sans objet' }}</strong>
-              <span class="draft-meta">{{ recipientSummary(draft.to) }}<template v-if="draft.cc || draft.bcc"> · Cc/Cci</template><template v-if="draft.attachmentCount"> · {{ draft.attachmentCount }} pièce{{ draft.attachmentCount === 1 ? '' : 's' }} jointe{{ draft.attachmentCount === 1 ? '' : 's' }}</template></span>
+              <strong>{{ draft.subject || $t('drafts.noSubject') }}</strong>
+              <span class="draft-meta">{{ recipientSummary(draft.to) }}<template v-if="draft.cc || draft.bcc"> · {{ $t('drafts.ccBcc') }}</template><template v-if="draft.attachmentCount"> · {{ $t(draft.attachmentCount === 1 ? 'drafts.attachmentOne' : 'drafts.attachmentMany', { count: draft.attachmentCount }) }}</template></span>
               <span v-if="draft.preview" class="draft-preview">{{ draft.preview }}</span>
             </span>
             <time class="draft-date" :datetime="draft.updatedAt">{{ formatDate(draft.updatedAt) }}</time>
           </button>
-          <NTooltip content="Supprimer le brouillon">
-            <button class="draft-delete" type="button" :aria-label="`Supprimer le brouillon ${draft.subject || 'sans objet'}`" :disabled="deletingId === draft.id" @click="askDelete(draft)">
+          <NTooltip :content="$t('drafts.delete')">
+            <button class="draft-delete" type="button" :aria-label="$t('drafts.deleteNamed', { subject: draft.subject || $t('drafts.noSubject') })" :disabled="deletingId === draft.id" @click="askDelete(draft)">
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 5.5h13m-11.5 0 .7 11h8.6l.7-11M7.5 5.5V3.8h5v1.7m-3.5 3v5m2-5v5" /></svg>
             </button>
           </NTooltip>
@@ -48,21 +48,21 @@
 
     <NDialog
       :open="Boolean(draftToDelete)"
-      title="Supprimer ce brouillon ?"
-      description="Le brouillon et ses pièces jointes seront supprimés définitivement."
+      :title="$t('drafts.deleteTitle')"
+      :description="$t('drafts.deleteDescription')"
       :show-close="false"
       :_dialog-content="{ class: 'classification-dialog' }"
       @update:open="(open: boolean) => { if (!open && !deletingId) draftToDelete = null }"
     >
       <template #content>
         <header class="dialog-header">
-          <p class="dialog-kicker">Suppression définitive</p>
-          <NDialogTitle class="dialog-title">Supprimer ce brouillon ?</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">« {{ draftToDelete?.subject || 'Sans objet' }} » et ses pièces jointes seront supprimés définitivement.</NDialogDescription>
+          <p class="dialog-kicker">{{ $t('drafts.deleteKicker') }}</p>
+          <NDialogTitle class="dialog-title">{{ $t('drafts.deleteTitle') }}</NDialogTitle>
+          <NDialogDescription class="screener-confirm-copy">{{ $t('drafts.deleteNamedDescription', { subject: draftToDelete?.subject || $t('drafts.noSubject') }) }}</NDialogDescription>
         </header>
         <footer class="dialog-actions">
-          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="Boolean(deletingId)">Annuler</button></NDialogClose>
-          <button class="dialog-danger" type="button" :disabled="Boolean(deletingId)" @click="deleteDraft">{{ deletingId ? 'Suppression…' : 'Supprimer le brouillon' }}</button>
+          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="Boolean(deletingId)">{{ $t('common.cancel') }}</button></NDialogClose>
+          <button class="dialog-danger" type="button" :disabled="Boolean(deletingId)" @click="deleteDraft">{{ deletingId ? $t('drafts.deleting') : $t('drafts.delete') }}</button>
         </footer>
       </template>
     </NDialog>
@@ -81,6 +81,9 @@ type DraftSummary = {
   attachmentCount: number
 }
 
+const { $t } = useI18n()
+const { locale } = useI18nLocale()
+
 const drafts = ref<DraftSummary[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -97,7 +100,7 @@ async function loadDrafts() {
   } catch (cause) {
     error.value = cause && typeof cause === 'object' && 'data' in cause && (cause as { data?: { statusMessage?: string } }).data?.statusMessage
       ? (cause as { data: { statusMessage: string } }).data.statusMessage
-      : 'Les brouillons n’ont pas pu être chargés.'
+      : $t('drafts.loadError')
   } finally {
     loading.value = false
   }
@@ -143,7 +146,7 @@ async function deleteDraft() {
   } catch (cause) {
     error.value = cause && typeof cause === 'object' && 'data' in cause && (cause as { data?: { statusMessage?: string } }).data?.statusMessage
       ? (cause as { data: { statusMessage: string } }).data.statusMessage
-      : 'Le brouillon n’a pas pu être supprimé.'
+      : $t('drafts.deleteError')
     draftToDelete.value = null
   } finally {
     deletingId.value = ''
@@ -151,18 +154,18 @@ async function deleteDraft() {
 }
 
 function recipientSummary(addresses: string) {
-  return addresses.trim() || 'Aucun destinataire'
+  return addresses.trim() || $t('drafts.noRecipients')
 }
 
 function avatarLabel(addresses: string) {
   const first = addresses.trim().split(/[;,\s]+/)[0]
-  return first ? first.slice(0, 1).toLocaleUpperCase('fr') : '•'
+  return first ? first.slice(0, 1).toLocaleUpperCase(locale.value) : '•'
 }
 
 function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
 onMounted(() => void loadDrafts())
