@@ -5,6 +5,7 @@
 .nitro
 .cache
 dist
+/locales/pages/
 
 # Node dependencies
 node_modules

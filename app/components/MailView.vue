@@ -50,7 +50,7 @@
         <button type="button" class="thread-selection-cancel" :disabled="isApplyingBulkAction" @click="clearThreadSelection">{{ $t('bulk.cancel') }}</button>
       </div>
 
-      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || bulkActionFeedback || bulkActionError || threadMergeFeedback || threadMergeError" class="action-feedback">
+      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || bulkActionFeedback || bulkActionError || threadMergeFeedback || threadMergeError || paletteFeedback || paletteError" class="action-feedback">
         <p v-if="classificationFeedback" class="classification-feedback" role="status">{{ classificationFeedback }}</p>
         <button v-if="undoClassificationId" class="undo-action" type="button" :disabled="isUndoingClassification" @click="undoSenderRule">
           {{ isUndoingClassification ? 'Annulation…' : 'Annuler' }}
@@ -61,6 +61,8 @@
         <p v-if="bulkActionError" class="action-feedback-error" role="alert">{{ bulkActionError }}</p>
         <p v-if="threadMergeFeedback" class="classification-feedback" role="status">{{ threadMergeFeedback }}</p>
         <p v-if="threadMergeError" class="action-feedback-error" role="alert">{{ threadMergeError }}</p>
+        <p v-if="paletteFeedback" class="classification-feedback" role="status">{{ paletteFeedback }}</p>
+        <p v-if="paletteError" class="action-feedback-error" role="alert">{{ paletteError }}</p>
       </div>
 
       <div v-if="inboxMessagesError" class="empty-list error-state" role="alert">
@@ -591,9 +593,37 @@
               {{ isSavingReplyLater ? 'Ajout à la file…' : 'Reply Later' }}<kbd>L</kbd>
             </button>
           </template>
+          <NTooltip v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)" :content="$t('palette.trashActionDescription')">
+            <button class="message-action-trash" type="button" :aria-label="$t('palette.trashTitle')" :disabled="isTrashingThread" @click="threadTrashDialogOpen = true">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m2 0-.7 10H6.7L6 6m3 3v4m2-4v4" /></svg>
+            </button>
+          </NTooltip>
         </div>
       </div>
     </section>
+
+    <NDialog
+      :open="threadTrashDialogOpen"
+      :title="$t('palette.trashTitle')"
+      :description="$t('palette.trashDescriptionOne')"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!isTrashingThread) threadTrashDialogOpen = open }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t('palette.trashTitle') }}</NDialogTitle>
+          <NDialogDescription>{{ $t('palette.trashDescriptionOne') }}</NDialogDescription>
+        </header>
+        <p v-if="bulkActionError" class="action-feedback-error" role="alert">{{ bulkActionError }}</p>
+        <div class="dialog-actions">
+          <button class="dialog-cancel" type="button" :disabled="isTrashingThread" @click="threadTrashDialogOpen = false">{{ $t('palette.cancel') }}</button>
+          <button class="dialog-danger" type="button" :disabled="isTrashingThread" @click="trashOpenThread">
+            {{ isTrashingThread ? $t('palette.applying') : $t('palette.confirmTrash') }}
+          </button>
+        </div>
+      </template>
+    </NDialog>
 
     <NDialog
       :open="Boolean(classificationTarget)"
@@ -888,6 +918,8 @@ const isMergingThreads = ref(false)
 const isSplittingThread = ref(false)
 const threadMergeFeedback = ref('')
 const threadMergeError = ref('')
+const threadTrashDialogOpen = ref(false)
+const isTrashingThread = ref(false)
 const bulkActionFeedback = ref('')
 const bulkActionError = ref('')
 const isApplyingBulkAction = ref(false)
@@ -919,6 +951,9 @@ let replySaveTimer: ReturnType<typeof setTimeout> | undefined
 let replySaveRevision = 0
 const isDevelopment = import.meta.dev
 const composeRequest = useState('courrier-compose-request', () => 0)
+const paletteContext = useState<{ source: MailboxKey, threadIds: string[] }>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [] }))
+const paletteFeedback = useState('courrier-palette-feedback', () => '')
+const paletteError = useState('courrier-palette-error', () => '')
 let lastComposeRequest = composeRequest.value
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
@@ -954,6 +989,15 @@ watch([activeFolder, isGlobalSearch], () => {
   threadMergeFeedback.value = ''
   threadMergeError.value = ''
 })
+
+watch([activeFolder, selectedThreadIds, selectedId], () => {
+  paletteContext.value = {
+    source: activeFolder.value,
+    threadIds: selectedThreadIds.value.length
+      ? [...selectedThreadIds.value]
+      : selectedId.value ? [selectedId.value] : [],
+  }
+}, { immediate: true, deep: true })
 
 watch(composeRequest, (request) => {
   if (request === lastComposeRequest) return
@@ -1902,6 +1946,29 @@ async function applyBulkAction(action: 'mark-seen' | 'reply-later' | 'set-aside'
       : $t('bulk.error')
   } finally {
     isApplyingBulkAction.value = false
+  }
+}
+
+async function trashOpenThread() {
+  const thread = selectedThread.value
+  const source = activeFolder.value
+  if (!thread || !['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(source) || isTrashingThread.value) return
+
+  isTrashingThread.value = true
+  bulkActionError.value = ''
+  try {
+    await $fetch('/api/threads/bulk-action', {
+      method: 'PATCH',
+      body: { threadIds: [thread.id], source, action: 'trash' },
+    })
+    threadTrashDialogOpen.value = false
+    bulkActionFeedback.value = $t('messageActions.trashDone')
+    await refreshMessages().catch(() => {})
+    void router.push(mailboxPath(source))
+  } catch {
+    bulkActionError.value = $t('palette.actionError')
+  } finally {
+    isTrashingThread.value = false
   }
 }
 
