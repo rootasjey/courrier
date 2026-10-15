@@ -18,7 +18,9 @@ import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/util
 
 const route = useRoute()
 const router = useRouter()
-const isPublicAuthRoute = computed(() => route.path === '/login' || route.path.startsWith('/invitation/'))
+const isPublicAuthRoute = computed(() => route.path === '/login'
+  || route.path === '/password-reset'
+  || route.path.startsWith('/invitation/'))
 const pageTransition = computed(() => isPublicAuthRoute.value || route.path.startsWith('/admin')
   ? false
   : { name: 'page', mode: 'out-in' as const })

@@ -12,6 +12,7 @@ function getHttpStatus(error: unknown) {
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path.startsWith('/invitation/')) return
+  if (to.path === '/password-reset') return
 
   const accountSession = useState<AccountSession | null>('courrier-account-session', () => null)
   const requestFetch = useRequestFetch()
