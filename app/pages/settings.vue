@@ -52,6 +52,77 @@
         </label>
       </section>
 
+      <section v-if="accountSession?.isPlatformAdmin" id="security" class="settings-section" aria-labelledby="security-heading">
+        <div class="settings-section-copy">
+          <h2 id="security-heading">{{ $t('settings.security') }}</h2>
+          <p>{{ $t('settings.securityDescription') }}</p>
+        </div>
+        <div class="settings-security-body">
+          <p v-if="!securityLoaded" class="settings-security-note" role="status">{{ $t('settings.securityLoading') }}</p>
+          <template v-else>
+            <p v-if="!passkeys.length" class="settings-security-note" role="status">{{ $t('settings.securityNotEnabled') }}</p>
+            <p v-else class="settings-security-note" role="status">
+              {{ $t('settings.securityEnabled', { count: passkeys.length, remaining: recoveryCodesRemaining }) }}
+            </p>
+            <p v-if="accountSession.requiresAdminMfa && !accountSession.adminMfaVerified" class="settings-security-note">
+              <NuxtLink :to="{ path: '/mfa', query: { redirect: '/settings#security' } }">{{ $t('settings.verifyBeforeManaging') }}</NuxtLink>
+            </p>
+
+            <form v-if="!passkeys.length || accountSession.adminMfaVerified" class="settings-passkey-form" @submit.prevent="addPasskey">
+              <label class="login-field">
+                <span>{{ $t('settings.passkeyName') }}</span>
+                <input v-model="passkeyLabel" maxlength="80" autocomplete="off" required>
+              </label>
+              <label v-if="!accountSession.requiresAdminMfa" class="login-field">
+                <span>{{ $t('settings.confirmPassword') }}</span>
+                <input v-model="passkeyPassword" type="password" autocomplete="current-password" required>
+              </label>
+              <p class="settings-security-note">
+                {{ $t(accountSession.requiresAdminMfa ? 'settings.passkeyPrivacyAdditional' : 'settings.passkeyPrivacyFirst') }}
+              </p>
+              <button class="settings-export-button" type="submit" :disabled="securityBusy">
+                {{ securityBusy ? $t('settings.passkeyWorking') : $t(passkeys.length ? 'settings.addPasskey' : 'settings.enablePasskey') }}
+              </button>
+            </form>
+
+            <ul v-if="passkeys.length" class="settings-passkey-list">
+              <li v-for="passkey in passkeys" :key="passkey.id">
+                <div>
+                  <strong>{{ passkey.label }}</strong>
+                  <small>{{ $t('settings.passkeyAdded', { date: formatDate(passkey.createdAt) }) }}</small>
+                </div>
+                <div v-if="confirmingPasskey === passkey.id" class="settings-passkey-actions">
+                  <span>{{ $t('settings.removePasskeyConfirm') }}</span>
+                  <button type="button" :disabled="securityBusy" @click="removePasskey(passkey.id)">{{ $t('settings.removePasskey') }}</button>
+                  <button type="button" :disabled="securityBusy" @click="confirmingPasskey = null">{{ $t('settings.cancel') }}</button>
+                </div>
+                <button v-else class="settings-remove-photo" type="button" :disabled="securityBusy || passkeys.length <= 1" :aria-label="String($t('settings.removePasskey'))" @click="confirmingPasskey = passkey.id">
+                  {{ $t('settings.removePasskey') }}
+                </button>
+              </li>
+            </ul>
+
+            <div v-if="passkeys.length && accountSession.adminMfaVerified" class="settings-recovery-actions">
+              <template v-if="confirmRecoveryRotation">
+                <p>{{ $t('settings.rotateRecoveryConfirm') }}</p>
+                <button class="settings-remove-photo" type="button" :disabled="securityBusy" @click="rotateRecoveryCodes">{{ $t('settings.rotateRecoveryCodes') }}</button>
+                <button class="settings-export-button" type="button" :disabled="securityBusy" @click="confirmRecoveryRotation = false">{{ $t('settings.cancel') }}</button>
+              </template>
+              <template v-else>
+                <button class="settings-export-button" type="button" :disabled="securityBusy" @click="confirmRecoveryRotation = true">{{ $t('settings.rotateRecoveryCodes') }}</button>
+              </template>
+            </div>
+
+            <div v-if="newRecoveryCodes.length" class="settings-recovery-codes" role="status">
+              <h3>{{ $t('settings.recoveryCodesTitle') }}</h3>
+              <p>{{ $t('settings.recoveryCodesHint') }}</p>
+              <ul><li v-for="code in newRecoveryCodes" :key="code"><code>{{ code }}</code></li></ul>
+            </div>
+            <p v-if="securityMessage" class="settings-photo-status" role="status">{{ securityMessage }}</p>
+          </template>
+        </div>
+      </section>
+
       <section class="settings-section" aria-labelledby="export-heading">
         <div class="settings-section-copy">
           <h2 id="export-heading">{{ $t('settings.export') }}</h2>
@@ -79,9 +150,20 @@ const { locale } = useI18nLocale()
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
+const accountSession = useState<{ isPlatformAdmin: boolean, adminMfaVerified: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
 const photoInput = ref<HTMLInputElement | null>(null)
 const photoBusy = ref(false)
 const photoMessage = ref('')
+const passkeys = ref<Array<{ id: string, label: string, deviceType: string, backedUp: boolean, createdAt: string, lastUsedAt: string | null }>>([])
+const securityLoaded = ref(false)
+const securityBusy = ref(false)
+const securityMessage = ref('')
+const passkeyLabel = ref('Courrier')
+const passkeyPassword = ref('')
+const confirmingPasskey = ref<string | null>(null)
+const confirmRecoveryRotation = ref(false)
+const recoveryCodesRemaining = ref(0)
+const newRecoveryCodes = ref<string[]>([])
 
 useSeoMeta({
   title: () => `${$t('settings.title')} — Courrier`,
@@ -90,6 +172,101 @@ useSeoMeta({
 function changeLocale(event: Event) {
   const target = event.target
   if (target instanceof HTMLSelectElement) void $switchLocale(target.value)
+}
+
+async function loadPasskeys() {
+  if (!accountSession.value?.isPlatformAdmin) return
+  try {
+    const result = await $fetch<{ passkeys: typeof passkeys.value, recoveryCodesRemaining: number }>('/api/account/passkeys')
+    passkeys.value = result.passkeys
+    recoveryCodesRemaining.value = result.recoveryCodesRemaining
+  } catch {
+    securityMessage.value = String($t('settings.securityError'))
+  } finally {
+    securityLoaded.value = true
+  }
+}
+
+async function addPasskey() {
+  if (securityBusy.value) return
+  securityBusy.value = true
+  securityMessage.value = ''
+  newRecoveryCodes.value = []
+  try {
+    const { startRegistration } = await import('@simplewebauthn/browser')
+    const { options, attemptId } = await $fetch<{ options: Parameters<typeof startRegistration>[0]['optionsJSON'], attemptId: string }>('/api/account/passkeys/register/options', {
+      method: 'POST',
+      body: { label: passkeyLabel.value, password: passkeyPassword.value },
+    })
+    const response = await startRegistration({ optionsJSON: options })
+    const result = await $fetch<{ ok: true, recoveryCodes: string[] }>('/api/account/passkeys/register/verify', {
+      method: 'POST',
+      body: { attemptId, response },
+    })
+    newRecoveryCodes.value = result.recoveryCodes
+    passkeyPassword.value = ''
+    await refreshAccountSession()
+    await loadPasskeys()
+    securityMessage.value = String($t('settings.passkeyAddedSuccess'))
+  } catch {
+    securityMessage.value = String($t('settings.passkeySetupError'))
+  } finally {
+    securityBusy.value = false
+  }
+}
+
+async function refreshAccountSession() {
+  if (!accountSession.value) return
+  try {
+    const response = await fetch('/api/account/session', { credentials: 'same-origin' })
+    if (response.ok) accountSession.value = await response.json()
+  } catch { /* The page middleware will handle a session error on navigation. */ }
+}
+
+async function removePasskey(id: string) {
+  if (securityBusy.value) return
+  securityBusy.value = true
+  securityMessage.value = ''
+  try {
+    const response = await fetch(`/api/account/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin' })
+    if (!response.ok) throw new Error('Passkey removal failed.')
+    const result = await response.json() as { requiresReauthentication?: boolean }
+    confirmingPasskey.value = null
+    if (result.requiresReauthentication) {
+      await router.replace({ path: '/login', query: { redirect: '/admin' } })
+      return
+    }
+    await loadPasskeys()
+    await refreshAccountSession()
+    securityMessage.value = String($t('settings.passkeyRemovedSuccess'))
+  } catch {
+    securityMessage.value = String($t('settings.passkeyRemoveError'))
+  } finally {
+    securityBusy.value = false
+  }
+}
+
+async function rotateRecoveryCodes() {
+  if (securityBusy.value) return
+  securityBusy.value = true
+  securityMessage.value = ''
+  try {
+    const result = await $fetch<{ recoveryCodes: string[] }>('/api/account/passkeys/recovery-codes', { method: 'POST' })
+    newRecoveryCodes.value = result.recoveryCodes
+    confirmRecoveryRotation.value = false
+    recoveryCodesRemaining.value = result.recoveryCodes.length
+    await refreshAccountSession()
+    securityMessage.value = String($t('settings.recoveryCodesRotated'))
+  } catch {
+    securityMessage.value = String($t('settings.securityError'))
+  } finally {
+    securityBusy.value = false
+  }
+}
+
+function formatDate(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale.value || 'fr', { dateStyle: 'medium' }).format(date)
 }
 
 async function uploadPhoto(event: Event) {
@@ -147,6 +324,9 @@ function returnFromSettings(event: KeyboardEvent) {
   }
 }
 
-onMounted(() => window.addEventListener('keydown', returnFromSettings))
+onMounted(() => {
+  window.addEventListener('keydown', returnFromSettings)
+  void loadPasskeys()
+})
 onBeforeUnmount(() => window.removeEventListener('keydown', returnFromSettings))
 </script>

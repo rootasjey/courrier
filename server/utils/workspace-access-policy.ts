@@ -13,6 +13,12 @@ const accountEndpoints = new Set([
   'POST /api/auth/password-reset',
   'POST /api/auth/password-reset/confirm',
   'GET /api/account/session',
+  'GET /api/account/passkeys',
+  'POST /api/account/passkeys/register/options',
+  'POST /api/account/passkeys/register/verify',
+  'POST /api/account/passkeys/authentication/options',
+  'POST /api/account/passkeys/authentication/verify',
+  'POST /api/account/passkeys/recovery-codes',
   'GET /api/account/workspaces',
   'PATCH /api/account/workspaces/active',
   'GET /api/profile/avatar',
@@ -22,7 +28,9 @@ const accountEndpoints = new Set([
 ])
 
 export function isAccountEndpoint(path: string, method: string) {
-  return accountEndpoints.has(`${method.toUpperCase()} ${path}`)
+  const normalizedMethod = method.toUpperCase()
+  return accountEndpoints.has(`${normalizedMethod} ${path}`)
+    || (normalizedMethod === 'DELETE' && /^\/api\/account\/passkeys\/[A-Za-z0-9_-]{1,1024}$/.test(path))
 }
 
 export function isPublicInvitationEndpoint(path: string, method: string) {

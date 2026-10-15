@@ -29,6 +29,7 @@ function apiRoutes() {
     if (!suffix) return []
     const method = suffix[1]!.toUpperCase()
     route = route.slice(0, -suffix[0].length)
+    route = route.replace(/(^|\/)index$/u, '$1').replace(/\/$/u, '')
     const path = `/api/${route.replace(/\[\.\.\.([^\]]+)\]/g, ':$1').replace(/\[([^\]]+)\]/g, ':$1')}`
     return [{ method, path, file }]
   })
@@ -38,6 +39,7 @@ function examplePath(path: string) {
   return path
     .replaceAll(':token', 'A'.repeat(43))
     .replaceAll(':attachmentId', 'attachment-test')
+    .replaceAll(':credentialId', 'passkey-test')
     .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
 }
 
@@ -60,6 +62,9 @@ test('account and invitation exceptions are limited to exact methods', () => {
   assert.equal(isAccountEndpoint('/api/auth/login', 'GET'), false)
   assert.equal(isAccountEndpoint('/api/profile/avatar', 'DELETE'), true)
   assert.equal(isAccountEndpoint('/api/profile/avatar', 'PUT'), false)
+  assert.equal(isAccountEndpoint('/api/account/passkeys', 'GET'), true)
+  assert.equal(isAccountEndpoint('/api/account/passkeys/passkey-test', 'DELETE'), true)
+  assert.equal(isAccountEndpoint('/api/account/passkeys/passkey-test', 'POST'), false)
 
   const token = 'A'.repeat(43)
   assert.equal(isPublicInvitationEndpoint(`/api/invitations/${token}`, 'GET'), true)

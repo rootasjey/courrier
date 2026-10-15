@@ -2,6 +2,10 @@ type AccountSession = {
   user: { id: string, email: string, displayName: string }
   activeWorkspaceId: string | null
   isPlatformAdmin: boolean
+  hasPasskeys: boolean
+  recoveryCodesRemaining: number
+  requiresAdminMfa: boolean
+  adminMfaVerified: boolean
 }
 
 function getHttpStatus(error: unknown) {
@@ -41,16 +45,24 @@ export default defineNuxtRouteMiddleware(async (to) => {
     })
   }
 
+  if (to.path === '/mfa' && !accountSession.value.isPlatformAdmin) {
+    return navigateTo(accountSession.value.activeWorkspaceId ? '/mail/inbox' : '/login', { replace: true })
+  }
+
   if (to.path.startsWith('/admin')) {
     if (!accountSession.value.isPlatformAdmin) {
       return accountSession.value.activeWorkspaceId
         ? navigateTo('/mail/inbox', { replace: true })
         : navigateTo('/login', { replace: true })
     }
+    if (accountSession.value.requiresAdminMfa && !accountSession.value.adminMfaVerified) {
+      return navigateTo({ path: '/mfa', query: { redirect: to.fullPath } }, { replace: true })
+    }
     return
   }
 
   if (!accountSession.value.activeWorkspaceId) {
+    if (accountSession.value.isPlatformAdmin && (to.path === '/settings' || to.path === '/mfa')) return
     return accountSession.value.isPlatformAdmin
       ? navigateTo('/admin', { replace: true })
       : navigateTo('/login', { replace: true })

@@ -1,4 +1,5 @@
 import { getAccountDb, isPlatformAdmin, requireSessionIdentity } from '../../utils/account-auth'
+import { isMfaFresh } from '../../utils/passkeys'
 
 export default defineEventHandler(async (event) => {
   const user = await requireSessionIdentity(event)
@@ -18,10 +19,24 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Aucun espace Courrier actif.' })
   }
 
+  const [passkeys, recoveryCodes] = platformAdmin
+    ? await Promise.all([
+      getAccountDb(event).prepare('SELECT COUNT(*) AS count FROM auth_passkeys WHERE user_id = ?')
+        .bind(user.id).first<{ count: number }>(),
+      getAccountDb(event).prepare('SELECT COUNT(*) AS count FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL')
+        .bind(user.id).first<{ count: number }>(),
+    ])
+    : [null, null]
+  const adminMfaEnabled = Number(passkeys?.count || 0) > 0 || Number(recoveryCodes?.count || 0) > 0
+
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
   return {
     user: { id: user.id, email: user.email, displayName: user.displayName },
     activeWorkspaceId: membership?.id ?? null,
     isPlatformAdmin: platformAdmin,
+    hasPasskeys: Number(passkeys?.count || 0) > 0,
+    recoveryCodesRemaining: Number(recoveryCodes?.count || 0),
+    requiresAdminMfa: adminMfaEnabled,
+    adminMfaVerified: adminMfaEnabled && isMfaFresh(session),
   }
 })

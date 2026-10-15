@@ -11,6 +11,8 @@ declare module '#auth-utils' {
 
   interface SecureSessionData {
     sessionVersion: number
+    mfaVerifiedAt?: number
+    mfaMethod?: 'passkey' | 'recovery_code'
   }
 }
 

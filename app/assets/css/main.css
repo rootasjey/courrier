@@ -432,6 +432,42 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .settings-export-button { display: inline-flex; align-items: center; gap: 14px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 12px; font-weight: 620; text-decoration: none; white-space: nowrap; transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease; }
 .settings-export-button:hover { border-color: #c9bfff; background: var(--violet-wash); transform: translateY(-1px); }
 .settings-export-button span { color: var(--violet); font-size: 18px; line-height: 1; }
+.settings-security-body { padding-bottom: 22px; }
+.settings-security-note { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.settings-security-note a, .mfa-message a { color: var(--violet); font-weight: 650; text-underline-offset: 3px; }
+.settings-passkey-form { display: grid; max-width: 460px; gap: 12px; padding: 4px 0 20px; }
+.settings-passkey-form .login-field { margin: 0; }
+.settings-passkey-form .settings-security-note { margin: 0; font-size: 12px; }
+.settings-passkey-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.settings-passkey-list li { display: flex; min-height: 70px; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); }
+.settings-passkey-list li > div:first-child { display: grid; gap: 5px; }
+.settings-passkey-list strong { font-size: 14px; font-weight: 640; }
+.settings-passkey-list small { color: var(--quiet); font-size: 11px; }
+.settings-passkey-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.settings-passkey-actions span, .settings-recovery-actions > p { color: var(--error); font-size: 12px; }
+.settings-passkey-actions button { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+.settings-passkey-actions button:first-of-type { border-color: color-mix(in srgb, var(--error) 38%, var(--line)); color: var(--error); }
+.settings-recovery-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding-top: 17px; }
+.settings-recovery-actions > p { flex-basis: 100%; margin: 0; }
+.settings-recovery-codes { margin-top: 18px; padding: 17px; border: 1px solid color-mix(in srgb, var(--violet) 35%, var(--line)); border-radius: 10px; background: var(--violet-wash); }
+.settings-recovery-codes h3 { margin: 0 0 6px; font-size: 15px; }
+.settings-recovery-codes p { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.settings-recovery-codes ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 18px; margin: 0; padding: 0; list-style: none; }
+.settings-recovery-codes code { color: var(--ink); font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; user-select: all; }
+.mfa-page { display: grid; min-height: calc(100vh - 76px); place-items: center; padding: 36px 20px 70px; }
+.mfa-card { width: min(100%, 460px); padding: 26px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 18px 52px rgb(33 25 54 / 9%); }
+.mfa-card .settings-back { margin-bottom: 24px; }
+.mfa-mark { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 14px; background: var(--violet-wash); color: var(--violet); font-size: 30px; }
+.mfa-card h1 { margin: 17px 0 7px; font-size: 27px; letter-spacing: -.6px; }
+.mfa-card > p { margin: 0 0 21px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.mfa-primary { width: 100%; justify-content: center; border-color: var(--violet); background: var(--violet); color: white; }
+.mfa-recovery-form { display: grid; gap: 10px; margin-top: 23px; padding-top: 21px; border-top: 1px solid var(--line); }
+.mfa-recovery-form .login-field { margin: 0; }
+.mfa-recovery-form input { text-transform: uppercase; }
+.mfa-recovery-form button { justify-content: center; }
+.mfa-message { margin: 17px 0 0 !important; font-size: 12px !important; }
+.mfa-error { color: var(--error) !important; }
+.mfa-card button:disabled { cursor: wait; opacity: .55; }
 
 /* UnaUI dialog for sender classification */
 .dialog-overlay.dialog-overlay { position: fixed; inset: 0; z-index: 50; background: rgb(24 19 39 / 44%); }
@@ -642,6 +678,10 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .settings-select-row { min-height: 58px; font-size: 13px; }
   .settings-select-row select { min-width: 125px; }
   .settings-export-row { align-items: flex-start; flex-direction: column; justify-content: center; padding: 15px 0; }
+  .settings-passkey-list li { align-items: flex-start; flex-direction: column; justify-content: center; padding: 14px 0; }
+  .settings-passkey-actions { justify-content: flex-start; }
+  .settings-recovery-codes ul { grid-template-columns: 1fr; }
+  .mfa-card { padding: 21px; }
   .dialog-content.classification-dialog { max-height: calc(100dvh - 24px); padding: 24px 19px 19px; }
 }
 

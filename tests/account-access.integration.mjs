@@ -139,6 +139,7 @@ async function request(route, { method = 'GET', cookie = '', body, withOrigin = 
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000),
   })
   const text = readBody ? await response.text() : ''
   let data
@@ -173,6 +174,7 @@ async function protectedApiRoutes() {
     if (!suffix) return []
     const method = suffix[1].toUpperCase()
     route = route.slice(0, -suffix[0].length)
+    route = route.replace(/(^|\/)index$/u, '$1').replace(/\/$/u, '')
     const apiPath = `/api/${route.replace(/\[\.\.\.([^\]]+)\]/g, ':$1').replace(/\[([^\]]+)\]/g, ':$1')}`
     if (deliberatelyPublic.has(`${method} ${apiPath}`)) return []
     if ((method === 'GET' && /^\/api\/invitations\/:token$/.test(apiPath))
@@ -180,6 +182,7 @@ async function protectedApiRoutes() {
     const samplePath = apiPath
       .replaceAll(':token', 'A'.repeat(43))
       .replaceAll(':attachmentId', 'attachment-test')
+      .replaceAll(':credentialId', 'passkey-test')
       .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
     return [{ method, path: samplePath }]
   }).sort((left, right) => `${left.method} ${left.path}`.localeCompare(`${right.method} ${right.path}`))
@@ -475,6 +478,7 @@ try {
     const routes = await protectedApiRoutes()
     const readableRoutes = routes.filter(({ method, path: route }) => method === 'GET'
       && route !== '/api/export'
+      && route !== '/api/account/passkeys'
       && !route.startsWith('/api/admin/'))
     for (const { path: route } of readableRoutes) {
       const result = await request(route, { cookie: viewerCookie })
@@ -519,7 +523,7 @@ try {
     body: { email: 'admin@example.test', password: 'local-test-admin-password-001' },
   })
   assert.equal(adminLogin.response.status, 200, JSON.stringify(adminLogin.data))
-  const adminCookie = adminLogin.cookie
+  let adminCookie = adminLogin.cookie
   await check('full-domain mailbox grants expose the shared sender rule and thread title', async () => {
     const messages = await request('/api/messages', { cookie: adminCookie })
     assert.equal(messages.response.status, 200)
@@ -577,6 +581,138 @@ try {
     const revoke = await request('/api/admin/mailbox-access', { method: 'DELETE', cookie: adminCookie, body: target })
     assert.equal(revoke.response.status, 200, JSON.stringify(revoke.data))
     assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
+  })
+
+  await check('passkey settings are limited to platform administrators', async () => {
+    assert.equal((await request('/api/account/passkeys', { cookie: memberCookie })).response.status, 403)
+    const result = await request('/api/account/passkeys', { cookie: adminCookie })
+    assert.equal(result.response.status, 200, JSON.stringify(result.data))
+    assert.deepEqual(result.data.passkeys, [])
+    assert.match(result.response.headers.get('cache-control') || '', /private.*no-store/)
+  })
+  const adminRecoveryCode = '8F65-E1B0-1324-6C77-D99A-00A2-B3F1-4D5C'
+  const adminRecoveryHash = createHash('sha256').update(adminRecoveryCode.replaceAll('-', '')).digest('hex')
+  const secondAdminRecoveryCode = '1A2B-3C4D-5E6F-7081-92A3-B4C5-D6E7-F809'
+  const secondAdminRecoveryHash = createHash('sha256').update(secondAdminRecoveryCode.replaceAll('-', '')).digest('hex')
+  const mfaSeedPath = path.join(temporaryDirectory, 'admin-mfa-seed.sql')
+  await writeFile(mfaSeedPath, `
+    INSERT INTO auth_passkeys (credential_id,user_id,public_key,counter,transports_json,device_type,backed_up,label,created_at)
+    VALUES ('dGVzdC1jcmVkZW50aWFs','00000000-0000-4000-8000-000000000101','AA',0,'[]','singleDevice',0,'Local test key',datetime('now'));
+    INSERT INTO auth_mfa_recovery_codes (id,user_id,code_hash,created_at)
+    VALUES ('local-admin-recovery','00000000-0000-4000-8000-000000000101','${adminRecoveryHash}',datetime('now')),
+      ('local-admin-recovery-second','00000000-0000-4000-8000-000000000101','${secondAdminRecoveryHash}',datetime('now'));
+  `)
+  run(process.execPath, [
+    path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
+    'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
+    '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', mfaSeedPath,
+  ])
+  await check('platform admin actions require step-up once a passkey is enrolled', async () => {
+    const session = await request('/api/account/session', { cookie: adminCookie })
+    assert.equal(session.response.status, 200)
+    assert.equal(session.data.requiresAdminMfa, true)
+    assert.equal(session.data.hasPasskeys, true)
+    assert.equal(session.data.adminMfaVerified, false)
+    assert.equal((await request('/api/admin/overview', { cookie: adminCookie })).response.status, 403)
+  })
+  await check('recovery codes are one-time and establish an admin step-up', async () => {
+    const verification = await request('/api/account/passkeys/authentication/verify', {
+      method: 'POST', cookie: adminCookie, body: { recoveryCode: adminRecoveryCode.toLowerCase() },
+    })
+    assert.equal(verification.response.status, 200, JSON.stringify(verification.data))
+    adminCookie = verification.cookie
+    const session = await request('/api/account/session', { cookie: adminCookie })
+    assert.equal(session.data.adminMfaVerified, true)
+    const overview = await request('/api/admin/overview', { cookie: adminCookie })
+    assert.equal(overview.response.status, 200)
+    assert.ok(overview.data.audit.some(value => value.action === 'account.mfa_recovery_code_used'))
+    const replay = await request('/api/account/passkeys/authentication/verify', {
+      method: 'POST', cookie: adminCookie, body: { recoveryCode: adminRecoveryCode },
+    })
+    assert.equal(replay.response.status, 401)
+  })
+  await check('removing a passkey revokes every session and admin step-up', async () => {
+    const secondPasskeyPath = path.join(temporaryDirectory, 'second-admin-passkey.sql')
+    await writeFile(secondPasskeyPath, `
+      INSERT INTO auth_passkeys (credential_id,user_id,public_key,counter,transports_json,device_type,backed_up,label,created_at)
+      VALUES ('dGVzdC1jcmVkZW50aWFsLTI','00000000-0000-4000-8000-000000000101','AA',0,'[]','singleDevice',0,'Second test key',datetime('now'));
+    `)
+    run(process.execPath, [
+      path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
+      'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
+      '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', secondPasskeyPath,
+    ])
+    const otherLogin = await request('/api/auth/login', {
+      method: 'POST', body: { email: 'admin@example.test', password: 'local-test-admin-password-001' },
+    })
+    assert.equal(otherLogin.response.status, 200)
+    let otherAdminCookie = otherLogin.cookie
+    const otherStepUp = await request('/api/account/passkeys/authentication/verify', {
+      method: 'POST', cookie: otherAdminCookie, body: { recoveryCode: secondAdminRecoveryCode },
+    })
+    assert.equal(otherStepUp.response.status, 200, JSON.stringify(otherStepUp.data))
+    otherAdminCookie = otherStepUp.cookie
+    assert.equal((await request('/api/account/session', { cookie: otherAdminCookie })).response.status, 200)
+    assert.equal((await request('/api/account/session', { cookie: otherAdminCookie })).data.adminMfaVerified, true)
+    assert.equal((await request('/api/admin/overview', { cookie: otherAdminCookie })).response.status, 200)
+    const removed = await request('/api/account/passkeys/dGVzdC1jcmVkZW50aWFsLTI', { method: 'DELETE', cookie: adminCookie })
+    assert.equal(removed.response.status, 200, JSON.stringify(removed.data))
+    assert.equal(removed.data.requiresReauthentication, true)
+    assert.equal((await request('/api/account/session', { cookie: adminCookie })).response.status, 401)
+    assert.equal((await request('/api/account/session', { cookie: otherAdminCookie })).response.status, 401)
+  })
+  await check('admin MFA verification is not carried into a fresh password login', async () => {
+    const login = await request('/api/auth/login', {
+      method: 'POST', body: { email: 'admin@example.test', password: 'local-test-admin-password-001' },
+    })
+    assert.equal(login.response.status, 200)
+    adminCookie = login.cookie
+    const session = await request('/api/account/session', { cookie: adminCookie })
+    assert.equal(session.data.requiresAdminMfa, true)
+    assert.equal(session.data.adminMfaVerified, false)
+    assert.equal((await request('/api/admin/overview', { cookie: adminCookie })).response.status, 403)
+  })
+  await check('passkey registration completion rechecks its admin step-up', async () => {
+    const attemptId = 'Q'.repeat(43)
+    const challengePath = path.join(temporaryDirectory, 'expired-admin-step-up.sql')
+    await writeFile(challengePath, `
+      INSERT INTO auth_webauthn_challenges
+        (attempt_id,user_id,session_version,purpose,challenge,label,created_at,expires_at)
+      VALUES (
+        '${attemptId}',
+        '00000000-0000-4000-8000-000000000101',
+        (SELECT session_version FROM users WHERE id = '00000000-0000-4000-8000-000000000101'),
+        'register','test-challenge','Second passkey',datetime('now'),datetime('now','+5 minutes')
+      );
+    `)
+    run(process.execPath, [
+      path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
+      'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
+      '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', challengePath,
+    ])
+    const result = await request('/api/account/passkeys/register/verify', {
+      method: 'POST', cookie: adminCookie, body: { attemptId, response: {} },
+    })
+    assert.equal(result.response.status, 403)
+    assert.match(result.data.statusMessage, /Vérifie une passkey existante/u)
+    const replay = await request('/api/account/passkeys/register/verify', {
+      method: 'POST', cookie: adminCookie, body: { attemptId, response: {} },
+    })
+    assert.equal(replay.response.status, 400)
+  })
+  await check('WebAuthn challenges are one-use and malformed assertions fail closed', async () => {
+    const options = await request('/api/account/passkeys/authentication/options', { method: 'POST', cookie: adminCookie })
+    assert.equal(options.response.status, 200, JSON.stringify(options.data))
+    assert.equal(options.data.options.userVerification, 'required')
+    assert.equal(options.data.options.rpId, '127.0.0.1')
+    const body = {
+      attemptId: options.data.attemptId,
+      response: { id: 'dGVzdC1jcmVkZW50aWFs', rawId: 'dGVzdC1jcmVkZW50aWFs', type: 'public-key', response: {} },
+    }
+    const firstUse = await request('/api/account/passkeys/authentication/verify', { method: 'POST', cookie: adminCookie, body })
+    const replay = await request('/api/account/passkeys/authentication/verify', { method: 'POST', cookie: adminCookie, body })
+    assert.equal(firstUse.response.status, 401)
+    assert.equal(replay.response.status, 400)
   })
 
   const invitationToken = 'A'.repeat(43)
