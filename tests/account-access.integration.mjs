@@ -130,8 +130,8 @@ async function waitForServer() {
   throw new Error(`Nuxt did not become ready.\n${serverLogs.join('')}`)
 }
 
-async function request(route, { method = 'GET', cookie = '', body, withOrigin = true, origin = base, readBody = true } = {}) {
-  const headers = {}
+async function request(route, { method = 'GET', cookie = '', body, withOrigin = true, origin = base, readBody = true, headers: extraHeaders = {} } = {}) {
+  const headers = { ...extraHeaders }
   if (cookie) headers.cookie = cookie
   if (withOrigin) headers.origin = origin
   if (body !== undefined) headers['content-type'] = 'application/json'
@@ -267,6 +267,16 @@ try {
     const result = await request('/api/messages')
     assert.equal(result.response.status, 401)
     assert.match(result.response.headers.get('cache-control') || '', /private.*no-store/)
+  })
+  await check('Cloudflare Access identity headers cannot impersonate an account session', async () => {
+    const result = await request('/api/messages', {
+      headers: {
+        'cf-access-authenticated-user-email': 'admin@example.test',
+        'cf-access-user-id': '00000000-0000-4000-8000-000000000101',
+        'cf-access-jwt-assertion': 'forged-test-value',
+      },
+    })
+    assert.equal(result.response.status, 401)
   })
   await check('anonymous account and admin routes are rejected', async () => {
     assert.equal((await request('/api/account/session')).response.status, 401)
