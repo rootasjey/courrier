@@ -6,6 +6,12 @@ export default defineNuxtConfig({
   routeRules: {
     '/_locales/**': {
       headers: { 'Cache-Control': 'no-store' }
+    },
+    '/password-reset': {
+      headers: {
+        'Cache-Control': 'no-store',
+        'Referrer-Policy': 'no-referrer',
+      }
     }
   },
 
@@ -23,6 +29,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     session: {
       name: process.env.NUXT_SESSION_NAME || (process.env.NODE_ENV === 'development' ? 'courrier-dev-session' : 'courrier-session'),
+      maxAge: 60 * 60 * 24 * 7,
       cookie: {
         httpOnly: true,
         secure: process.env.NODE_ENV !== 'development',

@@ -14,22 +14,12 @@
 	"observability": {
 		"enabled": true
 	},
-	"access": {
-		"dev": {
-			"aud": "courrier-local",
-			"identity": {
-				"email": "demo@courrier.test",
-				"name": "Courrier Local"
-			}
-		}
-	},
-	"vars": {
-		"CF_ACCESS_TEAM_DOMAIN": "https://cold-silence-a54e.cloudflareaccess.com",
-		"CF_ACCESS_AUD": "6ea2d73d4c7f5327b094ff283c30a834f4f14953001c5712a6614773f427d1a7"
-	},
 	"upload_source_maps": true,
 	"triggers": {
 		"crons": ["15 3 * * *"]
+	},
+	"vars": {
+		"COURRIER_PUBLIC_ORIGIN": "https://courrier.jerem-dev.workers.dev"
 	},
 	"d1_databases": [
 		{

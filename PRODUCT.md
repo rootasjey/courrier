@@ -31,8 +31,8 @@ The initial mailbox is for `verbatims.cc`, with a dedicated pilot address. Cloud
 - Receive and retain incoming RFC 822 messages and attachments.
 - Screen unknown senders, then classify them into Imbox, The Feed or Paper Trail.
 - A sender rule applies to future messages and may reclassify that sender's history.
-- The first release is mono-user and protected by Cloudflare Access.
-- Sending, cross-user sharing and agents require later validation and explicit permission design.
+- The current pilot supports invite-only accounts, workspaces, roles and explicit mailbox grants. Cloudflare Access remains an additional edge barrier during validation.
+- Sending is limited to the configured pilot identity. Cross-user sharing and agents require explicit permission design.
 
 ## Brand Commitments
 

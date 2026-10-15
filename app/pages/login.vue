@@ -40,6 +40,7 @@
             :placeholder="$t('account.login.passwordPlaceholder')"
           >
         </label>
+        <NuxtLink class="login-forgot" to="/password-reset">{{ $t('account.login.forgotPassword') }}</NuxtLink>
         <p v-if="errorMessage" class="login-error" role="alert">{{ errorMessage }}</p>
         <button class="login-submit" type="submit" :disabled="pending">
           {{ pending ? $t('account.login.submitting') : $t('account.login.submit') }}

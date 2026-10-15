@@ -17,6 +17,21 @@ const setAsideHandler = (await import('../server/api/messages/[id]/set-aside.pat
 const senderRuleHandler = (await import('../server/api/messages/[id]/sender-rule.put.ts')).default
 const senderRuleUndoHandler = (await import('../server/api/sender-rule-changes/[id]/undo.post.ts')).default
 
+const testAccountUser = {
+  id: '00000000-0000-4000-8000-000000000001',
+  email: 'test@example.test',
+  displayName: 'Test account',
+  sessionVersion: 1,
+  activeWorkspaceId: 'workspace-test',
+}
+
+function authorizedContext(db: D1Database) {
+  return {
+    cloudflare: { env: { DB: db } },
+    accountUser: testAccountUser,
+  }
+}
+
 type BoundStatement = {
   sql: string
   values: unknown[]
@@ -30,6 +45,33 @@ class TestD1 {
     this.failSetAsideLookup = failSetAsideLookup
     this.sqlite.exec(`
       PRAGMA foreign_keys = ON;
+      CREATE TABLE workspaces (
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL
+      );
+      CREATE TABLE workspace_domains (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        verification_status TEXT NOT NULL
+      );
+      CREATE TABLE mailboxes (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        domain_id TEXT NOT NULL,
+        address TEXT NOT NULL,
+        status TEXT NOT NULL
+      );
+      CREATE TABLE mailbox_access_grants (
+        workspace_id TEXT NOT NULL,
+        mailbox_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        status TEXT NOT NULL
+      );
+      INSERT INTO workspaces VALUES ('workspace-test', 'active');
+      INSERT INTO workspace_domains VALUES ('domain-test', 'workspace-test', 'verbatims.cc', 'verified');
+      INSERT INTO mailboxes VALUES ('mailbox-test', 'workspace-test', 'domain-test', 'courrier-test@verbatims.cc', 'active');
+      INSERT INTO mailbox_access_grants VALUES ('workspace-test', 'mailbox-test', '00000000-0000-4000-8000-000000000001', 'active');
       CREATE TABLE messages (
         id TEXT PRIMARY KEY,
         message_id TEXT NOT NULL UNIQUE,
@@ -394,7 +436,12 @@ test('une réponse entrante rejoint Reply Later et libérer le fil retire l’é
       { id: 'reply-later-original', is_reply_later: 1 },
     ])
 
-    const cleared = await clearReplyLaterThread(db as unknown as D1Database, result.id)
+    const cleared = await clearReplyLaterThread(
+      db as unknown as D1Database,
+      result.id,
+      testAccountUser.activeWorkspaceId,
+      testAccountUser.id,
+    )
 
     assert.equal(cleared, 2)
     assert.deepEqual(db.replyLaterFlags(), [
@@ -456,7 +503,7 @@ test('restaurer via l’API déplace tout le fil vers sa règle commune', async 
 
   try {
     const result = await setAsideHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: 'parked-original' },
       body: { isSetAside: false },
     } as never) as { isSetAside: boolean, folder: string, affectedMessages: number }
@@ -477,7 +524,7 @@ test('restaurer via l’API garde tout le fil dans Inbox si les règles se contr
 
   try {
     const result = await setAsideHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: 'parked-original' },
       body: { isSetAside: false },
     } as never) as { isSetAside: boolean, folder: string, affectedMessages: number }
@@ -497,7 +544,7 @@ test('reclasser un expéditeur laisse son fil Set Aside dans Inbox mais déplace
 
   try {
     const result = await senderRuleHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: 'parked-original' },
       body: { folder: 'The Feed' },
     } as never) as { folder: string, affectedMessages: number }
@@ -519,7 +566,7 @@ test('reclasser puis restaurer un fil fusionné Set Aside garde le groupe uni et
 
   try {
     const ruleResult = await senderRuleHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: 'parked-original' },
       body: { folder: 'Paper Trail' },
     } as never) as { folder: string, affectedMessages: number }
@@ -531,7 +578,7 @@ test('reclasser puis restaurer un fil fusionné Set Aside garde le groupe uni et
     assert.deepEqual({ ...db.mergeFolder('parked-manual-merge') }, { folder: 'Imbox' })
 
     const restoreResult = await setAsideHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: 'parked-original' },
       body: { isSetAside: false },
     } as never) as { isSetAside: boolean, folder: string, affectedMessages: number }
@@ -553,19 +600,19 @@ test('annuler une règle après restauration remet le fil Set Aside fusionné da
 
   try {
     const ruleResult = await senderRuleHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: 'parked-original' },
       body: { folder: 'Paper Trail' },
     } as never) as { undoId: string }
 
     await setAsideHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: 'parked-original' },
       body: { isSetAside: false },
     } as never)
 
     const undoResult = await senderRuleUndoHandler({
-      context: { cloudflare: { env: { DB: db as unknown as D1Database } } },
+      context: authorizedContext(db as unknown as D1Database),
       params: { id: ruleResult.undoId },
     } as never) as { restoredMessages: number }
 

@@ -21,6 +21,26 @@ class ConcurrentD1 {
   constructor() {
     this.sqlite.exec(`
       PRAGMA foreign_keys = ON;
+      CREATE TABLE workspaces (
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL
+      );
+      CREATE TABLE workspace_domains (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        verification_status TEXT NOT NULL
+      );
+      CREATE TABLE mailboxes (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        domain_id TEXT NOT NULL,
+        address TEXT NOT NULL,
+        status TEXT NOT NULL
+      );
+      INSERT INTO workspaces VALUES ('workspace-test', 'active');
+      INSERT INTO workspace_domains VALUES ('domain-test', 'workspace-test', 'verbatims.cc', 'verified');
+      INSERT INTO mailboxes VALUES ('mailbox-test', 'workspace-test', 'domain-test', 'courrier-test@verbatims.cc', 'active');
       CREATE TABLE messages (
         id TEXT PRIMARY KEY,
         message_id TEXT NOT NULL UNIQUE,

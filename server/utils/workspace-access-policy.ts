@@ -1,0 +1,78 @@
+export type WorkspaceMailPermission =
+  | 'mail.read'
+  | 'mail.write'
+  | 'mail.send'
+  | 'mail.classify'
+  | 'mail.trash'
+  | 'mail.export'
+
+const accountEndpoints = new Set([
+  'GET /api/_auth/session',
+  'POST /api/auth/login',
+  'POST /api/auth/logout',
+  'POST /api/auth/password-reset',
+  'POST /api/auth/password-reset/confirm',
+  'GET /api/account/session',
+  'GET /api/account/workspaces',
+  'PATCH /api/account/workspaces/active',
+  'GET /api/profile/avatar',
+  'POST /api/profile/avatar',
+  'DELETE /api/profile/avatar',
+  'POST /api/dev/ingest',
+])
+
+export function isAccountEndpoint(path: string, method: string) {
+  return accountEndpoints.has(`${method.toUpperCase()} ${path}`)
+}
+
+export function isPublicInvitationEndpoint(path: string, method: string) {
+  const normalizedMethod = method.toUpperCase()
+  if (normalizedMethod === 'GET') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}$/.test(path)
+  if (normalizedMethod === 'POST') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}\/accept$/.test(path)
+  return false
+}
+
+export function isPlatformAdminEndpoint(path: string, method: string) {
+  const normalizedMethod = method.toUpperCase()
+  if (path === '/api/admin/overview') return normalizedMethod === 'GET'
+  if (path === '/api/admin/mailbox-access') return ['GET', 'POST', 'DELETE'].includes(normalizedMethod)
+  if (path === '/api/admin/invitations') return normalizedMethod === 'POST'
+  if (/^\/api\/admin\/invitations\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'
+  if (path === '/api/admin/domains') return normalizedMethod === 'POST'
+  if (/^\/api\/admin\/domains\/[^/]+$/.test(path)) return normalizedMethod === 'DELETE'
+  if (/^\/api\/admin\/domains\/[^/]+\/(?:challenge|verify)$/.test(path)) return normalizedMethod === 'POST'
+  if (/^\/api\/admin\/memberships\/[^/]+$/.test(path)) return normalizedMethod === 'PATCH'
+  return false
+}
+
+export function permissionFor(path: string, method: string): WorkspaceMailPermission | null {
+  const normalizedMethod = method.toUpperCase()
+  if (normalizedMethod === 'GET' || normalizedMethod === 'HEAD') {
+    if (path === '/api/export') return 'mail.export'
+    if (path === '/api/messages' || path === '/api/search' || path === '/api/outgoing-drafts'
+      || /^\/api\/messages\/[^/]+\/draft$/.test(path)
+      || /^\/api\/(?:attachments\/[^/]+|outgoing-drafts\/[^/]+(?:\/attachments\/[^/]+\/content)?)$/.test(path)) {
+      return 'mail.read'
+    }
+    return null
+  }
+
+  if (normalizedMethod === 'POST' && /^\/api\/(?:messages\/[^/]+\/send|outgoing-drafts\/[^/]+\/send)$/.test(path)) return 'mail.send'
+  if (normalizedMethod === 'POST' && /^\/api\/messages\/[^/]+\/(?:trash|restore-trash)$/.test(path)) return 'mail.trash'
+  if (normalizedMethod === 'PATCH' && path === '/api/threads/bulk-action') return 'mail.write'
+  if ((normalizedMethod === 'POST' && /^\/api\/messages\/[^/]+\/(?:block-sender|unblock-sender|restore-screener)$/.test(path))
+    || (normalizedMethod === 'PATCH' && /^\/api\/messages\/[^/]+\/(?:folder|group-folder|read|reply-later|set-aside)$/.test(path))
+    || (normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/sender-rule$/.test(path))
+    || (normalizedMethod === 'POST' && (path === '/api/screener/clear' || /^\/api\/sender-rule-changes\/[^/]+\/undo$/.test(path)))) {
+    return 'mail.classify'
+  }
+  if ((normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/draft$/.test(path))
+    || (normalizedMethod === 'POST' && /^\/api\/(?:outgoing-drafts|thread-merges(?:\/split)?)$/.test(path))
+    || (['PATCH', 'DELETE'].includes(normalizedMethod) && /^\/api\/outgoing-drafts\/[^/]+$/.test(path))
+    || (normalizedMethod === 'POST' && /^\/api\/outgoing-drafts\/[^/]+\/attachments$/.test(path))
+    || (normalizedMethod === 'DELETE' && /^\/api\/outgoing-drafts\/[^/]+\/attachments\/[^/]+$/.test(path))
+    || (normalizedMethod === 'PATCH' && /^\/api\/threads\/[^/]+\/subject$/.test(path))) {
+    return 'mail.write'
+  }
+  return null
+}

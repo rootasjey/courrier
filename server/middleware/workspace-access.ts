@@ -2,55 +2,20 @@ import {
   assertSameOrigin,
   requirePlatformAdmin,
   requireWorkspacePermission,
-  type WorkspaceMailPermission,
 } from '../utils/account-auth'
-
-function permissionFor(path: string, method: string): WorkspaceMailPermission | null {
-  if (method === 'GET' || method === 'HEAD') {
-    if (path === '/api/export') return 'mail.export'
-    if (path === '/api/messages' || path === '/api/search' || path === '/api/outgoing-drafts'
-      || /^\/api\/messages\/[^/]+\/draft$/.test(path)
-      || /^\/api\/(?:attachments\/[^/]+|outgoing-drafts\/[^/]+(?:\/attachments\/[^/]+\/content)?)$/.test(path)) {
-      return 'mail.read'
-    }
-    return null
-  }
-
-  if (/^\/api\/(?:messages\/[^/]+\/send|outgoing-drafts\/[^/]+\/send)$/.test(path)) return 'mail.send'
-  if (/^\/api\/messages\/[^/]+\/(?:trash|restore-trash)$/.test(path)) return 'mail.trash'
-  if (path === '/api/threads/bulk-action') return 'mail.write'
-  if (/^\/api\/(?:messages\/[^/]+\/(?:block-sender|unblock-sender|folder|group-folder|read|reply-later|restore-screener|restore-trash|sender-rule|set-aside)|screener\/clear|sender-rule-changes\/[^/]+\/undo)$/.test(path)) {
-    return 'mail.classify'
-  }
-  if (/^\/api\/(?:messages\/[^/]+\/draft|outgoing-drafts(?:\/[^/]+(?:\/attachments(?:\/[^/]+)?)?)?|thread-merges(?:\/split)?|threads\/[^/]+\/subject)$/.test(path)) {
-    return 'mail.write'
-  }
-  return null
-}
-
-const accountEndpoints = new Set([
-  '/api/_auth/session',
-  '/api/auth/login',
-  '/api/auth/logout',
-  '/api/account/session',
-  '/api/account/workspaces',
-  '/api/account/workspaces/active',
-  '/api/profile/avatar',
-  '/api/dev/ingest',
-])
-
-function isPublicInvitationEndpoint(path: string, method: string) {
-  if (method === 'GET') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}$/.test(path)
-  if (method === 'POST') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}\/accept$/.test(path)
-  return false
-}
+import {
+  isAccountEndpoint,
+  isPlatformAdminEndpoint,
+  isPublicInvitationEndpoint,
+  permissionFor,
+} from '../utils/workspace-access-policy'
 
 export default defineEventHandler(async (event) => {
   if (!event.path.startsWith('/api/')) return
+  setResponseHeader(event, 'Cache-Control', 'private, no-store')
   const path = event.path.split('?')[0]!.replace(/\/$/, '') || '/'
-  if (accountEndpoints.has(path)) return
-
   const method = getMethod(event)
+  if (isAccountEndpoint(path, method)) return
   if (isPublicInvitationEndpoint(path, method)) {
     if (method === 'POST') assertSameOrigin(event)
     return
@@ -58,22 +23,7 @@ export default defineEventHandler(async (event) => {
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) assertSameOrigin(event)
 
   if (path.startsWith('/api/admin/')) {
-    if (path === '/api/admin/overview' && method === 'GET') {
-      await requirePlatformAdmin(event)
-      return
-    }
-    if (path === '/api/admin/mailbox-access' && ['GET', 'POST', 'DELETE'].includes(method)) {
-      await requirePlatformAdmin(event)
-      return
-    }
-    if ((path === '/api/admin/invitations' && method === 'POST')
-      || (/^\/api\/admin\/invitations\/[0-9a-f-]{36}$/i.test(path) && method === 'DELETE')) {
-      await requirePlatformAdmin(event)
-      return
-    }
-    if ((path === '/api/admin/domains' && method === 'POST')
-      || (/^\/api\/admin\/domains\/[^/]+$/.test(path) && method === 'DELETE')
-      || (/^\/api\/admin\/domains\/[^/]+\/(?:challenge|verify)$/.test(path) && method === 'POST')) {
+    if (isPlatformAdminEndpoint(path, method)) {
       await requirePlatformAdmin(event)
       return
     }

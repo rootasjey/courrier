@@ -775,6 +775,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .invitation-link-button { display: inline-flex; align-items: center; justify-content: center; padding: 0 18px; text-decoration: none; }
 .invitation-card .login-kicker { margin-top: 0; }
 .login-page { display: grid; grid-template-columns: minmax(0, .92fr) minmax(380px, 1.08fr); gap: clamp(38px, 8vw, 112px); width: min(1120px, calc(100% - 64px)); min-height: 100svh; align-items: center; margin: 0 auto; padding: 58px 0; }
+.password-reset-page .login-copy { margin: 48px 0 25px; }
 .login-panel { width: min(100%, 440px); padding: 24px 0; }
 .login-brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); font-size: 22px; font-weight: 730; letter-spacing: -.6px; text-decoration: none; }
 .login-brand-mark, .login-aside-mark { display: grid; place-items: center; background: var(--violet); color: #fff; font-weight: 760; }
@@ -787,6 +788,13 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .login-field { display: grid; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 620; }
 .login-field input { width: 100%; min-height: 49px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 15px; font-weight: 450; }
 .login-field input::placeholder { color: var(--quiet); opacity: .8; }
+.login-field small { color: var(--quiet); font-size: 11px; font-weight: 450; }
+.login-forgot { justify-self: end; margin-top: -12px; color: var(--violet); font-size: 12px; font-weight: 620; text-decoration: none; }
+.login-forgot:hover, .login-footnote a:hover { text-decoration: underline; }
+.reset-status { display: grid; justify-items: start; gap: 15px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.reset-status p { margin: 0; }
+.reset-status .login-error { color: var(--error); }
+.login-footnote a { color: inherit; }
 .login-submit { min-height: 49px; margin-top: 3px; border: 0; border-radius: 8px; background: var(--violet); color: #fff; font-size: 14px; font-weight: 680; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease; }
 .login-submit:hover:not(:disabled) { background: var(--violet-hover); }
 .login-submit:active:not(:disabled) { transform: translateY(1px); }
@@ -836,6 +844,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .login-page { grid-template-columns: minmax(0, 1fr); gap: 26px; width: min(100% - 36px, 460px); align-content: center; padding: 28px 0; }
   .login-panel { width: 100%; padding: 0; }
   .login-copy { margin: 43px 0 26px; }
+  .password-reset-page .login-copy { margin: 34px 0 23px; }
   .login-aside { display: none; }
   .invitation-card .login-brand { margin-bottom: 30px; }
   .invitation-details > div { grid-template-columns: 92px minmax(0, 1fr); }

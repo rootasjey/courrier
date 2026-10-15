@@ -108,7 +108,7 @@ Les touches `1`, `2` et `3` ouvrent respectivement Imbox, The Feed et Paper Trai
 - Une règle d’expéditeur liée au domaine de boîte choisit une des trois destinations.
 - À la réception, appliquer la règle existante ; sans règle, classer dans le Screener.
 - Lors d’un changement de règle, mettre à jour l’historique dans le même batch D1 et retourner le nombre de messages touchés.
-- Les opérations HTTP de classement restent protégées par le middleware Cloudflare Access existant.
+- Les opérations HTTP de classement exigent une session Courrier, une permission de rôle et un accès actif aux boîtes concernées.
 - Ne pas introduire de classification IA automatique dans cette première version.
 
 La structure D1 conserve un instantané des dossiers et de la règle précédente pour permettre ce retour arrière. Les enregistrements d’annulation expirent après 24 heures ; l’action n’est exposée à l’interface que pendant 20 secondes. Le traitement des règles de blocage reste à décider après validation des parcours et des cas limites.

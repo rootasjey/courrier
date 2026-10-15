@@ -503,8 +503,6 @@ async function applyRestore(archivePath, database, bucket) {
       main: path.resolve('.output/server/index.mjs'),
       compatibility_date: '2026-09-28',
       assets: { binding: 'ASSETS', directory: path.resolve('.output/public') },
-      access: { dev: { aud: 'courrier-restore-local', identity: { email: 'restore@courrier.local', name: 'Courrier Restore' } } },
-      vars: { CF_ACCESS_TEAM_DOMAIN: 'https://courrier-restore.cloudflareaccess.com', CF_ACCESS_AUD: 'courrier-restore-local' },
       d1_databases: [{ binding: 'DB', database_name: database, database_id: databaseId, migrations_dir: path.resolve('migrations'), remote: true }],
       r2_buckets: [{ binding: 'MAIL_STORE', bucket_name: bucket, remote: true }],
     }

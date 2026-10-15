@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import type { WorkspaceMailPermission } from './workspace-access-policy'
 
 export type AccountDb = {
   prepare: (query: string) => AccountDbStatement
@@ -21,14 +22,6 @@ export type AccountUser = {
 }
 
 export type AccountIdentity = Omit<AccountUser, 'activeWorkspaceId'>
-
-export type WorkspaceMailPermission =
-  | 'mail.read'
-  | 'mail.write'
-  | 'mail.send'
-  | 'mail.classify'
-  | 'mail.trash'
-  | 'mail.export'
 
 export function getAccountDb(event: H3Event) {
   const cloudflare = event.context.cloudflare as { env?: { DB?: AccountDb } } | undefined
@@ -152,7 +145,7 @@ function accountUserIdSqlLiteral(userId: string) {
 }
 
 export function workspaceDomainScope(column: string, userId: string) {
-  if (!/^[a-z][a-z0-9_]*\.mailbox_domain$/.test(column)) {
+  if (!/^[a-z][a-z0-9_]*\.(?:mailbox_domain|domain)$/.test(column)) {
     throw new TypeError('Invalid mailbox-domain SQL column.')
   }
   return `EXISTS (
