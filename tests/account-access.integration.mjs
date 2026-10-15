@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -78,8 +78,10 @@ async function seedDatabase(configPath, persistPath) {
     `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('membership-viewer','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)});`,
     `INSERT INTO platform_admins (user_id,created_at) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)});`,
     `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a2','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000102','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000103','active',${sql(now)});`,
-    `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-a1','<message-a1@alpha.test>','sender@external.test','inbox@alpha.test','Allowed Sender','sender@external.test','Allowed mailbox',${sql(now)},'visible','messages/a1.eml','alpha.test','Imbox'),('message-a2','<message-a2@alpha.test>','sender@external.test','hidden@alpha.test','Hidden Sender','sender@external.test','Hidden mailbox',${sql(now)},'hidden','messages/a2.eml','alpha.test','Imbox'),('message-b1','<message-b1@beta.test>','sender@external.test','other@beta.test','Other Sender','sender@external.test','Other workspace',${sql(now)},'workspace B','messages/b1.eml','beta.test','Imbox');`,
-    `INSERT INTO outgoing_drafts (id,workspace_id,mailbox_id,to_address,subject,text_body,html_body,status,created_at,updated_at) VALUES ('draft-a1','workspace-one','mailbox-a1','recipient@example.test','Allowed draft','Visible draft','<p>Visible draft</p>','draft',${sql(now)},${sql(now)}),('draft-a2','workspace-one','mailbox-a2','recipient@example.test','Hidden draft','Hidden draft','<p>Hidden draft</p>','draft',${sql(now)},${sql(now)});`,
+    `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-a1','<message-a1@alpha.test>','sender@external.test','inbox@alpha.test','Allowed Sender','sender@external.test','Allowed mailbox',${sql(now)},'visible','messages/a1.eml','alpha.test','Imbox'),('message-a2','<message-a2@alpha.test>','sender@external.test','hidden@alpha.test','Hidden Sender','sender@external.test','Hidden mailbox',${sql(now)},'hiddenneedle','messages/a2.eml','alpha.test','Imbox'),('message-b1','<message-b1@beta.test>','sender@external.test','other@beta.test','Other Sender','sender@external.test','Other workspace',${sql(now)},'workspace B','messages/b1.eml','beta.test','Imbox');`,
+    `INSERT INTO attachments (id,message_id,filename,mime_type,size_bytes,object_key) VALUES ('attachment-a2','message-a2','hidden.txt','text/plain',6,'attachments/a2.txt'),('attachment-b1','message-b1','other.txt','text/plain',5,'attachments/b1.txt');`,
+    `INSERT INTO outgoing_drafts (id,workspace_id,mailbox_id,to_address,subject,text_body,html_body,status,created_at,updated_at) VALUES ('draft-a1','workspace-one','mailbox-a1','recipient@example.test','Allowed draft','Visible draft','<p>Visible draft</p>','draft',${sql(now)},${sql(now)}),('draft-a2','workspace-one','mailbox-a2','recipient@example.test','Hidden draft','Hidden draft','<p>Hidden draft</p>','draft',${sql(now)},${sql(now)}),('draft-b1','workspace-two','mailbox-b1','recipient@example.test','Other workspace draft','Other workspace draft','<p>Other workspace draft</p>','draft',${sql(now)},${sql(now)});`,
+    `INSERT INTO outgoing_draft_attachments (id,draft_id,filename,mime_type,size_bytes,object_key,content_id,disposition,created_at) VALUES ('draft-attachment-a2','draft-a2','hidden.png','image/png',12,'draft-attachments/a2.png','hidden-image','inline',${sql(now)});`,
     `INSERT INTO workspace_invitations (id,workspace_id,email,role,token_hash,expires_at,created_by_user_id,created_at) VALUES ('invitation-local','workspace-one','new.member@example.test','member',${sql(invitationHash)},${sql(later)},'00000000-0000-4000-8000-000000000101',${sql(now)});`,
     `INSERT INTO auth_password_reset_tokens (id,user_id,token_hash,created_at,expires_at) VALUES ('reset-local','00000000-0000-4000-8000-000000000102',${sql(resetTokenHash)},${sql(now)},${sql(later)}),('reset-expired','00000000-0000-4000-8000-000000000103',${sql(expiredResetTokenHash)},${sql(now)},datetime('now','-1 hour'));`,
   )
@@ -91,6 +93,26 @@ async function seedDatabase(configPath, persistPath) {
     'd1', 'execute', 'DB', '--local', '--persist-to', persistPath,
     '--config', configPath, '--file', seedPath,
   ])
+}
+
+async function seedRawMessages(configPath, persistPath) {
+  const messages = [
+    ['messages/a1.eml', 'Subject: Visible message\r\n\r\nVISIBLE_EXPORT_FIXTURE'],
+    ['messages/a2.eml', 'Subject: Hidden mailbox message\r\n\r\nHIDDEN_MAILBOX_EXPORT_FIXTURE'],
+    ['messages/b1.eml', 'Subject: Other workspace message\r\n\r\nOTHER_WORKSPACE_EXPORT_FIXTURE'],
+  ]
+  const wranglerPath = path.join(root, 'node_modules/wrangler/bin/wrangler.js')
+
+  for (const [key, contents] of messages) {
+    const filePath = path.join(temporaryDirectory, path.basename(key))
+    await writeFile(filePath, contents)
+    run(process.execPath, [
+      wranglerPath,
+      'r2', 'object', 'put', `courrier-auth-test/${key}`,
+      '--local', '--persist-to', persistPath,
+      '--config', configPath, '--file', filePath,
+    ])
+  }
 }
 
 async function waitForServer() {
@@ -106,22 +128,59 @@ async function waitForServer() {
   throw new Error(`Nuxt did not become ready.\n${serverLogs.join('')}`)
 }
 
-async function request(route, { method = 'GET', cookie = '', body, withOrigin = true } = {}) {
+async function request(route, { method = 'GET', cookie = '', body, withOrigin = true, origin = base, readBody = true } = {}) {
   const headers = {}
   if (cookie) headers.cookie = cookie
-  if (withOrigin) headers.origin = base
+  if (withOrigin) headers.origin = origin
   if (body !== undefined) headers['content-type'] = 'application/json'
   const response = await fetch(new URL(route, base), {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  const text = await response.text()
+  const text = readBody ? await response.text() : ''
   let data
   try { data = text ? JSON.parse(text) : null } catch { data = text }
   const setCookies = response.headers.getSetCookie?.() || []
   const cookieHeader = setCookies.map(value => value.split(';', 1)[0]).filter(Boolean).join('; ')
   return { response, data, cookie: cookieHeader || cookie, setCookies }
+}
+
+async function protectedApiRoutes() {
+  const apiRoot = path.join(root, 'server/api')
+  const files = []
+  async function walk(directory) {
+    for (const entry of await readdir(directory)) {
+      const file = path.join(directory, entry)
+      if ((await stat(file)).isDirectory()) await walk(file)
+      else if (file.endsWith('.ts')) files.push(file)
+    }
+  }
+  await walk(apiRoot)
+
+  const deliberatelyPublic = new Set([
+    'POST /api/auth/login',
+    'POST /api/auth/logout',
+    'POST /api/auth/password-reset',
+    'POST /api/auth/password-reset/confirm',
+    'POST /api/dev/ingest',
+  ])
+  return files.flatMap((file) => {
+    let route = path.relative(apiRoot, file).split(path.sep).join('/').replace(/\.ts$/, '')
+    const suffix = route.match(/\.(get|post|put|patch|delete|head|options)$/)
+    if (!suffix) return []
+    const method = suffix[1].toUpperCase()
+    route = route.slice(0, -suffix[0].length)
+    const apiPath = `/api/${route.replace(/\[\.\.\.([^\]]+)\]/g, ':$1').replace(/\[([^\]]+)\]/g, ':$1')}`
+    if (deliberatelyPublic.has(`${method} ${apiPath}`)) return []
+    if ((method === 'GET' && /^\/api\/invitations\/:token$/.test(apiPath))
+      || (method === 'POST' && /^\/api\/invitations\/:token\/accept$/.test(apiPath))) return []
+    const samplePath = apiPath
+      .replaceAll(':token', 'A'.repeat(43))
+      .replaceAll(':attachmentId', 'attachment-test')
+      .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
+    return [{ method, path: samplePath }]
+  }).sort((left, right) => `${left.method} ${left.path}`.localeCompare(`${right.method} ${right.path}`))
 }
 
 let checkCount = 0
@@ -168,6 +227,7 @@ try {
       database_id: '00000000-0000-4000-8000-000000000001',
       migrations_dir: path.join(root, 'migrations'),
     }],
+    r2_buckets: [{ binding: 'MAIL_STORE', bucket_name: 'courrier-auth-test' }],
     send_email: [{ name: 'EMAIL', allowed_sender_addresses: ['courrier-test@verbatims.cc'] }],
   }, null, 2))
   const isolatedBuildDirectory = path.join(root, '.nuxt-auth-test')
@@ -180,6 +240,7 @@ try {
     '--config', configPath,
   ])
   await seedDatabase(configPath, persistPath)
+  await seedRawMessages(configPath, persistPath)
 
   server = spawn(process.execPath, [
     path.join(root, 'node_modules/@nuxt/cli/bin/nuxi.mjs'),
@@ -209,12 +270,26 @@ try {
     assert.equal((await request('/api/account/session')).response.status, 401)
     assert.equal((await request('/api/admin/overview')).response.status, 401)
   })
-  await check('login enforces same origin', async () => {
-    const result = await request('/api/auth/login', {
+  await check('anonymous requests are rejected on every protected API route', async () => {
+    const routes = await protectedApiRoutes()
+    assert.ok(routes.length >= 40, `Expected broad API coverage, found ${routes.length} routes.`)
+    for (const { method, path: route } of routes) {
+      const result = await request(route, { method })
+      assert.equal(result.response.status, 401, `${method} ${route} was not rejected anonymously.`)
+    }
+    console.log(`  Covered ${routes.length} API routes.`)
+  })
+  await check('login rejects missing and foreign origins', async () => {
+    const missingOrigin = await request('/api/auth/login', {
       method: 'POST', withOrigin: false,
       body: { email: 'member@example.test', password: 'local-test-member-password-001' },
     })
-    assert.equal(result.response.status, 403)
+    const foreignOrigin = await request('/api/auth/login', {
+      method: 'POST', origin: 'https://attacker.example',
+      body: { email: 'member@example.test', password: 'local-test-member-password-001' },
+    })
+    assert.equal(missingOrigin.response.status, 403)
+    assert.equal(foreignOrigin.response.status, 403)
   })
 
   const memberLogin = await request('/api/auth/login', {
@@ -277,6 +352,40 @@ try {
     assert.equal(drafts.response.status, 200, JSON.stringify(drafts.data))
     assert.deepEqual(drafts.data.map(value => value.id), ['draft-a1'])
   })
+  await check('mail export contains only messages from explicitly granted mailboxes', async () => {
+    const result = await request('/api/export', { cookie: memberCookie, readBody: false })
+    assert.equal(result.response.status, 200)
+    assert.match(result.response.headers.get('content-type') || '', /application\/zip/)
+    const archive = new TextDecoder().decode(await result.response.arrayBuffer())
+    assert.match(archive, /messages\/message-a1\.eml/)
+    assert.match(archive, /VISIBLE_EXPORT_FIXTURE/)
+    assert.doesNotMatch(archive, /message-a2|message-b1|HIDDEN_MAILBOX_EXPORT_FIXTURE|OTHER_WORKSPACE_EXPORT_FIXTURE/)
+  })
+  await check('mailbox grants protect search, message mutations, and stored attachments by object id', async () => {
+    const search = await request('/api/search?q=hiddenneedle', { cookie: memberCookie })
+    assert.equal(search.response.status, 200, JSON.stringify(search.data))
+    assert.deepEqual(search.data.results, [])
+    assert.equal(search.data.total, 0)
+
+    const hiddenMessage = await request('/api/messages/message-a2/folder', {
+      method: 'PATCH', cookie: memberCookie, body: { folder: 'Paper Trail' },
+    })
+    const otherWorkspaceMessage = await request('/api/messages/message-b1/folder', {
+      method: 'PATCH', cookie: memberCookie, body: { folder: 'Paper Trail' },
+    })
+    assert.equal(hiddenMessage.response.status, 404)
+    assert.equal(otherWorkspaceMessage.response.status, 404)
+
+    const hiddenAttachment = await request('/api/attachments/attachment-a2', { cookie: memberCookie })
+    const otherWorkspaceAttachment = await request('/api/attachments/attachment-b1', { cookie: memberCookie })
+    assert.equal(hiddenAttachment.response.status, 404)
+    assert.equal(otherWorkspaceAttachment.response.status, 404)
+
+    assert.equal((await request('/api/outgoing-drafts/draft-a2', { cookie: memberCookie })).response.status, 404)
+    assert.equal((await request('/api/outgoing-drafts/draft-b1', { cookie: memberCookie })).response.status, 404)
+    const hiddenInlineImage = await request('/api/outgoing-drafts/draft-a2/attachments/draft-attachment-a2/content', { cookie: memberCookie })
+    assert.equal(hiddenInlineImage.response.status, 404)
+  })
   await check('member cannot access platform admin endpoints', async () => {
     assert.equal((await request('/api/admin/overview', { cookie: memberCookie })).response.status, 403)
   })
@@ -296,6 +405,7 @@ try {
     assert.equal(switched.data.activeWorkspaceId, 'workspace-two')
     assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data, [])
     assert.deepEqual((await request('/api/outgoing-drafts', { cookie: memberCookie })).data, [])
+    assert.equal((await request('/api/outgoing-drafts/draft-b1', { cookie: memberCookie })).response.status, 404)
   })
   await check('switching back restores only the granted mailbox scope', async () => {
     const switched = await request('/api/account/workspaces/active', {
@@ -318,6 +428,7 @@ try {
       method: 'PATCH', cookie: login.cookie, body: { folder: 'Paper Trail' },
     })
     assert.equal(mutation.response.status, 403)
+    assert.equal((await request('/api/export', { cookie: login.cookie })).response.status, 403)
   })
 
   const adminLogin = await request('/api/auth/login', {
