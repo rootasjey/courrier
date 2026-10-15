@@ -398,6 +398,33 @@ try {
     const hiddenInlineImage = await request('/api/outgoing-drafts/draft-a2/attachments/draft-attachment-a2/content', { cookie: memberCookie })
     assert.equal(hiddenInlineImage.response.status, 404)
   })
+  await check('hidden ids cannot mutate drafts, replies, attachments, or bulk actions; sending requires its mailbox grant', async () => {
+    const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'attempted change' }] }] }
+    const hiddenDraftPatch = await request('/api/outgoing-drafts/draft-a2', {
+      method: 'PATCH', cookie: memberCookie,
+      body: { to: 'recipient@example.test', subject: 'Changed', content },
+    })
+    assert.equal(hiddenDraftPatch.response.status, 404)
+    assert.deepEqual((await request('/api/outgoing-drafts/draft-a2', { method: 'DELETE', cookie: memberCookie })).data, { deleted: false })
+    assert.equal((await request('/api/outgoing-drafts/draft-a2/attachments', { method: 'POST', cookie: memberCookie })).response.status, 404)
+    assert.deepEqual((await request('/api/outgoing-drafts/draft-a2/attachments/draft-attachment-a2', {
+      method: 'DELETE', cookie: memberCookie,
+    })).data, { deleted: false })
+    const deniedSend = await request('/api/outgoing-drafts/draft-a1/send', { method: 'POST', cookie: memberCookie })
+    assert.equal(deniedSend.response.status, 403)
+
+    const hiddenReply = await request('/api/messages/message-a2/draft', { cookie: memberCookie })
+    assert.equal(hiddenReply.response.status, 204)
+    assert.equal((await request('/api/messages/message-a2/draft', {
+      method: 'PUT', cookie: memberCookie, body: { textBody: 'attempted reply' },
+    })).response.status, 404)
+
+    const hiddenBulkAction = await request('/api/threads/bulk-action', {
+      method: 'PATCH', cookie: memberCookie,
+      body: { threadIds: ['message-a2'], source: 'Imbox', action: 'mark-seen' },
+    })
+    assert.equal(hiddenBulkAction.response.status, 404)
+  })
   await check('member cannot access platform admin endpoints', async () => {
     assert.equal((await request('/api/admin/overview', { cookie: memberCookie })).response.status, 403)
   })
@@ -501,6 +528,14 @@ try {
     assert.equal(message.threadSubject, 'Domain-wide private title')
     assert.equal(message.hasSenderRule, true)
     assert.equal(message.senderRuleFolder, 'The Feed')
+
+    const hiddenDraft = await request('/api/outgoing-drafts/draft-a2', { cookie: adminCookie })
+    assert.equal(hiddenDraft.response.status, 200)
+    assert.equal(hiddenDraft.data.subject, 'Hidden draft')
+    assert.deepEqual(hiddenDraft.data.attachments.map(attachment => attachment.id), ['draft-attachment-a2'])
+    const hiddenMessage = messages.data.find(value => value.id === 'message-a2')
+    assert.ok(hiddenMessage)
+    assert.equal(hiddenMessage.isRead, false)
   })
   await check('platform admin can inspect the console without Access headers', async () => {
     const overview = await request('/api/admin/overview', { cookie: adminCookie })
