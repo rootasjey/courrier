@@ -517,6 +517,44 @@
       "asideLabel": "A space of your own",
       "asideTitle": "Your conversations, in order.",
       "asideDescription": "Find the messages in your workspace in an inbox designed to help you handle them at your own pace."
+    },
+    "invitation": {
+      "kicker": "Courrier invitation",
+      "loading": "Checking your invitation…",
+      "invalidTitle": "This link is no longer valid.",
+      "invalidDescription": "The invitation may have expired, been revoked, or already been used. Ask the workspace administrator for a new link.",
+      "unavailableTitle": "Verification is temporarily unavailable.",
+      "unavailableDescription": "Courrier could not verify this invitation. Please try again shortly.",
+      "retry": "Try again",
+      "title": "Join your workspace.",
+      "description": "You have been invited to join “{workspace}”.",
+      "email": "Invited address",
+      "role": "Role",
+      "expires": "Expires",
+      "displayName": "Display name",
+      "displayNamePlaceholder": "Your name",
+      "newPassword": "Create a password",
+      "passwordPlaceholder": "At least 16 characters",
+      "passwordHint": "Use at least 16 characters. Keep this password private.",
+      "confirmPassword": "Confirm password",
+      "confirmPasswordPlaceholder": "Enter it one more time",
+      "passwordMismatch": "The two passwords do not match.",
+      "createAccount": "Create account and join",
+      "accept": "Accept invitation",
+      "accepting": "Accepting…",
+      "existingAccount": "An account already exists for this address. Sign in to that account to join the workspace.",
+      "signIn": "Sign in",
+      "switchAccount": "Sign out and switch account",
+      "wrongAccount": "You are signed in as {email}. This invitation was sent to a different address.",
+      "accountInactive": "This account is inactive. Contact a Courrier administrator.",
+      "alreadyMember": "Your account already has access to this workspace, or its access is suspended. Contact an administrator if you need help.",
+      "acceptError": "The invitation could not be accepted. Reload the page and try again.",
+      "mailboxAccessNote": "Joining a workspace does not automatically grant access to its mailboxes. An administrator assigns each mailbox separately.",
+      "roles": {
+        "admin": "Workspace administrator",
+        "member": "Member",
+        "viewer": "Read only"
+      }
     }
   }
 }

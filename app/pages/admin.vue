@@ -120,7 +120,7 @@
               <tbody>
                 <tr v-for="membership in overview.memberships" :key="membership.id">
                   <td><strong>{{ membership.display_name || membership.email }}</strong><small>{{ membership.email }}</small></td><td>{{ membership.workspace_name }}</td>
-                  <td><span class="admin-role">{{ membership.role }}</span></td>
+                  <td><span class="admin-role">{{ roleLabel(membership.role) }}</span></td>
                   <td><span class="admin-status" :class="`is-${membership.membership_status}`">{{ statusLabel(membership.membership_status) }}</span><small v-if="membership.user_status !== 'active'">{{ statusLabel(membership.user_status) }}</small></td>
                   <td>{{ formatDate(membership.created_at) }}</td>
                   <td>
@@ -201,15 +201,44 @@
 
         <section class="admin-section" aria-labelledby="admin-invitations-heading">
           <h2 id="admin-invitations-heading">{{ $t('admin.invitations') }}</h2>
+          <p class="admin-section-description">{{ $t('admin.invitationDescription') }}</p>
+          <p v-if="invitationError" class="admin-access-error" role="alert">{{ invitationError }}</p>
+          <p v-if="invitationNotice" class="admin-access-notice" role="status">{{ invitationNotice }}</p>
+          <form class="admin-domain-controls admin-invitation-controls" @submit.prevent="createInvitation">
+            <label class="admin-access-field">
+              <span>{{ $t('admin.workspace') }}</span>
+              <select v-model="invitationWorkspaceId" :disabled="invitationBusy || !activeWorkspaces.length" required>
+                <option value="">{{ $t('admin.chooseWorkspace') }}</option>
+                <option v-for="workspace in activeWorkspaces" :key="workspace.id" :value="workspace.id">
+                  {{ workspace.name }}
+                </option>
+              </select>
+            </label>
+            <label class="admin-access-field">
+              <span>{{ $t('admin.email') }}</span>
+              <input v-model="invitationEmail" type="email" maxlength="254" autocomplete="off" autocapitalize="none" spellcheck="false" :placeholder="$t('admin.invitationEmailPlaceholder')" :disabled="invitationBusy" required>
+            </label>
+            <label class="admin-access-field">
+              <span>{{ $t('admin.role') }}</span>
+              <select v-model="invitationRole" :disabled="invitationBusy">
+                <option value="member">{{ $t('admin.roleMember') }}</option>
+                <option value="viewer">{{ $t('admin.roleViewer') }}</option>
+              </select>
+            </label>
+            <button class="admin-access-action" type="submit" :disabled="invitationBusy || !invitationWorkspaceId || !invitationEmail.trim()">
+              {{ invitationBusy ? $t('admin.sendingInvitation') : $t('admin.sendInvitation') }}
+            </button>
+          </form>
           <div class="admin-table-wrap">
             <table>
-              <thead><tr><th>{{ $t('admin.email') }}</th><th>{{ $t('admin.workspace') }}</th><th>{{ $t('admin.role') }}</th><th>{{ $t('admin.status') }}</th><th>{{ $t('admin.expires') }}</th></tr></thead>
+              <thead><tr><th>{{ $t('admin.email') }}</th><th>{{ $t('admin.workspace') }}</th><th>{{ $t('admin.role') }}</th><th>{{ $t('admin.status') }}</th><th>{{ $t('admin.expires') }}</th><th>{{ $t('admin.action') }}</th></tr></thead>
               <tbody>
                 <tr v-for="invitation in overview.invitations" :key="invitation.id">
-                  <td>{{ invitation.email }}</td><td>{{ invitation.workspace_name }}</td><td>{{ invitation.role }}</td>
+                  <td>{{ invitation.email }}</td><td>{{ invitation.workspace_name }}</td><td>{{ roleLabel(invitation.role) }}</td>
                   <td><span class="admin-status" :class="`is-${invitation.status}`">{{ statusLabel(invitation.status) }}</span></td><td>{{ formatDate(invitation.expires_at) }}</td>
+                  <td><button v-if="invitation.status === 'pending'" class="admin-membership-action is-suspend" type="button" :disabled="invitationBusy" @click="invitationToRevoke = invitation">{{ $t('admin.revokeInvitation') }}</button><span v-else class="admin-access-protected">—</span></td>
                 </tr>
-                <tr v-if="!overview.invitations.length"><td colspan="5" class="admin-empty">{{ $t('admin.noRows') }}</td></tr>
+                <tr v-if="!overview.invitations.length"><td colspan="6" class="admin-empty">{{ $t('admin.noRows') }}</td></tr>
               </tbody>
             </table>
           </div>
@@ -256,6 +285,28 @@
             @click="updateMembershipStatus"
           >
             {{ membershipBusy ? $t('admin.savingMembership') : $t(membershipToChange?.membership_status === 'active' ? 'admin.suspendMember' : 'admin.reactivateMember') }}
+          </button>
+        </div>
+      </template>
+    </NDialog>
+
+    <NDialog
+      :open="Boolean(invitationToRevoke)"
+      :title="$t('admin.revokeInvitation')"
+      :description="$t('admin.revokeInvitationDescription', { email: invitationToRevoke?.email || '' })"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!open && !invitationBusy) invitationToRevoke = null }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t('admin.revokeInvitation') }}</NDialogTitle>
+          <NDialogDescription>{{ $t('admin.revokeInvitationDescription', { email: invitationToRevoke?.email || '' }) }}</NDialogDescription>
+        </header>
+        <div class="dialog-actions">
+          <button class="dialog-cancel" type="button" :disabled="invitationBusy" @click="invitationToRevoke = null">{{ $t('common.cancel') }}</button>
+          <button class="dialog-danger" type="button" :disabled="invitationBusy" @click="revokeInvitation">
+            {{ invitationBusy ? $t('admin.sendingInvitation') : $t('admin.revokeInvitation') }}
           </button>
         </div>
       </template>
@@ -350,6 +401,13 @@ const domainError = ref('')
 const domainNotice = ref('')
 const domainChallenge = ref<DomainChallenge | null>(null)
 const domainToRemove = ref<AdminOverview['domains'][number] | null>(null)
+const invitationWorkspaceId = ref('')
+const invitationEmail = ref('')
+const invitationRole = ref<'member' | 'viewer'>('member')
+const invitationBusy = ref(false)
+const invitationError = ref('')
+const invitationNotice = ref('')
+const invitationToRevoke = ref<AdminOverview['invitations'][number] | null>(null)
 
 const activeWorkspaces = computed(() => overview.value?.workspaces.filter(workspace => workspace.status === 'active') ?? [])
 const selectedMailbox = computed(() => mailboxAccess.value?.mailboxes.find(mailbox => mailbox.id === selectedMailboxId.value) ?? null)
@@ -391,6 +449,11 @@ function statusLabel(status: string) {
   return known.includes(status) ? $t(`admin.${status}`) : status
 }
 
+function roleLabel(role: string) {
+  const known = ['owner', 'admin', 'member', 'viewer']
+  return known.includes(role) ? $t(`admin.role${role[0]!.toUpperCase()}${role.slice(1)}`) : role
+}
+
 function formatDate(value: string) {
   const date = new Date(value.includes('Z') || value.includes('+') ? value : `${value.replace(' ', 'T')}Z`)
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
@@ -410,6 +473,9 @@ async function loadOverview() {
     if (!activeWorkspaces.value.some(workspace => workspace.id === selectedDomainWorkspaceId.value)) {
       selectedDomainWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
     }
+    if (!activeWorkspaces.value.some(workspace => workspace.id === invitationWorkspaceId.value)) {
+      invitationWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
+    }
     if (!nextMailboxAccess.mailboxes.some(mailbox => mailbox.id === selectedMailboxId.value)) {
       selectedMailboxId.value = nextMailboxAccess.mailboxes[0]?.id ?? ''
     }
@@ -418,6 +484,54 @@ async function loadOverview() {
     failed.value = true
   } finally {
     loading.value = false
+  }
+}
+
+function requestStatus(error: unknown) {
+  if (!error || typeof error !== 'object') return 0
+  const value = error as { statusCode?: unknown, status?: unknown, response?: { status?: unknown } }
+  return Number(value.statusCode || value.status || value.response?.status || 0)
+}
+
+async function createInvitation() {
+  if (!invitationWorkspaceId.value || !invitationEmail.value.trim() || invitationBusy.value) return
+  invitationBusy.value = true
+  invitationError.value = ''
+  invitationNotice.value = ''
+  try {
+    const result = await $fetch<{ email: string }>('/api/admin/invitations', {
+      method: 'POST',
+      body: { workspaceId: invitationWorkspaceId.value, email: invitationEmail.value, role: invitationRole.value },
+    })
+    invitationEmail.value = ''
+    invitationNotice.value = $t('admin.invitationSent', { email: result.email })
+    await loadOverview()
+  } catch (error) {
+    const status = requestStatus(error)
+    invitationError.value = status === 409 ? $t('admin.invitationConflict')
+      : status === 429 ? $t('admin.invitationRateLimit')
+      : status === 503 || status === 502 ? $t('admin.invitationSendError')
+        : $t('admin.invitationError')
+  } finally {
+    invitationBusy.value = false
+  }
+}
+
+async function revokeInvitation() {
+  const invitation = invitationToRevoke.value
+  if (!invitation || invitationBusy.value) return
+  invitationBusy.value = true
+  invitationError.value = ''
+  invitationNotice.value = ''
+  try {
+    await $fetch(`/api/admin/invitations/${encodeURIComponent(invitation.id)}`, { method: 'DELETE' })
+    invitationToRevoke.value = null
+    invitationNotice.value = $t('admin.invitationRevokedNotice')
+    await loadOverview()
+  } catch {
+    invitationError.value = $t('admin.invitationError')
+  } finally {
+    invitationBusy.value = false
   }
 }
 

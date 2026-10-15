@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell">
-    <AppTopbar v-if="!isLoginRoute"
+    <AppTopbar v-if="!isPublicAuthRoute"
       :folders="folderOptions"
       :active-folder="activeFolder"
       :show-back-link="showBackLink"
@@ -8,7 +8,7 @@
       @select-folder="selectFolder"
     />
     <NuxtPage :transition="pageTransition" />
-    <CommandPalette v-if="!isLoginRoute" v-model:open="commandPaletteOpen" />
+    <CommandPalette v-if="!isPublicAuthRoute" v-model:open="commandPaletteOpen" />
   </div>
 </template>
 
@@ -18,8 +18,8 @@ import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/util
 
 const route = useRoute()
 const router = useRouter()
-const isLoginRoute = computed(() => route.path === '/login')
-const pageTransition = computed(() => isLoginRoute.value || route.path.startsWith('/admin')
+const isPublicAuthRoute = computed(() => route.path === '/login' || route.path.startsWith('/invitation/'))
+const pageTransition = computed(() => isPublicAuthRoute.value || route.path.startsWith('/admin')
   ? false
   : { name: 'page', mode: 'out-in' as const })
 const activeFolder = computed(() => mailboxFromPath(route.path))

@@ -21,6 +21,11 @@ export default defineEventHandler(async (event) => {
     '/api/profile/avatar',
   ].includes(event.path)) return
 
+  // Invitation links are bearer capabilities with a short lifetime. Their
+  // exact public routes must remain reachable before the recipient has an
+  // account session; every other API still requires the Cloudflare identity.
+  if (/^\/api\/invitations\/[A-Za-z0-9_-]{43}(?:\/accept)?$/.test(event.path)) return
+
   const identity = await requireAccessIdentity(event)
   event.context.identity = identity
 })

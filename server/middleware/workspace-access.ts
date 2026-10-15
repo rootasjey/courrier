@@ -39,12 +39,22 @@ const accountEndpoints = new Set([
   '/api/dev/ingest',
 ])
 
+function isPublicInvitationEndpoint(path: string, method: string) {
+  if (method === 'GET') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}$/.test(path)
+  if (method === 'POST') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}\/accept$/.test(path)
+  return false
+}
+
 export default defineEventHandler(async (event) => {
   if (!event.path.startsWith('/api/')) return
   const path = event.path.split('?')[0]!.replace(/\/$/, '') || '/'
   if (accountEndpoints.has(path)) return
 
   const method = getMethod(event)
+  if (isPublicInvitationEndpoint(path, method)) {
+    if (method === 'POST') assertSameOrigin(event)
+    return
+  }
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) assertSameOrigin(event)
 
   if (path.startsWith('/api/admin/')) {
@@ -53,6 +63,11 @@ export default defineEventHandler(async (event) => {
       return
     }
     if (path === '/api/admin/mailbox-access' && ['GET', 'POST', 'DELETE'].includes(method)) {
+      await requirePlatformAdmin(event)
+      return
+    }
+    if ((path === '/api/admin/invitations' && method === 'POST')
+      || (/^\/api\/admin\/invitations\/[0-9a-f-]{36}$/i.test(path) && method === 'DELETE')) {
       await requirePlatformAdmin(event)
       return
     }

@@ -20,7 +20,7 @@
     "membershipReactivatedNotice": "The member is active again. Their mailbox access remains disabled until it is assigned again.",
     "membershipSaveError": "The status change did not complete. Refresh the console and try again.",
     "mailboxAccess": "Mailbox access",
-    "mailboxAccessDescription": "Control access to each mailbox for existing members. Their role permissions still apply. Invitations remain closed for now.",
+    "mailboxAccessDescription": "Workspace membership does not grant access to its mailboxes. Assign each mailbox separately; the owner always keeps access.",
     "mailboxAccessTruncated": "This console shows at most 500 mailboxes, 500 active members, and 5,000 grants. Items beyond these limits cannot be managed here yet.",
     "mailbox": "Mailbox",
     "memberToGrant": "Member to grant",
@@ -94,6 +94,22 @@
     "suspended": "Suspended",
     "verified": "Verified",
     "legacy_unverified": "Legacy unverified",
-    "unverified": "Unverified"
+    "unverified": "Unverified",
+    "invitationDescription": "Send a 7-day link for a Member or Read only role. While Cloudflare Access still protects Courrier, invitees must also be authorized there. Mailbox access is assigned separately.",
+    "invitationEmailPlaceholder": "name@example.com",
+    "roleOwner": "Owner",
+    "roleAdmin": "Workspace administrator",
+    "roleMember": "Member",
+    "roleViewer": "Read only",
+    "sendInvitation": "Send invitation",
+    "sendingInvitation": "Sending…",
+    "revokeInvitation": "Revoke",
+    "revokeInvitationDescription": "The link sent to {email} can no longer be used.",
+    "invitationSent": "Invitation sent to {email}.",
+    "invitationRevokedNotice": "The invitation was revoked.",
+    "invitationConflict": "This address already has workspace access, a suspended membership, or a pending invitation.",
+    "invitationSendError": "The invitation could not be sent. Check the sending configuration and try again.",
+    "invitationRateLimit": "The sending limit has been reached. Try again in an hour.",
+    "invitationError": "The invitation could not be changed. Refresh and try again."
   }
 }

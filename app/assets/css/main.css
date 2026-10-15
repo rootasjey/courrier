@@ -718,6 +718,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .admin-status.is-pending, .admin-status.is-legacy_unverified, .admin-status.is-expired { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
 .admin-empty { padding: 28px 12px !important; color: var(--quiet) !important; text-align: center; }
 .admin-domain-controls { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
+.admin-invitation-controls { grid-template-columns: minmax(190px, 1fr) minmax(220px, 1.2fr) minmax(150px, .7fr) auto; }
 .admin-domain-controls input { width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; }
 .admin-domain-controls input:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
 .admin-domain-challenge { margin: 18px 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--violet) 28%, var(--line)); border-radius: 12px; background: var(--surface-soft); }
@@ -755,6 +756,24 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .admin-access-notice { color: #27815f; }
 .admin-access-error { color: var(--error); }
 .admin-access-empty { margin-top: 4px; }
+.invitation-page { display: grid; min-height: 100svh; place-items: center; padding: 36px 18px; }
+.invitation-card { width: min(100%, 520px); padding: clamp(24px, 5vw, 42px); border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: 0 22px 70px rgb(36 28 75 / 8%); }
+.invitation-card .login-brand { margin-bottom: 42px; }
+.invitation-copy h1, .invitation-card > h1 { margin: 0; color: var(--ink); font-size: clamp(32px, 8vw, 42px); font-weight: 730; letter-spacing: -1.5px; line-height: 1.08; }
+.invitation-details { display: grid; gap: 12px; margin: 26px 0 20px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
+.invitation-details > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; }
+.invitation-details dt { color: var(--quiet); font-size: 12px; }
+.invitation-details dd { overflow-wrap: anywhere; margin: 0; color: var(--ink); font-size: 12px; font-weight: 620; }
+.invitation-note { margin: 0 0 22px; color: var(--quiet); font-size: 12px; line-height: 1.55; }
+.invitation-form { margin-top: 20px; }
+.invitation-form .login-field input { min-height: 46px; font-size: 14px; }
+.invitation-form .login-field small { color: var(--quiet); font-size: 11px; font-weight: 450; }
+.invitation-actions { display: flex; justify-content: flex-start; margin-top: 18px; }
+.invitation-secondary { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-size: 13px; font-weight: 620; text-decoration: none; cursor: pointer; }
+.invitation-secondary:hover { background: var(--surface-soft); }
+.invitation-secondary:disabled { opacity: .6; cursor: wait; }
+.invitation-link-button { display: inline-flex; align-items: center; justify-content: center; padding: 0 18px; text-decoration: none; }
+.invitation-card .login-kicker { margin-top: 0; }
 .login-page { display: grid; grid-template-columns: minmax(0, .92fr) minmax(380px, 1.08fr); gap: clamp(38px, 8vw, 112px); width: min(1120px, calc(100% - 64px)); min-height: 100svh; align-items: center; margin: 0 auto; padding: 58px 0; }
 .login-panel { width: min(100%, 440px); padding: 24px 0; }
 .login-brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); font-size: 22px; font-weight: 730; letter-spacing: -.6px; text-decoration: none; }
@@ -811,12 +830,15 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .admin-table-wrap table { min-width: 620px; }
   .admin-access-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
   .admin-domain-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .admin-invitation-controls { grid-template-columns: minmax(0, 1fr); }
   .admin-domain-record > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .admin-access-action { justify-self: start; }
   .login-page { grid-template-columns: minmax(0, 1fr); gap: 26px; width: min(100% - 36px, 460px); align-content: center; padding: 28px 0; }
   .login-panel { width: 100%; padding: 0; }
   .login-copy { margin: 43px 0 26px; }
   .login-aside { display: none; }
+  .invitation-card .login-brand { margin-bottom: 30px; }
+  .invitation-details > div { grid-template-columns: 92px minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

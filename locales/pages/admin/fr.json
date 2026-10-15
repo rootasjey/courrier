@@ -20,7 +20,7 @@
     "membershipReactivatedNotice": "Le membre est réactivé. Ses accès aux boîtes restent coupés jusqu’à leur réattribution.",
     "membershipSaveError": "Le changement d’état n’a pas abouti. Actualise la console et réessaie.",
     "mailboxAccess": "Accès aux boîtes",
-    "mailboxAccessDescription": "Contrôle l’accès au courrier de chaque boîte pour les membres déjà présents. Les permissions liées à leur rôle continuent de s’appliquer. Les invitations restent fermées à ce stade.",
+    "mailboxAccessDescription": "L’appartenance à un espace ne donne pas accès à ses boîtes. Attribue chaque boîte séparément ; le propriétaire garde toujours son accès.",
     "mailboxAccessTruncated": "Cette console affiche au plus 500 boîtes, 500 membres actifs et 5 000 droits. Les éléments au-delà de ces limites ne peuvent pas encore être gérés ici.",
     "mailbox": "Boîte",
     "memberToGrant": "Membre à autoriser",
@@ -94,6 +94,22 @@
     "suspended": "Suspendu",
     "verified": "Vérifié",
     "legacy_unverified": "Ancien domaine non vérifié",
-    "unverified": "Non vérifié"
+    "unverified": "Non vérifié",
+    "invitationDescription": "Envoie un lien valable 7 jours pour les rôles Membre ou Lecture seule. Tant que Cloudflare Access protège encore Courrier, l’invité doit aussi y être autorisé. L’accès aux boîtes reste à attribuer séparément.",
+    "invitationEmailPlaceholder": "nom@exemple.fr",
+    "roleOwner": "Propriétaire",
+    "roleAdmin": "Administrateur de l’espace",
+    "roleMember": "Membre",
+    "roleViewer": "Lecture seule",
+    "sendInvitation": "Envoyer l’invitation",
+    "sendingInvitation": "Envoi…",
+    "revokeInvitation": "Révoquer",
+    "revokeInvitationDescription": "Le lien envoyé à {email} ne pourra plus être utilisé.",
+    "invitationSent": "Invitation envoyée à {email}.",
+    "invitationRevokedNotice": "L’invitation a été révoquée.",
+    "invitationConflict": "Cette adresse a déjà accès à l’espace, a un accès suspendu ou une invitation est déjà en attente.",
+    "invitationSendError": "L’invitation n’a pas pu être envoyée. Vérifie la configuration d’envoi et réessaie.",
+    "invitationRateLimit": "La limite d’envoi est atteinte. Réessaie dans une heure.",
+    "invitationError": "L’invitation n’a pas pu être modifiée. Actualise la page et réessaie."
   }
 }

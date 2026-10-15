@@ -517,6 +517,44 @@
       "asideLabel": "Un espace à toi",
       "asideTitle": "Tes échanges, bien rangés.",
       "asideDescription": "Retrouve les messages de ton espace dans une boîte conçue pour les traiter à ton rythme."
+    },
+    "invitation": {
+      "kicker": "Invitation Courrier",
+      "loading": "Vérification de ton invitation…",
+      "invalidTitle": "Ce lien n’est plus valide.",
+      "invalidDescription": "L’invitation a peut-être expiré, été révoquée ou déjà utilisée. Demande un nouveau lien à l’administrateur de l’espace.",
+      "unavailableTitle": "Vérification temporairement indisponible.",
+      "unavailableDescription": "Courrier n’a pas pu vérifier cette invitation. Réessaie dans un instant.",
+      "retry": "Réessayer",
+      "title": "Rejoins ton espace.",
+      "description": "Tu as été invité·e à rejoindre « {workspace} ».",
+      "email": "Adresse invitée",
+      "role": "Rôle",
+      "expires": "Expire le",
+      "displayName": "Nom affiché",
+      "displayNamePlaceholder": "Ton nom",
+      "newPassword": "Créer un mot de passe",
+      "passwordPlaceholder": "16 caractères minimum",
+      "passwordHint": "Utilise au moins 16 caractères. Garde ce mot de passe privé.",
+      "confirmPassword": "Confirmer le mot de passe",
+      "confirmPasswordPlaceholder": "Saisis-le une seconde fois",
+      "passwordMismatch": "Les deux mots de passe ne correspondent pas.",
+      "createAccount": "Créer mon compte et rejoindre",
+      "accept": "Accepter l’invitation",
+      "accepting": "Acceptation…",
+      "existingAccount": "Un compte existe déjà pour cette adresse. Connecte-toi à ce compte pour rejoindre l’espace.",
+      "signIn": "Me connecter",
+      "switchAccount": "Me déconnecter et changer de compte",
+      "wrongAccount": "Tu es connecté·e avec {email}. L’invitation est destinée à une autre adresse.",
+      "accountInactive": "Ce compte n’est pas actif. Contacte un administrateur Courrier.",
+      "alreadyMember": "Ton compte a déjà accès à cet espace, ou son accès est suspendu. Contacte un administrateur si tu as besoin d’aide.",
+      "acceptError": "L’invitation n’a pas pu être acceptée. Recharge la page et réessaie.",
+      "mailboxAccessNote": "Rejoindre un espace ne donne pas automatiquement accès à ses boîtes mail. Un administrateur attribue chaque accès séparément.",
+      "roles": {
+        "admin": "Administrateur de l’espace",
+        "member": "Membre",
+        "viewer": "Lecture seule"
+      }
     }
   }
 }
