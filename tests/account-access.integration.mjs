@@ -79,6 +79,8 @@ async function seedDatabase(configPath, persistPath) {
     `INSERT INTO platform_admins (user_id,created_at) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)});`,
     `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a2','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000102','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000103','active',${sql(now)});`,
     `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-a1','<message-a1@alpha.test>','sender@external.test','inbox@alpha.test','Allowed Sender','sender@external.test','Allowed mailbox',${sql(now)},'visible','messages/a1.eml','alpha.test','Imbox'),('message-a2','<message-a2@alpha.test>','sender@external.test','hidden@alpha.test','Hidden Sender','sender@external.test','Hidden mailbox',${sql(now)},'hiddenneedle','messages/a2.eml','alpha.test','Imbox'),('message-b1','<message-b1@beta.test>','sender@external.test','other@beta.test','Other Sender','sender@external.test','Other workspace',${sql(now)},'workspace B','messages/b1.eml','beta.test','Imbox');`,
+    `INSERT INTO sender_rules (mailbox_domain,sender_address,folder,created_at,updated_at) VALUES ('alpha.test','sender@external.test','The Feed',${sql(now)},${sql(now)});`,
+    `INSERT INTO thread_subject_overrides (mailbox_domain,thread_id,subject,updated_at) VALUES ('alpha.test','message-a1','Domain-wide private title',${sql(now)});`,
     `INSERT INTO attachments (id,message_id,filename,mime_type,size_bytes,object_key) VALUES ('attachment-a2','message-a2','hidden.txt','text/plain',6,'attachments/a2.txt'),('attachment-b1','message-b1','other.txt','text/plain',5,'attachments/b1.txt');`,
     `INSERT INTO outgoing_drafts (id,workspace_id,mailbox_id,to_address,subject,text_body,html_body,status,created_at,updated_at) VALUES ('draft-a1','workspace-one','mailbox-a1','recipient@example.test','Allowed draft','Visible draft','<p>Visible draft</p>','draft',${sql(now)},${sql(now)}),('draft-a2','workspace-one','mailbox-a2','recipient@example.test','Hidden draft','Hidden draft','<p>Hidden draft</p>','draft',${sql(now)},${sql(now)}),('draft-b1','workspace-two','mailbox-b1','recipient@example.test','Other workspace draft','Other workspace draft','<p>Other workspace draft</p>','draft',${sql(now)},${sql(now)});`,
     `INSERT INTO outgoing_draft_attachments (id,draft_id,filename,mime_type,size_bytes,object_key,content_id,disposition,created_at) VALUES ('draft-attachment-a2','draft-a2','hidden.png','image/png',12,'draft-attachments/a2.png','hidden-image','inline',${sql(now)});`,
@@ -415,20 +417,64 @@ try {
     memberCookie = switched.cookie
     assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
   })
+  let viewerCookie = ''
   await check('viewer role can read but cannot classify messages', async () => {
     const login = await request('/api/auth/login', {
       method: 'POST',
       body: { email: 'viewer@example.test', password: 'local-test-viewer-password-001' },
     })
     assert.equal(login.response.status, 200)
-    const messages = await request('/api/messages', { cookie: login.cookie })
+    viewerCookie = login.cookie
+    const messages = await request('/api/messages', { cookie: viewerCookie })
     assert.equal(messages.response.status, 200)
     assert.deepEqual(messages.data.map(value => value.id), ['message-a1'])
     const mutation = await request('/api/messages/message-a1/folder', {
-      method: 'PATCH', cookie: login.cookie, body: { folder: 'Paper Trail' },
+      method: 'PATCH', cookie: viewerCookie, body: { folder: 'Paper Trail' },
     })
     assert.equal(mutation.response.status, 403)
-    assert.equal((await request('/api/export', { cookie: login.cookie })).response.status, 403)
+    assert.equal((await request('/api/export', { cookie: viewerCookie })).response.status, 403)
+  })
+  await check('viewer read and write permissions are enforced across every API route', async () => {
+    const routes = await protectedApiRoutes()
+    const readableRoutes = routes.filter(({ method, path: route }) => method === 'GET'
+      && route !== '/api/export'
+      && !route.startsWith('/api/admin/'))
+    for (const { path: route } of readableRoutes) {
+      const result = await request(route, { cookie: viewerCookie })
+      assert.notEqual(result.response.status, 401, `Viewer could not authenticate for GET ${route}.`)
+      assert.notEqual(result.response.status, 403, `Viewer was unexpectedly denied read access to GET ${route}.`)
+    }
+
+    const writeRoutes = routes.filter(({ method, path: route }) => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+      && !/^\/api\/(?:account|profile|auth|dev|invitations)(?:\/|$)/.test(route))
+    for (const { method, path: route } of writeRoutes) {
+      const result = await request(route, {
+        method,
+        cookie: viewerCookie,
+        body: ['POST', 'PUT', 'PATCH'].includes(method) ? {} : undefined,
+      })
+      assert.equal(result.response.status, 403, `Viewer was not denied ${method} ${route}.`)
+    }
+    assert.equal((await request('/api/admin/overview', { cookie: viewerCookie })).response.status, 403)
+    console.log(`  Covered ${readableRoutes.length} viewer reads and ${writeRoutes.length} denied writes.`)
+  })
+  await check('domain-wide mail metadata is hidden from partial mailbox grants', async () => {
+    const visible = await request('/api/messages', { cookie: memberCookie })
+    assert.equal(visible.response.status, 200)
+    const message = visible.data.find(value => value.id === 'message-a1')
+    assert.ok(message)
+    assert.equal(message.threadSubject, null)
+    assert.equal(message.hasSenderRule, false)
+    assert.equal(message.senderRuleFolder, null)
+
+    const titleMutation = await request('/api/threads/message-a1/subject', {
+      method: 'PATCH', cookie: memberCookie, body: { subject: 'Unauthorized title' },
+    })
+    const ruleMutation = await request('/api/messages/message-a1/sender-rule', {
+      method: 'PUT', cookie: memberCookie, body: { folder: 'Paper Trail' },
+    })
+    assert.equal(titleMutation.response.status, 404)
+    assert.equal(ruleMutation.response.status, 404)
   })
 
   const adminLogin = await request('/api/auth/login', {
@@ -437,6 +483,15 @@ try {
   })
   assert.equal(adminLogin.response.status, 200, JSON.stringify(adminLogin.data))
   const adminCookie = adminLogin.cookie
+  await check('full-domain mailbox grants expose the shared sender rule and thread title', async () => {
+    const messages = await request('/api/messages', { cookie: adminCookie })
+    assert.equal(messages.response.status, 200)
+    const message = messages.data.find(value => value.id === 'message-a1')
+    assert.ok(message)
+    assert.equal(message.threadSubject, 'Domain-wide private title')
+    assert.equal(message.hasSenderRule, true)
+    assert.equal(message.senderRuleFolder, 'The Feed')
+  })
   await check('platform admin can inspect the console without Access headers', async () => {
     const overview = await request('/api/admin/overview', { cookie: adminCookie })
     assert.equal(overview.response.status, 200, JSON.stringify(overview.data))
