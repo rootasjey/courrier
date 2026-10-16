@@ -8,6 +8,7 @@
     "dev": "nuxt dev",
     "account:reset-local-admin-password": "node scripts/reset-local-admin-password.mjs",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:canary": "wrangler d1 migrations apply DB --remote --config wrangler.canary.jsonc",
     "generate": "nuxt generate",
     "test:auth": "node --experimental-strip-types --test tests/workspace-access-policy.test.ts && node tests/account-access.integration.mjs",
     "test:email": "node --experimental-strip-types --import ./tests/node-ts-resolver.mjs --test tests/*.test.ts",
@@ -16,6 +17,7 @@
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
     "deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "deploy:canary": "npm run build && npm run db:migrate:canary && wrangler deploy --config wrangler.canary.jsonc",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {

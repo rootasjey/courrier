@@ -1,0 +1,42 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "courrier-canary",
+	"main": "./worker.ts",
+	"compatibility_date": "2026-09-28",
+	"compatibility_flags": ["nodejs_compat", "no_nodejs_compat_v2"],
+	"workers_dev": true,
+	"preview_urls": false,
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./.output/public/"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"triggers": {
+		"crons": []
+	},
+	"vars": {
+		"COURRIER_PUBLIC_ORIGIN": "https://courrier-canary.jerem-dev.workers.dev",
+		"NUXT_SESSION_NAME": "courrier-canary-session"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "courrier-canary-db",
+			"database_id": "3d83a490-df46-48ed-84a5-ee6a201a50d1",
+			"migrations_dir": "migrations"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MAIL_STORE",
+			"bucket_name": "courrier-canary-mail-store"
+		},
+		{
+			"binding": "BACKUP_STORE",
+			"bucket_name": "courrier-canary-mail-backup"
+		}
+	]
+}
