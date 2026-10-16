@@ -477,7 +477,8 @@ const { $t } = useI18n()
 const overview = ref<AdminOverview | null>(null)
 const mailboxAccess = ref<MailboxAccess | null>(null)
 const platformAdminState = ref<PlatformAdminState | null>(null)
-const loading = ref(false)
+const loading = ref(true)
+let loadInProgress = false
 const failed = ref(false)
 const loadFailure = ref<'access' | 'response' | 'generic'>('generic')
 const selectedMailboxId = ref('')
@@ -595,7 +596,8 @@ function formatDate(value: string) {
 }
 
 async function loadOverview() {
-  if (loading.value) return
+  if (loadInProgress) return
+  loadInProgress = true
   loading.value = true
   failed.value = false
   loadFailure.value = 'generic'
@@ -632,6 +634,7 @@ async function loadOverview() {
     loadFailure.value = status === 401 || status === 403 ? 'access' : 'generic'
   } finally {
     loading.value = false
+    loadInProgress = false
   }
 }
 
