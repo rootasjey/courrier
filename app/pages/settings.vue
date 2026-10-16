@@ -11,7 +11,7 @@
         <div class="settings-profile-row">
           <div class="settings-avatar-preview" aria-hidden="true">
             <img v-if="avatarAvailable" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
-            <Avatar v-else name="Courrier profile" variant="beam" :size="64" />
+            <Avatar v-else :name="avatarName" variant="beam" :size="64" />
           </div>
           <div class="settings-profile-controls">
             <input ref="photoInput" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" @change="uploadPhoto">
@@ -117,6 +117,10 @@
               <h3>{{ $t('settings.recoveryCodesTitle') }}</h3>
               <p>{{ $t('settings.recoveryCodesHint') }}</p>
               <ul><li v-for="code in newRecoveryCodes" :key="code"><code>{{ code }}</code></li></ul>
+              <button class="settings-export-button" type="button" @click="downloadRecoveryCodes">
+                {{ $t('settings.downloadRecoveryCodes') }}
+                <span aria-hidden="true">↓</span>
+              </button>
             </div>
             <p v-if="securityMessage" class="settings-photo-status" role="status">{{ securityMessage }}</p>
           </template>
@@ -150,7 +154,8 @@ const { locale } = useI18nLocale()
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
-const accountSession = useState<{ isPlatformAdmin: boolean, adminMfaVerified: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
+const accountSession = useState<{ user: { displayName: string, email: string }, isPlatformAdmin: boolean, adminMfaVerified: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
+const avatarName = computed(() => accountSession.value?.user.displayName || accountSession.value?.user.email || 'Courrier')
 const photoInput = ref<HTMLInputElement | null>(null)
 const photoBusy = ref(false)
 const photoMessage = ref('')
@@ -262,6 +267,28 @@ async function rotateRecoveryCodes() {
   } finally {
     securityBusy.value = false
   }
+}
+
+function downloadRecoveryCodes() {
+  if (!newRecoveryCodes.value.length) return
+
+  const content = [
+    String($t('settings.recoveryCodesTitle')),
+    '',
+    ...newRecoveryCodes.value,
+    '',
+    String($t('settings.recoveryCodesHint')),
+  ].join('\n')
+  const file = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'courrier-recovery-codes.txt'
+  link.hidden = true
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function formatDate(value: string) {

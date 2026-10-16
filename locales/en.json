@@ -97,6 +97,7 @@
     "recoveryCodesRotated": "New recovery codes generated.",
     "recoveryCodesTitle": "Keep these codes somewhere safe",
     "recoveryCodesHint": "Each code can be used once. They will no longer be shown after you leave this page.",
+    "downloadRecoveryCodes": "Download recovery codes (.txt)",
     "language": "Language",
     "languageDescription": "Choose the interface language.",
     "french": "Français",

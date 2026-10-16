@@ -33,7 +33,7 @@
       <details ref="accountMenu" class="account-menu">
         <summary class="profile-button" :aria-label="$t('account.openMenu')">
           <img v-if="avatarAvailable" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
-          <span v-else>{{ accountInitial }}</span>
+          <Avatar v-else :name="avatarName" variant="beam" :size="38" aria-hidden="true" />
         </summary>
         <div class="account-menu-panel">
           <p class="account-menu-name">{{ accountSession?.user.displayName || accountSession?.user.email }}</p>
@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import type { MailboxKey } from '~/utils/mailbox-routing'
 import { useI18n } from '#imports'
+import { Avatar } from 'tronche/vue'
 
 defineProps<{
   folders: { name: MailboxKey, label: string, slug: string, description: string }[]
@@ -92,7 +93,7 @@ const signingOut = ref(false)
 const switchingWorkspace = ref(false)
 const workspaceError = ref('')
 const signOutError = ref('')
-const accountInitial = computed(() => (accountSession.value?.user.displayName || accountSession.value?.user.email || 'C').trim().slice(0, 1).toLocaleUpperCase())
+const avatarName = computed(() => accountSession.value?.user.displayName || accountSession.value?.user.email || 'Courrier')
 
 function closeAccountMenu() {
   if (accountMenu.value) accountMenu.value.open = false
@@ -105,7 +106,9 @@ async function signOut() {
   try {
     await $fetch('/api/auth/logout', { method: 'POST' })
     accountSession.value = null
-    await navigateTo('/login')
+    // A full document navigation avoids leaving Nuxt's client router on an empty
+    // page when the just-cleared session is checked by the public login route.
+    window.location.replace('/login')
   } catch {
     signOutError.value = $t('account.signOutError')
   } finally {
