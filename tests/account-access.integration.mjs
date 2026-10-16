@@ -61,6 +61,7 @@ async function seedDatabase(configPath, persistPath) {
     ['00000000-0000-4000-8000-000000000102', 'member@example.test', 'Local Member', 'local-test-member-password-001'],
     ['00000000-0000-4000-8000-000000000103', 'viewer@example.test', 'Local Viewer', 'local-test-viewer-password-001'],
     ['00000000-0000-4000-8000-000000000104', 'workspace-admin@example.test', 'Workspace Admin', 'local-test-workspace-admin-password-001'],
+    ['00000000-0000-4000-8000-000000000107', 'platform-only-admin@example.test', 'Platform Only Admin', 'local-test-platform-only-admin-password-001'],
   ]
   const statements = []
 
@@ -78,7 +79,7 @@ async function seedDatabase(configPath, persistPath) {
     `INSERT INTO mailboxes (id,workspace_id,domain_id,address,status,created_at) VALUES ('mailbox-a1','workspace-one','domain-alpha','inbox@alpha.test','active',${sql(now)}),('mailbox-a2','workspace-one','domain-alpha','hidden@alpha.test','active',${sql(now)}),('mailbox-b1','workspace-two','domain-beta','other@beta.test','active',${sql(now)});`,
     `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('membership-viewer','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)}),('membership-workspace-admin','workspace-two','00000000-0000-4000-8000-000000000104','admin','active',${sql(now)});`,
     `INSERT INTO users (id,email,display_name,status,session_version,created_at,updated_at) VALUES ('00000000-0000-4000-8000-000000000105','pending@example.test','Pending Account','pending',1,${sql(now)},${sql(now)}),('00000000-0000-4000-8000-000000000106','suspended-admin@example.test','Suspended Admin','suspended',1,${sql(now)},${sql(now)});`,
-    `INSERT INTO platform_admins (user_id,created_at,created_by_user_id) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)},NULL),('00000000-0000-4000-8000-000000000106',${sql(now)},'00000000-0000-4000-8000-000000000101');`,
+    `INSERT INTO platform_admins (user_id,created_at,created_by_user_id) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)},NULL),('00000000-0000-4000-8000-000000000106',${sql(now)},'00000000-0000-4000-8000-000000000101'),('00000000-0000-4000-8000-000000000107',${sql(now)},'00000000-0000-4000-8000-000000000101');`,
     `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a2','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000102','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000103','active',${sql(now)});`,
     `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-a1','<message-a1@alpha.test>','sender@external.test','inbox@alpha.test','Allowed Sender','sender@external.test','Allowed mailbox',${sql(now)},'visible','messages/a1.eml','alpha.test','Imbox'),('message-a2','<message-a2@alpha.test>','sender@external.test','hidden@alpha.test','Hidden Sender','sender@external.test','Hidden mailbox',${sql(now)},'hiddenneedle','messages/a2.eml','alpha.test','Imbox'),('message-b1','<message-b1@beta.test>','sender@external.test','other@beta.test','Other Sender','sender@external.test','Other workspace',${sql(now)},'workspace B','messages/b1.eml','beta.test','Imbox');`,
     `INSERT INTO sender_rules (mailbox_domain,sender_address,folder,created_at,updated_at) VALUES ('alpha.test','sender@external.test','The Feed',${sql(now)},${sql(now)});`,
@@ -541,6 +542,33 @@ try {
   })
   assert.equal(adminLogin.response.status, 200, JSON.stringify(adminLogin.data))
   let adminCookie = adminLogin.cookie
+  await check('platform administrators can exist without mailbox or workspace access', async () => {
+    const login = await request('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'platform-only-admin@example.test', password: 'local-test-platform-only-admin-password-001' },
+    })
+    assert.equal(login.response.status, 200, JSON.stringify(login.data))
+
+    const session = await request('/api/account/session', { cookie: login.cookie })
+    assert.equal(session.response.status, 200)
+    assert.equal(session.data.isPlatformAdmin, true)
+    assert.equal(session.data.activeWorkspaceId, null)
+    assert.equal(session.data.requiresAdminMfa, true)
+    assert.equal(session.data.adminMfaConfigured, false)
+
+    const workspaces = await request('/api/account/workspaces', { cookie: login.cookie })
+    assert.equal(workspaces.response.status, 200)
+    assert.deepEqual(workspaces.data.workspaces, [])
+    assert.notEqual((await request('/api/messages', { cookie: login.cookie })).response.status, 200)
+    assert.equal((await request('/api/admin/overview', { cookie: login.cookie })).response.status, 403)
+
+    const setup = await request('/api/account/passkeys/register/options', {
+      method: 'POST', cookie: login.cookie,
+      body: { label: 'Platform-only first key', password: 'local-test-platform-only-admin-password-001' },
+    })
+    assert.equal(setup.response.status, 200, JSON.stringify(setup.data))
+    assert.ok(setup.data.options.challenge)
+  })
   await check('platform administrators without a configured factor are denied administration', async () => {
     const session = await request('/api/account/session', { cookie: adminCookie })
     assert.equal(session.response.status, 200)
@@ -712,7 +740,11 @@ try {
     const list = await request('/api/admin/platform-admins', { cookie: adminCookie })
     assert.equal(list.response.status, 200, JSON.stringify(list.data))
     assert.match(list.response.headers.get('cache-control') || '', /private.*no-store/)
-    assert.deepEqual(list.data.admins.map(value => value.user_id), ['00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000106'])
+    assert.deepEqual(list.data.admins.map(value => value.user_id), [
+      '00000000-0000-4000-8000-000000000101',
+      '00000000-0000-4000-8000-000000000107',
+      '00000000-0000-4000-8000-000000000106',
+    ])
     assert.ok(list.data.candidates.some(value => value.user_id === '00000000-0000-4000-8000-000000000104'))
     assert.ok(!list.data.candidates.some(value => value.user_id === '00000000-0000-4000-8000-000000000101'))
     assert.ok(!list.data.candidates.some(value => ['00000000-0000-4000-8000-000000000105', '00000000-0000-4000-8000-000000000106'].includes(value.user_id)))
