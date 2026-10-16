@@ -145,6 +145,7 @@
 </template>
 
 <script setup lang="ts">
+import { startRegistration } from '@simplewebauthn/browser'
 import { Avatar } from 'tronche/vue'
 
 const route = useRoute()
@@ -197,13 +198,15 @@ async function addPasskey() {
   securityBusy.value = true
   securityMessage.value = ''
   newRecoveryCodes.value = []
+  let setupStage: 'request' | 'browser' | 'verification' = 'request'
   try {
-    const { startRegistration } = await import('@simplewebauthn/browser')
     const { options, attemptId } = await $fetch<{ options: Parameters<typeof startRegistration>[0]['optionsJSON'], attemptId: string }>('/api/account/passkeys/register/options', {
       method: 'POST',
       body: { label: passkeyLabel.value, password: passkeyPassword.value },
     })
+    setupStage = 'browser'
     const response = await startRegistration({ optionsJSON: options })
+    setupStage = 'verification'
     const result = await $fetch<{ ok: true, recoveryCodes: string[] }>('/api/account/passkeys/register/verify', {
       method: 'POST',
       body: { attemptId, response },
@@ -213,8 +216,24 @@ async function addPasskey() {
     await refreshAccountSession()
     await loadPasskeys()
     securityMessage.value = String($t('settings.passkeyAddedSuccess'))
-  } catch {
-    securityMessage.value = String($t('settings.passkeySetupError'))
+  } catch (error) {
+    const failure = error as { name?: string, statusCode?: number, data?: { statusMessage?: unknown } }
+    const apiMessage = typeof failure.data?.statusMessage === 'string' ? failure.data.statusMessage : ''
+    if (setupStage === 'request' && apiMessage === 'Le mot de passe est incorrect.') {
+      securityMessage.value = String($t('settings.passkeyPasswordError'))
+    } else if (setupStage === 'request' && apiMessage) {
+      securityMessage.value = apiMessage
+    } else if (setupStage === 'request' && failure.statusCode) {
+      securityMessage.value = `${$t('settings.passkeySetupError')} (HTTP ${failure.statusCode})`
+    } else if (setupStage === 'browser' && failure.name === 'NotAllowedError') {
+      securityMessage.value = String($t('settings.passkeyBrowserCancelled'))
+    } else if (setupStage === 'browser') {
+      securityMessage.value = String($t('settings.passkeyBrowserError'))
+    } else if (setupStage === 'verification') {
+      securityMessage.value = String($t('settings.passkeyVerificationError'))
+    } else {
+      securityMessage.value = String($t('settings.passkeySetupError'))
+    }
   } finally {
     securityBusy.value = false
   }
