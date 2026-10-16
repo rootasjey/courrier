@@ -95,7 +95,7 @@
     "verified": "Verified",
     "legacy_unverified": "Legacy unverified",
     "unverified": "Unverified",
-    "invitationDescription": "Send a 7-day link for a Member or Read only role. While Cloudflare Access still protects Courrier, invitees must also be authorized there. Mailbox access is assigned separately.",
+    "invitationDescription": "Send a 7-day invite for the Member or Read only role. Mailbox access is assigned separately.",
     "invitationEmailPlaceholder": "name@example.com",
     "roleOwner": "Owner",
     "roleAdmin": "Workspace administrator",

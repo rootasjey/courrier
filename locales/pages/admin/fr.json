@@ -95,7 +95,7 @@
     "verified": "Vérifié",
     "legacy_unverified": "Ancien domaine non vérifié",
     "unverified": "Non vérifié",
-    "invitationDescription": "Envoie un lien valable 7 jours pour les rôles Membre ou Lecture seule. Tant que Cloudflare Access protège encore Courrier, l’invité doit aussi y être autorisé. L’accès aux boîtes reste à attribuer séparément.",
+    "invitationDescription": "Envoie un lien valable 7 jours pour les rôles Membre ou Lecture seule. Les droits d’accès aux boîtes sont attribués séparément.",
     "invitationEmailPlaceholder": "nom@exemple.fr",
     "roleOwner": "Propriétaire",
     "roleAdmin": "Administrateur de l’espace",
