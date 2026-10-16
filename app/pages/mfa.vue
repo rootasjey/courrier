@@ -63,7 +63,9 @@ async function completeVerification(method: 'passkey' | 'recovery_code') {
     await router.replace('/settings#security')
     return
   }
-  await router.replace(getSafeRedirect())
+  // Rebuild the destination page after MFA rather than reusing a view that may
+  // have been mounted before the route guard redirected to this page.
+  window.location.replace(getSafeRedirect())
 }
 
 async function verifyWithPasskey() {
