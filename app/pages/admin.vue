@@ -450,6 +450,7 @@
 </template>
 
 <script setup lang="ts">
+import { createAdminAuthorizationRecovery } from '../utils/admin-authorization-recovery.mjs'
 import { getAdminAuthorizationRedirect } from '../utils/admin-authorization-redirect.mjs'
 
 definePageMeta({ pageTransition: false })
@@ -523,7 +524,6 @@ const platformAdminError = ref('')
 const platformAdminNotice = ref('')
 const platformAdminToGrant = ref<PlatformAdminCandidate | null>(null)
 const platformAdminToRevoke = ref<PlatformAdmin | null>(null)
-let adminAuthorizationRecovery: Promise<boolean> | null = null
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -587,34 +587,21 @@ function clearAdminData() {
   platformAdminNotice.value = ''
 }
 
+const recoverAdminAuthorization = createAdminAuthorizationRecovery({
+  refreshSession: () => $fetch<AdminAccountSession>('/api/account/session'),
+  setSession: (session: AdminAccountSession | null) => { accountSession.value = session },
+  clearAdminData,
+  markAuthorizationFailure: () => {
+    failed.value = true
+    loadFailure.value = 'access'
+    loading.value = false
+  },
+  navigate: (redirect, options) => navigateTo(redirect, options),
+  getRedirect: getAdminAuthorizationRedirect,
+})
+
 async function handleAdminAuthorizationFailure(error: unknown) {
-  const status = getHttpStatus(error)
-  if (status !== 401 && status !== 403) return false
-  if (!adminAuthorizationRecovery) {
-    adminAuthorizationRecovery = (async () => {
-      let refreshedSession: AdminAccountSession | null = null
-      try {
-        refreshedSession = await $fetch<AdminAccountSession>('/api/account/session')
-        accountSession.value = refreshedSession
-      } catch {
-        accountSession.value = null
-      }
-
-      const redirect = getAdminAuthorizationRedirect(refreshedSession)
-      if (!redirect) return false
-
-      clearAdminData()
-      failed.value = true
-      loadFailure.value = 'access'
-      loading.value = false
-
-      await navigateTo(redirect, { replace: true })
-      return true
-    })().finally(() => {
-      adminAuthorizationRecovery = null
-    })
-  }
-  return await adminAuthorizationRecovery
+  return await recoverAdminAuthorization(getHttpStatus(error))
 }
 
 async function adminFetch<T>(request: string, options?: Parameters<typeof $fetch>[1]): Promise<T> {
