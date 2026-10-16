@@ -52,10 +52,16 @@ async function completeVerification(method: 'passkey' | 'recovery_code') {
   failed.value = false
   message.value = String(method === 'passkey' ? $t('mfa.passkeyVerified') : $t('mfa.recoveryVerified'))
   recoveryCode.value = ''
+  let refreshedSession: AccountSession | null = null
   try {
-    accountSession.value = await $fetch<AccountSession>('/api/account/session')
+    refreshedSession = await $fetch<AccountSession>('/api/account/session')
+    accountSession.value = refreshedSession
   } catch {
     // The protected destination will revalidate the account session before rendering.
+  }
+  if (method === 'recovery_code' && refreshedSession && !refreshedSession.adminMfaConfigured) {
+    await router.replace('/settings#security')
+    return
   }
   await router.replace(getSafeRedirect())
 }

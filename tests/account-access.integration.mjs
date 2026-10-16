@@ -850,6 +850,12 @@ try {
     assert.equal(session.data.adminMfaVerified, false)
     const overview = await request('/api/admin/overview', { cookie: verification.cookie })
     assert.equal(overview.response.status, 403)
+    const replacementPasskey = await request('/api/account/passkeys/register/options', {
+      method: 'POST', cookie: verification.cookie,
+      body: { label: 'Replacement passkey', password: 'local-test-admin-password-001' },
+    })
+    assert.equal(replacementPasskey.response.status, 200, JSON.stringify(replacementPasskey.data))
+    assert.ok(replacementPasskey.data.options.challenge)
   })
 
   console.log(`Completed ${checkCount} local auth/authorization integration checks.`)
