@@ -450,6 +450,8 @@
 </template>
 
 <script setup lang="ts">
+import { getAdminAuthorizationRedirect } from '../utils/admin-authorization-redirect.mjs'
+
 definePageMeta({ pageTransition: false })
 
 type AdminMembership = { id: string, workspace_id: string, workspace_name: string, user_id: string, email: string, display_name: string, user_status: string, role: string, membership_status: string, created_at: string, is_last_active_owner: number }
@@ -472,8 +474,18 @@ type MailboxAccess = {
   truncated: { mailboxes: boolean, members: boolean, grants: boolean }
 }
 type AccessGrant = { mailbox_id: string, user_id: string, email: string, display_name: string | null, role: string, mailbox_address: string }
+type AdminAccountSession = {
+  user: { id: string, email: string, displayName: string }
+  activeWorkspaceId: string | null
+  isPlatformAdmin: boolean
+  hasPasskeys: boolean
+  adminMfaConfigured: boolean
+  requiresAdminMfa: boolean
+  adminMfaVerified: boolean
+}
 
 const { $t } = useI18n()
+const accountSession = useState<AdminAccountSession | null>('courrier-account-session', () => null)
 const overview = ref<AdminOverview | null>(null)
 const mailboxAccess = ref<MailboxAccess | null>(null)
 const platformAdminState = ref<PlatformAdminState | null>(null)
@@ -511,6 +523,7 @@ const platformAdminError = ref('')
 const platformAdminNotice = ref('')
 const platformAdminToGrant = ref<PlatformAdminCandidate | null>(null)
 const platformAdminToRevoke = ref<PlatformAdmin | null>(null)
+let adminAuthorizationRecovery: Promise<boolean> | null = null
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -541,6 +554,76 @@ function getHttpStatus(error: unknown) {
   if (!error || typeof error !== 'object') return 0
   const value = error as { statusCode?: unknown, status?: unknown, response?: { status?: unknown } }
   return Number(value.statusCode || value.status || value.response?.status || 0)
+}
+
+function clearAdminData() {
+  overview.value = null
+  mailboxAccess.value = null
+  platformAdminState.value = null
+  selectedMailboxId.value = ''
+  selectedUserId.value = ''
+  selectedDomainWorkspaceId.value = ''
+  invitationWorkspaceId.value = ''
+  platformAdminCandidateId.value = ''
+  domainInput.value = ''
+  invitationEmail.value = ''
+  invitationRole.value = 'member'
+  domainChallenge.value = null
+  domainToRemove.value = null
+  invitationToRevoke.value = null
+  membershipToChange.value = null
+  accessToRevoke.value = null
+  platformAdminToGrant.value = null
+  platformAdminToRevoke.value = null
+  accessError.value = ''
+  accessNotice.value = ''
+  membershipError.value = ''
+  membershipNotice.value = ''
+  domainError.value = ''
+  domainNotice.value = ''
+  invitationError.value = ''
+  invitationNotice.value = ''
+  platformAdminError.value = ''
+  platformAdminNotice.value = ''
+}
+
+async function handleAdminAuthorizationFailure(error: unknown) {
+  const status = getHttpStatus(error)
+  if (status !== 401 && status !== 403) return false
+  if (!adminAuthorizationRecovery) {
+    adminAuthorizationRecovery = (async () => {
+      let refreshedSession: AdminAccountSession | null = null
+      try {
+        refreshedSession = await $fetch<AdminAccountSession>('/api/account/session')
+        accountSession.value = refreshedSession
+      } catch {
+        accountSession.value = null
+      }
+
+      const redirect = getAdminAuthorizationRedirect(refreshedSession)
+      if (!redirect) return false
+
+      clearAdminData()
+      failed.value = true
+      loadFailure.value = 'access'
+      loading.value = false
+
+      await navigateTo(redirect, { replace: true })
+      return true
+    })().finally(() => {
+      adminAuthorizationRecovery = null
+    })
+  }
+  return await adminAuthorizationRecovery
+}
+
+async function adminFetch<T>(request: string, options?: Parameters<typeof $fetch>[1]): Promise<T> {
+  try {
+    return await $fetch<T>(request, options)
+  } catch (error) {
+    await handleAdminAuthorizationFailure(error)
+    throw error
+  }
 }
 
 const activeWorkspaces = computed(() => overview.value?.workspaces.filter(workspace => workspace.status === 'active') ?? [])
@@ -603,9 +686,9 @@ async function loadOverview() {
   loadFailure.value = 'generic'
   try {
     const [nextOverview, nextMailboxAccess, nextPlatformAdminState] = await Promise.all([
-      $fetch<AdminOverview>('/api/admin/overview'),
-      $fetch<MailboxAccess>('/api/admin/mailbox-access'),
-      $fetch<PlatformAdminState>('/api/admin/platform-admins'),
+      adminFetch<AdminOverview>('/api/admin/overview'),
+      adminFetch<MailboxAccess>('/api/admin/mailbox-access'),
+      adminFetch<PlatformAdminState>('/api/admin/platform-admins'),
     ])
     if (!isAdminOverviewResponse(nextOverview)
       || !isMailboxAccessResponse(nextMailboxAccess)
@@ -650,7 +733,7 @@ async function grantPlatformAdmin() {
   platformAdminError.value = ''
   platformAdminNotice.value = ''
   try {
-    await $fetch('/api/admin/platform-admins', { method: 'POST', body: { userId: candidate.user_id } })
+    await adminFetch('/api/admin/platform-admins', { method: 'POST', body: { userId: candidate.user_id } })
     platformAdminToGrant.value = null
     platformAdminCandidateId.value = ''
     platformAdminNotice.value = $t('admin.platformAdminGrantedNotice', { email: candidate.email })
@@ -672,7 +755,7 @@ async function revokePlatformAdmin() {
   platformAdminError.value = ''
   platformAdminNotice.value = ''
   try {
-    await $fetch(`/api/admin/platform-admins/${encodeURIComponent(admin.user_id)}`, { method: 'DELETE' })
+    await adminFetch(`/api/admin/platform-admins/${encodeURIComponent(admin.user_id)}`, { method: 'DELETE' })
     platformAdminToRevoke.value = null
     platformAdminNotice.value = $t('admin.platformAdminRevokedNotice', { email: admin.email })
     await loadOverview()
@@ -697,7 +780,7 @@ async function createInvitation() {
   invitationError.value = ''
   invitationNotice.value = ''
   try {
-    const result = await $fetch<{ email: string }>('/api/admin/invitations', {
+    const result = await adminFetch<{ email: string }>('/api/admin/invitations', {
       method: 'POST',
       body: { workspaceId: invitationWorkspaceId.value, email: invitationEmail.value, role: invitationRole.value },
     })
@@ -722,7 +805,7 @@ async function revokeInvitation() {
   invitationError.value = ''
   invitationNotice.value = ''
   try {
-    await $fetch(`/api/admin/invitations/${encodeURIComponent(invitation.id)}`, { method: 'DELETE' })
+    await adminFetch(`/api/admin/invitations/${encodeURIComponent(invitation.id)}`, { method: 'DELETE' })
     invitationToRevoke.value = null
     invitationNotice.value = $t('admin.invitationRevokedNotice')
     await loadOverview()
@@ -739,7 +822,7 @@ async function addDomain() {
   domainError.value = ''
   domainNotice.value = ''
   try {
-    await $fetch('/api/admin/domains', {
+    await adminFetch('/api/admin/domains', {
       method: 'POST',
       body: { workspaceId: selectedDomainWorkspaceId.value, domain: domainInput.value },
     })
@@ -760,7 +843,7 @@ async function prepareDomainChallenge(domain: AdminOverview['domains'][number]) 
   domainError.value = ''
   domainNotice.value = ''
   try {
-    domainChallenge.value = await $fetch<DomainChallenge>(`/api/admin/domains/${encodeURIComponent(domain.id)}/challenge`, { method: 'POST' })
+    domainChallenge.value = await adminFetch<DomainChallenge>(`/api/admin/domains/${encodeURIComponent(domain.id)}/challenge`, { method: 'POST' })
   } catch {
     domainError.value = $t('admin.domainChallengeError')
   } finally {
@@ -774,7 +857,7 @@ async function verifyDomain(challenge: DomainChallenge) {
   domainError.value = ''
   domainNotice.value = ''
   try {
-    const result = await $fetch<{ verified: boolean }>(`/api/admin/domains/${encodeURIComponent(challenge.domainId)}/verify`, { method: 'POST' })
+    const result = await adminFetch<{ verified: boolean }>(`/api/admin/domains/${encodeURIComponent(challenge.domainId)}/verify`, { method: 'POST' })
     if (!result.verified) {
       domainNotice.value = $t('admin.domainDnsNotVisible')
       return
@@ -797,7 +880,7 @@ async function removePendingDomain() {
   domainError.value = ''
   domainNotice.value = ''
   try {
-    await $fetch(`/api/admin/domains/${encodeURIComponent(domain.id)}`, { method: 'DELETE' })
+    await adminFetch(`/api/admin/domains/${encodeURIComponent(domain.id)}`, { method: 'DELETE' })
     if (domainChallenge.value?.domainId === domain.id) domainChallenge.value = null
     domainToRemove.value = null
     domainNotice.value = $t('admin.domainRemovedNotice')
@@ -815,7 +898,7 @@ async function grantSelectedAccess() {
   accessError.value = ''
   accessNotice.value = ''
   try {
-    await $fetch('/api/admin/mailbox-access', {
+    await adminFetch('/api/admin/mailbox-access', {
       method: 'POST',
       body: { mailboxId: selectedMailbox.value.id, userId: selectedUserId.value },
     })
@@ -836,7 +919,7 @@ async function revokeSelectedAccess() {
   accessError.value = ''
   accessNotice.value = ''
   try {
-    await $fetch('/api/admin/mailbox-access', {
+    await adminFetch('/api/admin/mailbox-access', {
       method: 'DELETE',
       body: { mailboxId: grant.mailbox_id, userId: grant.user_id },
     })
@@ -859,7 +942,7 @@ async function updateMembershipStatus() {
   membershipError.value = ''
   membershipNotice.value = ''
   try {
-    await $fetch(`/api/admin/memberships/${encodeURIComponent(membership.id)}`, {
+    await adminFetch(`/api/admin/memberships/${encodeURIComponent(membership.id)}`, {
       method: 'PATCH',
       body: { status: nextStatus },
     })
