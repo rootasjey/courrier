@@ -634,6 +634,8 @@
     "refresh": "Actualiser",
     "loading": "Chargement de la console…",
     "error": "La console d’administration est indisponible. Actualise la page et réessaie.",
+    "accessError": "La session ou les autorisations d’accès ont expiré. Vérifie tes connexions Courrier et Cloudflare Access, puis actualise la page.",
+    "unexpectedResponse": "La console a reçu une réponse inattendue, possiblement une page de connexion. Vérifie tes connexions Courrier et Cloudflare Access, puis actualise la page.",
     "workspaces": "Espaces",
     "domains": "Domaines",
     "memberships": "Adhésions",

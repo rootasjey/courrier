@@ -634,6 +634,8 @@
     "refresh": "Refresh",
     "loading": "Loading the administration console…",
     "error": "The administration console is unavailable. Refresh the page and try again.",
+    "accessError": "Your access session or permissions may have expired. Check your Courrier and Cloudflare Access sign-ins, then refresh the page.",
+    "unexpectedResponse": "The console received an unexpected response, possibly a sign-in page. Check your Courrier and Cloudflare Access sign-ins, then refresh the page.",
     "workspaces": "Workspaces",
     "domains": "Domains",
     "memberships": "Memberships",

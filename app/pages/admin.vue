@@ -14,7 +14,9 @@
       </header>
 
       <p v-if="loading && !overview" class="admin-state" role="status">{{ $t('admin.loading') }}</p>
-      <p v-else-if="failed && !overview" class="admin-state admin-state-error" role="alert">{{ $t('admin.error') }}</p>
+      <p v-else-if="failed && !overview" class="admin-state admin-state-error" role="alert">
+        {{ $t(loadFailure === 'access' ? 'admin.accessError' : loadFailure === 'response' ? 'admin.unexpectedResponse' : 'admin.error') }}
+      </p>
       <template v-else-if="overview">
         <section class="admin-metrics" :aria-label="$t('admin.title')">
           <article class="admin-metric"><span>{{ $t('admin.workspaces') }}</span><strong>{{ overview.counts.workspace_count }}</strong></article>
@@ -477,6 +479,7 @@ const mailboxAccess = ref<MailboxAccess | null>(null)
 const platformAdminState = ref<PlatformAdminState | null>(null)
 const loading = ref(false)
 const failed = ref(false)
+const loadFailure = ref<'access' | 'response' | 'generic'>('generic')
 const selectedMailboxId = ref('')
 const selectedUserId = ref('')
 const accessBusy = ref(false)
@@ -507,6 +510,37 @@ const platformAdminError = ref('')
 const platformAdminNotice = ref('')
 const platformAdminToGrant = ref<PlatformAdminCandidate | null>(null)
 const platformAdminToRevoke = ref<PlatformAdmin | null>(null)
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isAdminOverviewResponse(value: unknown): value is AdminOverview {
+  if (!isRecord(value) || !isRecord(value.counts)) return false
+  const countKeys = ['workspace_count', 'domain_count', 'membership_count', 'pending_invitation_count']
+  return countKeys.every(key => typeof value.counts[key] === 'number')
+    && ['workspaces', 'domains', 'memberships', 'invitations', 'audit'].every(key => Array.isArray(value[key]))
+}
+
+function isMailboxAccessResponse(value: unknown): value is MailboxAccess {
+  return isRecord(value)
+    && ['mailboxes', 'members', 'grants'].every(key => Array.isArray(value[key]))
+    && isRecord(value.truncated)
+}
+
+function isPlatformAdminStateResponse(value: unknown): value is PlatformAdminState {
+  return isRecord(value)
+    && typeof value.actorUserId === 'string'
+    && Array.isArray(value.admins)
+    && Array.isArray(value.candidates)
+    && typeof value.candidatesTruncated === 'boolean'
+}
+
+function getHttpStatus(error: unknown) {
+  if (!error || typeof error !== 'object') return 0
+  const value = error as { statusCode?: unknown, status?: unknown, response?: { status?: unknown } }
+  return Number(value.statusCode || value.status || value.response?.status || 0)
+}
 
 const activeWorkspaces = computed(() => overview.value?.workspaces.filter(workspace => workspace.status === 'active') ?? [])
 const activePlatformAdminCount = computed(() => platformAdminState.value?.admins.filter(admin => admin.user_status === 'active').length ?? 0)
@@ -564,12 +598,20 @@ async function loadOverview() {
   if (loading.value) return
   loading.value = true
   failed.value = false
+  loadFailure.value = 'generic'
   try {
     const [nextOverview, nextMailboxAccess, nextPlatformAdminState] = await Promise.all([
       $fetch<AdminOverview>('/api/admin/overview'),
       $fetch<MailboxAccess>('/api/admin/mailbox-access'),
       $fetch<PlatformAdminState>('/api/admin/platform-admins'),
     ])
+    if (!isAdminOverviewResponse(nextOverview)
+      || !isMailboxAccessResponse(nextMailboxAccess)
+      || !isPlatformAdminStateResponse(nextPlatformAdminState)) {
+      failed.value = true
+      loadFailure.value = 'response'
+      return
+    }
     overview.value = nextOverview
     mailboxAccess.value = nextMailboxAccess
     platformAdminState.value = nextPlatformAdminState
@@ -584,8 +626,10 @@ async function loadOverview() {
     }
     if (!availableMembers.value.some(member => member.user_id === selectedUserId.value)) selectedUserId.value = ''
     if (!nextPlatformAdminState.candidates.some(candidate => candidate.user_id === platformAdminCandidateId.value)) platformAdminCandidateId.value = ''
-  } catch {
+  } catch (error) {
     failed.value = true
+    const status = getHttpStatus(error)
+    loadFailure.value = status === 401 || status === 403 ? 'access' : 'generic'
   } finally {
     loading.value = false
   }
