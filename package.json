@@ -6,6 +6,7 @@
     "build": "nuxt build",
     "postbuild": "node scripts/configure-worker-entry.mjs",
     "dev": "nuxt dev",
+    "account:bootstrap-canary-member": "node scripts/bootstrap-canary-member.mjs",
     "account:reset-local-admin-password": "node scripts/reset-local-admin-password.mjs",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:canary": "wrangler d1 migrations apply DB --remote --config wrangler.canary.jsonc",
