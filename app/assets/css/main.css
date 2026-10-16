@@ -776,6 +776,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .admin-domain-challenge-actions { display: flex; justify-content: flex-end; }
 .admin-domain-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .admin-access-controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }
+.admin-platform-admin-controls { grid-template-columns: minmax(240px, min(100%, 540px)) auto; margin-bottom: 18px; }
 .admin-access-field { display: grid; min-width: 0; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 620; }
 .admin-access-field select { width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; }
 .admin-access-field select:focus-visible, .admin-access-action:focus-visible, .admin-access-remove:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
@@ -878,6 +879,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .admin-section { padding: 15px 13px; }
   .admin-table-wrap table { min-width: 620px; }
   .admin-access-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .admin-platform-admin-controls { grid-template-columns: minmax(0, 1fr); }
   .admin-domain-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
   .admin-invitation-controls { grid-template-columns: minmax(0, 1fr); }
   .admin-domain-record > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }

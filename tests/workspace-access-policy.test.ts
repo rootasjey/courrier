@@ -40,6 +40,7 @@ function examplePath(path: string) {
     .replaceAll(':token', 'A'.repeat(43))
     .replaceAll(':attachmentId', 'attachment-test')
     .replaceAll(':credentialId', 'passkey-test')
+    .replaceAll(':userId', '00000000-0000-4000-8000-000000000001')
     .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
 }
 
@@ -76,6 +77,11 @@ test('account and invitation exceptions are limited to exact methods', () => {
 test('platform administration routes fail closed for unlisted paths and methods', () => {
   assert.equal(isPlatformAdminEndpoint('/api/admin/overview', 'GET'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/overview', 'POST'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins', 'GET'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins', 'POST'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins/00000000-0000-4000-8000-000000000001', 'DELETE'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins/invalid', 'DELETE'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins', 'DELETE'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/users', 'GET'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/domains/domain-1/verify', 'POST'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/domains/domain-1/verify', 'GET'), false)

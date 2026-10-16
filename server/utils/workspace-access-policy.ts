@@ -43,6 +43,8 @@ export function isPublicInvitationEndpoint(path: string, method: string) {
 export function isPlatformAdminEndpoint(path: string, method: string) {
   const normalizedMethod = method.toUpperCase()
   if (path === '/api/admin/overview') return normalizedMethod === 'GET'
+  if (path === '/api/admin/platform-admins') return ['GET', 'POST'].includes(normalizedMethod)
+  if (/^\/api\/admin\/platform-admins\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'
   if (path === '/api/admin/mailbox-access') return ['GET', 'POST', 'DELETE'].includes(normalizedMethod)
   if (path === '/api/admin/invitations') return normalizedMethod === 'POST'
   if (/^\/api\/admin\/invitations\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'

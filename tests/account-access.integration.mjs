@@ -60,6 +60,7 @@ async function seedDatabase(configPath, persistPath) {
     ['00000000-0000-4000-8000-000000000101', 'admin@example.test', 'Local Admin', 'local-test-admin-password-001'],
     ['00000000-0000-4000-8000-000000000102', 'member@example.test', 'Local Member', 'local-test-member-password-001'],
     ['00000000-0000-4000-8000-000000000103', 'viewer@example.test', 'Local Viewer', 'local-test-viewer-password-001'],
+    ['00000000-0000-4000-8000-000000000104', 'workspace-admin@example.test', 'Workspace Admin', 'local-test-workspace-admin-password-001'],
   ]
   const statements = []
 
@@ -75,8 +76,9 @@ async function seedDatabase(configPath, persistPath) {
     `INSERT INTO workspaces (id,name,status,created_at,updated_at) VALUES ('workspace-one','Workspace One','active',${sql(now)},${sql(now)}),('workspace-two','Workspace Two','active',${sql(now)},${sql(now)});`,
     `INSERT INTO workspace_domains (id,workspace_id,domain,verification_status,created_at) VALUES ('domain-alpha','workspace-one','alpha.test','verified',${sql(now)}),('domain-beta','workspace-two','beta.test','verified',${sql(now)});`,
     `INSERT INTO mailboxes (id,workspace_id,domain_id,address,status,created_at) VALUES ('mailbox-a1','workspace-one','domain-alpha','inbox@alpha.test','active',${sql(now)}),('mailbox-a2','workspace-one','domain-alpha','hidden@alpha.test','active',${sql(now)}),('mailbox-b1','workspace-two','domain-beta','other@beta.test','active',${sql(now)});`,
-    `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('membership-viewer','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)});`,
-    `INSERT INTO platform_admins (user_id,created_at) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)});`,
+    `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('membership-viewer','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)}),('membership-workspace-admin','workspace-two','00000000-0000-4000-8000-000000000104','admin','active',${sql(now)});`,
+    `INSERT INTO users (id,email,display_name,status,session_version,created_at,updated_at) VALUES ('00000000-0000-4000-8000-000000000105','pending@example.test','Pending Account','pending',1,${sql(now)},${sql(now)}),('00000000-0000-4000-8000-000000000106','suspended-admin@example.test','Suspended Admin','suspended',1,${sql(now)},${sql(now)});`,
+    `INSERT INTO platform_admins (user_id,created_at,created_by_user_id) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)},NULL),('00000000-0000-4000-8000-000000000106',${sql(now)},'00000000-0000-4000-8000-000000000101');`,
     `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a2','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000102','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000103','active',${sql(now)});`,
     `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-a1','<message-a1@alpha.test>','sender@external.test','inbox@alpha.test','Allowed Sender','sender@external.test','Allowed mailbox',${sql(now)},'visible','messages/a1.eml','alpha.test','Imbox'),('message-a2','<message-a2@alpha.test>','sender@external.test','hidden@alpha.test','Hidden Sender','sender@external.test','Hidden mailbox',${sql(now)},'hiddenneedle','messages/a2.eml','alpha.test','Imbox'),('message-b1','<message-b1@beta.test>','sender@external.test','other@beta.test','Other Sender','sender@external.test','Other workspace',${sql(now)},'workspace B','messages/b1.eml','beta.test','Imbox');`,
     `INSERT INTO sender_rules (mailbox_domain,sender_address,folder,created_at,updated_at) VALUES ('alpha.test','sender@external.test','The Feed',${sql(now)},${sql(now)});`,
@@ -183,6 +185,7 @@ async function protectedApiRoutes() {
       .replaceAll(':token', 'A'.repeat(43))
       .replaceAll(':attachmentId', 'attachment-test')
       .replaceAll(':credentialId', 'passkey-test')
+      .replaceAll(':userId', '00000000-0000-4000-8000-000000000102')
       .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
     return [{ method, path: samplePath }]
   }).sort((left, right) => `${left.method} ${left.path}`.localeCompare(`${right.method} ${right.path}`))
@@ -499,6 +502,20 @@ try {
     assert.equal((await request('/api/admin/overview', { cookie: viewerCookie })).response.status, 403)
     console.log(`  Covered ${readableRoutes.length} viewer reads and ${writeRoutes.length} denied writes.`)
   })
+  await check('workspace administrators do not receive platform administration rights', async () => {
+    const login = await request('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'workspace-admin@example.test', password: 'local-test-workspace-admin-password-001' },
+    })
+    assert.equal(login.response.status, 200)
+    assert.equal((await request('/api/admin/platform-admins', { cookie: login.cookie })).response.status, 403)
+    assert.equal((await request('/api/admin/platform-admins', {
+      method: 'POST', cookie: login.cookie, body: { userId: '00000000-0000-4000-8000-000000000103' },
+    })).response.status, 403)
+    assert.equal((await request('/api/admin/platform-admins/00000000-0000-4000-8000-000000000101', {
+      method: 'DELETE', cookie: login.cookie,
+    })).response.status, 403)
+  })
   await check('domain-wide mail metadata is hidden from partial mailbox grants', async () => {
     const visible = await request('/api/messages', { cookie: memberCookie })
     assert.equal(visible.response.status, 200)
@@ -531,6 +548,7 @@ try {
     assert.equal(session.data.adminMfaConfigured, false)
     assert.equal(session.data.adminMfaVerified, false)
     assert.equal((await request('/api/admin/overview', { cookie: adminCookie })).response.status, 403)
+    assert.equal((await request('/api/admin/platform-admins', { cookie: adminCookie })).response.status, 403)
   })
   let firstFactorAttemptId = ''
   await check('first passkey enrollment requires password confirmation', async () => {
@@ -689,6 +707,60 @@ try {
       method: 'POST', cookie: adminCookie, body: { recoveryCode: adminRecoveryCode },
     })
     assert.equal(replay.response.status, 401)
+  })
+  await check('platform admin changes require an active account, protect self-revocation, and preserve mailbox grants', async () => {
+    const list = await request('/api/admin/platform-admins', { cookie: adminCookie })
+    assert.equal(list.response.status, 200, JSON.stringify(list.data))
+    assert.match(list.response.headers.get('cache-control') || '', /private.*no-store/)
+    assert.deepEqual(list.data.admins.map(value => value.user_id), ['00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000106'])
+    assert.ok(list.data.candidates.some(value => value.user_id === '00000000-0000-4000-8000-000000000104'))
+    assert.ok(!list.data.candidates.some(value => value.user_id === '00000000-0000-4000-8000-000000000101'))
+    assert.ok(!list.data.candidates.some(value => ['00000000-0000-4000-8000-000000000105', '00000000-0000-4000-8000-000000000106'].includes(value.user_id)))
+
+    const pendingGrant = await request('/api/admin/platform-admins', {
+      method: 'POST', cookie: adminCookie, body: { userId: '00000000-0000-4000-8000-000000000105' },
+    })
+    assert.equal(pendingGrant.response.status, 409)
+    const suspendedRevoke = await request('/api/admin/platform-admins/00000000-0000-4000-8000-000000000106', {
+      method: 'DELETE', cookie: adminCookie,
+    })
+    assert.equal(suspendedRevoke.response.status, 200, JSON.stringify(suspendedRevoke.data))
+
+    const missingOrigin = await request('/api/admin/platform-admins', {
+      method: 'POST', cookie: adminCookie, body: { userId: '00000000-0000-4000-8000-000000000102' }, withOrigin: false,
+    })
+    assert.equal(missingOrigin.response.status, 403)
+    const selfGrant = await request('/api/admin/platform-admins', {
+      method: 'POST', cookie: adminCookie, body: { userId: '00000000-0000-4000-8000-000000000101' },
+    })
+    assert.equal(selfGrant.response.status, 409)
+    const selfRevoke = await request('/api/admin/platform-admins/00000000-0000-4000-8000-000000000101', {
+      method: 'DELETE', cookie: adminCookie,
+    })
+    assert.equal(selfRevoke.response.status, 409)
+
+    const before = await request('/api/messages', { cookie: memberCookie })
+    assert.deepEqual(before.data.map(value => value.id), ['message-a1'])
+    const grant = await request('/api/admin/platform-admins', {
+      method: 'POST', cookie: adminCookie, body: { userId: '00000000-0000-4000-8000-000000000102' },
+    })
+    assert.equal(grant.response.status, 200, JSON.stringify(grant.data))
+    assert.ok((await request('/api/account/session', { cookie: memberCookie })).data.requiresAdminMfa)
+    assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
+    assert.equal((await request('/api/admin/overview', { cookie: memberCookie })).response.status, 403)
+
+    const duplicate = await request('/api/admin/platform-admins', {
+      method: 'POST', cookie: adminCookie, body: { userId: '00000000-0000-4000-8000-000000000102' },
+    })
+    assert.equal(duplicate.response.status, 409)
+    const revoke = await request('/api/admin/platform-admins/00000000-0000-4000-8000-000000000102', {
+      method: 'DELETE', cookie: adminCookie,
+    })
+    assert.equal(revoke.response.status, 200, JSON.stringify(revoke.data))
+    assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
+    const audit = await request('/api/admin/overview', { cookie: adminCookie })
+    assert.ok(audit.data.audit.some(value => value.action === 'platform_admin.granted' && value.target_id === '00000000-0000-4000-8000-000000000102'))
+    assert.ok(audit.data.audit.some(value => value.action === 'platform_admin.revoked' && value.target_id === '00000000-0000-4000-8000-000000000102'))
   })
   await check('removing a passkey revokes every session and admin step-up', async () => {
     const secondPasskeyPath = path.join(temporaryDirectory, 'second-admin-passkey.sql')

@@ -23,6 +23,51 @@
           <article class="admin-metric"><span>{{ $t('admin.pendingInvitations') }}</span><strong>{{ overview.counts.pending_invitation_count }}</strong></article>
         </section>
 
+        <section v-if="platformAdminState" class="admin-section" aria-labelledby="admin-platform-admins-heading">
+          <h2 id="admin-platform-admins-heading">{{ $t('admin.platformAdmins') }}</h2>
+          <p class="admin-section-description">{{ $t('admin.platformAdminsDescription') }}</p>
+          <p v-if="platformAdminError" class="admin-access-error" role="alert">{{ platformAdminError }}</p>
+          <p v-if="platformAdminNotice" class="admin-access-notice" role="status">{{ platformAdminNotice }}</p>
+          <p v-if="platformAdminState.candidatesTruncated" class="admin-access-notice" role="status">{{ $t('admin.platformAdminCandidatesTruncated') }}</p>
+
+          <div class="admin-access-controls admin-platform-admin-controls">
+            <label class="admin-access-field">
+              <span>{{ $t('admin.platformAdminCandidate') }}</span>
+              <select v-model="platformAdminCandidateId" :disabled="platformAdminBusy || !platformAdminState.candidates.length">
+                <option value="">{{ $t(platformAdminState.candidates.length ? 'admin.choosePlatformAdminCandidate' : 'admin.noPlatformAdminCandidates') }}</option>
+                <option v-for="candidate in platformAdminState.candidates" :key="candidate.user_id" :value="candidate.user_id">
+                  {{ candidate.display_name || candidate.email }} · {{ candidate.email }}
+                </option>
+              </select>
+            </label>
+            <button class="admin-access-action" type="button" :disabled="platformAdminBusy || !platformAdminCandidateId" @click="preparePlatformAdminGrant">
+              {{ $t('admin.grantPlatformAdmin') }}
+            </button>
+          </div>
+
+          <div class="admin-table-wrap admin-access-table">
+            <table>
+              <thead><tr><th>{{ $t('admin.user') }}</th><th>{{ $t('admin.status') }}</th><th>{{ $t('admin.platformAdminSince') }}</th><th>{{ $t('admin.grantedBy') }}</th><th>{{ $t('admin.action') }}</th></tr></thead>
+              <tbody>
+                <tr v-for="admin in platformAdminState.admins" :key="admin.user_id">
+                  <td><strong>{{ admin.display_name || admin.email }}</strong><small>{{ admin.email }}</small></td>
+                  <td><span class="admin-status" :class="`is-${admin.user_status}`">{{ statusLabel(admin.user_status) }}</span></td>
+                  <td>{{ formatDate(admin.created_at) }}</td>
+                  <td>{{ admin.created_by_email || '—' }}</td>
+                  <td>
+                    <span v-if="admin.user_id === platformAdminState.actorUserId" class="admin-access-protected">{{ $t('admin.currentPlatformAdminProtected') }}</span>
+                    <span v-else-if="admin.user_status === 'active' && activePlatformAdminCount <= 1" class="admin-access-protected">{{ $t('admin.lastPlatformAdminProtected') }}</span>
+                    <button v-else class="admin-membership-action is-suspend" type="button" :disabled="platformAdminBusy" @click="platformAdminToRevoke = admin">
+                      {{ $t('admin.revokePlatformAdmin') }}
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="!platformAdminState.admins.length"><td colspan="5" class="admin-empty">{{ $t('admin.noPlatformAdmins') }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="admin-section" aria-labelledby="admin-workspaces-heading">
           <h2 id="admin-workspaces-heading">{{ $t('admin.workspaces') }}</h2>
           <div class="admin-table-wrap">
@@ -355,6 +400,50 @@
         </div>
       </template>
     </NDialog>
+
+    <NDialog
+      :open="Boolean(platformAdminToGrant)"
+      :title="$t('admin.grantPlatformAdmin')"
+      :description="$t('admin.grantPlatformAdminDescription', { email: platformAdminToGrant?.email || '' })"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!open && !platformAdminBusy) platformAdminToGrant = null }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t('admin.grantPlatformAdmin') }}</NDialogTitle>
+          <NDialogDescription>{{ $t('admin.grantPlatformAdminDescription', { email: platformAdminToGrant?.email || '' }) }}</NDialogDescription>
+        </header>
+        <div class="dialog-actions">
+          <button class="dialog-cancel" type="button" :disabled="platformAdminBusy" @click="platformAdminToGrant = null">{{ $t('common.cancel') }}</button>
+          <button class="dialog-save" type="button" :disabled="platformAdminBusy" @click="grantPlatformAdmin">
+            {{ platformAdminBusy ? $t('admin.savingPlatformAdmin') : $t('admin.grantPlatformAdmin') }}
+          </button>
+        </div>
+      </template>
+    </NDialog>
+
+    <NDialog
+      :open="Boolean(platformAdminToRevoke)"
+      :title="$t('admin.revokePlatformAdmin')"
+      :description="$t('admin.revokePlatformAdminDescription', { email: platformAdminToRevoke?.email || '' })"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!open && !platformAdminBusy) platformAdminToRevoke = null }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t('admin.revokePlatformAdmin') }}</NDialogTitle>
+          <NDialogDescription>{{ $t('admin.revokePlatformAdminDescription', { email: platformAdminToRevoke?.email || '' }) }}</NDialogDescription>
+        </header>
+        <div class="dialog-actions">
+          <button class="dialog-cancel" type="button" :disabled="platformAdminBusy" @click="platformAdminToRevoke = null">{{ $t('common.cancel') }}</button>
+          <button class="dialog-danger" type="button" :disabled="platformAdminBusy" @click="revokePlatformAdmin">
+            {{ platformAdminBusy ? $t('admin.savingPlatformAdmin') : $t('admin.revokePlatformAdmin') }}
+          </button>
+        </div>
+      </template>
+    </NDialog>
   </main>
 </template>
 
@@ -370,6 +459,9 @@ type AdminOverview = {
   invitations: { id: string, workspace_id: string, workspace_name: string, email: string, role: string, expires_at: string, accepted_at: string | null, revoked_at: string | null, created_at: string, status: string }[]
   audit: { id: string, actor_user_id: string | null, actor_email: string | null, action: string, target_type: string, target_id: string | null, workspace_id: string | null, created_at: string }[]
 }
+type PlatformAdmin = { user_id: string, email: string, display_name: string, user_status: string, created_at: string, created_by_user_id: string | null, created_by_email: string | null }
+type PlatformAdminCandidate = { user_id: string, email: string, display_name: string }
+type PlatformAdminState = { actorUserId: string, admins: PlatformAdmin[], candidates: PlatformAdminCandidate[], candidatesTruncated: boolean }
 type DomainChallenge = { domainId: string, domain: string, recordName: string, recordValue: string, expiresAt: string }
 type MailboxAccess = {
   mailboxes: { id: string, workspace_id: string, workspace_name: string, address: string }[]
@@ -382,6 +474,7 @@ type AccessGrant = { mailbox_id: string, user_id: string, email: string, display
 const { $t } = useI18n()
 const overview = ref<AdminOverview | null>(null)
 const mailboxAccess = ref<MailboxAccess | null>(null)
+const platformAdminState = ref<PlatformAdminState | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 const selectedMailboxId = ref('')
@@ -408,8 +501,16 @@ const invitationBusy = ref(false)
 const invitationError = ref('')
 const invitationNotice = ref('')
 const invitationToRevoke = ref<AdminOverview['invitations'][number] | null>(null)
+const platformAdminCandidateId = ref('')
+const platformAdminBusy = ref(false)
+const platformAdminError = ref('')
+const platformAdminNotice = ref('')
+const platformAdminToGrant = ref<PlatformAdminCandidate | null>(null)
+const platformAdminToRevoke = ref<PlatformAdmin | null>(null)
 
 const activeWorkspaces = computed(() => overview.value?.workspaces.filter(workspace => workspace.status === 'active') ?? [])
+const activePlatformAdminCount = computed(() => platformAdminState.value?.admins.filter(admin => admin.user_status === 'active').length ?? 0)
+const selectedPlatformAdminCandidate = computed(() => platformAdminState.value?.candidates.find(candidate => candidate.user_id === platformAdminCandidateId.value) ?? null)
 const selectedMailbox = computed(() => mailboxAccess.value?.mailboxes.find(mailbox => mailbox.id === selectedMailboxId.value) ?? null)
 const selectedMailboxGrants = computed<AccessGrant[]>(() => {
   if (!selectedMailbox.value || !mailboxAccess.value) return []
@@ -464,12 +565,14 @@ async function loadOverview() {
   loading.value = true
   failed.value = false
   try {
-    const [nextOverview, nextMailboxAccess] = await Promise.all([
+    const [nextOverview, nextMailboxAccess, nextPlatformAdminState] = await Promise.all([
       $fetch<AdminOverview>('/api/admin/overview'),
       $fetch<MailboxAccess>('/api/admin/mailbox-access'),
+      $fetch<PlatformAdminState>('/api/admin/platform-admins'),
     ])
     overview.value = nextOverview
     mailboxAccess.value = nextMailboxAccess
+    platformAdminState.value = nextPlatformAdminState
     if (!activeWorkspaces.value.some(workspace => workspace.id === selectedDomainWorkspaceId.value)) {
       selectedDomainWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
     }
@@ -480,10 +583,58 @@ async function loadOverview() {
       selectedMailboxId.value = nextMailboxAccess.mailboxes[0]?.id ?? ''
     }
     if (!availableMembers.value.some(member => member.user_id === selectedUserId.value)) selectedUserId.value = ''
+    if (!nextPlatformAdminState.candidates.some(candidate => candidate.user_id === platformAdminCandidateId.value)) platformAdminCandidateId.value = ''
   } catch {
     failed.value = true
   } finally {
     loading.value = false
+  }
+}
+
+function preparePlatformAdminGrant() {
+  const candidate = selectedPlatformAdminCandidate.value
+  if (candidate && !platformAdminBusy.value) platformAdminToGrant.value = candidate
+}
+
+async function grantPlatformAdmin() {
+  const candidate = platformAdminToGrant.value
+  if (!candidate || platformAdminBusy.value) return
+  platformAdminBusy.value = true
+  platformAdminError.value = ''
+  platformAdminNotice.value = ''
+  try {
+    await $fetch('/api/admin/platform-admins', { method: 'POST', body: { userId: candidate.user_id } })
+    platformAdminToGrant.value = null
+    platformAdminCandidateId.value = ''
+    platformAdminNotice.value = $t('admin.platformAdminGrantedNotice', { email: candidate.email })
+    await loadOverview()
+  } catch (error) {
+    const status = requestStatus(error)
+    platformAdminError.value = status === 409 ? $t('admin.platformAdminConflict')
+      : status === 404 ? $t('admin.platformAdminNotFound')
+      : $t('admin.platformAdminSaveError')
+  } finally {
+    platformAdminBusy.value = false
+  }
+}
+
+async function revokePlatformAdmin() {
+  const admin = platformAdminToRevoke.value
+  if (!admin || platformAdminBusy.value) return
+  platformAdminBusy.value = true
+  platformAdminError.value = ''
+  platformAdminNotice.value = ''
+  try {
+    await $fetch(`/api/admin/platform-admins/${encodeURIComponent(admin.user_id)}`, { method: 'DELETE' })
+    platformAdminToRevoke.value = null
+    platformAdminNotice.value = $t('admin.platformAdminRevokedNotice', { email: admin.email })
+    await loadOverview()
+  } catch (error) {
+    platformAdminError.value = requestStatus(error) === 409
+      ? $t('admin.platformAdminConflict')
+      : $t('admin.platformAdminSaveError')
+  } finally {
+    platformAdminBusy.value = false
   }
 }
 
