@@ -190,6 +190,7 @@ function readHidden(prompt) {
     const previousRawMode = Boolean(input.isRaw)
     let value = ''
     let settled = false
+    input.setEncoding('utf8')
 
     const cleanup = () => {
       input.removeListener('data', onData)
