@@ -6,6 +6,7 @@
     "build": "nuxt build",
     "postbuild": "node scripts/configure-worker-entry.mjs",
     "dev": "nuxt dev",
+    "account:reset-local-admin-password": "node scripts/reset-local-admin-password.mjs",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "generate": "nuxt generate",
     "test:auth": "node --experimental-strip-types --test tests/workspace-access-policy.test.ts && node tests/account-access.integration.mjs",
