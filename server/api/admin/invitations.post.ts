@@ -22,7 +22,6 @@ const invitationCopy = {
     accept: (expires: string) => `Accepte l’invitation avant le ${expires} :`,
     singleUse: 'Ce lien est personnel et ne peut être utilisé qu’une seule fois.',
     mailboxAccess: 'L’adhésion à l’espace ne donne pas automatiquement accès aux boîtes mail. Un administrateur doit attribuer ces accès séparément.',
-    accessNote: 'Courrier reste pour le moment protégé par Cloudflare Access. Si tu n’y as pas accès, demande d’abord à l’administrateur de t’y autoriser.',
     button: 'Accepter l’invitation',
   },
   en: {
@@ -34,7 +33,6 @@ const invitationCopy = {
     accept: (expires: string) => `Accept this invitation by ${expires}:`,
     singleUse: 'This personal link can only be used once.',
     mailboxAccess: 'Joining the workspace does not automatically grant access to its mailboxes. An administrator must assign that access separately.',
-    accessNote: 'Courrier is still protected by Cloudflare Access. If you cannot open it, ask the administrator to authorize you first.',
     button: 'Accept invitation',
   },
 } as const
@@ -137,20 +135,14 @@ export default defineEventHandler(async (event) => {
   const roleName = copy.roleNames[role]
   const expires = new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-FR', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(expiresAt))
   const subjectWorkspace = plainWorkspace.slice(0, 120)
-  const accessNote = import.meta.dev
-    ? ''
-    : `\n\n${copy.accessNote}`
-  const accessNoteHtml = import.meta.dev
-    ? ''
-    : `<p style="font-size:13px;color:#716c7e">${copy.accessNote}</p>`
 
   try {
     await bindings.EMAIL.send({
       from: { email: 'courrier-test@verbatims.cc', name: 'Courrier' },
       to: email,
       subject: copy.subject(subjectWorkspace),
-      text: `${copy.introduction(plainWorkspace, roleName)}\n\n${copy.invitedAddress(email)}\n\n${copy.accept(expires)}\n${invitationUrl}\n\n${copy.singleUse} ${copy.mailboxAccess}${accessNote}`,
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#282533;max-width:600px;margin:auto;padding:32px"><p style="color:#6655d8;font-weight:700">Courrier</p><h1>${copy.heading}</h1><p>${copy.introduction(safeWorkspace, roleName)}</p><p>${copy.invitedAddress(safeEmail)}</p><p><a href="${safeUrl}" style="display:inline-block;padding:12px 20px;background:#6655d8;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">${copy.button}</a></p><p>${copy.accept(expires)} ${copy.singleUse}</p><p style="font-size:13px;color:#716c7e">${copy.mailboxAccess}</p>${accessNoteHtml}</div>`,
+      text: `${copy.introduction(plainWorkspace, roleName)}\n\n${copy.invitedAddress(email)}\n\n${copy.accept(expires)}\n${invitationUrl}\n\n${copy.singleUse} ${copy.mailboxAccess}`,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#282533;max-width:600px;margin:auto;padding:32px"><p style="color:#6655d8;font-weight:700">Courrier</p><h1>${copy.heading}</h1><p>${copy.introduction(safeWorkspace, roleName)}</p><p>${copy.invitedAddress(safeEmail)}</p><p><a href="${safeUrl}" style="display:inline-block;padding:12px 20px;background:#6655d8;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">${copy.button}</a></p><p>${copy.accept(expires)} ${copy.singleUse}</p><p style="font-size:13px;color:#716c7e">${copy.mailboxAccess}</p></div>`,
     })
   } catch (error) {
     const revokedAt = new Date().toISOString()
