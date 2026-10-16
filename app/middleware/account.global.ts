@@ -3,6 +3,7 @@ type AccountSession = {
   activeWorkspaceId: string | null
   isPlatformAdmin: boolean
   hasPasskeys: boolean
+  adminMfaConfigured: boolean
   recoveryCodesRemaining: number
   requiresAdminMfa: boolean
   adminMfaVerified: boolean

@@ -60,25 +60,25 @@
         <div class="settings-security-body">
           <p v-if="!securityLoaded" class="settings-security-note" role="status">{{ $t('settings.securityLoading') }}</p>
           <template v-else>
-            <p v-if="!passkeys.length" class="settings-security-note" role="status">{{ $t('settings.securityNotEnabled') }}</p>
+            <p v-if="!accountSession.adminMfaConfigured" class="settings-security-note" role="status">{{ $t('settings.securityNotEnabled') }}</p>
             <p v-else class="settings-security-note" role="status">
               {{ $t('settings.securityEnabled', { count: passkeys.length, remaining: recoveryCodesRemaining }) }}
             </p>
-            <p v-if="accountSession.requiresAdminMfa && !accountSession.adminMfaVerified" class="settings-security-note">
+            <p v-if="accountSession.adminMfaConfigured && !accountSession.adminMfaVerified" class="settings-security-note">
               <NuxtLink :to="{ path: '/mfa', query: { redirect: '/settings#security' } }">{{ $t('settings.verifyBeforeManaging') }}</NuxtLink>
             </p>
 
-            <form v-if="!passkeys.length || accountSession.adminMfaVerified" class="settings-passkey-form" @submit.prevent="addPasskey">
+            <form v-if="!accountSession.adminMfaConfigured || accountSession.adminMfaVerified" class="settings-passkey-form" @submit.prevent="addPasskey">
               <label class="login-field">
                 <span>{{ $t('settings.passkeyName') }}</span>
                 <input v-model="passkeyLabel" maxlength="80" autocomplete="off" required>
               </label>
-              <label v-if="!accountSession.requiresAdminMfa" class="login-field">
+              <label v-if="!accountSession.adminMfaConfigured" class="login-field">
                 <span>{{ $t('settings.confirmPassword') }}</span>
                 <input v-model="passkeyPassword" type="password" autocomplete="current-password" required>
               </label>
               <p class="settings-security-note">
-                {{ $t(accountSession.requiresAdminMfa ? 'settings.passkeyPrivacyAdditional' : 'settings.passkeyPrivacyFirst') }}
+                {{ $t(accountSession.adminMfaConfigured ? 'settings.passkeyPrivacyAdditional' : 'settings.passkeyPrivacyFirst') }}
               </p>
               <button class="settings-export-button" type="submit" :disabled="securityBusy">
                 {{ securityBusy ? $t('settings.passkeyWorking') : $t(passkeys.length ? 'settings.addPasskey' : 'settings.enablePasskey') }}
@@ -96,13 +96,13 @@
                   <button type="button" :disabled="securityBusy" @click="removePasskey(passkey.id)">{{ $t('settings.removePasskey') }}</button>
                   <button type="button" :disabled="securityBusy" @click="confirmingPasskey = null">{{ $t('settings.cancel') }}</button>
                 </div>
-                <button v-else class="settings-remove-photo" type="button" :disabled="securityBusy || passkeys.length <= 1" :aria-label="String($t('settings.removePasskey'))" @click="confirmingPasskey = passkey.id">
+                <button v-else-if="accountSession.adminMfaVerified" class="settings-remove-photo" type="button" :disabled="securityBusy || passkeys.length <= 1" :aria-label="String($t('settings.removePasskey'))" @click="confirmingPasskey = passkey.id">
                   {{ $t('settings.removePasskey') }}
                 </button>
               </li>
             </ul>
 
-            <div v-if="passkeys.length && accountSession.adminMfaVerified" class="settings-recovery-actions">
+            <div v-if="accountSession.adminMfaConfigured && accountSession.adminMfaVerified" class="settings-recovery-actions">
               <template v-if="confirmRecoveryRotation">
                 <p>{{ $t('settings.rotateRecoveryConfirm') }}</p>
                 <button class="settings-remove-photo" type="button" :disabled="securityBusy" @click="rotateRecoveryCodes">{{ $t('settings.rotateRecoveryCodes') }}</button>
@@ -154,7 +154,7 @@ const { locale } = useI18nLocale()
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
-const accountSession = useState<{ user: { displayName: string, email: string }, isPlatformAdmin: boolean, adminMfaVerified: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
+const accountSession = useState<{ user: { displayName: string, email: string }, isPlatformAdmin: boolean, adminMfaVerified: boolean, adminMfaConfigured: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
 const avatarName = computed(() => accountSession.value?.user.displayName || accountSession.value?.user.email || 'Courrier')
 const photoInput = ref<HTMLInputElement | null>(null)
 const photoBusy = ref(false)

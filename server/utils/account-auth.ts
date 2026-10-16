@@ -86,20 +86,24 @@ export async function isPlatformAdmin(event: H3Event, userId: string) {
 
 export async function requirePlatformAdmin(event: H3Event): Promise<AccountIdentity> {
   const identity = await requireSessionIdentity(event)
-  const db = getAccountDb(event)
   if (!await isPlatformAdmin(event, identity.id)) {
     throw createError({ statusCode: 403, statusMessage: 'Accès administrateur requis.' })
   }
 
+  const db = getAccountDb(event)
   const [passkeys, recoveryCodes] = await Promise.all([
     db.prepare('SELECT COUNT(*) AS count FROM auth_passkeys WHERE user_id = ?')
       .bind(identity.id).first<{ count: number }>(),
     db.prepare('SELECT COUNT(*) AS count FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL')
       .bind(identity.id).first<{ count: number }>(),
   ])
-  const mfaIsEnabled = Number(passkeys?.count || 0) > 0 || Number(recoveryCodes?.count || 0) > 0
-  if (mfaIsEnabled && !isMfaFresh(await requireUserSession(event))) {
-    throw createError({ statusCode: 403, statusMessage: 'Une vérification passkey est requise pour accéder à l’administration.' })
+  const mfaConfigured = Number(passkeys?.count || 0) > 0 || Number(recoveryCodes?.count || 0) > 0
+  if (!mfaConfigured) {
+    throw createError({ statusCode: 403, statusMessage: 'Configure un facteur de sécurité avant d’accéder à l’administration.' })
+  }
+
+  if (!isMfaFresh(await requireUserSession(event))) {
+    throw createError({ statusCode: 403, statusMessage: 'Une vérification de sécurité récente est requise pour accéder à l’administration.' })
   }
   return identity
 }

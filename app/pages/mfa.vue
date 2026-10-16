@@ -33,7 +33,7 @@
 const route = useRoute()
 const router = useRouter()
 const { $t } = useI18n()
-type AccountSession = { user: { email: string }, activeWorkspaceId: string | null, isPlatformAdmin: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, adminMfaVerified: boolean }
+type AccountSession = { user: { email: string }, activeWorkspaceId: string | null, isPlatformAdmin: boolean, hasPasskeys: boolean, adminMfaConfigured: boolean, requiresAdminMfa: boolean, adminMfaVerified: boolean }
 const accountSession = useState<AccountSession | null>('courrier-account-session', () => null)
 const busy = ref(false)
 const recoveryCode = ref('')

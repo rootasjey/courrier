@@ -38,8 +38,12 @@ export default defineEventHandler(async (event) => {
   if (!challenge) throw createError({ statusCode: 400, statusMessage: 'Cette tentative de passkey a expiré ou a déjà été utilisée.' })
 
   const priorPasskeys = await getUserPasskeys(db, user.id)
-  if (priorPasskeys.length && !isMfaFresh(await requireUserSession(event))) {
-    throw createError({ statusCode: 403, statusMessage: 'Vérifie une passkey existante avant d’en ajouter une autre.' })
+  const priorRecoveryCodes = await db.prepare(`
+    SELECT COUNT(*) AS count FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL
+  `).bind(user.id).first<{ count: number }>()
+  const mfaAlreadyConfigured = priorPasskeys.length > 0 || Number(priorRecoveryCodes?.count || 0) > 0
+  if (mfaAlreadyConfigured && !isMfaFresh(await requireUserSession(event))) {
+    throw createError({ statusCode: 403, statusMessage: 'Vérifie un facteur de sécurité existant avant de gérer les passkeys.' })
   }
 
   let verification

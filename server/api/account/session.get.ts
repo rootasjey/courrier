@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
         .bind(user.id).first<{ count: number }>(),
     ])
     : [null, null]
-  const adminMfaEnabled = Number(passkeys?.count || 0) > 0 || Number(recoveryCodes?.count || 0) > 0
+  const adminMfaConfigured = Number(passkeys?.count || 0) > 0 || Number(recoveryCodes?.count || 0) > 0
 
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
   return {
@@ -36,7 +36,8 @@ export default defineEventHandler(async (event) => {
     isPlatformAdmin: platformAdmin,
     hasPasskeys: Number(passkeys?.count || 0) > 0,
     recoveryCodesRemaining: Number(recoveryCodes?.count || 0),
-    requiresAdminMfa: adminMfaEnabled,
-    adminMfaVerified: adminMfaEnabled && isMfaFresh(session),
+    adminMfaConfigured,
+    requiresAdminMfa: platformAdmin,
+    adminMfaVerified: platformAdmin && adminMfaConfigured && isMfaFresh(session),
   }
 })

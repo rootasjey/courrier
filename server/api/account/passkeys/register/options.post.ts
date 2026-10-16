@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
   `).bind(user.id).first<{ count: number }>()
   const mfaIsEnabled = passkeys.length > 0 || Number(recoveryCodes?.count || 0) > 0
   if (mfaIsEnabled && !isMfaFresh(await requireUserSession(event))) {
-    throw createError({ statusCode: 403, statusMessage: 'Vérifie une passkey existante avant d’en ajouter une autre.' })
+    throw createError({ statusCode: 403, statusMessage: 'Vérifie un facteur de sécurité existant avant de gérer les passkeys.' })
   }
   if (!mfaIsEnabled) {
     if (!password || password.length > 1024) {

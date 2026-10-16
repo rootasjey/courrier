@@ -524,6 +524,67 @@ try {
   })
   assert.equal(adminLogin.response.status, 200, JSON.stringify(adminLogin.data))
   let adminCookie = adminLogin.cookie
+  await check('platform administrators without a configured factor are denied administration', async () => {
+    const session = await request('/api/account/session', { cookie: adminCookie })
+    assert.equal(session.response.status, 200)
+    assert.equal(session.data.requiresAdminMfa, true)
+    assert.equal(session.data.adminMfaConfigured, false)
+    assert.equal(session.data.adminMfaVerified, false)
+    assert.equal((await request('/api/admin/overview', { cookie: adminCookie })).response.status, 403)
+  })
+  let firstFactorAttemptId = ''
+  await check('first passkey enrollment requires password confirmation', async () => {
+    const missingPassword = await request('/api/account/passkeys/register/options', {
+      method: 'POST', cookie: adminCookie, body: { label: 'First local key', password: '' },
+    })
+    assert.equal(missingPassword.response.status, 400)
+    const authorized = await request('/api/account/passkeys/register/options', {
+      method: 'POST', cookie: adminCookie,
+      body: { label: 'First local key', password: 'local-test-admin-password-001' },
+    })
+    assert.equal(authorized.response.status, 200, JSON.stringify(authorized.data))
+    assert.ok(authorized.data.options.challenge)
+    assert.ok(authorized.data.attemptId)
+    firstFactorAttemptId = authorized.data.attemptId
+  })
+
+  const adminBootstrapCode = '0A1B-2C3D-4E5F-6071-8293-A4B5-C6D7-E8F9'
+  const adminBootstrapHash = createHash('sha256').update(adminBootstrapCode.replaceAll('-', '')).digest('hex')
+  const adminRecoveryCode = '8F65-E1B0-1324-6C77-D99A-00A2-B3F1-4D5C'
+  const adminRecoveryHash = createHash('sha256').update(adminRecoveryCode.replaceAll('-', '')).digest('hex')
+  const secondAdminRecoveryCode = '1A2B-3C4D-5E6F-7081-92A3-B4C5-D6E7-F809'
+  const secondAdminRecoveryHash = createHash('sha256').update(secondAdminRecoveryCode.replaceAll('-', '')).digest('hex')
+  const bootstrapSeedPath = path.join(temporaryDirectory, 'admin-bootstrap-mfa-seed.sql')
+  await writeFile(bootstrapSeedPath, `
+    INSERT INTO auth_mfa_recovery_codes (id,user_id,code_hash,created_at)
+    VALUES ('local-admin-bootstrap','00000000-0000-4000-8000-000000000101','${adminBootstrapHash}',datetime('now')),
+      ('local-admin-recovery','00000000-0000-4000-8000-000000000101','${adminRecoveryHash}',datetime('now')),
+      ('local-admin-recovery-second','00000000-0000-4000-8000-000000000101','${secondAdminRecoveryHash}',datetime('now'));
+  `)
+  run(process.execPath, [
+    path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
+    'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
+    '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', bootstrapSeedPath,
+  ])
+  await check('configured platform administrators still need a fresh security check', async () => {
+    const session = await request('/api/account/session', { cookie: adminCookie })
+    assert.equal(session.data.adminMfaConfigured, true)
+    assert.equal(session.data.adminMfaVerified, false)
+    assert.equal((await request('/api/admin/overview', { cookie: adminCookie })).response.status, 403)
+  })
+  await check('passkey enrollment requires step-up when only recovery codes are configured', async () => {
+    const result = await request('/api/account/passkeys/register/verify', {
+      method: 'POST', cookie: adminCookie, body: { attemptId: firstFactorAttemptId, response: {} },
+    })
+    assert.equal(result.response.status, 403)
+    assert.match(result.data.statusMessage, /facteur de sécurité existant/u)
+  })
+  const bootstrapVerification = await request('/api/account/passkeys/authentication/verify', {
+    method: 'POST', cookie: adminCookie, body: { recoveryCode: adminBootstrapCode },
+  })
+  assert.equal(bootstrapVerification.response.status, 200, JSON.stringify(bootstrapVerification.data))
+  adminCookie = bootstrapVerification.cookie
+
   await check('full-domain mailbox grants expose the shared sender rule and thread title', async () => {
     const messages = await request('/api/messages', { cookie: adminCookie })
     assert.equal(messages.response.status, 200)
@@ -590,30 +651,28 @@ try {
     assert.deepEqual(result.data.passkeys, [])
     assert.match(result.response.headers.get('cache-control') || '', /private.*no-store/)
   })
-  const adminRecoveryCode = '8F65-E1B0-1324-6C77-D99A-00A2-B3F1-4D5C'
-  const adminRecoveryHash = createHash('sha256').update(adminRecoveryCode.replaceAll('-', '')).digest('hex')
-  const secondAdminRecoveryCode = '1A2B-3C4D-5E6F-7081-92A3-B4C5-D6E7-F809'
-  const secondAdminRecoveryHash = createHash('sha256').update(secondAdminRecoveryCode.replaceAll('-', '')).digest('hex')
   const mfaSeedPath = path.join(temporaryDirectory, 'admin-mfa-seed.sql')
   await writeFile(mfaSeedPath, `
     INSERT INTO auth_passkeys (credential_id,user_id,public_key,counter,transports_json,device_type,backed_up,label,created_at)
     VALUES ('dGVzdC1jcmVkZW50aWFs','00000000-0000-4000-8000-000000000101','AA',0,'[]','singleDevice',0,'Local test key',datetime('now'));
-    INSERT INTO auth_mfa_recovery_codes (id,user_id,code_hash,created_at)
-    VALUES ('local-admin-recovery','00000000-0000-4000-8000-000000000101','${adminRecoveryHash}',datetime('now')),
-      ('local-admin-recovery-second','00000000-0000-4000-8000-000000000101','${secondAdminRecoveryHash}',datetime('now'));
   `)
   run(process.execPath, [
     path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
     'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
     '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', mfaSeedPath,
   ])
-  await check('platform admin actions require step-up once a passkey is enrolled', async () => {
-    const session = await request('/api/account/session', { cookie: adminCookie })
+  await check('a fresh password login cannot reuse an earlier admin step-up', async () => {
+    const login = await request('/api/auth/login', {
+      method: 'POST', body: { email: 'admin@example.test', password: 'local-test-admin-password-001' },
+    })
+    assert.equal(login.response.status, 200)
+    const session = await request('/api/account/session', { cookie: login.cookie })
     assert.equal(session.response.status, 200)
     assert.equal(session.data.requiresAdminMfa, true)
+    assert.equal(session.data.adminMfaConfigured, true)
     assert.equal(session.data.hasPasskeys, true)
     assert.equal(session.data.adminMfaVerified, false)
-    assert.equal((await request('/api/admin/overview', { cookie: adminCookie })).response.status, 403)
+    assert.equal((await request('/api/admin/overview', { cookie: login.cookie })).response.status, 403)
   })
   await check('recovery codes are one-time and establish an admin step-up', async () => {
     const verification = await request('/api/account/passkeys/authentication/verify', {
@@ -694,7 +753,7 @@ try {
       method: 'POST', cookie: adminCookie, body: { attemptId, response: {} },
     })
     assert.equal(result.response.status, 403)
-    assert.match(result.data.statusMessage, /Vérifie une passkey existante/u)
+    assert.match(result.data.statusMessage, /facteur de sécurité existant/u)
     const replay = await request('/api/account/passkeys/register/verify', {
       method: 'POST', cookie: adminCookie, body: { attemptId, response: {} },
     })
@@ -765,6 +824,32 @@ try {
     const result = await request('/api/auth/logout', { method: 'POST', cookie: memberCookie })
     assert.equal(result.response.status, 200)
     assert.equal((await request('/api/messages', { cookie: result.cookie })).response.status, 401)
+  })
+  await check('consuming the final recovery code requires factor re-enrollment before administration', async () => {
+    const finalCode = '9A8B-7C6D-5E4F-3021-9182-7364-5A6B-4C3D'
+    const finalCodeHash = createHash('sha256').update(finalCode.replaceAll('-', '')).digest('hex')
+    const finalFactorPath = path.join(temporaryDirectory, 'final-admin-recovery-factor.sql')
+    await writeFile(finalFactorPath, `
+      DELETE FROM auth_passkeys WHERE user_id = '00000000-0000-4000-8000-000000000101';
+      UPDATE auth_mfa_recovery_codes SET used_at = datetime('now')
+      WHERE user_id = '00000000-0000-4000-8000-000000000101' AND used_at IS NULL;
+      INSERT INTO auth_mfa_recovery_codes (id,user_id,code_hash,created_at)
+      VALUES ('local-admin-final-recovery','00000000-0000-4000-8000-000000000101','${finalCodeHash}',datetime('now'));
+    `)
+    run(process.execPath, [
+      path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
+      'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
+      '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', finalFactorPath,
+    ])
+    const verification = await request('/api/account/passkeys/authentication/verify', {
+      method: 'POST', cookie: adminCookie, body: { recoveryCode: finalCode },
+    })
+    assert.equal(verification.response.status, 200, JSON.stringify(verification.data))
+    const session = await request('/api/account/session', { cookie: verification.cookie })
+    assert.equal(session.data.adminMfaConfigured, false)
+    assert.equal(session.data.adminMfaVerified, false)
+    const overview = await request('/api/admin/overview', { cookie: verification.cookie })
+    assert.equal(overview.response.status, 403)
   })
 
   console.log(`Completed ${checkCount} local auth/authorization integration checks.`)
