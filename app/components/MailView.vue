@@ -190,7 +190,6 @@
         <section v-if="newThreads.length" class="message-group message-group-new" aria-labelledby="new-messages-heading">
           <header class="group-heading">
             <h2 id="new-messages-heading">{{ $t('mail.newMessages') }}</h2>
-            <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
             <div v-for="thread in newThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
@@ -219,7 +218,6 @@
         <section v-if="previouslySeenThreads.length" class="message-group message-group-seen" aria-labelledby="seen-messages-heading">
           <header class="group-heading">
             <h2 id="seen-messages-heading">{{ $t('mail.previouslySeen') }}</h2>
-            <span aria-hidden="true" />
           </header>
           <div class="thread-list" role="list">
             <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">

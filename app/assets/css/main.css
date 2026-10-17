@@ -130,7 +130,6 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .message-group { margin: 0; }
 .group-heading { display: flex; align-items: center; gap: 16px; margin: 15px 0 12px; }
 .group-heading h2 { flex: 0 0 auto; margin: 0; color: var(--ink); font-size: 15px; font-weight: 710; letter-spacing: -0.15px; }
-.group-heading > span { height: 1px; flex: 1; background: var(--line); }
 .thread-list { width: 100%; }
 .thread-selection-bar { position: fixed; z-index: 100; bottom: max(20px, env(safe-area-inset-bottom)); left: 50%; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; width: max-content; max-width: calc(100vw - 24px); margin: 0; padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); color: var(--muted); font-size: 13px; box-shadow: 0 8px 26px rgb(33 25 54 / 15%); transform: translateX(-50%); }
 .thread-selection-bar > span { padding-right: 4px; color: var(--ink); font-weight: 620; }
@@ -936,7 +935,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .group-heading { gap: 13px; margin: 14px 0 5px; }
 .group-heading h2 { color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: 0; }
-.group-heading > span { background: var(--line); }
 .thread-list { border-top: 1px solid var(--line); }
 .thread-selection-row { min-height: 76px; padding-inline: 4px; border-bottom: 1px solid var(--line); border-radius: 0; }
 .thread-selection-row:not(.is-thread-selected):hover,
@@ -958,9 +956,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .avatar-gold { background: #f1ead8; color: #685a37; }
 .unread-indicator { background: var(--accent); }
 .thread-message-count { border-radius: 999px; background: var(--accent-wash); color: var(--accent); }
-.message-group-seen { margin-top: 25px; padding: 17px 0 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.message-group-seen { margin-top: 25px; padding: 17px 0 0; border-radius: 0; background: transparent; }
 .message-group-seen .group-heading { margin-top: 0; }
-.message-group-seen .group-heading > span { background: var(--line); }
 .other-thread-row { border-bottom: 1px solid var(--line); }
 
 .screener-list-tools { border-bottom-color: var(--line); }
