@@ -13,7 +13,7 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:canary": "wrangler d1 migrations apply DB --remote --config wrangler.canary.jsonc",
     "generate": "nuxt generate",
-    "test:auth": "node --experimental-strip-types --test tests/workspace-access-policy.test.ts && node --test tests/admin-authorization-redirect.test.mjs tests/admin-authorization-recovery.test.mjs tests/admin-mfa-recovery.test.mjs tests/canary-admin-smoke.test.mjs && node tests/account-access.integration.mjs",
+    "test:auth": "node --experimental-strip-types --test tests/workspace-access-policy.test.ts && node --test tests/admin-authorization-redirect.test.mjs tests/admin-authorization-recovery.test.mjs tests/admin-mfa-recovery.test.mjs tests/canary-admin-smoke.test.mjs tests/canary-admin-recovery.test.mjs && node tests/account-access.integration.mjs",
     "test:email": "node --experimental-strip-types --import ./tests/node-ts-resolver.mjs --test tests/*.test.ts",
     "restore:inspect": "node scripts/restore-mailbox.mjs inspect",
     "restore:apply": "node scripts/restore-mailbox.mjs restore",
@@ -21,7 +21,8 @@
     "postinstall": "nuxt prepare",
     "deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "deploy:canary": "npm run build && npm run db:migrate:canary && wrangler deploy --config wrangler.canary.jsonc",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "account:test-canary-admin-recovery": "node scripts/test-canary-admin-recovery.mjs"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^11.0.0",
