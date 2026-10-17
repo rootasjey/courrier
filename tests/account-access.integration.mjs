@@ -809,6 +809,106 @@ try {
     assert.ok(audit.data.audit.some(value => value.action === 'platform_admin.granted' && value.target_id === '00000000-0000-4000-8000-000000000102'))
     assert.ok(audit.data.audit.some(value => value.action === 'platform_admin.revoked' && value.target_id === '00000000-0000-4000-8000-000000000102'))
   })
+  await check('a freshly verified platform admin can recover another admin and revoke their old factors and sessions', async () => {
+    const targetId = '00000000-0000-4000-8000-000000000107'
+    const targetEmail = 'platform-only-admin@example.test'
+    const fakeRecoveryHash = createHash('sha256').update('FAKE-RECOVERY-CODE-FOR-TESTS').digest('hex')
+    const recoverySeedPath = path.join(temporaryDirectory, 'second-admin-recovery-seed.sql')
+    await writeFile(recoverySeedPath, [
+      'INSERT INTO auth_passkeys (credential_id,user_id,public_key,counter,transports_json,device_type,backed_up,label,created_at) VALUES (\'c2Vjb25kLWFkbWluLXRlc3Q=\',' + sql(targetId) + ',\'AA\',0,\'[]\',\'singleDevice\',0,\'Synthetic second-admin key\',datetime(\'now\'));',
+      'INSERT INTO auth_mfa_recovery_codes (id,user_id,code_hash,created_at) VALUES (\'second-admin-test-code\',' + sql(targetId) + ',' + sql(fakeRecoveryHash) + ',datetime(\'now\'));',
+      'INSERT INTO auth_webauthn_challenges (attempt_id,user_id,session_version,purpose,challenge,created_at,expires_at) VALUES (\'second-admin-pending-challenge\',' + sql(targetId) + ',1,\'admin_step_up\',\'synthetic-challenge\',datetime(\'now\'),datetime(\'now\',\'+10 minutes\'));',
+      'INSERT INTO auth_webauthn_challenges (attempt_id,user_id,session_version,purpose,challenge,created_at,expires_at) VALUES (\'second-admin-login-challenge\',' + sql(targetId) + ',1,\'account_login\',\'synthetic-login-challenge\',datetime(\'now\'),datetime(\'now\',\'+10 minutes\'));',
+    ].join('\n'))
+    run(process.execPath, [
+      path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
+      'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
+      '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', recoverySeedPath,
+    ])
+
+    const staleActorSession = await request('/api/admin/platform-admins/' + targetId + '/mfa-recovery', {
+      method: 'POST', cookie: adminLogin.cookie, body: { confirmationEmail: targetEmail },
+    })
+    assert.equal(staleActorSession.response.status, 403)
+    const memberAttempt = await request('/api/admin/platform-admins/' + targetId + '/mfa-recovery', {
+      method: 'POST', cookie: memberCookie, body: { confirmationEmail: targetEmail },
+    })
+    assert.equal(memberAttempt.response.status, 403)
+    const selfAttempt = await request('/api/admin/platform-admins/00000000-0000-4000-8000-000000000101/mfa-recovery', {
+      method: 'POST', cookie: adminCookie, body: { confirmationEmail: 'admin@example.test' },
+    })
+    assert.equal(selfAttempt.response.status, 409)
+    const unknownTarget = await request('/api/admin/platform-admins/00000000-0000-4000-8000-000000000199/mfa-recovery', {
+      method: 'POST', cookie: adminCookie, body: { confirmationEmail: 'nobody@example.test' },
+    })
+    assert.equal(unknownTarget.response.status, 404)
+    const suspendedTarget = await request('/api/admin/platform-admins/00000000-0000-4000-8000-000000000106/mfa-recovery', {
+      method: 'POST', cookie: adminCookie, body: { confirmationEmail: 'suspended-admin@example.test' },
+    })
+    assert.equal(suspendedTarget.response.status, 409)
+    const wrongConfirmation = await request('/api/admin/platform-admins/' + targetId + '/mfa-recovery', {
+      method: 'POST', cookie: adminCookie, body: { confirmationEmail: 'someone-else@example.test' },
+    })
+    assert.equal(wrongConfirmation.response.status, 400)
+
+    const targetLogin = await request('/api/auth/login', {
+      method: 'POST', body: { email: targetEmail, password: 'local-test-platform-only-admin-password-001' },
+    })
+    assert.equal(targetLogin.response.status, 200)
+    assert.equal((await request('/api/account/session', { cookie: targetLogin.cookie })).response.status, 200)
+
+    const missingConfirmation = await request('/api/admin/platform-admins/' + targetId + '/mfa-recovery', {
+      method: 'POST', cookie: adminCookie, body: {},
+    })
+    assert.equal(missingConfirmation.response.status, 400)
+    const invalidated = await request('/api/account/session', { cookie: targetLogin.cookie })
+    assert.equal(invalidated.response.status, 200)
+
+    const recovery = await request('/api/admin/platform-admins/' + targetId + '/mfa-recovery', {
+      method: 'POST', cookie: adminCookie, body: { confirmationEmail: targetEmail.toUpperCase() },
+    })
+    assert.equal(recovery.response.status, 200, JSON.stringify(recovery.data))
+    assert.equal(recovery.data.recovered, true)
+    assert.equal(recovery.data.reauthenticationRequired, true)
+    assert.equal((await request('/api/account/session', { cookie: targetLogin.cookie })).response.status, 401)
+    assert.equal((await request('/api/admin/overview', { cookie: targetLogin.cookie })).response.status, 403)
+
+    const admins = await request('/api/admin/platform-admins', { cookie: adminCookie })
+    assert.equal(admins.response.status, 200)
+    assert.ok(admins.data.admins.some(value => value.user_id === targetId && value.user_status === 'active'))
+    const newTargetLogin = await request('/api/auth/login', {
+      method: 'POST', body: { email: targetEmail, password: 'local-test-platform-only-admin-password-001' },
+    })
+    assert.equal(newTargetLogin.response.status, 200)
+    const newTargetSession = await request('/api/account/session', { cookie: newTargetLogin.cookie })
+    assert.equal(newTargetSession.response.status, 200)
+    assert.equal(newTargetSession.data.isPlatformAdmin, true)
+    assert.equal(newTargetSession.data.adminMfaConfigured, false)
+    assert.equal((await request('/api/admin/overview', { cookie: newTargetLogin.cookie })).response.status, 403)
+    const factors = await request('/api/account/passkeys', { cookie: newTargetLogin.cookie })
+    assert.equal(factors.response.status, 200)
+    assert.deepEqual(factors.data.passkeys, [])
+    assert.equal(factors.data.recoveryCodesRemaining, 0)
+    const reEnrollment = await request('/api/account/passkeys/register/options', {
+      method: 'POST', cookie: newTargetLogin.cookie,
+      body: { label: 'Recovered synthetic admin key', password: 'local-test-platform-only-admin-password-001' },
+    })
+    assert.equal(reEnrollment.response.status, 200, JSON.stringify(reEnrollment.data))
+    for (const attemptId of ['second-admin-pending-challenge', 'second-admin-login-challenge']) {
+      const staleChallenge = await request('/api/account/passkeys/authentication/verify', {
+        method: 'POST', cookie: newTargetLogin.cookie, body: { attemptId, response: {} },
+      })
+      assert.equal(staleChallenge.response.status, 400)
+      assert.match(staleChallenge.data.statusMessage, /expiré ou a déjà été utilisée/u)
+    }
+
+    const overview = await request('/api/admin/overview', { cookie: adminCookie })
+    const recoveryAudit = overview.data.audit.find(value => value.action === 'platform_admin.mfa_recovered_by_admin' && value.target_id === targetId)
+    assert.ok(recoveryAudit)
+    const auditDetails = await request('/api/admin/overview', { cookie: adminCookie })
+    const serializedAudit = JSON.stringify(auditDetails.data.audit.find(value => value.action === 'platform_admin.mfa_recovered_by_admin' && value.target_id === targetId))
+    assert.doesNotMatch(serializedAudit, /FAKE-RECOVERY-CODE|synthetic-challenge|c2Vjb25kLWFkbWluLXRlc3Q=/u)
+  })
   await check('removing a passkey revokes every session and admin step-up', async () => {
     const secondPasskeyPath = path.join(temporaryDirectory, 'second-admin-passkey.sql')
     await writeFile(secondPasskeyPath, `

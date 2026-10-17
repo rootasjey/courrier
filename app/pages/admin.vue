@@ -58,10 +58,21 @@
                   <td>{{ admin.created_by_email || '—' }}</td>
                   <td>
                     <span v-if="admin.user_id === platformAdminState.actorUserId" class="admin-access-protected">{{ $t('admin.currentPlatformAdminProtected') }}</span>
-                    <span v-else-if="admin.user_status === 'active' && activePlatformAdminCount <= 1" class="admin-access-protected">{{ $t('admin.lastPlatformAdminProtected') }}</span>
-                    <button v-else class="admin-membership-action is-suspend" type="button" :disabled="platformAdminBusy" @click="platformAdminToRevoke = admin">
-                      {{ $t('admin.revokePlatformAdmin') }}
-                    </button>
+                    <div v-else class="admin-domain-row-actions">
+                      <button
+                        v-if="admin.user_status === 'active'"
+                        class="admin-membership-action is-reactivate"
+                        type="button"
+                        :disabled="platformAdminBusy"
+                        @click="preparePlatformAdminMfaRecovery(admin)"
+                      >
+                        {{ $t('admin.recoverPlatformAdminMfa') }}
+                      </button>
+                      <span v-if="admin.user_status === 'active' && activePlatformAdminCount <= 1" class="admin-access-protected">{{ $t('admin.lastPlatformAdminProtected') }}</span>
+                      <button v-else class="admin-membership-action is-suspend" type="button" :disabled="platformAdminBusy" @click="platformAdminToRevoke = admin">
+                        {{ $t('admin.revokePlatformAdmin') }}
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 <tr v-if="!platformAdminState.admins.length"><td colspan="5" class="admin-empty">{{ $t('admin.noPlatformAdmins') }}</td></tr>
@@ -446,6 +457,44 @@
         </div>
       </template>
     </NDialog>
+
+    <NDialog
+      :open="Boolean(platformAdminMfaRecoveryTarget)"
+      :title="$t('admin.recoverPlatformAdminMfa')"
+      :description="$t('admin.recoverPlatformAdminMfaDescription', { email: platformAdminMfaRecoveryTarget?.email || '' })"
+      :show-close="false"
+      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
+      @update:open="(open: boolean) => { if (!open && !platformAdminBusy) closePlatformAdminMfaRecovery() }"
+    >
+      <template #content>
+        <header class="dialog-header">
+          <NDialogTitle class="dialog-title">{{ $t('admin.recoverPlatformAdminMfa') }}</NDialogTitle>
+          <NDialogDescription>{{ $t('admin.recoverPlatformAdminMfaDescription', { email: platformAdminMfaRecoveryTarget?.email || '' }) }}</NDialogDescription>
+        </header>
+        <form class="admin-mfa-recovery-form" @submit.prevent="recoverPlatformAdminMfa">
+          <label class="admin-access-field">
+            <span>{{ $t('admin.confirmPlatformAdminEmail') }}</span>
+            <input
+              v-model="platformAdminMfaRecoveryConfirmation"
+              type="text"
+              inputmode="email"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              :placeholder="platformAdminMfaRecoveryTarget?.email || ''"
+              :disabled="platformAdminBusy"
+            >
+          </label>
+          <p v-if="platformAdminMfaRecoveryError" class="dialog-error" role="alert">{{ platformAdminMfaRecoveryError }}</p>
+          <div class="dialog-actions">
+            <button class="dialog-cancel" type="button" :disabled="platformAdminBusy" @click="closePlatformAdminMfaRecovery">{{ $t('common.cancel') }}</button>
+            <button class="dialog-danger" type="submit" :disabled="platformAdminBusy || !canConfirmPlatformAdminMfaRecovery">
+              {{ platformAdminBusy ? $t('admin.recoveringPlatformAdminMfa') : $t('admin.recoverPlatformAdminMfa') }}
+            </button>
+          </div>
+        </form>
+      </template>
+    </NDialog>
   </main>
 </template>
 
@@ -524,6 +573,9 @@ const platformAdminError = ref('')
 const platformAdminNotice = ref('')
 const platformAdminToGrant = ref<PlatformAdminCandidate | null>(null)
 const platformAdminToRevoke = ref<PlatformAdmin | null>(null)
+const platformAdminMfaRecoveryTarget = ref<PlatformAdmin | null>(null)
+const platformAdminMfaRecoveryConfirmation = ref('')
+const platformAdminMfaRecoveryError = ref('')
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -575,6 +627,9 @@ function clearAdminData() {
   accessToRevoke.value = null
   platformAdminToGrant.value = null
   platformAdminToRevoke.value = null
+  platformAdminMfaRecoveryTarget.value = null
+  platformAdminMfaRecoveryConfirmation.value = ''
+  platformAdminMfaRecoveryError.value = ''
   accessError.value = ''
   accessNotice.value = ''
   membershipError.value = ''
@@ -711,6 +766,50 @@ async function loadOverview() {
 function preparePlatformAdminGrant() {
   const candidate = selectedPlatformAdminCandidate.value
   if (candidate && !platformAdminBusy.value) platformAdminToGrant.value = candidate
+}
+
+const canConfirmPlatformAdminMfaRecovery = computed(() => {
+  const target = platformAdminMfaRecoveryTarget.value
+  return Boolean(target && platformAdminMfaRecoveryConfirmation.value.trim().toLowerCase() === target.email.trim().toLowerCase())
+})
+
+function preparePlatformAdminMfaRecovery(admin: PlatformAdmin) {
+  if (admin.user_status !== 'active' || admin.user_id === platformAdminState.value?.actorUserId || platformAdminBusy.value) return
+  platformAdminMfaRecoveryTarget.value = admin
+  platformAdminMfaRecoveryConfirmation.value = ''
+  platformAdminMfaRecoveryError.value = ''
+}
+
+function closePlatformAdminMfaRecovery() {
+  platformAdminMfaRecoveryTarget.value = null
+  platformAdminMfaRecoveryConfirmation.value = ''
+  platformAdminMfaRecoveryError.value = ''
+}
+
+async function recoverPlatformAdminMfa() {
+  const target = platformAdminMfaRecoveryTarget.value
+  if (!target || !canConfirmPlatformAdminMfaRecovery.value || platformAdminBusy.value) return
+  platformAdminBusy.value = true
+  platformAdminMfaRecoveryError.value = ''
+  platformAdminNotice.value = ''
+  try {
+    const path = '/api/admin/platform-admins/' + encodeURIComponent(target.user_id) + '/mfa-recovery'
+    await adminFetch(path, {
+      method: 'POST',
+      body: { confirmationEmail: platformAdminMfaRecoveryConfirmation.value },
+    })
+    closePlatformAdminMfaRecovery()
+    platformAdminNotice.value = $t('admin.platformAdminMfaRecoveredNotice', { email: target.email })
+    await loadOverview()
+  } catch (error) {
+    const status = requestStatus(error)
+    platformAdminMfaRecoveryError.value = status === 400 ? $t('admin.platformAdminMfaConfirmationError')
+      : status === 403 ? $t('admin.platformAdminMfaReverifyError')
+      : status === 404 || status === 409 ? $t('admin.platformAdminConflict')
+      : $t('admin.platformAdminMfaRecoveryError')
+  } finally {
+    platformAdminBusy.value = false
+  }
 }
 
 async function grantPlatformAdmin() {
