@@ -1,0 +1,94 @@
+{
+  "title": "Choisir l’identité visuelle de Courrier",
+  "question": "Le tirage a désigné le central téléphonique. Garde cette piste, choisis un autre univers ou relance le tirage. La planche compare des identités, pas des fonctionnalités : les noms et actions actuels de Courrier restent vrais.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Le central de lignes",
+      "kicker": "THE ROLL",
+      "lineage": "Centraux téléphoniques manuels et standards d’entreprise",
+      "thesis": "Chaque message rejoint le bon espace grâce à une signalétique de lignes claire.",
+      "palette": ["#17262D", "#F3F0E6", "#C6533B", "#D7A64A", "#5A786F"],
+      "materials": ["panneau émaillé mat", "repères lumineux", "cartes de routage"],
+      "viewport": "Une navigation compacte à gauche, la liste de messages au centre et la lecture du fil à droite; les espaces de tri et le screener gardent leur nom et leur sens actuels.",
+      "risk": "La métaphore peut devenir une cabine rétro; aucun faux combiné, fil téléphonique ou état d’appel ne doit apparaître.",
+      "raised": [
+        {
+          "from": "challenger-annual",
+          "raise": "La hiérarchie éditoriale sépare expéditeur, sujet, aperçu et état dans chaque ligne."
+        }
+      ],
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "La table de tri",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Tables de tri personnelles, fiches de classement et bureaux d’atelier",
+      "thesis": "Une surface calme transforme la pile d’emails en gestes de travail simples.",
+      "palette": ["#F4F0E8", "#252923", "#B84F36", "#D9B863"],
+      "materials": ["papier ivoire", "fiches classées", "encre sombre"],
+      "viewport": "La boîte de réception présente une pile ordonnée et ses actions au même endroit; les espaces personnels s’ouvrent comme des plateaux de classement.",
+      "risk": "C’est la piste la plus évidente pour un produit de courrier et elle peut ressembler aux clients mail classiques.",
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "challenger-split-flap",
+      "label": "Le tableau d’arrivées",
+      "verdict": "competitive",
+      "lineage": "Panneaux d’affichage à volets dans les gares",
+      "thesis": "Les messages se parcourent comme un tableau d’arrivées, immédiatement lisible.",
+      "palette": ["#111314", "#ECE7D9", "#D5A347", "#B74A3E"],
+      "materials": ["volets noirs", "cadre acier", "repères ambre"],
+      "viewport": "Une liste dense ordonnée par activité, avec un statut visible par ligne et la lecture à portée de main.",
+      "case": "La familiarité du tableau public renforce l’identification; son ordre d’arrivée explique moins bien le tri par espaces que le central.",
+      "risk": "L’email devient une suite d’événements si les destinations et les actions disparaissent.",
+      "comp": ".impeccable/mocks/decision/challenger-split-flap.webp",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse.webp"
+    },
+    {
+      "id": "challenger-crouwel",
+      "label": "La grille Crouwel",
+      "verdict": "competitive",
+      "lineage": "Systèmes typographiques modulaires de Wim Crouwel",
+      "thesis": "Un ordre typographique strict rend les listes denses rapides à scanner.",
+      "palette": ["#FFFFFF", "#111111", "#0057FF", "#E6EBF2"],
+      "materials": ["grille modulaire", "papier mat", "accent diagonal bleu"],
+      "viewport": "Une grille visible structure les espaces, les fils et les contrôles; le message lu garde une largeur confortable.",
+      "case": "La discipline de grille clarifie les priorités; elle est moins familière et moins chaleureuse que le système de lignes.",
+      "risk": "Le bleu électrique, la grille omniprésente et les caractères géométriques peuvent faire écran au contenu.",
+      "comp": ".impeccable/mocks/decision/challenger-crouwel.webp",
+      "hero": "https://impeccable.style/worlds/cards/crouwel-grid-specimen-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/crouwel-grid-specimen.webp"
+    },
+    {
+      "id": "challenger-annual",
+      "label": "La plaque d’annuaire",
+      "verdict": "declined",
+      "lineage": "Sections et plaques d’un annuaire de design imprimé",
+      "thesis": "Une composition éditoriale bien espacée donne au fil un rythme calme.",
+      "palette": ["#F7F6F2", "#1B1B1B", "#7783D6", "#D7D4CC"],
+      "materials": ["papier non couché", "filets fins", "sceau pervenche"],
+      "viewport": "Un fil comme une page éditoriale : titre distinct, correspondants, corps et actions de lecture.",
+      "case": "Elle perd sur les deux axes : l’expérience est trop composée pour un geste quotidien et n’explique pas assez le routage.",
+      "risk": "Le courrier peut sembler être une publication à consulter plutôt qu’un espace de travail actif.",
+      "kept": "Hiérarchie éditoriale nette et espacement qui laisse le contenu respirer.",
+      "hero": "https://impeccable.style/worlds/cards/design-annual-s-plate-section-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/design-annual-s-plate-section.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "comp", "toggle": true},
+  "canon": true,
+  "canonCard": {
+    "label": "La boîte mail standard",
+    "thesis": "Une boîte à trois panneaux, un accent bleu et des commandes familières, exécutés avec un soin maximal.",
+    "palette": ["#FFFFFF", "#1F2937", "#2563EB", "#F3F4F6"],
+    "materials": ["surface blanche", "grille discrète", "icônes usuelles"],
+    "viewport": "Navigation, liste de messages, fil ouvert et actions classiques dans la disposition attendue.",
+    "risk": "La familiarité rend la lecture claire, mais ne construit pas une identité propre à Courrier.",
+    "comp": ".impeccable/mocks/decision/canon.webp"
+  },
+  "steer": true
+}
