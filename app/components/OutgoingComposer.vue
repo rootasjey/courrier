@@ -881,7 +881,7 @@ onBeforeUnmount(() => {
 .compose-send, .compose-secondary, .compose-discard { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-send { border-color: var(--accent); background: var(--accent); color: white; font-weight: 650; }
 .compose-send { border-radius: 9px; }
-:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: #17201c; }
+:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: var(--accent-hover); background: var(--accent-hover); }
 .compose-send:disabled, .compose-secondary:disabled, .compose-discard:disabled { opacity: .55; cursor: not-allowed; }
 .compose-discard { border-color: transparent; color: var(--muted); }
@@ -936,7 +936,7 @@ onBeforeUnmount(() => {
 .compose-send { border-color: var(--accent); border-radius: 999px; background: var(--accent); }
 .compose-send:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
 .compose-send:disabled { border-color: var(--line); background: var(--accent-wash); color: var(--muted); opacity: 1; cursor: not-allowed; }
-:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: #17201c; }
+:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: var(--accent-hover); background: var(--accent-hover); }
 
 @media (max-width: 640px) {

@@ -277,7 +277,7 @@ useSeoMeta({
 .sender-rule-form button, .sender-profile-state button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 20px; background: var(--accent); color: white; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: background-color 140ms ease, opacity 140ms ease; }
 .sender-rule-form button:hover:not(:disabled), .sender-profile-state button:hover:not(:disabled) { background: var(--accent-hover); }
 .sender-rule-form button:disabled, .sender-profile-state button:disabled { border: 1px solid var(--line); background: var(--accent-wash); color: var(--accent); cursor: not-allowed; }
-:root[data-theme="dark"] .sender-rule-form button:not(:disabled), :root[data-theme="dark"] .sender-profile-state button:not(:disabled) { color: #17201c; }
+:root[data-theme="dark"] .sender-rule-form button:not(:disabled), :root[data-theme="dark"] .sender-profile-state button:not(:disabled) { color: var(--accent-ink); }
 .sender-rule-undo { min-height: 32px; margin: 9px 0 0 3px; padding: 0 12px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); color: var(--accent); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .sender-rule-undo:hover:not(:disabled) { background: var(--accent-wash); }
 .sender-rule-undo:disabled { background: var(--surface-soft); color: var(--muted); cursor: wait; }
