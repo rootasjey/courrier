@@ -3,63 +3,83 @@
     <div class="topbar-start">
       <NuxtLink v-if="showBackLink" class="topbar-back" :to="backTo">{{ $t('topbar.back') }}</NuxtLink>
 
-      <details ref="menu" class="brand-menu">
-        <summary class="brand-trigger" :aria-label="$t('topbar.openMenu')">
-          <span class="brand-mark" aria-hidden="true">C</span>
-          <span class="brand-name">Courrier</span>
-          <svg class="brand-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
-        </summary>
-        <nav class="brand-menu-panel" :aria-label="$t('topbar.menu')">
-          <p class="menu-heading">{{ $t('topbar.mailboxes') }}</p>
-          <button
-            v-for="folder in folders"
-            :key="folder.name"
-            class="menu-folder"
-            :class="{ 'is-current': activeFolder === folder.name }"
-            type="button"
-            :aria-current="activeFolder === folder.name ? 'page' : undefined"
-            @click="chooseFolder(folder.name)"
-          >
-            <span>{{ folder.label }}</span>
-            <span v-if="folder.name === 'Screener' || folder.name === 'Reply Later' || folder.name === 'Set Aside'" class="menu-folder-note">{{ $t(`topbar.folderNotes.${folder.name === 'Screener' ? 'screener' : folder.name === 'Reply Later' ? 'replyLater' : 'setAside'}`) }}</span>
+      <NPopover
+        :open="brandMenuOpen"
+        :modal="false"
+        :_popover-content="{ side: 'bottom', align: 'start', sideOffset: 12, avoidCollisions: true, 'aria-label': $t('topbar.menu') }"
+        :una="{ popoverContent: 'brand-menu-panel topbar-popover-surface' }"
+        @update:open="setBrandMenuOpen"
+      >
+        <template #trigger>
+          <button class="brand-trigger" type="button" :aria-label="$t('topbar.openMenu')" :aria-expanded="brandMenuOpen">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span class="brand-name">Courrier</span>
+            <svg class="brand-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
           </button>
-          <div class="menu-divider" />
-          <NuxtLink class="menu-settings" to="/settings" @click="menu && (menu.open = false)">{{ $t('topbar.settings') }}</NuxtLink>
-        </nav>
-      </details>
+        </template>
+        <template #default>
+          <nav class="brand-menu-content" :aria-label="$t('topbar.menu')">
+            <p class="menu-heading">{{ $t('topbar.mailboxes') }}</p>
+            <button
+              v-for="folder in folders"
+              :key="folder.name"
+              class="menu-folder"
+              :class="{ 'is-current': activeFolder === folder.name }"
+              type="button"
+              :aria-current="activeFolder === folder.name ? 'page' : undefined"
+              @click="chooseFolder(folder.name)"
+            >
+              <span>{{ folder.label }}</span>
+              <span v-if="folder.name === 'Screener' || folder.name === 'Reply Later' || folder.name === 'Set Aside'" class="menu-folder-note">{{ $t(`topbar.folderNotes.${folder.name === 'Screener' ? 'screener' : folder.name === 'Reply Later' ? 'replyLater' : 'setAside'}`) }}</span>
+            </button>
+            <div class="menu-divider" />
+            <NuxtLink class="menu-settings" to="/settings" @click="brandMenuOpen = false">{{ $t('topbar.settings') }}</NuxtLink>
+          </nav>
+        </template>
+      </NPopover>
     </div>
 
     <div class="topbar-end">
-      <details ref="accountMenu" class="account-menu">
-        <summary class="profile-button" :aria-label="$t('account.openMenu')">
-          <img v-if="avatarAvailable" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
-          <Avatar v-else :name="avatarName" variant="beam" :size="38" aria-hidden="true" />
-        </summary>
-        <div class="account-menu-panel">
-          <p class="account-menu-name">{{ accountSession?.user.displayName || accountSession?.user.email }}</p>
-          <p class="account-menu-email">{{ accountSession?.user.email }}</p>
-          <div class="menu-divider" />
-          <p class="account-menu-label">{{ $t('account.workspace') }}</p>
-          <select
-            v-if="workspaces.length"
-            class="account-workspace-select"
-            :value="accountSession?.activeWorkspaceId || ''"
-            :aria-label="$t('account.workspace')"
-            :disabled="switchingWorkspace || workspaces.length < 2"
-            @change="switchWorkspace"
-          >
-            <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">{{ workspace.name }}</option>
-          </select>
-          <p v-else class="account-menu-workspace">{{ accountSession?.isPlatformAdmin ? $t('account.noWorkspace') : $t('account.workspaceLoading') }}</p>
-          <NuxtLink v-if="accountSession?.isPlatformAdmin" class="menu-settings" to="/admin" @click="closeAccountMenu">{{ $t('account.adminConsole') }}</NuxtLink>
-          <NuxtLink class="menu-settings" to="/settings" @click="closeAccountMenu">{{ $t('topbar.settings') }}</NuxtLink>
-          <button class="menu-settings account-signout" type="button" :disabled="signingOut" @click="signOut">
-            {{ signingOut ? $t('account.signingOut') : $t('account.signOut') }}
+      <NPopover
+        :open="accountMenuOpen"
+        :modal="false"
+        :_popover-content="{ side: 'bottom', align: 'end', sideOffset: 12, avoidCollisions: true, 'aria-label': $t('account.openMenu') }"
+        :una="{ popoverContent: 'account-menu-panel topbar-popover-surface' }"
+        @update:open="setAccountMenuOpen"
+      >
+        <template #trigger>
+          <button class="profile-button" type="button" :aria-label="$t('account.openMenu')" :aria-expanded="accountMenuOpen">
+            <img v-if="avatarAvailable" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
+            <Avatar v-else :name="avatarName" variant="beam" :size="38" aria-hidden="true" />
           </button>
-          <p v-if="workspaceError" class="account-menu-error" role="alert">{{ workspaceError }}</p>
-          <p v-if="signOutError" class="account-menu-error" role="alert">{{ signOutError }}</p>
-        </div>
-      </details>
+        </template>
+        <template #default>
+          <div class="account-menu-content">
+            <p class="account-menu-name">{{ accountSession?.user.displayName || accountSession?.user.email }}</p>
+            <p class="account-menu-email">{{ accountSession?.user.email }}</p>
+            <div class="menu-divider" />
+            <p class="account-menu-label">{{ $t('account.workspace') }}</p>
+            <select
+              v-if="workspaces.length"
+              class="account-workspace-select"
+              :value="accountSession?.activeWorkspaceId || ''"
+              :aria-label="$t('account.workspace')"
+              :disabled="switchingWorkspace || workspaces.length < 2"
+              @change="switchWorkspace"
+            >
+              <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">{{ workspace.name }}</option>
+            </select>
+            <p v-else class="account-menu-workspace">{{ accountSession?.isPlatformAdmin ? $t('account.noWorkspace') : $t('account.workspaceLoading') }}</p>
+            <NuxtLink v-if="accountSession?.isPlatformAdmin" class="menu-settings" to="/admin" @click="closeAccountMenu">{{ $t('account.adminConsole') }}</NuxtLink>
+            <NuxtLink class="menu-settings" to="/settings" @click="closeAccountMenu">{{ $t('topbar.settings') }}</NuxtLink>
+            <button class="menu-settings account-signout" type="button" :disabled="signingOut" @click="signOut">
+              {{ signingOut ? $t('account.signingOut') : $t('account.signOut') }}
+            </button>
+            <p v-if="workspaceError" class="account-menu-error" role="alert">{{ workspaceError }}</p>
+            <p v-if="signOutError" class="account-menu-error" role="alert">{{ signOutError }}</p>
+          </div>
+        </template>
+      </NPopover>
     </div>
   </header>
 </template>
@@ -80,8 +100,8 @@ const emit = defineEmits<{
   'select-folder': [folder: MailboxKey]
 }>()
 
-const menu = ref<HTMLDetailsElement | null>(null)
-const accountMenu = ref<HTMLDetailsElement | null>(null)
+const brandMenuOpen = ref(false)
+const accountMenuOpen = ref(false)
 const { $t } = useI18n()
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
@@ -96,7 +116,17 @@ const signOutError = ref('')
 const avatarName = computed(() => accountSession.value?.user.displayName || accountSession.value?.user.email || 'Courrier')
 
 function closeAccountMenu() {
-  if (accountMenu.value) accountMenu.value.open = false
+  accountMenuOpen.value = false
+}
+
+function setBrandMenuOpen(open: boolean) {
+  brandMenuOpen.value = open
+  if (open) accountMenuOpen.value = false
+}
+
+function setAccountMenuOpen(open: boolean) {
+  accountMenuOpen.value = open
+  if (open) brandMenuOpen.value = false
 }
 
 async function signOut() {
@@ -140,20 +170,10 @@ async function switchWorkspace(event: Event) {
 
 function chooseFolder(folder: MailboxKey) {
   emit('select-folder', folder)
-  if (menu.value) menu.value.open = false
-}
-
-function closeMenuOnEscape(event: KeyboardEvent) {
-  if (event.key === 'Escape' && (menu.value?.open || accountMenu.value?.open)) {
-    event.preventDefault()
-    event.stopImmediatePropagation()
-    if (menu.value) menu.value.open = false
-    if (accountMenu.value) accountMenu.value.open = false
-  }
+  brandMenuOpen.value = false
 }
 
 onMounted(async () => {
-  window.addEventListener('keydown', closeMenuOnEscape)
   const [avatarResponse, workspaceResponse] = await Promise.all([
     $fetch.raw('/api/profile/avatar', { ignoreResponseError: true }).catch(() => null),
     $fetch<{ activeWorkspaceId: string | null, workspaces: WorkspaceSummary[] }>('/api/account/workspaces').catch(() => null),
@@ -163,5 +183,4 @@ onMounted(async () => {
     workspaces.value = workspaceResponse.workspaces
   }
 })
-onUnmounted(() => window.removeEventListener('keydown', closeMenuOnEscape))
 </script>

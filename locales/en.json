@@ -153,6 +153,7 @@
     "trashDone": "The thread was moved to Trash."
   },
   "bulk": {
+    "selectionActions": "Actions for selected threads",
     "selectedOne": "thread selected",
     "selectedMany": "threads selected",
     "markSeen": "Mark as read",
@@ -160,7 +161,7 @@
     "removeReplyLater": "Remove from Reply Later",
     "setAside": "Set Aside",
     "returnInbox": "Return to Inbox",
-    "move": "Move to…",
+    "move": "Move…",
     "trash": "Trash",
     "merge": "Merge",
     "merging": "Merging…",

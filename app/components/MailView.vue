@@ -30,23 +30,56 @@
         <p v-if="activeFolder === 'Screener'" class="screener-intro">{{ $t('mail.screenerIntro') }}</p>
       </header>
 
-      <div v-if="threadSelectionMode && selectedThreadIds.length" class="thread-selection-bar" role="status">
-        <span>{{ selectedThreadIds.length }} {{ $t(selectedThreadIds.length === 1 ? 'bulk.selectedOne' : 'bulk.selectedMany') }}</span>
-        <button type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('mark-seen')">{{ $t('bulk.markSeen') }}</button>
-        <button v-if="activeFolder !== 'Reply Later' && activeFolder !== 'Set Aside'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('reply-later', { enabled: true })">{{ $t('bulk.replyLater') }}</button>
-        <button v-if="activeFolder === 'Imbox'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('set-aside', { enabled: true })">{{ $t('bulk.setAside') }}</button>
-        <button v-if="activeFolder === 'Reply Later'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('reply-later', { enabled: false })">{{ $t('bulk.removeReplyLater') }}</button>
-        <button v-if="activeFolder === 'Set Aside'" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction" @click="applyBulkAction('set-aside', { enabled: false })">{{ $t('bulk.returnInbox') }}</button>
-        <select v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)" class="thread-selection-move" :aria-label="$t('bulk.move')" :disabled="isApplyingBulkAction" @change="moveSelectedThreads">
-          <option value="">{{ $t('bulk.move') }}</option>
-          <option v-for="folder in bulkMoveDestinations" :key="folder" :value="folder">{{ mailboxByName(folder).label }}</option>
-        </select>
-        <button type="button" class="thread-selection-action thread-selection-trash" :disabled="isApplyingBulkAction" @click="bulkTrashDialogOpen = true">{{ $t('bulk.trash') }}</button>
-        <button v-if="selectedThreadIds.length > 1" type="button" class="thread-selection-action" :disabled="isApplyingBulkAction || isMergingThreads" @click="mergeDialogOpen = true">
-          {{ isMergingThreads ? $t('mail.merging') : $t('bulk.merge') }}
-        </button>
-        <button type="button" class="thread-selection-cancel" :disabled="isApplyingBulkAction" @click="clearThreadSelection">{{ $t('bulk.cancel') }}</button>
-      </div>
+      <Transition name="thread-selection-bar" appear>
+        <div v-if="threadSelectionMode && selectedThreadIds.length" class="thread-selection-bar" role="group" :aria-label="$t('bulk.selectionActions')">
+          <span class="thread-selection-count" role="status" aria-live="polite" aria-atomic="true">
+            {{ selectedThreadIds.length }} {{ $t(selectedThreadIds.length === 1 ? 'bulk.selectedOne' : 'bulk.selectedMany') }}
+          </span>
+          <NTooltip :content="$t('bulk.markSeen')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action" :aria-label="$t('bulk.markSeen')" :disabled="isApplyingBulkAction" @click="applyBulkAction('mark-seen')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5h12a2 2 0 0 1 2 2v2" /><path d="M3.5 7.5 10 12l4-2.8" /><path d="M3.5 9.5v8a2 2 0 0 0 2 2h6" /><path d="m15 16 2.2 2.2L21 14.5" /></svg>
+            </button>
+          </NTooltip>
+          <NTooltip v-if="activeFolder !== 'Reply Later' && activeFolder !== 'Set Aside'" :content="$t('bulk.replyLater')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action" :aria-label="$t('bulk.replyLater')" :disabled="isApplyingBulkAction" @click="applyBulkAction('reply-later', { enabled: true })">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.2 2" /></svg>
+            </button>
+          </NTooltip>
+          <NTooltip v-if="activeFolder === 'Imbox'" :content="$t('bulk.setAside')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action" :aria-label="$t('bulk.setAside')" :disabled="isApplyingBulkAction" @click="applyBulkAction('set-aside', { enabled: true })">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l1 11H3L4 8Z" /><path d="M3.5 8 6 4h12l2.5 4" /><path d="M9 12h6" /></svg>
+            </button>
+          </NTooltip>
+          <NTooltip v-if="activeFolder === 'Reply Later'" :content="$t('bulk.removeReplyLater')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action" :aria-label="$t('bulk.removeReplyLater')" :disabled="isApplyingBulkAction" @click="applyBulkAction('reply-later', { enabled: false })">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h9a7 7 0 0 1 7 7v2" /></svg>
+            </button>
+          </NTooltip>
+          <NTooltip v-if="activeFolder === 'Set Aside'" :content="$t('bulk.returnInbox')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action" :aria-label="$t('bulk.returnInbox')" :disabled="isApplyingBulkAction" @click="applyBulkAction('set-aside', { enabled: false })">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16l1 10H3L4 9Z" /><path d="m9 13 3 3 3-3" /><path d="M12 16V5" /></svg>
+            </button>
+          </NTooltip>
+          <label v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)" class="thread-selection-move-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h7l2 2h8v10h-17v-12Z" /><path d="M12 11v5m-2-2 2 2 2-2" /></svg>
+            <select class="thread-selection-move" :aria-label="$t('bulk.move')" :disabled="isApplyingBulkAction" @change="moveSelectedThreads">
+              <option value="">{{ $t('bulk.move') }}</option>
+              <option v-for="folder in bulkMoveDestinations" :key="folder" :value="folder">{{ mailboxByName(folder).label }}</option>
+            </select>
+          </label>
+          <NTooltip :content="$t('bulk.trash')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action thread-selection-trash" :aria-label="$t('bulk.trash')" :disabled="isApplyingBulkAction" @click="bulkTrashDialogOpen = true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16" /><path d="M9 7V4h6v3" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v5m4-5v5" /></svg>
+            </button>
+          </NTooltip>
+          <NTooltip v-if="selectedThreadIds.length > 1" :content="$t(isMergingThreads ? 'mail.merging' : 'bulk.merge')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action" :aria-label="$t(isMergingThreads ? 'mail.merging' : 'bulk.merge')" :disabled="isApplyingBulkAction || isMergingThreads" @click="mergeDialogOpen = true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="18" r="2.2" /><circle cx="18" cy="6" r="2.2" /><path d="M8.2 6h3a4 4 0 0 1 4 4v5.8M8.2 6H10a5 5 0 0 1 5 5" /></svg>
+            </button>
+          </NTooltip>
+          <button type="button" class="thread-selection-cancel" :disabled="isApplyingBulkAction" @click="clearThreadSelection">{{ $t('bulk.cancel') }}</button>
+        </div>
+      </Transition>
 
       <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || bulkActionFeedback || bulkActionError || threadMergeFeedback || threadMergeError || paletteFeedback || paletteError" class="action-feedback">
         <p v-if="classificationFeedback" class="classification-feedback" role="status">{{ classificationFeedback }}</p>
@@ -1482,6 +1515,8 @@ watch(activeThreadMessageId, async (messageId) => {
 function handleThreadKeydown(event: KeyboardEvent) {
   const target = event.target
   if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return
+  // Let an open overlay handle Escape before page shortcuts clear selections or navigate away.
+  if (target instanceof Element && target.closest('[role="dialog"], [role="menu"], [role="listbox"], [aria-haspopup="dialog"][aria-expanded="true"]')) return
   if (event.altKey || event.ctrlKey || event.metaKey) return
 
   if (activeFolder.value === 'Screener' && screenerView.value === 'pending') {

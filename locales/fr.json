@@ -153,6 +153,7 @@
     "trashDone": "Le fil a été déplacé dans la corbeille."
   },
   "bulk": {
+    "selectionActions": "Actions sur les fils sélectionnés",
     "selectedOne": "fil sélectionné",
     "selectedMany": "fils sélectionnés",
     "markSeen": "Marquer comme lu",
@@ -160,7 +161,7 @@
     "removeReplyLater": "Retirer de Reply Later",
     "setAside": "Set Aside",
     "returnInbox": "Retourner dans Inbox",
-    "move": "Déplacer vers…",
+    "move": "Déplacer…",
     "trash": "Corbeille",
     "merge": "Fusionner",
     "merging": "Fusion…",
