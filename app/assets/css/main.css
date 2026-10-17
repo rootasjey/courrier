@@ -798,6 +798,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 :root[data-theme="dark"] .message-action-reply { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .message-action-reply:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
 :root[data-theme="dark"] .thread-row:hover { background: var(--accent-wash); }
+:root[data-theme="dark"] .thread-selection-row .thread-row:hover { background: transparent; }
 :root[data-theme="dark"] .set-aside-stack-card { box-shadow: 0 10px 30px rgb(0 0 0 / 36%); }
 :root[data-theme="dark"] .set-aside-stack-card:hover, :root[data-theme="dark"] .set-aside-stack-card:focus-visible { box-shadow: 0 14px 34px rgb(0 0 0 / 48%); }
 :root[data-theme="dark"] .set-aside-stack-all { box-shadow: 0 10px 28px rgb(0 0 0 / 34%); }
