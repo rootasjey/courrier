@@ -162,6 +162,8 @@
     "setAside": "Set Aside",
     "returnInbox": "Return to Inbox",
     "move": "Move…",
+    "findFolder": "Search folders…",
+    "noFoldersFound": "No matching folders.",
     "trash": "Trash",
     "merge": "Merge",
     "merging": "Merging…",

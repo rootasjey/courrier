@@ -134,15 +134,19 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .thread-list { width: 100%; }
 .thread-selection-bar { position: fixed; z-index: 100; bottom: max(20px, env(safe-area-inset-bottom)); left: 50%; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 7px; width: max-content; max-width: calc(100vw - 24px); margin: 0; padding: 9px 12px 9px 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); color: var(--muted); font-size: 13px; box-shadow: 0 12px 32px rgb(33 43 38 / 14%); transform: translateX(-50%); }
 .thread-selection-count { flex: 0 0 auto; padding: 0 13px 0 0; border-right: 1px solid var(--line); color: var(--ink); font-size: 12px; font-weight: 650; white-space: nowrap; }
-.thread-selection-cancel, .thread-selection-action, .thread-selection-move { min-height: 40px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--muted); font: inherit; cursor: pointer; }
+.thread-selection-cancel, .thread-selection-action { min-height: 40px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--muted); font: inherit; cursor: pointer; }
 .thread-selection-action { display: inline-grid; width: 40px; flex: 0 0 40px; place-items: center; padding: 0; }
-.thread-selection-action svg, .thread-selection-move-wrap > svg { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.thread-selection-action:hover:not(:disabled), .thread-selection-move:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 36%, var(--line)); background: var(--accent-wash); color: var(--accent); }
+.thread-selection-action svg, .thread-selection-move-icon { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.thread-selection-action:hover:not(:disabled), .thread-selection-move-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 36%, var(--line)); background: var(--accent-wash); color: var(--accent); }
 .thread-selection-trash { color: var(--error); }
-.thread-selection-action:disabled, .thread-selection-move:disabled, .thread-selection-cancel:disabled { opacity: .55; cursor: wait; }
-.thread-selection-move-wrap { position: relative; display: inline-flex; align-items: center; }
-.thread-selection-move-wrap > svg { position: absolute; left: 11px; color: var(--quiet); pointer-events: none; }
-.thread-selection-move { width: 150px; max-width: min(150px, calc(100vw - 40px)); padding: 0 27px 0 34px; color: var(--muted); font-size: 12px; }
+.thread-selection-action:disabled, .thread-selection-move-trigger:disabled, .thread-selection-cancel:disabled { opacity: .55; cursor: wait; }
+.thread-selection-move { display: inline-flex; flex: 0 0 auto; }
+.thread-selection-move .thread-selection-move-trigger { display: inline-flex; width: 146px; min-width: 0; min-height: 40px; justify-content: flex-start; gap: 9px; padding: 0 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--muted); box-shadow: none; font: inherit; font-size: 12px; text-align: left; cursor: pointer; transition: border-color 130ms ease, background-color 130ms ease, color 130ms ease; }
+.thread-selection-move-trigger > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-selection-move-trigger > span[icon-base] { flex: 0 0 auto; margin-left: auto; color: var(--quiet); }
+.combobox-list.thread-selection-move-list { width: 220px; min-width: 220px; max-width: min(280px, calc(100vw - 24px)); overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); color: var(--ink); box-shadow: 0 12px 32px rgb(33 43 38 / 16%); }
+.thread-selection-move-viewport { max-height: 220px; overflow-y: auto; padding: 5px; }
+.thread-selection-move-item { min-height: 38px; border-radius: 8px; font-size: 13px; }
 .thread-selection-cancel { padding: 0 11px; border-color: transparent; font-size: 12px; }
 .thread-selection-cancel:hover { background: var(--surface-soft); color: var(--ink); }
 .thread-selection-row { position: relative; display: flex; align-items: center; gap: 14px; min-height: 83px; padding: 0 8px; border-radius: 9px; transition: background-color 140ms ease; }
@@ -635,10 +639,9 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .thread-avatar-wrap { width: 40px; height: 40px; flex-basis: 40px; }
   .thread-selection-bar { bottom: max(12px, env(safe-area-inset-bottom)); gap: 5px; padding: 8px 9px 8px 12px; font-size: 11px; }
   .thread-selection-count { padding-right: 9px; font-size: 11px; }
-  .thread-selection-cancel, .thread-selection-move { min-height: 38px; font-size: 11px; }
+  .thread-selection-cancel { min-height: 38px; font-size: 11px; }
   .thread-selection-action { width: 38px; min-height: 38px; flex-basis: 38px; }
-  .thread-selection-move { width: 138px; padding-left: 32px; }
-  .thread-selection-move-wrap > svg { left: 10px; }
+  .thread-selection-move .thread-selection-move-trigger { width: 138px; min-height: 38px; gap: 7px; padding-inline: 9px; font-size: 11px; }
   .merged-thread-control { align-items: flex-start; flex-direction: column; gap: 8px; }
   .sender-avatar { width: 40px; height: 40px; flex-basis: 40px; font-size: 13px; }
   .thread-subject { font-size: 14px; }

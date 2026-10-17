@@ -60,13 +60,25 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16l1 10H3L4 9Z" /><path d="m9 13 3 3 3-3" /><path d="M12 16V5" /></svg>
             </button>
           </NTooltip>
-          <label v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)" class="thread-selection-move-wrap">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h7l2 2h8v10h-17v-12Z" /><path d="M12 11v5m-2-2 2 2 2-2" /></svg>
-            <select class="thread-selection-move" :aria-label="$t('bulk.move')" :disabled="isApplyingBulkAction" @change="moveSelectedThreads">
-              <option value="">{{ $t('bulk.move') }}</option>
-              <option v-for="folder in bulkMoveDestinations" :key="folder" :value="folder">{{ mailboxByName(folder).label }}</option>
-            </select>
-          </label>
+          <NCombobox
+            v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)"
+            class="thread-selection-move"
+            :items="bulkMoveOptions"
+            by="value"
+            :disabled="isApplyingBulkAction"
+            :_combobox-input="{ placeholder: $t('bulk.findFolder'), autocomplete: 'off', leading: 'i-lucide-search' }"
+            :_combobox-list="{ align: 'start', side: 'top', sideOffset: 8, class: 'thread-selection-move-list z-[120]' }"
+            :_combobox-viewport="{ class: 'thread-selection-move-viewport' }"
+            :_combobox-trigger="{ class: 'thread-selection-move-trigger', trailing: 'i-lucide-chevron-down', ariaLabel: $t('bulk.move') }"
+            :_combobox-item="{ class: 'thread-selection-move-item' }"
+            :text-empty="$t('bulk.noFoldersFound')"
+            @update:model-value="moveSelectedThreads"
+          >
+            <template #trigger>
+              <svg class="thread-selection-move-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h7l2 2h8v10h-17v-12Z" /><path d="M12 11v5m-2-2 2 2 2-2" /></svg>
+              <span>{{ $t('bulk.move') }}</span>
+            </template>
+          </NCombobox>
           <NTooltip :content="$t('bulk.trash')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
             <button type="button" class="thread-selection-action thread-selection-trash" :aria-label="$t('bulk.trash')" :disabled="isApplyingBulkAction" @click="bulkTrashDialogOpen = true">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16" /><path d="M9 7V4h6v3" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v5m4-5v5" /></svg>
@@ -1093,6 +1105,11 @@ const bulkMoveDestinations = computed<MailboxFolder[]>(() => {
     : destinations.filter(folder => folder !== activeFolder.value)
 })
 
+const bulkMoveOptions = computed(() => bulkMoveDestinations.value.map(folder => ({
+  value: folder,
+  label: mailboxByName(folder).label,
+})))
+
 const folderThreads = computed<MessageThread[]>(() => {
   const threads = new Map<string, InboxMessage[]>()
   for (const message of folderMessages.value) {
@@ -2028,12 +2045,9 @@ async function trashOpenThread() {
   }
 }
 
-function moveSelectedThreads(event: Event) {
-  const select = event.target
-  if (!(select instanceof HTMLSelectElement) || !select.value) return
-  const destination = select.value as MailboxFolder
-  select.value = ''
-  void applyBulkAction('move', { folder: destination })
+function moveSelectedThreads(destination: { value: MailboxFolder; label: string } | null | undefined) {
+  if (!destination) return
+  void applyBulkAction('move', { folder: destination.value })
 }
 
 function moveSelectionCursor(direction: -1 | 1) {
