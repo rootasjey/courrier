@@ -20,7 +20,7 @@ Le miroir copie les objets sous `messages/`, y compris les originaux et les fich
 2. Dans **Exporter tes données**, choisir **Télécharger l’archive**.
 3. Conserver le ZIP dans un emplacement sûr, idéalement indépendant du compte Cloudflare.
 
-La route `/api/export` exige une session Courrier avec la permission `mail.export` et des accès actifs à toutes les boîtes incluses. Cloudflare Access reste actuellement une barrière supplémentaire à l’edge. L'archive contient :
+La route `/api/export` exige une session Courrier avec la permission `mail.export` et des accès actifs à toutes les boîtes incluses. Le hostname de production Courrier bypass Cloudflare Access ; l’autorisation de la route dépend donc de ces contrôles applicatifs. L'archive contient :
 
 - `README.txt`, qui explique le format ;
 - `manifest.json` version 2, avec les métadonnées et états des messages, les brouillons, les fusions réversibles de fils, les règles d’expéditeurs et leur historique d’annulation, ainsi que les expéditeurs bloqués ;
