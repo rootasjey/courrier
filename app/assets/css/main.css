@@ -1233,7 +1233,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .group-heading { gap: 13px; margin: 14px 0 5px; }
 .group-heading h2 { color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: 0; }
 .thread-list { border-top: 1px solid var(--line); }
-.thread-selection-row { min-height: 76px; padding-inline: 4px; border-bottom: 1px solid var(--line); border-radius: 9px; }
+.thread-selection-row { min-height: 76px; padding-inline: 4px; border-radius: 9px; }
+.thread-selection-row::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; background: var(--line); content: ""; pointer-events: none; }
 .thread-selection-row:not(.is-thread-selected):hover,
 .thread-selection-row.is-selection-cursor:not(.is-thread-selected) { background: color-mix(in srgb, var(--accent-wash) 68%, transparent); }
 .thread-selection-row.is-thread-selected,
