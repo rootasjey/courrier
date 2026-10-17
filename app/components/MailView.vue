@@ -141,7 +141,7 @@
               </span>
               <span class="thread-content">
                 <span class="thread-subject">{{ thread.subject }}</span>
-                <span class="thread-preview"><span class="search-folder-label">{{ mailboxByName(thread.latest.folder).label }}</span><span aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.snippet || thread.latest.preview }}</span>
+                <span class="thread-preview"><span class="search-folder-label">{{ mailboxByName(thread.latest.folder).label }}</span><span aria-hidden="true"> · </span><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.snippet || thread.latest.preview }}</span>
               </span>
               <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
               <time class="thread-date">{{ thread.latest.date }}</time>
@@ -251,7 +251,7 @@
               <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
                 <span class="thread-content">
                   <span class="thread-subject">{{ thread.subject }}</span>
-                  <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
+                  <span class="thread-preview"><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
                 </span>
                 <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
                 <time class="thread-date">{{ thread.latest.date }}</time>
@@ -277,7 +277,7 @@
               <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
                 <span class="thread-content">
                   <span class="thread-subject">{{ thread.subject }}</span>
-                  <span class="thread-preview"><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
+                  <span class="thread-preview"><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
                 </span>
                 <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
                 <time class="thread-date">{{ thread.latest.date }}</time>
@@ -303,7 +303,7 @@
           <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
             <span class="thread-content">
               <span class="thread-subject">{{ thread.subject }}</span>
-              <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">{{ $t('mail.newMessageInThread') }}</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><strong>{{ thread.latest.sender }}</strong><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
+              <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">{{ $t('mail.newMessageInThread') }}</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
             </span>
             <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
             <time class="thread-date">{{ thread.latest.date }}</time>

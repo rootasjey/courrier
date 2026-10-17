@@ -196,7 +196,6 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .thread-content { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
 .thread-subject { overflow: hidden; color: var(--ink); font-size: 17px; font-weight: 620; letter-spacing: -0.22px; text-overflow: ellipsis; white-space: nowrap; }
 .thread-preview { overflow: hidden; color: var(--muted); font-size: 14px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
-.thread-preview strong { color: var(--muted); font-weight: 570; }
 .set-aside-new-message { color: var(--accent); font-weight: 650; }
 .thread-date { flex: 0 0 auto; padding-left: 16px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .sender-avatar { display: grid; width: 47px; height: 47px; flex: 0 0 47px; place-items: center; border-radius: 50%; background: var(--accent-wash); color: var(--accent); font-size: 15px; font-weight: 650; }
@@ -1242,9 +1241,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .thread-row { min-height: 74px; gap: 12px; padding: 11px 8px; border-radius: 9px; }
 .thread-row:hover { background: color-mix(in srgb, var(--accent-wash) 70%, transparent); }
 .thread-content { gap: 3px; }
-.thread-subject { font-size: 15px; font-weight: 620; letter-spacing: -0.018em; }
+.thread-subject { font-size: 15px; font-weight: 680; letter-spacing: -0.018em; }
 .thread-preview { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.thread-preview strong { color: var(--muted); font-weight: 650; }
+.thread-sender-badge { display: inline-block; max-width: min(20ch, 40vw); overflow: hidden; padding: 1px 6px; border-radius: 6px; background: var(--accent-wash); color: var(--accent); font-size: 11px; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; vertical-align: baseline; white-space: nowrap; }
 .thread-date { padding-left: 12px; color: var(--quiet); font-size: 11px; }
 .sender-avatar { width: 40px; height: 40px; flex-basis: 40px; font-size: 12px; }
 .thread-selection-row .sender-avatar, .search-result-row .sender-avatar { width: 40px; height: 40px; flex-basis: 40px; }
