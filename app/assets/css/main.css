@@ -489,6 +489,16 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .dialog-content.compose-confirm-dialog { z-index: 101; width: min(calc(100% - 32px), 460px); }
 .dialog-overlay.command-palette-overlay { z-index: 120; background: rgb(24 19 39 / 38%); }
 .dialog-content.command-palette-dialog { position: fixed; top: min(19vh, 150px); left: 50%; z-index: 121; width: min(calc(100vw - 28px), 620px); max-height: min(72dvh, 640px); overflow: hidden; transform: translateX(-50%); border: 1px solid var(--line); border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 24px 80px rgb(33 25 54 / 24%); }
+.dialog-content.command-palette-dialog[data-state="open"] { animation: courrier-palette-in 170ms cubic-bezier(.16, 1, .3, 1) both; }
+.dialog-content.command-palette-dialog[data-state="closed"] { animation: courrier-palette-out 120ms cubic-bezier(.4, 0, 1, 1) both; }
+@keyframes courrier-palette-in { from { opacity: 0; transform: translateX(-50%) scale(.985); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+@keyframes courrier-palette-out { from { opacity: 1; transform: translateX(-50%) scale(1); } to { opacity: 0; transform: translateX(-50%) scale(.985); } }
+@media (prefers-reduced-motion: reduce) {
+  .dialog-content.command-palette-dialog[data-state="open"] { animation-name: courrier-palette-fade-in; animation-duration: 110ms; }
+  .dialog-content.command-palette-dialog[data-state="closed"] { animation-name: courrier-palette-fade-out; animation-duration: 90ms; }
+}
+@keyframes courrier-palette-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes courrier-palette-fade-out { from { opacity: 1; } to { opacity: 0; } }
 .command-palette { display: flex; max-height: min(72dvh, 640px); flex-direction: column; }
 .command-palette-search { display: flex; min-height: 66px; align-items: center; gap: 13px; padding: 0 20px; border-bottom: 1px solid var(--line); }
 .command-palette-search > svg { width: 21px; height: 21px; flex: 0 0 auto; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; }
