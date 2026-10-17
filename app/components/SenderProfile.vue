@@ -16,7 +16,6 @@
         <header class="sender-profile-heading">
           <span class="sender-profile-avatar" :class="`avatar-${latestMessage.color}`">{{ latestMessage.initials }}</span>
           <div>
-            <p class="sender-profile-kicker">{{ $t('sender.sender') }}</p>
             <h1>{{ latestMessage.sender }}</h1>
             <p class="sender-profile-address">{{ address }}</p>
           </div>
@@ -251,14 +250,14 @@ useSeoMeta({
 <style scoped>
 .sender-profile-page { min-height: calc(100vh - 76px); padding: 32px clamp(20px, 5vw, 76px) 64px; }
 .sender-profile-shell { width: min(100%, 1120px); margin: 0 auto; }
-.sender-profile-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 32px; color: var(--violet); font-size: 14px; font-weight: 620; text-decoration: none; }
+.sender-profile-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 32px; color: var(--accent); font-size: 14px; font-weight: 620; text-decoration: none; }
 .sender-profile-back:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sender-profile-heading { display: flex; align-items: center; gap: 20px; margin: 0 0 42px; }
 .sender-profile-avatar { display: grid; width: 68px; height: 68px; flex: 0 0 68px; place-items: center; border-radius: 50%; font-size: 20px; font-weight: 700; }
-.avatar-terracotta { background: #f5ded7; color: #865044; }
-.avatar-blue { background: #cfeeff; color: #315f7a; }
-.avatar-green { background: #b5f2e3; color: #285f54; }
-.avatar-gold { background: #ffedbe; color: #76602a; }
+.avatar-terracotta { background: #f2e5dd; color: #714b3e; }
+.avatar-blue { background: #e3eceb; color: #405e62; }
+.avatar-green { background: #deebe4; color: #31574d; }
+.avatar-gold { background: #f1ead8; color: #685a37; }
 .sender-profile-kicker { margin: 0 0 4px; color: var(--quiet); font-size: 12px; font-weight: 650; }
 .sender-profile-heading h1 { margin: 0; color: var(--ink); font-size: clamp(28px, 4vw, 40px); font-weight: 730; letter-spacing: -1.25px; line-height: 1.12; overflow-wrap: anywhere; }
 .sender-profile-address { margin: 6px 0 0; color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
@@ -275,25 +274,26 @@ useSeoMeta({
 .sender-blocked-status { color: var(--error); }
 .sender-rule-form { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
 .sender-rule-form select { min-width: 122px; min-height: 38px; padding: 0 30px 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; }
-.sender-rule-form button, .sender-profile-state button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 20px; background: var(--violet); color: white; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: background-color 140ms ease, opacity 140ms ease; }
-.sender-rule-form button:hover:not(:disabled), .sender-profile-state button:hover:not(:disabled) { background: var(--violet-hover); }
-.sender-rule-form button:disabled, .sender-profile-state button:disabled { cursor: not-allowed; opacity: .5; }
-.sender-rule-undo { min-height: 32px; margin: 9px 0 0 3px; padding: 0 12px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); color: var(--violet); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
-.sender-rule-undo:hover:not(:disabled) { background: var(--violet-wash); }
-.sender-rule-undo:disabled { cursor: wait; opacity: .6; }
+.sender-rule-form button, .sender-profile-state button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 20px; background: var(--accent); color: white; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: background-color 140ms ease, opacity 140ms ease; }
+.sender-rule-form button:hover:not(:disabled), .sender-profile-state button:hover:not(:disabled) { background: var(--accent-hover); }
+.sender-rule-form button:disabled, .sender-profile-state button:disabled { border: 1px solid var(--line); background: var(--accent-wash); color: var(--accent); cursor: not-allowed; }
+:root[data-theme="dark"] .sender-rule-form button:not(:disabled), :root[data-theme="dark"] .sender-profile-state button:not(:disabled) { color: #17201c; }
+.sender-rule-undo { min-height: 32px; margin: 9px 0 0 3px; padding: 0 12px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); color: var(--accent); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.sender-rule-undo:hover:not(:disabled) { background: var(--accent-wash); }
+.sender-rule-undo:disabled { background: var(--surface-soft); color: var(--muted); cursor: wait; }
 .sender-rule-notice, .sender-rule-error { margin: 10px 3px 0; font-size: 12px; }
 .sender-rule-notice { color: #286f5b; }
 .sender-rule-error { color: var(--error); }
 .sender-history-list { margin-top: 9px; }
 .sender-history-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; padding: 13px 10px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; transition: background-color 130ms ease; }
-.sender-history-row:hover { background: var(--violet-wash); }
-.sender-history-row:focus-visible, .sender-profile-back:focus-visible { outline: 3px solid color-mix(in srgb, var(--violet) 58%, white); outline-offset: 3px; }
+.sender-history-row:hover { background: var(--accent-wash); }
+.sender-history-row:focus-visible, .sender-profile-back:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 .sender-history-copy { display: grid; min-width: 0; gap: 5px; }
 .sender-history-copy strong, .sender-history-copy > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sender-history-copy strong { color: var(--ink); font-size: 14px; font-weight: 650; }
 .sender-history-copy > span { color: var(--muted); font-size: 12px; }
 .sender-history-meta { display: flex; align-items: center; justify-content: flex-end; gap: 16px; flex: 0 0 auto; }
-.sender-folder-label { padding: 4px 9px; border-radius: 14px; background: var(--violet-wash); color: var(--violet); font-size: 11px; font-weight: 650; white-space: nowrap; }
+.sender-folder-label { padding: 4px 9px; border-radius: 14px; background: var(--accent-wash); color: var(--accent); font-size: 11px; font-weight: 650; white-space: nowrap; }
 .sender-folder-label.is-queue { background: #edf0fb; color: #4268cf; }
 .sender-history-meta time { color: var(--quiet); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sender-profile-state { display: grid; justify-items: start; gap: 9px; padding: 24px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); }

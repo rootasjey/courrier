@@ -26,6 +26,7 @@
     "account:test-canary-authorization": "node scripts/test-canary-authorization.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/dm-sans": "5.3.0",
     "@simplewebauthn/browser": "^11.0.0",
     "@simplewebauthn/server": "^11.0.0",
     "@simplewebauthn/types": "^11.0.0",

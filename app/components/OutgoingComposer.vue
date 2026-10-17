@@ -800,13 +800,13 @@ onBeforeUnmount(() => {
 .compose-header h2 { grid-column: 2; margin: 0; font-size: 22px; font-weight: 680; text-align: center; }
 .compose-window-actions { display: flex; gap: 4px; }
 .compose-window-actions { grid-column: 3; justify-self: end; }
-.compose-drafts-count { min-height: 34px; margin-right: 4px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--violet) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--violet); font: inherit; font-size: 12px; cursor: pointer; }
-.compose-drafts-count:hover { background: var(--violet-wash); }
+.compose-drafts-count { min-height: 34px; margin-right: 4px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+.compose-drafts-count:hover { background: var(--accent-wash); }
 .compose-drafts-count:disabled { opacity: .55; cursor: wait; }
 .compose-icon-button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .compose-icon-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .compose-icon-button:hover { background: var(--paper); color: var(--ink); }
-.compose-icon-button:focus-visible, .compose-minimized-main:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.compose-icon-button:focus-visible, .compose-minimized-main:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .compose-stage.is-popup .compose-icon-button:hover { background: var(--surface-soft); }
 .compose-minimized { position: absolute; right: 18px; bottom: max(8px, env(safe-area-inset-bottom)); display: flex; width: min(220px, calc(100vw - 32px)); min-height: 48px; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border: 1px solid var(--line); border-radius: 10px 10px 0 0; background: var(--paper); box-shadow: 0 12px 36px rgb(24 20 35 / 18%); pointer-events: auto; animation: compose-minimized-enter 220ms cubic-bezier(.2,.75,.25,1) both; }
 .compose-minimized-main { display: flex; min-width: 0; flex: 1; align-items: center; padding: 2px 0; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
@@ -822,7 +822,7 @@ onBeforeUnmount(() => {
 .compose-field input { min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
 .compose-recipient-control { display: flex; min-width: 0; min-height: 42px; flex-wrap: wrap; align-items: center; gap: 5px; padding: 4px 0; cursor: text; }
 .compose-recipient-control input { flex: 1 0 150px; min-height: 28px; }
-.compose-recipient-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; padding: 3px 5px 3px 9px; border: 1px solid color-mix(in srgb, var(--violet) 24%, var(--line)); border-radius: 999px; background: var(--violet-wash); color: var(--ink); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.compose-recipient-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; padding: 3px 5px 3px 9px; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius: 999px; background: var(--accent-wash); color: var(--ink); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .compose-recipient-badge button { display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--quiet); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
 .compose-recipient-badge button:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
 .compose-field input::placeholder { color: var(--quiet); }
@@ -843,14 +843,14 @@ onBeforeUnmount(() => {
 .compose-editor .tiptap h2 { font-size: 1.4em; }
 .compose-editor .tiptap h3 { font-size: 1.15em; }
 .compose-editor .tiptap img { display: block; max-width: 100%; max-height: 360px; margin: 10px 0; border-radius: 5px; object-fit: contain; }
-.compose-editor .tiptap a { color: var(--violet); text-decoration: underline; text-underline-offset: 2px; }
+.compose-editor .tiptap a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .compose-bubble-menu { display: flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 8px 26px rgb(24 20 35 / 18%); }
 .compose-bubble-menu button { min-width: 32px; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
-.compose-bubble-menu button:hover, .compose-bubble-menu button.active { background: var(--violet-wash); color: var(--violet); }
+.compose-bubble-menu button:hover, .compose-bubble-menu button.active { background: var(--accent-wash); color: var(--accent); }
 .compose-slash-menu { position: absolute; z-index: 5; width: min(300px, calc(100vw - 32px)); max-height: min(360px, 55vh); overflow: auto; scroll-behavior: smooth; padding: 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 14px 38px rgb(24 20 35 / 18%); }
 .compose-slash-heading { margin: 2px 7px 6px; color: var(--quiet); font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
 .compose-slash-menu button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
-.compose-slash-menu button:hover, .compose-slash-menu button.active { background: var(--violet-wash); }
+.compose-slash-menu button:hover, .compose-slash-menu button.active { background: var(--accent-wash); }
 .compose-slash-icon { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); font-size: 11px; font-weight: 650; }
 .compose-slash-menu button > span:last-child { display: grid; gap: 2px; }
 .compose-slash-menu strong { font-size: 12px; font-weight: 600; }
@@ -861,7 +861,7 @@ onBeforeUnmount(() => {
 .compose-size-meter span { color: var(--quiet); }
 .compose-size-meter.compose-size-over { color: #aa3d37; }
 .compose-attachment { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
-.compose-attachment-icon { color: var(--violet); }
+.compose-attachment-icon { color: var(--accent); }
 .compose-attachment-name { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .compose-attachment-name strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .compose-attachment-name small { color: var(--quiet); font-size: 10px; }
@@ -875,21 +875,21 @@ onBeforeUnmount(() => {
 .compose-tool-button { min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-icon-action { display: inline-grid; width: 36px; min-height: 36px; padding: 0; place-items: center; border-radius: 9px; }
 .compose-icon-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.compose-icon-action:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
-.compose-tool-button:hover { border-color: var(--violet); color: var(--violet); }
+.compose-icon-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.compose-tool-button:hover { border-color: var(--accent); color: var(--accent); }
 .compose-tool-button:disabled { opacity: .5; cursor: not-allowed; }
 .compose-send, .compose-secondary, .compose-discard { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
-.compose-send { border-color: var(--violet); background: var(--violet); color: white; font-weight: 650; }
+.compose-send { border-color: var(--accent); background: var(--accent); color: white; font-weight: 650; }
 .compose-send { border-radius: 9px; }
-:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: #6846ff; background: #6846ff; color: white; }
-:root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: #5634eb; background: #5634eb; }
+:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: #17201c; }
+:root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: var(--accent-hover); background: var(--accent-hover); }
 .compose-send:disabled, .compose-secondary:disabled, .compose-discard:disabled { opacity: .55; cursor: not-allowed; }
 .compose-discard { border-color: transparent; color: var(--muted); }
 .compose-discard.compose-icon-action { padding: 0; border-color: var(--line); border-radius: 9px; }
 .compose-discard:hover { border-color: color-mix(in srgb, #bd4940 30%, var(--line)); color: #aa3d37; }
 .compose-recipient-toggles { display: flex; flex: 0 0 auto; gap: 8px; }
 .compose-recipient-toggles button { padding: 4px 2px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; }
-.compose-recipient-toggles button:hover { color: var(--violet); }
+.compose-recipient-toggles button:hover { color: var(--accent); }
 .compose-field-close { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--quiet); cursor: pointer; }
 .compose-field-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .compose-field-close:hover { background: var(--surface-soft); color: var(--ink); }
@@ -918,5 +918,30 @@ onBeforeUnmount(() => {
   .compose-shell-enter-active, .compose-shell-leave-active, .compose-shell-enter-active .compose-window, .compose-shell-leave-active .compose-window { transition: none; }
   .compose-minimized { animation: none; }
   .compose-slash-menu { scroll-behavior: auto; }
+}
+
+/* A full-screen draft uses the same warm desk and open writing measure as the reader. */
+.compose-window { background: var(--canvas); }
+.compose-window.is-popup { background: var(--sheet); box-shadow: 0 18px 44px rgb(37 48 44 / 18%); }
+.compose-header { min-height: 76px; border-bottom: 1px solid var(--line); background: var(--canvas); }
+.compose-header h2 { font-size: 20px; font-weight: 620; letter-spacing: -0.03em; }
+.compose-body, .compose-footer { width: min(76vw, 900px); }
+.compose-footer { border-top: 1px solid var(--line); background: var(--canvas); }
+.compose-drafts-count { border-radius: 999px; }
+.compose-icon-button { border-radius: 50%; }
+.compose-icon-button:hover { background: var(--accent-wash); color: var(--accent); }
+.compose-minimized { border-radius: 14px 14px 0 0; background: var(--sheet); }
+.compose-recipient-badge { border-radius: 999px; background: var(--accent-wash); }
+.compose-attachment { border-radius: 11px; }
+.compose-send { border-color: var(--accent); border-radius: 999px; background: var(--accent); }
+.compose-send:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
+.compose-send:disabled { border-color: var(--line); background: var(--accent-wash); color: var(--muted); opacity: 1; cursor: not-allowed; }
+:root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: #17201c; }
+:root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+
+@media (max-width: 640px) {
+  .compose-body, .compose-footer { width: calc(100% - 36px); }
+  .compose-header { min-height: 58px; }
+  .compose-header h2 { font-size: 17px; }
 }
 </style>

@@ -13,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+import '@fontsource-variable/dm-sans/wght.css'
 import AppTopbar from '~/components/AppTopbar.vue'
 import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/utils/mailbox-routing'
 

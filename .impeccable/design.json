@@ -1,0 +1,445 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T14:40:34Z",
+  "title": "Design System: Courrier",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Warm desk canvas",
+        "canonical": "#f5f4ef",
+        "tonalRamp": [
+          "#0c0b08",
+          "#22221e",
+          "#3b3b37",
+          "#565551",
+          "#72726d",
+          "#908f8b",
+          "#bfbeb9",
+          "#efeeea"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Clean paper",
+        "canonical": "#fffefa",
+        "tonalRamp": [
+          "#0c0b09",
+          "#22221f",
+          "#3b3a37",
+          "#565552",
+          "#72716e",
+          "#908f8b",
+          "#bfbeba",
+          "#efeeea"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Reader sheet",
+        "canonical": "#fffefa",
+        "tonalRamp": [
+          "#0c0b09",
+          "#22221f",
+          "#3b3a37",
+          "#565552",
+          "#72716e",
+          "#908f8b",
+          "#bfbeba",
+          "#efeeea"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite-green ink",
+        "canonical": "#28332f",
+        "tonalRamp": [
+          "#050d0a",
+          "#1a2421",
+          "#323d39",
+          "#4d5854",
+          "#687570",
+          "#86938e",
+          "#b4c1bc",
+          "#e4f2ed"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted ink",
+        "canonical": "#5f6d67",
+        "tonalRamp": [
+          "#040e0a",
+          "#192520",
+          "#313e39",
+          "#4b5953",
+          "#67756f",
+          "#84938d",
+          "#b3c2bb",
+          "#e3f3ec"
+        ]
+      },
+      "quiet": {
+        "role": "neutral",
+        "displayName": "Quiet ink",
+        "canonical": "#66736d",
+        "tonalRamp": [
+          "#040e09",
+          "#192420",
+          "#323e38",
+          "#4c5953",
+          "#68756f",
+          "#85938d",
+          "#b3c2bb",
+          "#e4f3ec"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Soft rule",
+        "canonical": "#e1e5dd",
+        "tonalRamp": [
+          "#0a0c07",
+          "#20231d",
+          "#393c35",
+          "#535750",
+          "#6f736c",
+          "#8d9189",
+          "#bbbfb7",
+          "#ecf0e8"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Muted ink-teal",
+        "canonical": "#3c6b64",
+        "tonalRamp": [
+          "#010f0c",
+          "#002824",
+          "#12433d",
+          "#305f58",
+          "#4d7c75",
+          "#6a9a92",
+          "#98c9c1",
+          "#c8fbf2"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Deep teal hover",
+        "canonical": "#315850",
+        "tonalRamp": [
+          "#000f0b",
+          "#022822",
+          "#1b433b",
+          "#375e56",
+          "#537b72",
+          "#709990",
+          "#9ec8be",
+          "#cef9ef"
+        ]
+      },
+      "accent-wash": {
+        "role": "primary",
+        "displayName": "Pale teal wash",
+        "canonical": "#eaf1ed",
+        "tonalRamp": [
+          "#080c0a",
+          "#1e2320",
+          "#373c39",
+          "#515754",
+          "#6d7370",
+          "#8b918d",
+          "#b9c0bc",
+          "#e9f0ec"
+        ]
+      },
+      "sage": {
+        "role": "secondary",
+        "displayName": "Pale sage surface",
+        "canonical": "#dcebe4",
+        "tonalRamp": [
+          "#040e09",
+          "#192520",
+          "#323e38",
+          "#4c5953",
+          "#68756f",
+          "#85938d",
+          "#b3c2bb",
+          "#e4f3ec"
+        ]
+      },
+      "sage-ink": {
+        "role": "secondary",
+        "displayName": "Sage ink",
+        "canonical": "#31574d",
+        "tonalRamp": [
+          "#010f0b",
+          "#002920",
+          "#1c4339",
+          "#385e54",
+          "#547b70",
+          "#71998e",
+          "#9fc8bc",
+          "#cff9ed"
+        ]
+      },
+      "error": {
+        "role": "semantic",
+        "displayName": "Rust error",
+        "canonical": "#a74740",
+        "tonalRamp": [
+          "#1e0101",
+          "#460104",
+          "#6f0f11",
+          "#8f312c",
+          "#b04f48",
+          "#d26d64",
+          "#fea197",
+          "#ffe8e4"
+        ]
+      },
+      "surface-soft": {
+        "role": "neutral",
+        "displayName": "Soft surface",
+        "canonical": "#f7f7f2",
+        "tonalRamp": [
+          "#0b0b08",
+          "#22221e",
+          "#3b3b37",
+          "#565651",
+          "#72726d",
+          "#8f8f8b",
+          "#bebeb9",
+          "#efefea"
+        ]
+      },
+      "message-body": {
+        "role": "neutral",
+        "displayName": "Message reading ink",
+        "canonical": "#3e4a45",
+        "tonalRamp": [
+          "#050e0a",
+          "#192420",
+          "#323e39",
+          "#4c5953",
+          "#687570",
+          "#85938d",
+          "#b3c2bc",
+          "#e4f2ec"
+        ]
+      },
+      "reply-later": {
+        "role": "semantic",
+        "displayName": "Reply Later blue",
+        "canonical": "#66779a",
+        "tonalRamp": [
+          "#020823",
+          "#13203d",
+          "#2b3a59",
+          "#455576",
+          "#617194",
+          "#7e8fb3",
+          "#abbee4",
+          "#e7efff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Mailbox page headings."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Thread subjects in the focused reader and subject editor."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Subject line in a chronological mailbox row."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Message content and compose editor copy."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Primary controls and compact actions."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-menu",
+        "value": "0 12px 30px rgb(33 43 38 / 11%)",
+        "purpose": "Mailbox and account menus."
+      },
+      {
+        "name": "screener-popover",
+        "value": "0 14px 32px rgb(33 43 38 / 14%)",
+        "purpose": "Sender classification choices."
+      },
+      {
+        "name": "confirmation-dialog",
+        "value": "0 18px 48px rgb(37 48 44 / 17%)",
+        "purpose": "Focused blocking choices."
+      },
+      {
+        "name": "set-aside-stack",
+        "value": "0 8px 24px rgb(33 25 54 / 18%)",
+        "purpose": "Functional floating mail stack above the list."
+      }
+    ],
+    "motion": [
+      {
+        "name": "route-transition",
+        "value": "opacity 170ms ease, transform 210ms cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Short page transition."
+      },
+      {
+        "name": "row-state",
+        "value": "background-color 140ms ease",
+        "purpose": "Hover and selection response on mail rows."
+      },
+      {
+        "name": "composer-transition",
+        "value": "opacity 180ms ease; transform 180ms cubic-bezier(.2,.75,.25,1)",
+        "purpose": "Open, close, and reposition the compose surface."
+      },
+      {
+        "name": "screener-popover",
+        "value": "opacity 150ms ease; transform 180ms cubic-bezier(.2,.7,.2,1)",
+        "purpose": "Open and close sender classification choices."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "640px"
+      },
+      {
+        "name": "mail",
+        "value": "720px"
+      },
+      {
+        "name": "tablet",
+        "value": "820px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compose or send; the compact action stays a clear teal pill.",
+      "html": "<button class=\"ds-primary\" type=\"button\">Compose</button>",
+      "css": ".ds-primary { display:inline-flex; min-height:42px; align-items:center; justify-content:center; padding:0 16px; border:0; border-radius:999px; background:var(--accent); color:#fff; font:600 13px 'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease; } .ds-primary:hover:not(:disabled) { background:var(--accent-hover); } .ds-primary:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:3px; } .ds-primary:active:not(:disabled) { transform:translateY(1px); } .ds-primary:disabled { background:var(--accent-wash); color:var(--muted); cursor:not-allowed; }"
+    },
+    {
+      "name": "Return Action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Return to the mailbox from a focused thread.",
+      "html": "<button class=\"ds-return\" type=\"button\"><svg class=\"ds-icon\" viewBox=\"0 0 20 20\" aria-hidden=\"true\"><path d=\"M8 4 2.5 10 8 16M3 10h9a5 5 0 0 1 5 5v1\" /></svg><span>Back to mailbox</span><kbd class=\"ds-kbd\">Esc</kbd></button>",
+      "css": ".ds-return { display:inline-flex; min-height:38px; align-items:center; gap:8px; padding:7px 12px; border:1px solid var(--line); border-radius:999px; background:transparent; color:var(--muted); font:560 13px 'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease,border-color 140ms ease,color 140ms ease; } .ds-return:hover { border-color:var(--accent); background:var(--accent-wash); color:var(--accent); } .ds-return:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:3px; } .ds-return .ds-icon { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; } .ds-kbd { padding:2px 5px; border:1px solid var(--line); border-radius:5px; background:var(--surface-soft); color:var(--muted); font:10px ui-monospace,SFMono-Regular,Menlo,monospace; }"
+    },
+    {
+      "name": "Thread Subject Field",
+      "kind": "input",
+      "refersTo": "input-subject",
+      "description": "Edit a thread subject with a single ruled paper field.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Subject</span><input class=\"ds-input\" value=\"A note from the team\" /></label>",
+      "css": ".ds-field { display:grid; gap:6px; color:var(--muted); font:12px 'DM Sans Variable',sans-serif; } .ds-input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font:620 clamp(22px,3vw,34px)/1.18 'DM Sans Variable',sans-serif; letter-spacing:-.035em; } .ds-input:focus { border-color:var(--accent); outline:2px solid color-mix(in srgb,var(--accent) 22%,transparent); } .ds-input:focus-visible { outline-offset:2px; }"
+    },
+    {
+      "name": "Mailbox Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "The slim brand switcher opens the mailbox and settings links.",
+      "html": "<details class=\"ds-nav\"><summary class=\"ds-nav-trigger\"><span class=\"ds-brand-mark\">C</span><span class=\"ds-brand-name\">Courrier</span><svg class=\"ds-chevron\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"m3.5 6 4.5 4 4.5-4\" /></svg></summary><nav class=\"ds-nav-menu\" aria-label=\"Mailboxes\"><a class=\"ds-nav-item ds-is-current\" href=\"#\">Imbox</a><a class=\"ds-nav-item\" href=\"#\">The Feed</a><a class=\"ds-nav-item\" href=\"#\">Paper Trail</a></nav></details>",
+      "css": ".ds-nav { position:relative; display:inline-block; font-family:'DM Sans Variable',sans-serif; } .ds-nav-trigger { display:flex; align-items:center; gap:9px; padding:5px 8px; border-radius:10px; color:var(--ink); cursor:pointer; list-style:none; } .ds-nav-trigger::-webkit-details-marker { display:none; } .ds-nav-trigger:hover,.ds-nav[open] .ds-nav-trigger { background:var(--surface-soft); } .ds-brand-mark { display:grid; width:34px; height:34px; place-items:center; border-radius:11px; background:var(--accent); color:#fff; font-size:23px; font-weight:700; } .ds-brand-name { font-size:21px; font-weight:680; letter-spacing:-.035em; } .ds-chevron { width:15px; height:15px; fill:none; stroke:var(--accent); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; } .ds-nav-menu { position:absolute; top:calc(100% + 14px); left:0; z-index:20; display:grid; width:265px; padding:10px; border:1px solid var(--line); border-radius:15px; background:var(--sheet); box-shadow:0 12px 30px rgb(33 43 38 / 11%); } .ds-nav-item { display:flex; min-height:42px; align-items:center; padding:9px 11px; border-radius:9px; color:var(--ink); font-size:14px; text-decoration:none; } .ds-nav-item:hover,.ds-nav-item:focus-visible { background:var(--accent-wash); color:var(--accent); outline:0; } .ds-nav-item.ds-is-current { color:var(--accent); font-weight:680; } .ds-nav-trigger:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:3px; }"
+    },
+    {
+      "name": "Chronological Mail Row",
+      "kind": "custom",
+      "refersTo": "thread-row",
+      "description": "A flat message row carries sender, subject, preview, and date.",
+      "html": "<button class=\"ds-row\" type=\"button\"><span class=\"ds-avatar\">AB</span><span class=\"ds-copy\"><strong class=\"ds-subject\">A note from the team</strong><span class=\"ds-preview\">Alex Brown · Here are the details we discussed.</span></span><time class=\"ds-date\">9:41</time></button>",
+      "css": ".ds-row { display:flex; width:100%; min-height:74px; align-items:center; gap:12px; padding:11px 8px; border:0; border-bottom:1px solid var(--line); border-radius:9px; background:transparent; color:var(--ink); text-align:left; font-family:'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease; } .ds-row:hover { background:color-mix(in srgb,var(--accent-wash) 70%,transparent); } .ds-row:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:2px; } .ds-avatar { display:grid; width:40px; height:40px; flex:0 0 40px; place-items:center; border-radius:50%; background:var(--accent-wash); color:var(--accent); font-size:12px; font-weight:650; } .ds-copy { display:grid; min-width:0; flex:1; gap:3px; } .ds-subject,.ds-preview { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ds-subject { font-size:15px; font-weight:620; letter-spacing:-.018em; } .ds-preview { color:var(--muted); font-size:12px; line-height:1.5; } .ds-date { padding-left:12px; color:var(--quiet); font-size:11px; font-variant-numeric:tabular-nums; }"
+    },
+    {
+      "name": "Mailbox State Chip",
+      "kind": "chip",
+      "refersTo": "chip-mailbox",
+      "description": "A compact label identifies a mailbox in search and classification context.",
+      "html": "<span class=\"ds-chip\">Imbox</span>",
+      "css": ".ds-chip { display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; background:var(--accent-wash); color:var(--accent); font:650 11px 'DM Sans Variable',sans-serif; }"
+    },
+    {
+      "name": "Focused Reader Surface",
+      "kind": "card",
+      "refersTo": "reader-surface",
+      "description": "A single clean sheet holds the open thread and its uninterrupted message body.",
+      "html": "<article class=\"ds-reader\"><h1 class=\"ds-reader-title\">A note from the team</h1><div class=\"ds-reader-meta\">Alex Brown <span>· 9:41</span></div><hr class=\"ds-reader-rule\" /><p class=\"ds-reader-copy\">Here are the details we discussed. The message stays readable in one comfortable column.</p></article>",
+      "css": ".ds-reader { width:min(100%,816px); margin:18px auto 34px; padding:clamp(24px,4vw,42px); border:1px solid var(--line); border-radius:16px; background:var(--sheet); color:var(--ink); font-family:'DM Sans Variable',sans-serif; } .ds-reader-title { margin:0 0 25px; font-size:clamp(28px,3.25vw,39px); font-weight:620; letter-spacing:-.035em; line-height:1.18; } .ds-reader-meta { padding-bottom:19px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; } .ds-reader-meta span { color:var(--quiet); } .ds-reader-rule { display:none; } .ds-reader-copy { max-width:68ch; margin:24px 0 0; color:var(--message-body); font-size:15px; line-height:1.8; }"
+    },
+    {
+      "name": "Screener Allow Action",
+      "kind": "button",
+      "refersTo": "screener-allow",
+      "description": "Approve an unfamiliar sender with a clear, restrained affirmative cue.",
+      "html": "<button class=\"ds-choice ds-allow\" type=\"button\" aria-label=\"Allow sender\"><svg class=\"ds-choice-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm0 0 4-8c2.2 0 3.1 1.7 2.5 3.6L12.5 10h6a3 3 0 0 1 2.9 3.8l-1.7 6A3 3 0 0 1 16.8 22H7\" /></svg><strong>Allow</strong></button>",
+      "css": ".ds-choice { display:flex; width:62px; min-height:62px; flex-direction:column; align-items:center; justify-content:center; gap:5px; border:0; border-radius:13px; font-family:'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease,transform 150ms ease; } .ds-choice-icon { width:25px; height:25px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; } .ds-choice strong { font-size:13px; font-weight:680; } .ds-allow { background:var(--accent-wash); color:var(--accent); } .ds-allow:hover:not(:disabled) { background:color-mix(in srgb,var(--accent-wash) 80%,var(--accent)); transform:scale(1.05); } .ds-choice:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:2px; } .ds-choice:active:not(:disabled) { transform:scale(.99); } .ds-choice:disabled { opacity:.55; cursor:not-allowed; }"
+    },
+    {
+      "name": "Screener Block Action",
+      "kind": "button",
+      "refersTo": "screener-block",
+      "description": "Block an unfamiliar sender with a warm semantic red treatment.",
+      "html": "<button class=\"ds-choice ds-block\" type=\"button\" aria-label=\"Block sender\"><svg class=\"ds-choice-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 14V3H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3Zm0 0 4 8c2.2 0 3.1-1.7 2.5-3.6L12.5 14h6a3 3 0 0 0 2.9-3.8l-1.7-6A3 3 0 0 0 16.8 2H7\" /></svg><strong>Block</strong></button>",
+      "css": ".ds-choice { display:flex; width:62px; min-height:62px; flex-direction:column; align-items:center; justify-content:center; gap:5px; border:0; border-radius:13px; font-family:'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease,transform 150ms ease; } .ds-choice-icon { width:25px; height:25px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; } .ds-choice strong { font-size:13px; font-weight:680; } .ds-block { background:#f7eae7; color:#91433c; } .ds-block:hover:not(:disabled) { background:#f1deda; transform:scale(1.05); } .ds-choice:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:2px; } .ds-choice:active:not(:disabled) { transform:scale(.99); } .ds-choice:disabled { opacity:.55; cursor:not-allowed; }"
+    },
+    {
+      "name": "Compose Workspace",
+      "kind": "custom",
+      "refersTo": "composer-surface",
+      "description": "The ruled full-screen writing surface keeps its existing popup and minimized states.",
+      "html": "<section class=\"ds-composer\"><header class=\"ds-compose-head\"><span></span><h2>New message</h2><button class=\"ds-close\" type=\"button\" aria-label=\"Close\">×</button></header><div class=\"ds-compose-body\"><div class=\"ds-compose-field\"><span>To</span><span class=\"ds-recipient\">alex@example.com</span></div><div class=\"ds-compose-field\"><span>Subject</span><span>Project notes</span></div><div class=\"ds-editor\">Write a message…</div></div><footer class=\"ds-compose-footer\"><span class=\"ds-save-status\">Draft saved</span><button class=\"ds-send\" type=\"button\">Send</button></footer></section>",
+      "css": ".ds-composer { display:grid; min-height:calc(100vh - 76px); grid-template-rows:auto 1fr auto; background:var(--canvas); color:var(--ink); font:15px 'DM Sans Variable',sans-serif; } .ds-compose-head { display:grid; min-height:76px; grid-template-columns:1fr auto 1fr; align-items:center; padding:12px clamp(18px,4vw,64px); border-bottom:1px solid var(--line); } .ds-compose-head h2 { margin:0; font-size:20px; font-weight:620; letter-spacing:-.03em; } .ds-close { justify-self:end; width:36px; height:36px; border:0; border-radius:50%; background:transparent; color:var(--muted); font-size:20px; cursor:pointer; } .ds-close:hover { background:var(--accent-wash); color:var(--accent); } .ds-close:focus-visible { outline:2px solid var(--accent); outline-offset:2px; } .ds-compose-body { width:min(76vw,900px); margin:0 auto; } .ds-compose-field { display:grid; min-height:43px; grid-template-columns:54px 1fr; align-items:center; gap:8px; border-bottom:1px solid var(--line); color:var(--quiet); font-size:13px; } .ds-recipient { color:var(--ink); } .ds-editor { min-height:210px; padding:30px 0 36px; color:var(--ink); font-size:15px; line-height:1.75; } .ds-compose-footer { display:flex; width:min(76vw,900px); min-height:60px; align-items:center; gap:10px; margin:0 auto; padding:14px 0 max(20px,env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--canvas); } .ds-save-status { flex:1; color:var(--quiet); font-size:11px; } .ds-send { min-height:36px; padding:0 13px; border:1px solid var(--accent); border-radius:999px; background:var(--accent); color:#fff; font:650 12px 'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease; } .ds-send:hover { border-color:var(--accent-hover); background:var(--accent-hover); } .ds-send:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:3px; } @media (max-width:640px) { .ds-composer { min-height:calc(100vh - 66px); } .ds-compose-head { min-height:58px; } .ds-compose-body,.ds-compose-footer { width:calc(100% - 36px); } .ds-compose-head h2 { font-size:17px; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "IMPECCABLE’S PICK — Papeterie numérique",
+    "overview": "Courrier is an Operate workspace for personal mail: people move between dedicated mailbox pages, screen unfamiliar senders, and read each conversation on its own route. The approved identity is IMPECCABLE’S PICK — Papeterie numérique. Warm light, fine rules, a single open sans family, and restrained ink-teal cues make the interface feel like a quiet digital writing desk without literal paper decoration.\n\nA mailbox stays a single chronological list with flat rows. Opening a thread replaces the list with one centered reading column; the full-screen composer remains a focused writing workspace, with its existing popup and minimized modes. Light and dark themes keep the same hierarchy while using theme-specific values.",
+    "keyCharacteristics": [
+      "Warm, low-chroma surfaces with fine separators.",
+      "DM Sans Variable supplies the entire interface hierarchy.",
+      "Chronological mailbox rows stay flat; an open thread gets its own reading surface.",
+      "Muted teal marks primary action, selection, and focus; status colors stay semantic."
+    ],
+    "rules": [
+      {
+        "name": "The One Reader Rule",
+        "body": "A mailbox route shows its chronological list; opening a thread replaces it with a focused reader route.",
+        "section": "layout"
+      },
+      {
+        "name": "The Functional Depth Rule",
+        "body": "Let tonal changes and fine rules do most of the grouping; reserve shadows for menus, popovers, dialogs, and floating controls that need separation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do build mailbox pages as one chronological list with flat rows and fine dividers.",
+      "Do keep each open thread on its own reading route in a centered 816px maximum sheet.",
+      "Do use DM Sans Variable for interface and message content, with size and weight for hierarchy.",
+      "Do keep keyboard focus visible and respect reduced-motion preferences."
+    ],
+    "donts": [
+      "Don't add paper textures, fake postage, or decorative stationery to suggest paper.",
+      "Don't keep a persistent message list beside an open thread or wrap ordinary mail rows in nested cards.",
+      "Don't use glass blur on the reader action dock.",
+      "Don't introduce a second display font or use semantic red and blue as brand accents."
+    ]
+  }
+}
