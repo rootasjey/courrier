@@ -523,6 +523,7 @@ type MailboxAccess = {
   grants: { workspace_id: string, mailbox_id: string, user_id: string }[]
   truncated: { mailboxes: boolean, members: boolean, grants: boolean }
 }
+type AdminSnapshot = { overview: AdminOverview, mailboxAccess: MailboxAccess, platformAdminState: PlatformAdminState }
 type AccessGrant = { mailbox_id: string, user_id: string, email: string, display_name: string | null, role: string, mailbox_address: string }
 type AdminAccountSession = {
   user: { id: string, email: string, displayName: string }
@@ -688,6 +689,74 @@ const availableMembers = computed(() => {
   return mailboxAccess.value.members.filter(member => member.workspace_id === selectedMailbox.value!.workspace_id && !activeGrants.has(member.user_id))
 })
 
+const adminSnapshotKey = `admin-console:${accountSession.value?.user.id ?? 'unknown'}`
+const {
+  data: initialAdminSnapshot,
+  error: initialAdminError,
+  status: initialAdminStatus,
+  refresh: refreshAdminSnapshot,
+} = await useAsyncData<AdminSnapshot>(
+  adminSnapshotKey,
+  async (_nuxtApp, { signal }) => {
+    const [nextOverview, nextMailboxAccess, nextPlatformAdminState] = await Promise.all([
+      $fetch<AdminOverview>('/api/admin/overview', { signal }),
+      $fetch<MailboxAccess>('/api/admin/mailbox-access', { signal }),
+      $fetch<PlatformAdminState>('/api/admin/platform-admins', { signal }),
+    ])
+
+    if (!isAdminOverviewResponse(nextOverview)
+      || !isMailboxAccessResponse(nextMailboxAccess)
+      || !isPlatformAdminStateResponse(nextPlatformAdminState)) {
+      throw new Error('ADMIN_RESPONSE_INVALID')
+    }
+
+    return { overview: nextOverview, mailboxAccess: nextMailboxAccess, platformAdminState: nextPlatformAdminState }
+  },
+  { server: false, lazy: true, deep: false },
+)
+
+function applyAdminSnapshot(snapshot: AdminSnapshot) {
+  overview.value = snapshot.overview
+  mailboxAccess.value = snapshot.mailboxAccess
+  platformAdminState.value = snapshot.platformAdminState
+
+  if (!activeWorkspaces.value.some(workspace => workspace.id === selectedDomainWorkspaceId.value)) {
+    selectedDomainWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
+  }
+  if (!activeWorkspaces.value.some(workspace => workspace.id === invitationWorkspaceId.value)) {
+    invitationWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
+  }
+  if (!snapshot.mailboxAccess.mailboxes.some(mailbox => mailbox.id === selectedMailboxId.value)) {
+    selectedMailboxId.value = snapshot.mailboxAccess.mailboxes[0]?.id ?? ''
+  }
+  if (!availableMembers.value.some(member => member.user_id === selectedUserId.value)) selectedUserId.value = ''
+  if (!snapshot.platformAdminState.candidates.some(candidate => candidate.user_id === platformAdminCandidateId.value)) platformAdminCandidateId.value = ''
+}
+
+watch(initialAdminStatus, (status) => {
+  if (status === 'pending') {
+    loading.value = true
+    failed.value = false
+  }
+}, { immediate: true })
+
+watch(initialAdminSnapshot, (snapshot) => {
+  if (!snapshot) return
+  applyAdminSnapshot(snapshot)
+  failed.value = false
+  loading.value = false
+}, { immediate: true })
+
+watch(initialAdminError, (error) => {
+  if (!error) return
+  failed.value = true
+  loadFailure.value = error.message === 'ADMIN_RESPONSE_INVALID'
+    ? 'response'
+    : [401, 403].includes(getHttpStatus(error)) ? 'access' : 'generic'
+  loading.value = false
+  if ([401, 403].includes(getHttpStatus(error))) void handleAdminAuthorizationFailure(error)
+}, { immediate: true })
+
 const membershipDialogDescription = computed(() => {
   const membership = membershipToChange.value
   if (!membership) return ''
@@ -727,36 +796,21 @@ async function loadOverview() {
   failed.value = false
   loadFailure.value = 'generic'
   try {
-    const [nextOverview, nextMailboxAccess, nextPlatformAdminState] = await Promise.all([
-      adminFetch<AdminOverview>('/api/admin/overview'),
-      adminFetch<MailboxAccess>('/api/admin/mailbox-access'),
-      adminFetch<PlatformAdminState>('/api/admin/platform-admins'),
-    ])
-    if (!isAdminOverviewResponse(nextOverview)
-      || !isMailboxAccessResponse(nextMailboxAccess)
-      || !isPlatformAdminStateResponse(nextPlatformAdminState)) {
+    await refreshAdminSnapshot()
+    if (initialAdminError.value) {
       failed.value = true
-      loadFailure.value = 'response'
+      const status = getHttpStatus(initialAdminError.value)
+      loadFailure.value = initialAdminError.value.message === 'ADMIN_RESPONSE_INVALID'
+        ? 'response'
+        : status === 401 || status === 403 ? 'access' : 'generic'
       return
     }
-    overview.value = nextOverview
-    mailboxAccess.value = nextMailboxAccess
-    platformAdminState.value = nextPlatformAdminState
-    if (!activeWorkspaces.value.some(workspace => workspace.id === selectedDomainWorkspaceId.value)) {
-      selectedDomainWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
-    }
-    if (!activeWorkspaces.value.some(workspace => workspace.id === invitationWorkspaceId.value)) {
-      invitationWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
-    }
-    if (!nextMailboxAccess.mailboxes.some(mailbox => mailbox.id === selectedMailboxId.value)) {
-      selectedMailboxId.value = nextMailboxAccess.mailboxes[0]?.id ?? ''
-    }
-    if (!availableMembers.value.some(member => member.user_id === selectedUserId.value)) selectedUserId.value = ''
-    if (!nextPlatformAdminState.candidates.some(candidate => candidate.user_id === platformAdminCandidateId.value)) platformAdminCandidateId.value = ''
+    if (initialAdminSnapshot.value) applyAdminSnapshot(initialAdminSnapshot.value)
   } catch (error) {
     failed.value = true
     const status = getHttpStatus(error)
     loadFailure.value = status === 401 || status === 403 ? 'access' : 'generic'
+    if (status === 401 || status === 403) await handleAdminAuthorizationFailure(error)
   } finally {
     loading.value = false
     loadInProgress = false
@@ -1042,5 +1096,4 @@ async function updateMembershipStatus() {
   }
 }
 
-onMounted(loadOverview)
 </script>
