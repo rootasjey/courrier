@@ -712,7 +712,7 @@ const {
 
     return { overview: nextOverview, mailboxAccess: nextMailboxAccess, platformAdminState: nextPlatformAdminState }
   },
-  { server: false, lazy: true, deep: false },
+  { server: false, deep: false },
 )
 
 function applyAdminSnapshot(snapshot: AdminSnapshot) {
