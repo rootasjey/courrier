@@ -1,10 +1,12 @@
 import { getAccountDb, requirePlatformAdmin } from '../../utils/account-auth'
+import { auditPlatformAdminRead } from '../../utils/platform-admin-audit'
 
 const CANDIDATE_LIMIT = 200
 
 export default defineEventHandler(async (event) => {
   const actor = await requirePlatformAdmin(event)
   const db = getAccountDb(event)
+  await auditPlatformAdminRead(db, actor, 'platform_admins')
 
   const [admins, candidateCount, candidates] = await Promise.all([
     db.prepare(`

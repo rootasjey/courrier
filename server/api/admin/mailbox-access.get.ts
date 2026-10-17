@@ -1,12 +1,14 @@
 import { getAccountDb, requirePlatformAdmin } from '../../utils/account-auth'
+import { auditPlatformAdminRead } from '../../utils/platform-admin-audit'
 
 const MAILBOX_LIMIT = 500
 const MEMBER_LIMIT = 500
 const GRANT_LIMIT = 5000
 
 export default defineEventHandler(async (event) => {
-  await requirePlatformAdmin(event)
+  const actor = await requirePlatformAdmin(event)
   const db = getAccountDb(event)
+  await auditPlatformAdminRead(db, actor, 'mailbox_access')
 
   const [mailboxCount, memberCount, grantCount, mailboxes, members, grants] = await Promise.all([
     db.prepare(`

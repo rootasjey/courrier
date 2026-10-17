@@ -616,6 +616,25 @@ try {
     assert.equal(overview.response.status, 200, JSON.stringify(overview.data))
     assert.match(overview.response.headers.get('cache-control') || '', /private.*no-store/)
     assert.ok(overview.data.audit.some(value => value.action === 'account.password_reset'))
+    assert.ok(overview.data.audit.some(value => value.action === 'platform_admin.resource_read' && value.target_id === 'overview'))
+  })
+  await check('admin console reads are audited and duplicate refreshes are collapsed', async () => {
+    const grants = await request('/api/admin/mailbox-access', { cookie: adminCookie })
+    assert.equal(grants.response.status, 200, JSON.stringify(grants.data))
+    const admins = await request('/api/admin/platform-admins', { cookie: adminCookie })
+    assert.equal(admins.response.status, 200, JSON.stringify(admins.data))
+
+    const refreshed = await request('/api/admin/overview', { cookie: adminCookie })
+    assert.equal(refreshed.response.status, 200, JSON.stringify(refreshed.data))
+    const readEvents = refreshed.data.audit.filter(value => value.action === 'platform_admin.resource_read')
+    assert.deepEqual(new Set(readEvents.map(value => value.target_id)), new Set(['overview', 'mailbox_access', 'platform_admins']))
+
+    await request('/api/admin/mailbox-access', { cookie: adminCookie })
+    await request('/api/admin/platform-admins', { cookie: adminCookie })
+    const repeated = await request('/api/admin/overview', { cookie: adminCookie })
+    const repeatedReadEvents = repeated.data.audit.filter(value => value.action === 'platform_admin.resource_read')
+    assert.equal(repeatedReadEvents.filter(value => value.target_id === 'mailbox_access').length, 1)
+    assert.equal(repeatedReadEvents.filter(value => value.target_id === 'platform_admins').length, 1)
   })
   await check('the last active workspace owner cannot be suspended', async () => {
     const result = await request('/api/admin/memberships/membership-admin', {

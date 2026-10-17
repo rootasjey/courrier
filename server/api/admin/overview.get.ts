@@ -1,8 +1,10 @@
 import { getAccountDb, requirePlatformAdmin } from '../../utils/account-auth'
+import { auditPlatformAdminRead } from '../../utils/platform-admin-audit'
 
 export default defineEventHandler(async (event) => {
-  await requirePlatformAdmin(event)
+  const actor = await requirePlatformAdmin(event)
   const db = getAccountDb(event)
+  await auditPlatformAdminRead(db, actor, 'overview')
 
   const [counts, workspaces, domains, memberships, invitations, audit] = await Promise.all([
     db.prepare(`
