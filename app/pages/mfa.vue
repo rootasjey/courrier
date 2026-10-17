@@ -4,7 +4,7 @@
       <NuxtLink class="settings-back" to="/settings#security">{{ $t('mfa.backToSettings') }}</NuxtLink>
       <div class="mfa-mark" aria-hidden="true">⌑</div>
       <h1 id="mfa-heading">{{ $t('mfa.title') }}</h1>
-      <p>{{ $t('mfa.description') }}</p>
+      <p>{{ $t(accountSession?.isPlatformAdmin ? 'mfa.adminDescription' : 'mfa.accountDescription') }}</p>
 
       <button class="settings-export-button mfa-primary" type="button" :disabled="busy || !accountSession?.hasPasskeys" @click="verifyWithPasskey">
         {{ busy ? $t('mfa.verifying') : $t('mfa.usePasskey') }}
@@ -33,7 +33,7 @@
 const route = useRoute()
 const router = useRouter()
 const { $t } = useI18n()
-type AccountSession = { user: { email: string }, activeWorkspaceId: string | null, isPlatformAdmin: boolean, hasPasskeys: boolean, adminMfaConfigured: boolean, requiresAdminMfa: boolean, adminMfaVerified: boolean }
+type AccountSession = { user: { email: string }, activeWorkspaceId: string | null, isPlatformAdmin: boolean, hasPasskeys: boolean, mfaConfigured: boolean, mfaVerified: boolean, mfaPending: boolean, adminMfaConfigured: boolean, requiresAdminMfa: boolean, adminMfaVerified: boolean }
 const accountSession = useState<AccountSession | null>('courrier-account-session', () => null)
 const busy = ref(false)
 const recoveryCode = ref('')
@@ -43,8 +43,9 @@ const failed = ref(false)
 useSeoMeta({ title: () => `${$t('mfa.title')} — Courrier` })
 
 function getSafeRedirect() {
-  const candidate = typeof route.query.redirect === 'string' ? route.query.redirect : '/admin'
-  if (!candidate.startsWith('/') || candidate.startsWith('//') || candidate.includes('\\') || candidate.startsWith('/mfa')) return '/admin'
+  const fallback = accountSession.value?.activeWorkspaceId ? '/mail/inbox' : '/admin'
+  const candidate = typeof route.query.redirect === 'string' ? route.query.redirect : fallback
+  if (!candidate.startsWith('/') || candidate.startsWith('//') || candidate.includes('\\') || candidate.startsWith('/mfa')) return fallback
   return candidate
 }
 
@@ -59,7 +60,7 @@ async function completeVerification(method: 'passkey' | 'recovery_code') {
   } catch {
     // The protected destination will revalidate the account session before rendering.
   }
-  if (method === 'recovery_code' && refreshedSession && !refreshedSession.adminMfaConfigured) {
+  if (method === 'recovery_code' && refreshedSession && !refreshedSession.mfaConfigured) {
     await router.replace('/settings#security')
     return
   }

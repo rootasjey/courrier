@@ -1,11 +1,8 @@
-import { getAccountDb, isPlatformAdmin, requireSessionIdentity } from '../../../utils/account-auth'
+import { getAccountDb, requireMfaAccountIdentity } from '../../../utils/account-auth'
 import { getUserPasskeys } from '../../../utils/passkeys'
 
 export default defineEventHandler(async (event) => {
-  const user = await requireSessionIdentity(event)
-  if (!await isPlatformAdmin(event, user.id)) {
-    throw createError({ statusCode: 403, statusMessage: 'La gestion des passkeys est réservée aux administrateurs de plateforme.' })
-  }
+  const user = await requireMfaAccountIdentity(event)
 
   const db = getAccountDb(event)
   const [passkeys, recoveryCodes] = await Promise.all([

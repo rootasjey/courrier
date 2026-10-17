@@ -1,4 +1,4 @@
-import { assertSameOrigin, getAccountDb, isPlatformAdmin, requireSessionIdentity } from '../../../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, requireMfaAccountIdentity } from '../../../../utils/account-auth'
 import {
   assertMfaAttemptsAvailable,
   createRegistrationOptions,
@@ -13,11 +13,8 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
 
-  const user = await requireSessionIdentity(event)
+  const user = await requireMfaAccountIdentity(event)
   const db = getAccountDb(event)
-  if (!await isPlatformAdmin(event, user.id)) {
-    throw createError({ statusCode: 403, statusMessage: 'La gestion des passkeys est réservée aux administrateurs de plateforme.' })
-  }
 
   await assertMfaAttemptsAvailable(event, db, user.id)
   const body = await readBody<{ password?: unknown, label?: unknown }>(event)

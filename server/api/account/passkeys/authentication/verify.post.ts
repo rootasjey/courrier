@@ -1,5 +1,5 @@
 import type { AuthenticationResponseJSON } from '@simplewebauthn/types'
-import { assertSameOrigin, getAccountDb, isPlatformAdmin, requireSessionIdentity } from '../../../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, isPlatformAdmin, requireMfaAccountIdentity } from '../../../../utils/account-auth'
 import {
   assertMfaAttemptsAvailable,
   clearMfaFailures,
@@ -20,11 +20,10 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
 
-  const user = await requireSessionIdentity(event)
+  const user = await requireMfaAccountIdentity(event, { allowMfaPending: true })
   const db = getAccountDb(event)
-  if (!await isPlatformAdmin(event, user.id)) {
-    throw createError({ statusCode: 403, statusMessage: 'La vérification passkey est réservée aux administrateurs de plateforme.' })
-  }
+  const platformAdmin = await isPlatformAdmin(event, user.id)
+  const session = await requireUserSession(event)
   await assertMfaAttemptsAvailable(event, db, user.id)
 
   const body = await readBody<{
@@ -71,10 +70,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'La réponse de la passkey est invalide.' })
   }
   const response = body.response as AuthenticationResponseJSON
+  const purpose = session.secure?.mfaPending
+    ? 'account_login'
+    : platformAdmin ? 'admin_step_up' : 'account_step_up'
   const challenge = await consumeWebAuthnChallenge(db, {
     attemptId: body.attemptId,
     user,
-    purpose: 'admin_step_up',
+    purpose,
   })
   if (!challenge) throw createError({ statusCode: 400, statusMessage: 'Cette tentative de passkey a expiré ou a déjà été utilisée.' })
 

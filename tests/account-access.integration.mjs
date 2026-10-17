@@ -125,7 +125,9 @@ async function waitForServer() {
   while (Date.now() < deadline) {
     if (server.exitCode !== null) throw new Error(`Nuxt exited early.\n${serverLogs.join('')}`)
     try {
-      const response = await fetch(`${base}/api/account/session`)
+      const response = await fetch(`${base}/api/account/session`, {
+        signal: AbortSignal.timeout(2_000),
+      })
       if (response.status === 401) return
     } catch {}
     await new Promise(resolve => setTimeout(resolve, 400))
@@ -690,8 +692,21 @@ try {
     assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
   })
 
-  await check('passkey settings are limited to platform administrators', async () => {
-    assert.equal((await request('/api/account/passkeys', { cookie: memberCookie })).response.status, 403)
+  await check('members can view their own MFA settings and begin first passkey enrollment', async () => {
+    const memberPasskeys = await request('/api/account/passkeys', { cookie: memberCookie })
+    assert.equal(memberPasskeys.response.status, 200, JSON.stringify(memberPasskeys.data))
+    assert.deepEqual(memberPasskeys.data.passkeys, [])
+    assert.equal(memberPasskeys.data.recoveryCodesRemaining, 0)
+    const missingPassword = await request('/api/account/passkeys/register/options', {
+      method: 'POST', cookie: memberCookie, body: { label: 'Member first key', password: '' },
+    })
+    assert.equal(missingPassword.response.status, 400)
+    const registration = await request('/api/account/passkeys/register/options', {
+      method: 'POST', cookie: memberCookie,
+      body: { label: 'Member first key', password: 'replacement-password-at-least-16' },
+    })
+    assert.equal(registration.response.status, 200, JSON.stringify(registration.data))
+    assert.ok(registration.data.options.challenge)
     const result = await request('/api/account/passkeys', { cookie: adminCookie })
     assert.equal(result.response.status, 200, JSON.stringify(result.data))
     assert.deepEqual(result.data.passkeys, [])
@@ -835,7 +850,7 @@ try {
     assert.equal(session.data.adminMfaVerified, false)
     assert.equal((await request('/api/admin/overview', { cookie: adminCookie })).response.status, 403)
   })
-  await check('passkey registration completion rechecks its admin step-up', async () => {
+  await check('an admin with a pending login step-up cannot register a passkey', async () => {
     const attemptId = 'Q'.repeat(43)
     const challengePath = path.join(temporaryDirectory, 'expired-admin-step-up.sql')
     await writeFile(challengePath, `
@@ -857,11 +872,11 @@ try {
       method: 'POST', cookie: adminCookie, body: { attemptId, response: {} },
     })
     assert.equal(result.response.status, 403)
-    assert.match(result.data.statusMessage, /facteur de sécurité existant/u)
+    assert.match(result.data.statusMessage, /terminer la connexion/u)
     const replay = await request('/api/account/passkeys/register/verify', {
       method: 'POST', cookie: adminCookie, body: { attemptId, response: {} },
     })
-    assert.equal(replay.response.status, 400)
+    assert.equal(replay.response.status, 403)
   })
   await check('WebAuthn challenges are one-use and malformed assertions fail closed', async () => {
     const options = await request('/api/account/passkeys/authentication/options', { method: 'POST', cookie: adminCookie })
@@ -876,6 +891,78 @@ try {
     const replay = await request('/api/account/passkeys/authentication/verify', { method: 'POST', cookie: adminCookie, body })
     assert.equal(firstUse.response.status, 401)
     assert.equal(replay.response.status, 400)
+  })
+
+  const memberMfaCode = 'ABC1-2345-6789-ABCD-EF01-2345-6789-ABCD'
+  const memberMfaSecondCode = 'DCBA-9876-5432-10FE-DCBA-9876-5432-10FE'
+  const memberMfaSeedPath = path.join(temporaryDirectory, 'member-mfa-seed.sql')
+  await writeFile(memberMfaSeedPath, `
+    UPDATE users SET session_version = session_version + 1
+    WHERE id = '00000000-0000-4000-8000-000000000102';
+    INSERT INTO auth_mfa_recovery_codes (id,user_id,code_hash,created_at)
+    VALUES
+      ('local-member-mfa-first','00000000-0000-4000-8000-000000000102','${createHash('sha256').update(memberMfaCode.replaceAll('-', '')).digest('hex')}',datetime('now')),
+      ('local-member-mfa-second','00000000-0000-4000-8000-000000000102','${createHash('sha256').update(memberMfaSecondCode.replaceAll('-', '')).digest('hex')}',datetime('now'));
+  `)
+  run(process.execPath, [
+    path.join(root, 'node_modules/wrangler/bin/wrangler.js'),
+    'd1', 'execute', 'DB', '--local', '--persist-to', path.join(temporaryDirectory, 'state'),
+    '--config', path.join(temporaryDirectory, 'wrangler.jsonc'), '--file', memberMfaSeedPath,
+  ])
+  await check('member MFA is enforced after password login and gates account APIs until verified', async () => {
+    assert.equal((await request('/api/messages', { cookie: memberCookie })).response.status, 401)
+    const login = await request('/api/auth/login', {
+      method: 'POST', body: { email: 'member@example.test', password: 'replacement-password-at-least-16' },
+    })
+    assert.equal(login.response.status, 200, JSON.stringify(login.data))
+    memberCookie = login.cookie
+    const session = await request('/api/account/session', { cookie: memberCookie })
+    assert.equal(session.response.status, 200)
+    assert.equal(session.data.isPlatformAdmin, false)
+    assert.equal(session.data.mfaConfigured, true)
+    assert.equal(session.data.mfaPending, true)
+    assert.equal(session.data.mfaVerified, false)
+    assert.equal((await request('/api/messages', { cookie: memberCookie })).response.status, 403)
+    assert.equal((await request('/api/account/passkeys', { cookie: memberCookie })).response.status, 403)
+    assert.equal((await request('/api/admin/overview', { cookie: memberCookie })).response.status, 403)
+  })
+  await check('a recovery code completes member login and remains limited to that account', async () => {
+    const verification = await request('/api/account/passkeys/authentication/verify', {
+      method: 'POST', cookie: memberCookie, body: { recoveryCode: memberMfaCode.toLowerCase() },
+    })
+    assert.equal(verification.response.status, 200, JSON.stringify(verification.data))
+    memberCookie = verification.cookie
+    const session = await request('/api/account/session', { cookie: memberCookie })
+    assert.equal(session.data.mfaPending, false)
+    assert.equal(session.data.mfaVerified, true)
+    assert.equal(session.data.recoveryCodesRemaining, 1)
+    assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
+    assert.equal((await request('/api/admin/overview', { cookie: memberCookie })).response.status, 403)
+    const replay = await request('/api/account/passkeys/authentication/verify', {
+      method: 'POST', cookie: memberCookie, body: { recoveryCode: memberMfaCode },
+    })
+    assert.equal(replay.response.status, 401)
+  })
+  await check('members can rotate and explicitly disable optional MFA with fresh verification', async () => {
+    const rotated = await request('/api/account/passkeys/recovery-codes', { method: 'POST', cookie: memberCookie })
+    assert.equal(rotated.response.status, 200, JSON.stringify({ status: rotated.response.status }))
+    assert.equal(rotated.data.recoveryCodes.length, 10)
+    const rotationCookie = memberCookie
+    memberCookie = rotated.cookie
+    const disabled = await request('/api/account/passkeys/disable', { method: 'DELETE', cookie: memberCookie })
+    assert.equal(disabled.response.status, 200, JSON.stringify(disabled.data))
+    assert.equal(disabled.data.requiresReauthentication, true)
+    assert.equal((await request('/api/account/session', { cookie: memberCookie })).response.status, 401)
+    assert.equal((await request('/api/account/session', { cookie: rotationCookie })).response.status, 401)
+    const passwordLogin = await request('/api/auth/login', {
+      method: 'POST', body: { email: 'member@example.test', password: 'replacement-password-at-least-16' },
+    })
+    assert.equal(passwordLogin.response.status, 200)
+    memberCookie = passwordLogin.cookie
+    const session = await request('/api/account/session', { cookie: memberCookie })
+    assert.equal(session.data.mfaConfigured, false)
+    assert.equal(session.data.mfaPending, false)
+    assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
   })
 
   const invitationToken = 'A'.repeat(43)

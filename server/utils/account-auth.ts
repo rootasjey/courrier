@@ -47,12 +47,18 @@ export function assertSameOrigin(event: H3Event) {
   }
 }
 
-export async function requireSessionIdentity(event: H3Event): Promise<AccountIdentity> {
+export async function requireSessionIdentity(
+  event: H3Event,
+  options: { allowMfaPending?: boolean } = {},
+): Promise<AccountIdentity> {
   const session = await requireUserSession(event)
   const id = session.user?.id
   const sessionVersion = session.secure?.sessionVersion
   if (!id || typeof sessionVersion !== 'number') {
     throw createError({ statusCode: 401, statusMessage: 'Session Courrier requise.' })
+  }
+  if (session.secure?.mfaPending === true && !options.allowMfaPending) {
+    throw createError({ statusCode: 403, statusMessage: 'Vérifie ton identité pour terminer la connexion.' })
   }
 
   const row = await getAccountDb(event).prepare(`
@@ -82,6 +88,44 @@ export async function isPlatformAdmin(event: H3Event, userId: string) {
     SELECT 1 AS allowed FROM platform_admins WHERE user_id = ? LIMIT 1
   `).bind(userId).first<{ allowed: number }>()
   return Boolean(admin)
+}
+
+export async function requireMfaAccountIdentity(
+  event: H3Event,
+  options: { allowMfaPending?: boolean } = {},
+): Promise<AccountIdentity> {
+  const identity = await requireSessionIdentity(event, options)
+  if (await isPlatformAdmin(event, identity.id)) return identity
+
+  const session = await requireUserSession(event)
+  const workspaceId = typeof session.activeWorkspaceId === 'string' ? session.activeWorkspaceId : ''
+  const membership = workspaceId
+    ? await getAccountDb(event).prepare(`
+      SELECT 1 AS allowed
+      FROM workspace_memberships wm
+      JOIN workspaces w ON w.id = wm.workspace_id AND w.status = 'active'
+      WHERE wm.user_id = ? AND wm.workspace_id = ? AND wm.status = 'active'
+      LIMIT 1
+    `).bind(identity.id, workspaceId).first<{ allowed: number }>()
+    : null
+  if (!membership) throw createError({ statusCode: 403, statusMessage: 'Un membre actif de Courrier est requis.' })
+  return identity
+}
+
+export async function requireFreshAccountMfa(event: H3Event, userId: string) {
+  const db = getAccountDb(event)
+  const [passkeys, recoveryCodes] = await Promise.all([
+    db.prepare('SELECT COUNT(*) AS count FROM auth_passkeys WHERE user_id = ?')
+      .bind(userId).first<{ count: number }>(),
+    db.prepare('SELECT COUNT(*) AS count FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL')
+      .bind(userId).first<{ count: number }>(),
+  ])
+  if (Number(passkeys?.count || 0) + Number(recoveryCodes?.count || 0) === 0) {
+    throw createError({ statusCode: 403, statusMessage: 'Configure d’abord une méthode de sécurité.' })
+  }
+  if (!isMfaFresh(await requireUserSession(event))) {
+    throw createError({ statusCode: 403, statusMessage: 'Vérifie ton identité avant de modifier les méthodes de sécurité.' })
+  }
 }
 
 export async function requirePlatformAdmin(event: H3Event): Promise<AccountIdentity> {

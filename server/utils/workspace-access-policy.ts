@@ -19,6 +19,7 @@ const accountEndpoints = new Set([
   'POST /api/account/passkeys/authentication/options',
   'POST /api/account/passkeys/authentication/verify',
   'POST /api/account/passkeys/recovery-codes',
+  'DELETE /api/account/passkeys/disable',
   'GET /api/account/workspaces',
   'PATCH /api/account/workspaces/active',
   'GET /api/profile/avatar',

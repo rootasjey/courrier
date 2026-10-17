@@ -26,7 +26,7 @@ export type PasskeyRow = {
   last_used_at: string | null
 }
 
-type ChallengePurpose = 'register' | 'admin_step_up'
+type ChallengePurpose = 'register' | 'admin_step_up' | 'account_login' | 'account_step_up'
 type WebAuthnEnvironment = { COURRIER_PUBLIC_ORIGIN?: string }
 type AppSession = Awaited<ReturnType<typeof getUserSession>>
 
@@ -103,15 +103,21 @@ export function isMfaFresh(session: AppSession) {
   return age >= 0 && age < ADMIN_MFA_MAX_AGE_MS
 }
 
-export async function markMfaVerified(event: H3Event, method: 'passkey' | 'recovery_code') {
+export async function markMfaVerified(
+  event: H3Event,
+  method: 'passkey' | 'recovery_code',
+  sessionVersion?: number,
+) {
   const session = await getUserSession(event) as AppSession
   if (!session.secure) throw createError({ statusCode: 401, statusMessage: 'Session Courrier requise.' })
   await replaceUserSession(event, {
     ...session,
     secure: {
       ...session.secure,
+      ...(typeof sessionVersion === 'number' ? { sessionVersion } : {}),
       mfaVerifiedAt: Date.now(),
       mfaMethod: method,
+      mfaPending: false,
     },
   })
 }
@@ -320,15 +326,30 @@ export function isValidPasskeyLabel(value: unknown): value is string {
     && !/[\u0000-\u001f\u007f]/u.test(value)
 }
 
-export async function createPasskeyRecoveryRecords(db: AccountDb, userId: string, codes: string[]) {
+export async function createPasskeyRecoveryRecords(
+  db: AccountDb,
+  userId: string,
+  codes: string[],
+  expectedSessionVersion?: number,
+) {
   const createdAt = new Date().toISOString()
   const inserts = await Promise.all(codes.map(async (code) => {
     const normalized = normalizeRecoveryCode(code)
     if (!normalized) throw new TypeError('Invalid recovery code format.')
-    return db.prepare(`
-      INSERT INTO auth_mfa_recovery_codes (id, user_id, code_hash, created_at)
-      VALUES (?, ?, ?, ?)
-    `).bind(crypto.randomUUID(), userId, await hashRecoveryCode(normalized), createdAt)
+    const statement = expectedSessionVersion === undefined
+      ? db.prepare(`
+          INSERT INTO auth_mfa_recovery_codes (id, user_id, code_hash, created_at)
+          VALUES (?, ?, ?, ?)
+        `).bind(crypto.randomUUID(), userId, await hashRecoveryCode(normalized), createdAt)
+      : db.prepare(`
+          INSERT INTO auth_mfa_recovery_codes (id, user_id, code_hash, created_at)
+          SELECT ?, ?, ?, ?
+          WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND session_version = ?)
+        `).bind(
+          crypto.randomUUID(), userId, await hashRecoveryCode(normalized), createdAt,
+          userId, expectedSessionVersion,
+        )
+    return statement
   }))
   return inserts
 }

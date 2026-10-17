@@ -118,9 +118,17 @@ export default defineEventHandler(async (event) => {
   await db.prepare(`
     DELETE FROM auth_login_attempts WHERE key_hash = ? OR updated_at <= datetime('now', '-1 day')
   `).bind(keyHash).run()
+  const mfaFactors = await db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM auth_passkeys WHERE user_id = ?) +
+      (SELECT COUNT(*) FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL) AS count
+  `).bind(credential.id, credential.id).first<{ count: number }>()
   await replaceUserSession(event, {
     user: { id: credential.id, email: credential.email, displayName: credential.display_name },
-    secure: { sessionVersion: credential.session_version },
+    secure: {
+      sessionVersion: credential.session_version,
+      mfaPending: Number(mfaFactors?.count || 0) > 0,
+    },
     activeWorkspaceId: membership?.workspace_id ?? null,
   })
   setResponseHeader(event, 'Cache-Control', 'private, no-store')

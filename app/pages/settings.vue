@@ -52,23 +52,25 @@
         </label>
       </section>
 
-      <section v-if="accountSession?.isPlatformAdmin" id="security" class="settings-section" aria-labelledby="security-heading">
+      <section id="security" class="settings-section" aria-labelledby="security-heading">
         <div class="settings-section-copy">
           <h2 id="security-heading">{{ $t('settings.security') }}</h2>
-          <p>{{ $t('settings.securityDescription') }}</p>
+          <p>{{ $t(accountSession?.isPlatformAdmin ? 'settings.securityDescriptionAdmin' : 'settings.securityDescription') }}</p>
         </div>
         <div class="settings-security-body">
           <p v-if="!securityLoaded" class="settings-security-note" role="status">{{ $t('settings.securityLoading') }}</p>
           <template v-else>
-            <p v-if="!accountSession.adminMfaConfigured" class="settings-security-note" role="status">{{ $t('settings.securityNotEnabled') }}</p>
+            <p v-if="!accountSession.mfaConfigured" class="settings-security-note" role="status">
+              {{ $t(accountSession.isPlatformAdmin ? 'settings.securityNotEnabledAdmin' : 'settings.securityNotEnabledMember') }}
+            </p>
             <p v-else class="settings-security-note" role="status">
               {{ $t('settings.securityEnabled', { count: passkeys.length, remaining: recoveryCodesRemaining }) }}
             </p>
-            <p v-if="accountSession.adminMfaConfigured && !accountSession.adminMfaVerified" class="settings-security-note">
+            <p v-if="accountSession.mfaConfigured && !accountSession.mfaVerified" class="settings-security-note">
               <NuxtLink :to="{ path: '/mfa', query: { redirect: '/settings#security' } }">{{ $t('settings.verifyBeforeManaging') }}</NuxtLink>
             </p>
 
-            <form v-if="!accountSession.adminMfaConfigured || accountSession.adminMfaVerified" class="settings-passkey-form" @submit.prevent="addPasskey">
+            <form v-if="!accountSession.mfaConfigured || accountSession.mfaVerified" class="settings-passkey-form" @submit.prevent="addPasskey">
               <label class="login-field">
                 <span>{{ $t('settings.passkeyName') }}</span>
                 <input v-model="passkeyLabel" maxlength="80" autocomplete="off" required>
@@ -78,7 +80,7 @@
                 <input v-model="passkeyPassword" type="password" autocomplete="current-password" required>
               </label>
               <p class="settings-security-note">
-                {{ $t(accountSession.adminMfaConfigured ? 'settings.passkeyPrivacyAdditional' : 'settings.passkeyPrivacyFirst') }}
+                {{ $t(accountSession.mfaConfigured ? 'settings.passkeyPrivacyAdditional' : 'settings.passkeyPrivacyFirst') }}
               </p>
               <button class="settings-export-button" type="submit" :disabled="securityBusy">
                 {{ securityBusy ? $t('settings.passkeyWorking') : $t(passkeys.length ? 'settings.addPasskey' : 'settings.enablePasskey') }}
@@ -96,13 +98,13 @@
                   <button type="button" :disabled="securityBusy" @click="removePasskey(passkey.id)">{{ $t('settings.removePasskey') }}</button>
                   <button type="button" :disabled="securityBusy" @click="confirmingPasskey = null">{{ $t('settings.cancel') }}</button>
                 </div>
-                <button v-else-if="accountSession.adminMfaVerified" class="settings-remove-photo" type="button" :disabled="securityBusy || passkeys.length <= 1" :aria-label="String($t('settings.removePasskey'))" @click="confirmingPasskey = passkey.id">
+                <button v-else-if="accountSession.mfaVerified" class="settings-remove-photo" type="button" :disabled="securityBusy || (passkeys.length <= 1 && (accountSession.isPlatformAdmin || recoveryCodesRemaining === 0))" :aria-label="String($t('settings.removePasskey'))" @click="confirmingPasskey = passkey.id">
                   {{ $t('settings.removePasskey') }}
                 </button>
               </li>
             </ul>
 
-            <div v-if="accountSession.adminMfaConfigured && accountSession.adminMfaVerified" class="settings-recovery-actions">
+            <div v-if="accountSession.mfaConfigured && accountSession.mfaVerified" class="settings-recovery-actions">
               <template v-if="confirmRecoveryRotation">
                 <p>{{ $t('settings.rotateRecoveryConfirm') }}</p>
                 <button class="settings-remove-photo" type="button" :disabled="securityBusy" @click="rotateRecoveryCodes">{{ $t('settings.rotateRecoveryCodes') }}</button>
@@ -111,6 +113,15 @@
               <template v-else>
                 <button class="settings-export-button" type="button" :disabled="securityBusy" @click="confirmRecoveryRotation = true">{{ $t('settings.rotateRecoveryCodes') }}</button>
               </template>
+            </div>
+
+            <div v-if="!accountSession.isPlatformAdmin && accountSession.mfaConfigured && accountSession.mfaVerified" class="settings-recovery-actions">
+              <template v-if="confirmingMfaDisable">
+                <p>{{ $t('settings.disableMfaConfirm') }}</p>
+                <button class="settings-remove-photo" type="button" :disabled="securityBusy" @click="disableMfa">{{ $t('settings.disableMfa') }}</button>
+                <button class="settings-export-button" type="button" :disabled="securityBusy" @click="confirmingMfaDisable = false">{{ $t('settings.cancel') }}</button>
+              </template>
+              <button v-else class="settings-remove-photo" type="button" :disabled="securityBusy" @click="confirmingMfaDisable = true">{{ $t('settings.disableMfa') }}</button>
             </div>
 
             <div v-if="newRecoveryCodes.length" class="settings-recovery-codes" role="status">
@@ -155,7 +166,7 @@ const { locale } = useI18nLocale()
 const theme = useState<'system' | 'light' | 'dark'>('courrier-theme', () => 'system')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
-const accountSession = useState<{ user: { displayName: string, email: string }, isPlatformAdmin: boolean, adminMfaVerified: boolean, adminMfaConfigured: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
+const accountSession = useState<{ user: { displayName: string, email: string }, isPlatformAdmin: boolean, mfaVerified: boolean, mfaConfigured: boolean, adminMfaVerified: boolean, adminMfaConfigured: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
 const avatarName = computed(() => accountSession.value?.user.displayName || accountSession.value?.user.email || 'Courrier')
 const photoInput = ref<HTMLInputElement | null>(null)
 const photoBusy = ref(false)
@@ -168,6 +179,7 @@ const passkeyLabel = ref('Courrier')
 const passkeyPassword = ref('')
 const confirmingPasskey = ref<string | null>(null)
 const confirmRecoveryRotation = ref(false)
+const confirmingMfaDisable = ref(false)
 const recoveryCodesRemaining = ref(0)
 const newRecoveryCodes = ref<string[]>([])
 
@@ -181,7 +193,6 @@ function changeLocale(event: Event) {
 }
 
 async function loadPasskeys() {
-  if (!accountSession.value?.isPlatformAdmin) return
   try {
     const result = await $fetch<{ passkeys: typeof passkeys.value, recoveryCodesRemaining: number }>('/api/account/passkeys')
     passkeys.value = result.passkeys
@@ -257,7 +268,7 @@ async function removePasskey(id: string) {
     const result = await response.json() as { requiresReauthentication?: boolean }
     confirmingPasskey.value = null
     if (result.requiresReauthentication) {
-      await router.replace({ path: '/login', query: { redirect: '/admin' } })
+      window.location.replace(`/login?redirect=${encodeURIComponent(accountSession.value?.isPlatformAdmin ? '/admin' : '/mail/inbox')}`)
       return
     }
     await loadPasskeys()
@@ -265,6 +276,26 @@ async function removePasskey(id: string) {
     securityMessage.value = String($t('settings.passkeyRemovedSuccess'))
   } catch {
     securityMessage.value = String($t('settings.passkeyRemoveError'))
+  } finally {
+    securityBusy.value = false
+  }
+}
+
+async function disableMfa() {
+  if (securityBusy.value || !accountSession.value || accountSession.value.isPlatformAdmin) return
+  securityBusy.value = true
+  securityMessage.value = ''
+  try {
+    const result = await $fetch<{ requiresReauthentication: boolean }>('/api/account/passkeys/disable', { method: 'DELETE' })
+    confirmingMfaDisable.value = false
+    if (result.requiresReauthentication) {
+      window.location.replace('/login?redirect=%2Fmail%2Finbox')
+      return
+    }
+    await loadPasskeys()
+    await refreshAccountSession()
+  } catch {
+    securityMessage.value = String($t('settings.disableMfaError'))
   } finally {
     securityBusy.value = false
   }
@@ -372,7 +403,7 @@ function returnFromSettings(event: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', returnFromSettings)
-  void loadPasskeys()
+  if (accountSession.value) void loadPasskeys()
 })
 onBeforeUnmount(() => window.removeEventListener('keydown', returnFromSettings))
 </script>

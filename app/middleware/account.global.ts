@@ -3,6 +3,9 @@ type AccountSession = {
   activeWorkspaceId: string | null
   isPlatformAdmin: boolean
   hasPasskeys: boolean
+  mfaConfigured: boolean
+  mfaVerified: boolean
+  mfaPending: boolean
   adminMfaConfigured: boolean
   recoveryCodesRemaining: number
   requiresAdminMfa: boolean
@@ -25,7 +28,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path === '/login') {
     try {
       accountSession.value = await requestFetch<AccountSession>('/api/account/session')
-      return navigateTo(accountSession.value.activeWorkspaceId ? '/mail/inbox' : '/admin', { replace: true })
+      const destination = accountSession.value.activeWorkspaceId ? '/mail/inbox' : '/admin'
+      if (accountSession.value.mfaPending) {
+        return navigateTo({ path: '/mfa', query: { redirect: destination } }, { replace: true })
+      }
+      return navigateTo(destination, { replace: true })
     } catch {
       accountSession.value = null
       return
@@ -46,8 +53,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
     })
   }
 
+  if (accountSession.value.mfaPending && to.path !== '/mfa') {
+    return navigateTo({ path: '/mfa', query: { redirect: to.fullPath } }, { replace: true })
+  }
+
   if (to.path === '/mfa' && !accountSession.value.isPlatformAdmin) {
-    return navigateTo(accountSession.value.activeWorkspaceId ? '/mail/inbox' : '/login', { replace: true })
+    if (!accountSession.value.mfaConfigured) {
+      return navigateTo(accountSession.value.activeWorkspaceId ? '/mail/inbox' : '/login', { replace: true })
+    }
   }
 
   if (to.path.startsWith('/admin')) {

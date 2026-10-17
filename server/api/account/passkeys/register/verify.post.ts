@@ -1,5 +1,5 @@
 import type { RegistrationResponseJSON } from '@simplewebauthn/types'
-import { assertSameOrigin, getAccountDb, isPlatformAdmin, requireSessionIdentity } from '../../../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, requireMfaAccountIdentity } from '../../../../utils/account-auth'
 import {
   clearMfaFailures,
   consumeWebAuthnChallenge,
@@ -20,11 +20,8 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
 
-  const user = await requireSessionIdentity(event)
+  const user = await requireMfaAccountIdentity(event)
   const db = getAccountDb(event)
-  if (!await isPlatformAdmin(event, user.id)) {
-    throw createError({ statusCode: 403, statusMessage: 'La gestion des passkeys est réservée aux administrateurs de plateforme.' })
-  }
 
   const body = await readBody<{ attemptId?: unknown, response?: unknown }>(event)
   if (!body?.response || typeof body.response !== 'object' || Array.isArray(body.response)) {
@@ -58,16 +55,20 @@ export default defineEventHandler(async (event) => {
 
   const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo
   const createdAt = new Date().toISOString()
+  const nextSessionVersion = user.sessionVersion + 1
   const recoveryCount = await db.prepare(`
     SELECT COUNT(*) AS count FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL
   `).bind(user.id).first<{ count: number }>()
   const recoveryCodes = Number(recoveryCount?.count || 0) === 0 ? generateRecoveryCodes() : []
-  const recoveryStatements = await createPasskeyRecoveryRecords(db, user.id, recoveryCodes)
+  const recoveryStatements = await createPasskeyRecoveryRecords(db, user.id, recoveryCodes, nextSessionVersion)
   const statements = [
+    db.prepare('UPDATE users SET session_version = ? WHERE id = ? AND session_version = ?')
+      .bind(nextSessionVersion, user.id, user.sessionVersion),
     db.prepare(`
       INSERT INTO auth_passkeys
         (credential_id, user_id, public_key, counter, transports_json, device_type, backed_up, label, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND session_version = ?)
     `).bind(
       credential.id,
       user.id,
@@ -78,24 +79,29 @@ export default defineEventHandler(async (event) => {
       credentialBackedUp ? 1 : 0,
       challenge.label || 'Passkey Courrier',
       createdAt,
+      user.id,
+      nextSessionVersion,
     ),
     ...recoveryStatements,
     db.prepare(`
       INSERT INTO platform_audit_log
         (id, actor_user_id, action, target_type, target_id, details_json, created_at)
-      VALUES (?, ?, 'account.passkey_added', 'user', ?, '{}', ?)
-    `).bind(crypto.randomUUID(), user.id, user.id, createdAt),
+      SELECT ?, ?, 'account.passkey_added', 'user', ?, '{}', ?
+      WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND session_version = ?)
+    `).bind(crypto.randomUUID(), user.id, user.id, createdAt, user.id, nextSessionVersion),
     db.prepare('DELETE FROM auth_webauthn_challenges WHERE user_id = ?').bind(user.id),
   ]
 
   try {
     const results = await db.batch(statements)
-    if (changedRows(results[0]) !== 1) throw new Error('Passkey was not stored.')
+    if (changedRows(results[0]) !== 1 || changedRows(results[1]) !== 1) {
+      throw new Error('Passkey was not stored for the current session.')
+    }
   } catch {
     throw createError({ statusCode: 409, statusMessage: 'Cette passkey est déjà enregistrée ou n’a pas pu être sauvegardée.' })
   }
 
   await clearMfaFailures(event, db, user.id)
-  await markMfaVerified(event, 'passkey')
+  await markMfaVerified(event, 'passkey', nextSessionVersion)
   return { ok: true, recoveryCodes }
 })

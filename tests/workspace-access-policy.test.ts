@@ -64,6 +64,7 @@ test('account and invitation exceptions are limited to exact methods', () => {
   assert.equal(isAccountEndpoint('/api/profile/avatar', 'DELETE'), true)
   assert.equal(isAccountEndpoint('/api/profile/avatar', 'PUT'), false)
   assert.equal(isAccountEndpoint('/api/account/passkeys', 'GET'), true)
+  assert.equal(isAccountEndpoint('/api/account/passkeys/disable', 'DELETE'), true)
   assert.equal(isAccountEndpoint('/api/account/passkeys/passkey-test', 'DELETE'), true)
   assert.equal(isAccountEndpoint('/api/account/passkeys/passkey-test', 'POST'), false)
 
