@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Hash } from '@adonisjs/hash'
 import { Scrypt } from '@adonisjs/hash/drivers/scrypt'
+import { protectedApiRoutes } from '../scripts/lib/protected-api-routes.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'courrier-auth-test-'))
@@ -154,46 +155,6 @@ async function request(route, { method = 'GET', cookie = '', body, withOrigin = 
   return { response, data, cookie: cookieHeader || cookie, setCookies }
 }
 
-async function protectedApiRoutes() {
-  const apiRoot = path.join(root, 'server/api')
-  const files = []
-  async function walk(directory) {
-    for (const entry of await readdir(directory)) {
-      const file = path.join(directory, entry)
-      if ((await stat(file)).isDirectory()) await walk(file)
-      else if (file.endsWith('.ts')) files.push(file)
-    }
-  }
-  await walk(apiRoot)
-
-  const deliberatelyPublic = new Set([
-    'POST /api/auth/login',
-    'POST /api/auth/logout',
-    'POST /api/auth/password-reset',
-    'POST /api/auth/password-reset/confirm',
-    'POST /api/dev/ingest',
-  ])
-  return files.flatMap((file) => {
-    let route = path.relative(apiRoot, file).split(path.sep).join('/').replace(/\.ts$/, '')
-    const suffix = route.match(/\.(get|post|put|patch|delete|head|options)$/)
-    if (!suffix) return []
-    const method = suffix[1].toUpperCase()
-    route = route.slice(0, -suffix[0].length)
-    route = route.replace(/(^|\/)index$/u, '$1').replace(/\/$/u, '')
-    const apiPath = `/api/${route.replace(/\[\.\.\.([^\]]+)\]/g, ':$1').replace(/\[([^\]]+)\]/g, ':$1')}`
-    if (deliberatelyPublic.has(`${method} ${apiPath}`)) return []
-    if ((method === 'GET' && /^\/api\/invitations\/:token$/.test(apiPath))
-      || (method === 'POST' && /^\/api\/invitations\/:token\/accept$/.test(apiPath))) return []
-    const samplePath = apiPath
-      .replaceAll(':token', 'A'.repeat(43))
-      .replaceAll(':attachmentId', 'attachment-test')
-      .replaceAll(':credentialId', 'passkey-test')
-      .replaceAll(':userId', '00000000-0000-4000-8000-000000000102')
-      .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
-    return [{ method, path: samplePath }]
-  }).sort((left, right) => `${left.method} ${left.path}`.localeCompare(`${right.method} ${right.path}`))
-}
-
 let checkCount = 0
 async function check(label, action) {
   await action()
@@ -292,7 +253,7 @@ try {
     assert.equal((await request('/api/admin/overview')).response.status, 401)
   })
   await check('anonymous requests are rejected on every protected API route', async () => {
-    const routes = await protectedApiRoutes()
+    const routes = await protectedApiRoutes(path.join(root, 'server/api'))
     assert.ok(routes.length >= 40, `Expected broad API coverage, found ${routes.length} routes.`)
     for (const { method, path: route } of routes) {
       const result = await request(route, { method })
@@ -481,7 +442,7 @@ try {
     assert.equal((await request('/api/export', { cookie: viewerCookie })).response.status, 403)
   })
   await check('viewer read and write permissions are enforced across every API route', async () => {
-    const routes = await protectedApiRoutes()
+    const routes = await protectedApiRoutes(path.join(root, 'server/api'))
     const readableRoutes = routes.filter(({ method, path: route }) => method === 'GET'
       && route !== '/api/export'
       && route !== '/api/account/passkeys'
