@@ -19,7 +19,7 @@
 
         <section ref="composerWindow" v-show="mode !== 'minimized'" class="compose-window" :class="`is-${mode}`" role="dialog" :aria-modal="mode === 'full' ? 'true' : undefined" aria-labelledby="compose-title">
           <header class="compose-header">
-            <h2 id="compose-title">{{ $t('composer.newMessage') }}</h2>
+            <h2 id="compose-title" :class="{ 'sr-only': mode === 'full' }">{{ $t('composer.newMessage') }}</h2>
             <div class="compose-window-actions">
               <button class="compose-drafts-count" type="button" :disabled="loading" @click="openDrafts">
                 {{ $t(draftCount === 1 ? 'composer.draftCountOne' : 'composer.draftCountMany', { count: draftCount }) }}
@@ -50,39 +50,48 @@
           </div>
           <template v-else>
             <div class="compose-body">
+              <label class="compose-subject-block">
+                <span class="sr-only">{{ $t('composer.subject') }}</span>
+                <input ref="subjectInput" v-model="subject" class="compose-subject-input" type="text" :placeholder="$t('composer.newMessage')" :disabled="sending || draftStatus === 'sending'" @keydown.enter.prevent="focusRecipientInput">
+              </label>
               <div class="compose-fields">
-                <div class="compose-field">
-                  <span>{{ $t('composer.to') }}</span>
+                <div class="compose-recipient-line">
+                  <span class="compose-recipient-line-label">{{ $t('composer.to') }}</span>
                   <div class="compose-recipient-control" @click="recipientInput?.focus()">
-                    <span v-for="(address, index) in committedRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="$t('composer.removeRecipient', { address })" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('to', address)">×</button></span>
-                    <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="email" :placeholder="$t('composer.emailPlaceholder')" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'to')" @blur="commitRecipientEntry('to')" @keydown.enter.prevent="commitRecipientEntry('to')" @keydown.backspace="removeLastRecipient($event, 'to')">
+                    <span
+                      v-for="recipient in visibleRecipients"
+                      :key="`${recipient.address}-${recipient.field}`"
+                      class="compose-recipient-badge"
+                      :class="`is-${recipient.field}`"
+                      :title="recipient.address"
+                    >
+                      <button
+                        class="compose-recipient-badge-main"
+                        type="button"
+                        :aria-label="$t('composer.changeRecipientType', { address: recipient.address })"
+                        aria-haspopup="menu"
+                        @click="openRecipientMenuFromClick($event, recipient.address, recipient.field)"
+                        @contextmenu.prevent="openRecipientMenu($event, recipient.address, recipient.field)"
+                        @pointerdown="startRecipientLongPress($event, recipient.address, recipient.field)"
+                        @pointerup="cancelRecipientLongPress"
+                        @pointercancel="cancelRecipientLongPress"
+                        @pointermove="moveRecipientLongPress"
+                        @keydown.enter.prevent="openRecipientMenuFromKeyboard($event, recipient.address, recipient.field)"
+                        @keydown.space.prevent="openRecipientMenuFromKeyboard($event, recipient.address, recipient.field)"
+                      >
+                        <span class="compose-recipient-badge-label">{{ recipientLabels[recipient.address.toLocaleLowerCase()] || recipient.address }}</span>
+                        <span v-if="recipient.field !== 'to'" class="compose-recipient-role">{{ recipient.field === 'cc' ? $t('composer.cc') : $t('composer.bcc') }}</span>
+                      </button>
+                      <button class="compose-recipient-badge-remove" type="button" :aria-label="$t('composer.removeRecipient', { address: recipient.address })" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient(recipient.field, recipient.address)">×</button>
+                    </span>
+                    <input ref="recipientInput" v-model="recipientEntry" type="text" inputmode="email" autocomplete="off" :placeholder="$t('composer.emailPlaceholder')" :disabled="sending || draftStatus === 'sending'" aria-autocomplete="list" :aria-expanded="recipientSuggestionsOpen" aria-controls="compose-recipient-suggestions" @input="handleRecipientInput($event)" @focus="updateContactSuggestions(recipientEntry)" @blur="onRecipientBlur" @keydown="onRecipientKeydown" @keydown.backspace="removeLastRecipient($event)">
+                    <div v-if="recipientSuggestionsOpen" id="compose-recipient-suggestions" class="compose-recipient-suggestions" role="listbox" :aria-label="$t('composer.contactSuggestions')">
+                      <button v-for="(suggestion, index) in recipientSuggestions" :key="suggestion.address" type="button" role="option" :aria-selected="recipientSuggestionIndex === index" :class="{ active: recipientSuggestionIndex === index }" @mousedown.prevent @click="selectRecipientSuggestion(suggestion)">
+                        <strong>{{ suggestion.displayName }}</strong><span>{{ suggestion.address }}</span>
+                      </button>
+                    </div>
                   </div>
-                  <div class="compose-recipient-toggles"><button v-if="!showCc" type="button" @click="showCc = true">{{ $t(ccRecipientList.length ? 'composer.ccCount' : 'composer.cc', { count: ccRecipientList.length }) }}</button><button v-if="!showBcc" type="button" @click="showBcc = true">{{ $t(bccRecipientList.length ? 'composer.bccCount' : 'composer.bcc', { count: bccRecipientList.length }) }}</button></div>
                 </div>
-                <div v-if="showCc" class="compose-field">
-                  <span>Cc</span>
-                  <div class="compose-recipient-control" @click="ccInput?.focus()">
-                    <span v-for="(address, index) in ccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="$t('composer.removeRecipient', { address })" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('cc', address)">×</button></span>
-                    <input ref="ccInput" v-model="ccEntry" type="text" inputmode="email" autocomplete="email" :placeholder="$t('composer.emailPlaceholder')" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'cc')" @blur="commitRecipientEntry('cc')" @keydown.enter.prevent="commitRecipientEntry('cc')" @keydown.backspace="removeLastRecipient($event, 'cc')">
-                  </div>
-                  <NTooltip :content="$t('composer.hideCc')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                    <button class="compose-field-close" type="button" :aria-label="$t('composer.hideCc')" :disabled="sending || draftStatus === 'sending'" @click="showCc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
-                  </NTooltip>
-                </div>
-                <div v-if="showBcc" class="compose-field">
-                  <span>{{ $t('composer.bcc') }}</span>
-                  <div class="compose-recipient-control" @click="bccInput?.focus()">
-                    <span v-for="(address, index) in bccRecipients" :key="`${address}-${index}`" class="compose-recipient-badge">{{ address }}<button type="button" :aria-label="$t('composer.removeRecipient', { address })" :disabled="sending || draftStatus === 'sending'" @click.stop="removeRecipient('bcc', address)">×</button></span>
-                    <input ref="bccInput" v-model="bccEntry" type="text" inputmode="email" autocomplete="email" :placeholder="$t('composer.emailPlaceholder')" :disabled="sending || draftStatus === 'sending'" @input="handleRecipientInput($event, 'bcc')" @blur="commitRecipientEntry('bcc')" @keydown.enter.prevent="commitRecipientEntry('bcc')" @keydown.backspace="removeLastRecipient($event, 'bcc')">
-                  </div>
-                  <NTooltip :content="$t('composer.hideBcc')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
-                    <button class="compose-field-close" type="button" :aria-label="$t('composer.hideBcc')" :disabled="sending || draftStatus === 'sending'" @click="showBcc = false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
-                  </NTooltip>
-                </div>
-                <label class="compose-field">
-                  <span>{{ $t('composer.subject') }}</span>
-                  <input v-model="subject" type="text" :placeholder="$t('composer.subjectPlaceholder')" :disabled="sending || draftStatus === 'sending'">
-                </label>
               </div>
               <p v-if="recipientError" class="compose-field-error" role="alert">{{ recipientError }}</p>
 
@@ -155,6 +164,10 @@
 
         </section>
 
+        <div v-if="recipientMenu" class="compose-recipient-menu" role="menu" :style="recipientMenuStyle" :aria-label="$t('composer.recipientType')">
+          <button v-for="role in recipientRoles" :key="role" type="button" role="menuitemradio" :aria-checked="recipientMenu.field === role" :class="{ active: recipientMenu.field === role }" @click="changeRecipientRole(role)">{{ role === 'to' ? $t('composer.to') : role === 'cc' ? $t('composer.cc') : $t('composer.bcc') }}</button>
+        </div>
+
         <NDialog
           :open="confirmSend"
           :title="$t('composer.confirmSendTitle')"
@@ -220,6 +233,9 @@ type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeB
 type ComposeDraft = { id: string, to: string, cc?: string, bcc?: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', updatedAt?: string, attachments: ComposeAttachment[] }
 type InitialDraft = { to: string, subject: string, body: string }
 type SlashCommand = { label: string, description: string, icon: string, apply: () => void }
+type RecipientField = 'to' | 'cc' | 'bcc'
+type ContactSuggestion = { address: string, displayName: string }
+type RecipientMenuState = { address: string, field: RecipientField, x: number, y: number }
 
 const props = defineProps<{ open: boolean, draftId?: string | null, initialDraft?: InitialDraft | null }>()
 const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: string], 'show-drafts': [] }>()
@@ -231,12 +247,13 @@ const draftCount = ref(0)
 const to = ref('')
 const recipientEntry = ref('')
 const cc = ref('')
-const ccEntry = ref('')
 const bcc = ref('')
-const bccEntry = ref('')
-const showCc = ref(false)
-const showBcc = ref(false)
 const subject = ref('')
+const recipientLabels = ref<Record<string, string>>({})
+const recipientSuggestions = ref<ContactSuggestion[]>([])
+const recipientSuggestionsOpen = ref(false)
+const recipientSuggestionIndex = ref(0)
+const recipientMenu = ref<RecipientMenuState | null>(null)
 const attachments = ref<ComposeAttachment[]>([])
 const draftStatus = ref<'draft' | 'sending'>('draft')
 const mode = ref<'full' | 'popup' | 'minimized'>('full')
@@ -258,8 +275,7 @@ const sendAttempted = ref(false)
 const error = ref('')
 const attachmentInput = ref<HTMLInputElement | null>(null)
 const recipientInput = ref<HTMLInputElement | null>(null)
-const ccInput = ref<HTMLInputElement | null>(null)
-const bccInput = ref<HTMLInputElement | null>(null)
+const subjectInput = ref<HTMLInputElement | null>(null)
 const nextDisposition = ref<'attachment' | 'inline'>('attachment')
 const slashState = ref({ open: false, query: '', from: 0, to: 0 })
 const slashIndex = ref(0)
@@ -269,6 +285,12 @@ let savedRevision = 0
 let savePromise: Promise<boolean> | null = null
 let forceDraftCreation = false
 let hydrating = false
+let contactSuggestionTimer: ReturnType<typeof setTimeout> | undefined
+let contactSuggestionRequest = 0
+let recipientLongPressTimer: ReturnType<typeof setTimeout> | undefined
+let recipientLongPressOrigin: { x: number, y: number } | null = null
+
+const recipientRoles: RecipientField[] = ['to', 'cc', 'bcc']
 
 const editor = useEditor({
   content: { type: 'doc', content: [{ type: 'paragraph' }] },
@@ -396,19 +418,41 @@ function splitRecipients(value: string) {
 }
 
 function isValidRecipient(address: string) {
-  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)
+  return /^[^\s@<>(),;]+@[^\s@<>(),;]+\.[^\s@<>(),;]+$/.test(address)
+}
+
+function parseRecipientToken(raw: string, fallback: RecipientField = 'to') {
+  let value = raw.trim()
+  let field = fallback
+  const prefix = /^(cci|bcc|cc)\s*(?::\s*|\s+)(.*)$/iu.exec(value)
+  if (prefix) {
+    field = prefix[1]!.toLocaleLowerCase() === 'cc' ? 'cc' : 'bcc'
+    value = prefix[2]!.trim()
+  }
+  const mailbox = /^(.*?)\s*<([^<>]+)>$/u.exec(value)
+  if (mailbox && isValidRecipient(mailbox[2]!.trim())) {
+    return { field, address: mailbox[2]!.trim(), displayName: mailbox[1]!.trim().replace(/^"|"$/g, '') }
+  }
+  return { field, address: value, displayName: '' }
 }
 
 const committedRecipients = computed(() => splitRecipients(to.value))
 const ccRecipients = computed(() => splitRecipients(cc.value))
 const bccRecipients = computed(() => splitRecipients(bcc.value))
-const toRecipientList = computed(() => [...committedRecipients.value, ...splitRecipients(recipientEntry.value)])
-const ccRecipientList = computed(() => [...ccRecipients.value, ...splitRecipients(ccEntry.value)])
-const bccRecipientList = computed(() => [...bccRecipients.value, ...splitRecipients(bccEntry.value)])
+const pendingRecipientTokens = computed(() => splitRecipients(recipientEntry.value).map(token => parseRecipientToken(token)))
+const toRecipientList = computed(() => [...committedRecipients.value, ...pendingRecipientTokens.value.filter(item => item.field === 'to').map(item => item.address)])
+const ccRecipientList = computed(() => [...ccRecipients.value, ...pendingRecipientTokens.value.filter(item => item.field === 'cc').map(item => item.address)])
+const bccRecipientList = computed(() => [...bccRecipients.value, ...pendingRecipientTokens.value.filter(item => item.field === 'bcc').map(item => item.address)])
 const recipientList = computed(() => [...toRecipientList.value, ...ccRecipientList.value, ...bccRecipientList.value])
+const visibleRecipients = computed(() => [
+  ...committedRecipients.value.map(address => ({ address, field: 'to' as const })),
+  ...ccRecipients.value.map(address => ({ address, field: 'cc' as const })),
+  ...bccRecipients.value.map(address => ({ address, field: 'bcc' as const })),
+])
 const hasMeaningfulDraftContent = computed(() => {
   editorRevision.value
-  return Boolean(toRecipientList.value.length || ccRecipientList.value.length || bccRecipientList.value.length
+  return Boolean(committedRecipients.value.length || ccRecipients.value.length || bccRecipients.value.length
+    || pendingRecipientTokens.value.some(item => isValidRecipient(item.address))
     || subject.value.trim() || editor.value?.getText().trim() || attachments.value.length)
 })
 const hasSendableContent = computed(() => {
@@ -417,58 +461,197 @@ const hasSendableContent = computed(() => {
 })
 const minimizedSubtitle = computed(() => to.value || recipientEntry.value || (saved.value ? $t('composer.saved') : hasMeaningfulDraftContent.value ? $t('composer.draftInProgress') : $t('composer.newMessage')))
 
-function recipientValue(field: 'to' | 'cc' | 'bcc') { return field === 'to' ? to : field === 'cc' ? cc : bcc }
-function recipientEntryValue(field: 'to' | 'cc' | 'bcc') { return field === 'to' ? recipientEntry : field === 'cc' ? ccEntry : bccEntry }
+function recipientValue(field: RecipientField) { return field === 'to' ? to : field === 'cc' ? cc : bcc }
 
-function addRecipients(field: 'to' | 'cc' | 'bcc', addresses: string[]) {
-  const target = recipientValue(field)
-  const recipients = splitRecipients(target.value)
-  const known = new Set(recipients.map(address => address.toLocaleLowerCase()))
-  for (const address of addresses) {
-    if (!isValidRecipient(address) || known.has(address.toLocaleLowerCase())) continue
-    recipients.push(address)
-    known.add(address.toLocaleLowerCase())
+function addRecipients(addresses: string[], fallback: RecipientField = 'to') {
+  for (const raw of addresses) {
+    const item = parseRecipientToken(raw, fallback)
+    const address = item.address.trim()
+    if (!isValidRecipient(address)) continue
+    const normalized = address.toLocaleLowerCase()
+    if ([...committedRecipients.value, ...ccRecipients.value, ...bccRecipients.value].some(existing => existing.toLocaleLowerCase() === normalized)) continue
+    const target = recipientValue(item.field)
+    target.value = [...splitRecipients(target.value), address].join(', ')
+    if (item.displayName) recipientLabels.value = { ...recipientLabels.value, [normalized]: item.displayName }
   }
-  target.value = recipients.join(', ')
 }
 
-function commitRecipientEntry(field: 'to' | 'cc' | 'bcc') {
-  const entry = recipientEntryValue(field)
-  const entries = splitRecipients(entry.value)
-  addRecipients(field, entries)
-  entry.value = entries.filter(address => !isValidRecipient(address)).join(', ')
+function commitRecipientEntry() {
+  const entries = splitRecipients(recipientEntry.value)
+  addRecipients(entries)
+  recipientEntry.value = entries.filter((raw) => {
+    const item = parseRecipientToken(raw)
+    return !isValidRecipient(item.address)
+  }).join(', ')
 }
 
-function handleRecipientInput(event: Event, field: 'to' | 'cc' | 'bcc') {
-  const entry = recipientEntryValue(field)
+function handleRecipientInput(event: Event) {
+  const entry = recipientEntry
   const value = (event.target as HTMLInputElement).value
   if (!/[;,\n]/.test(value)) {
-    if (!/\s$/.test(value)) return
+    if (!/\s$/.test(value)) {
+      updateContactSuggestions(value)
+      return
+    }
     const candidate = value.trim()
-    if (!isValidRecipient(candidate)) return
-    addRecipients(field, [candidate])
+    if (!isValidRecipient(parseRecipientToken(candidate).address)) {
+      updateContactSuggestions(value)
+      return
+    }
+    addRecipients([candidate])
     entry.value = ''
+    recipientSuggestionsOpen.value = false
     return
   }
-  const parts = value.split(/[;,\n]/)
+  const parts = value.split(/[;,\n]/u)
   const remainder = parts.pop()?.trim() || ''
   const completed = parts.map(address => address.trim()).filter(Boolean)
-  addRecipients(field, completed)
-  entry.value = [...completed.filter(address => !isValidRecipient(address)), remainder].filter(Boolean).join(', ')
+  addRecipients(completed)
+  entry.value = [...completed.filter((raw) => !isValidRecipient(parseRecipientToken(raw).address)), remainder].filter(Boolean).join(', ')
+  updateContactSuggestions(entry.value)
 }
 
-function removeRecipient(field: 'to' | 'cc' | 'bcc', address: string) {
+function removeRecipient(field: RecipientField, address: string) {
   const target = recipientValue(field)
   target.value = splitRecipients(target.value).filter(item => item.toLocaleLowerCase() !== address.toLocaleLowerCase()).join(', ')
 }
 
-function removeLastRecipient(event: KeyboardEvent, field: 'to' | 'cc' | 'bcc') {
-  const entry = recipientEntryValue(field)
-  const recipients = splitRecipients(recipientValue(field).value)
-  if (entry.value || !recipients.length) return
+function removeLastRecipient(event: KeyboardEvent) {
+  const recipient = visibleRecipients.value.at(-1)
+  if (recipientEntry.value || !recipient) return
   event.preventDefault()
-  removeRecipient(field, recipients.at(-1)!)
+  removeRecipient(recipient.field, recipient.address)
 }
+
+function focusRecipientInput() { recipientInput.value?.focus() }
+
+function updateContactSuggestions(value: string) {
+  if (contactSuggestionTimer) clearTimeout(contactSuggestionTimer)
+  const query = parseRecipientToken(value).address.trim()
+  const request = ++contactSuggestionRequest
+  if (query.length < 2 || isValidRecipient(query)) {
+    recipientSuggestions.value = []
+    recipientSuggestionsOpen.value = false
+    return
+  }
+  contactSuggestionTimer = setTimeout(async () => {
+    try {
+      const result = await $fetch<ContactSuggestion[]>('/api/contacts/suggestions', { query: { q: query } })
+      if (request !== contactSuggestionRequest) return
+      recipientSuggestions.value = result
+      recipientSuggestionsOpen.value = result.length > 0
+      recipientSuggestionIndex.value = 0
+    } catch {
+      if (request === contactSuggestionRequest) {
+        recipientSuggestions.value = []
+        recipientSuggestionsOpen.value = false
+      }
+    }
+  }, 180)
+}
+
+function onRecipientBlur() {
+  window.setTimeout(() => {
+    if (!recipientMenu.value) {
+      commitRecipientEntry()
+      recipientSuggestionsOpen.value = false
+    }
+  }, 120)
+}
+
+function onRecipientKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowDown' && recipientSuggestionsOpen.value) {
+    event.preventDefault()
+    recipientSuggestionIndex.value = (recipientSuggestionIndex.value + 1) % recipientSuggestions.value.length
+  } else if (event.key === 'ArrowUp' && recipientSuggestionsOpen.value) {
+    event.preventDefault()
+    recipientSuggestionIndex.value = (recipientSuggestionIndex.value - 1 + recipientSuggestions.value.length) % recipientSuggestions.value.length
+  } else if (event.key === 'Enter') {
+    event.preventDefault()
+    if (recipientSuggestionsOpen.value && recipientSuggestions.value[recipientSuggestionIndex.value]) {
+      selectRecipientSuggestion(recipientSuggestions.value[recipientSuggestionIndex.value]!)
+      editor.value?.commands.focus()
+      return
+    }
+    commitRecipientEntry()
+    recipientSuggestionsOpen.value = false
+    if (!recipientEntry.value) editor.value?.commands.focus()
+  } else if (event.key === 'Escape' && recipientSuggestionsOpen.value) {
+    event.stopPropagation()
+    recipientSuggestionsOpen.value = false
+  }
+}
+
+function selectRecipientSuggestion(suggestion: ContactSuggestion) {
+  const { field } = parseRecipientToken(recipientEntry.value)
+  recipientLabels.value = { ...recipientLabels.value, [suggestion.address.toLocaleLowerCase()]: suggestion.displayName }
+  addRecipients([`${field === 'cc' ? 'cc: ' : field === 'bcc' ? 'cci: ' : ''}${suggestion.address}`])
+  recipientEntry.value = ''
+  recipientSuggestionsOpen.value = false
+  recipientInput.value?.focus()
+}
+
+function recipientMenuPosition(clientX: number, clientY: number) {
+  return {
+    x: Math.max(8, Math.min(clientX, window.innerWidth - 184)),
+    y: Math.max(8, Math.min(clientY, window.innerHeight - 144)),
+  }
+}
+
+function openRecipientMenu(event: MouseEvent, address: string, field: RecipientField) {
+  const position = recipientMenuPosition(event.clientX, event.clientY)
+  recipientMenu.value = { address, field, ...position }
+  recipientSuggestionsOpen.value = false
+}
+
+function openRecipientMenuFromClick(event: MouseEvent, address: string, field: RecipientField) {
+  openRecipientMenu(event, address, field)
+}
+
+function openRecipientMenuFromKeyboard(event: KeyboardEvent, address: string, field: RecipientField) {
+  const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  openRecipientMenu({ clientX: bounds.left, clientY: bounds.bottom } as MouseEvent, address, field)
+}
+
+function startRecipientLongPress(event: PointerEvent, address: string, field: RecipientField) {
+  cancelRecipientLongPress()
+  if (event.pointerType !== 'touch') return
+  recipientLongPressOrigin = { x: event.clientX, y: event.clientY }
+  recipientLongPressTimer = setTimeout(() => {
+    const position = recipientMenuPosition(event.clientX, event.clientY)
+    recipientMenu.value = { address, field, ...position }
+    recipientSuggestionsOpen.value = false
+  }, 500)
+}
+
+function moveRecipientLongPress(event: PointerEvent) {
+  if (!recipientLongPressOrigin) return
+  if (Math.hypot(event.clientX - recipientLongPressOrigin.x, event.clientY - recipientLongPressOrigin.y) > 10) cancelRecipientLongPress()
+}
+
+function cancelRecipientLongPress() {
+  if (recipientLongPressTimer) clearTimeout(recipientLongPressTimer)
+  recipientLongPressTimer = undefined
+  recipientLongPressOrigin = null
+}
+
+function changeRecipientRole(field: RecipientField) {
+  const menu = recipientMenu.value
+  if (!menu || menu.field === field) {
+    recipientMenu.value = null
+    return
+  }
+  removeRecipient(menu.field, menu.address)
+  addRecipients([`${field === 'cc' ? 'cc: ' : field === 'bcc' ? 'cci: ' : ''}${menu.address}`])
+  recipientMenu.value = null
+}
+
+function onDocumentPointerdown(event: PointerEvent) {
+  if (recipientMenu.value && !(event.target instanceof Element && event.target.closest('.compose-recipient-menu, .compose-recipient-badge'))) recipientMenu.value = null
+  if (recipientSuggestionsOpen.value && !(event.target instanceof Element && event.target.closest('.compose-recipient-control'))) recipientSuggestionsOpen.value = false
+}
+
+const recipientMenuStyle = computed(() => recipientMenu.value ? { left: `${recipientMenu.value.x}px`, top: `${recipientMenu.value.y}px` } : {})
 const estimatedEmailBytes = computed(() => {
   editorRevision.value
   return estimateOutgoingEmailBytes({
@@ -497,6 +680,7 @@ watch(() => [props.open, props.draftId] as const, (values, previous = [false, nu
     mode.value = 'full'
     expandedMode.value = 'full'
     window.addEventListener('keydown', onWindowKeydown, true)
+    window.addEventListener('pointerdown', onDocumentPointerdown, true)
     if (!wasOpen || requestedDraftId !== previousDraftId) {
       reset()
       void loadDraft(requestedDraftId)
@@ -504,12 +688,13 @@ watch(() => [props.open, props.draftId] as const, (values, previous = [false, nu
   }
   else {
     window.removeEventListener('keydown', onWindowKeydown, true)
+    window.removeEventListener('pointerdown', onDocumentPointerdown, true)
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = undefined
   }
 }, { immediate: true })
 
-watch([to, recipientEntry, cc, ccEntry, bcc, bccEntry, subject], () => scheduleSave())
+watch([to, recipientEntry, cc, bcc, subject], () => scheduleSave())
 
 async function loadDraft(requestedDraftId: string | null | undefined = props.draftId) {
   if (loading.value) return
@@ -525,15 +710,15 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
     const initialDraft = !requestedDraftId ? props.initialDraft : null
     const loadedRecipients = splitRecipients(initialDraft?.to ?? draft.to)
     to.value = loadedRecipients.filter(isValidRecipient).join(', ')
-    recipientEntry.value = loadedRecipients.filter(address => !isValidRecipient(address)).join(', ')
     const loadedCc = splitRecipients(draft.cc || '')
     const loadedBcc = splitRecipients(draft.bcc || '')
     cc.value = loadedCc.filter(isValidRecipient).join(', ')
-    ccEntry.value = loadedCc.filter(address => !isValidRecipient(address)).join(', ')
     bcc.value = loadedBcc.filter(isValidRecipient).join(', ')
-    bccEntry.value = loadedBcc.filter(address => !isValidRecipient(address)).join(', ')
-    showCc.value = Boolean(draft.cc)
-    showBcc.value = Boolean(draft.bcc)
+    recipientEntry.value = [
+      ...loadedRecipients.filter(address => !isValidRecipient(address)),
+      ...loadedCc.filter(address => !isValidRecipient(address)).map(address => `cc: ${address}`),
+      ...loadedBcc.filter(address => !isValidRecipient(address)).map(address => `cci: ${address}`),
+    ].join(', ')
     subject.value = initialDraft?.subject ?? draft.subject
     attachments.value = draft.attachments || []
     draftStatus.value = draft.status
@@ -551,7 +736,10 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
     loading.value = false
     if (!requestedDraftId && hasMeaningfulDraftContent.value) scheduleSave()
     await nextTick()
-    if (props.open && mode.value !== 'minimized') recipientInput.value?.focus()
+    if (props.open && mode.value !== 'minimized') {
+      if (requestedDraftId) recipientInput.value?.focus()
+      else subjectInput.value?.focus()
+    }
   }
 }
 
@@ -593,11 +781,16 @@ function scheduleSave() {
 }
 
 function draftPayload() {
+  const pending = { to: [] as string[], cc: [] as string[], bcc: [] as string[] }
+  for (const raw of splitRecipients(recipientEntry.value)) {
+    const item = parseRecipientToken(raw)
+    if (item.address) pending[item.field].push(item.address)
+  }
   const recipients = (value: string, entry: string) => [value.trim(), entry.trim()].filter(Boolean).join(', ')
   return {
-    to: recipients(to.value, recipientEntry.value),
-    cc: recipients(cc.value, ccEntry.value),
-    bcc: recipients(bcc.value, bccEntry.value),
+    to: recipients(to.value, pending.to.join(', ')),
+    cc: recipients(cc.value, pending.cc.join(', ')),
+    bcc: recipients(bcc.value, pending.bcc.join(', ')),
     subject: subject.value,
     content: editor.value?.getJSON() || { type: 'doc', content: [{ type: 'paragraph' }] },
   }
@@ -732,6 +925,18 @@ function onWindowKeydown(event: KeyboardEvent) {
   }
   if (event.key !== 'Escape') return
   if (document.querySelector('details[open]')) return
+  if (recipientMenu.value) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    recipientMenu.value = null
+    return
+  }
+  if (recipientSuggestionsOpen.value) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    recipientSuggestionsOpen.value = false
+    return
+  }
   event.preventDefault()
   event.stopImmediatePropagation()
   if (slashState.value.open) slashState.value.open = false
@@ -844,11 +1049,14 @@ function reset() {
   to.value = ''
   recipientEntry.value = ''
   cc.value = ''
-  ccEntry.value = ''
   bcc.value = ''
-  bccEntry.value = ''
-  showCc.value = false
-  showBcc.value = false
+  recipientLabels.value = {}
+  recipientSuggestions.value = []
+  recipientSuggestionsOpen.value = false
+  recipientMenu.value = null
+  cancelRecipientLongPress()
+  if (contactSuggestionTimer) clearTimeout(contactSuggestionTimer)
+  contactSuggestionTimer = undefined
   subject.value = ''
   attachments.value = []
   draftStatus.value = 'draft'
@@ -876,12 +1084,15 @@ function formatSize(bytes: number) {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onWindowKeydown, true)
+  window.removeEventListener('pointerdown', onDocumentPointerdown, true)
+  if (contactSuggestionTimer) clearTimeout(contactSuggestionTimer)
+  cancelRecipientLongPress()
   if (saveTimer) clearTimeout(saveTimer)
 })
 </script>
 
 <style>
-.compose-stage { position: fixed; z-index: 80; inset: 0; overflow: hidden; color: var(--ink); }
+.compose-stage { position: fixed; z-index: 40; inset: 0; overflow: hidden; color: var(--ink); }
 .compose-tooltip-content { z-index: 100 !important; }
 .compose-stage.is-full { background: transparent; pointer-events: none; }
 .compose-window.is-full { pointer-events: auto; }
@@ -895,7 +1106,7 @@ onBeforeUnmount(() => {
 .compose-header h2 { grid-column: 2; margin: 0; font-size: 22px; font-weight: 680; text-align: center; }
 .compose-window-actions { display: flex; gap: 4px; }
 .compose-window-actions { grid-column: 3; justify-self: end; }
-.compose-drafts-count { min-height: 34px; margin-right: 4px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+.compose-drafts-count { min-height: 34px; flex: 0 0 auto; margin-right: 4px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
 .compose-drafts-count:hover { background: var(--accent-wash); }
 .compose-drafts-count:disabled { opacity: .55; cursor: wait; }
 .compose-icon-button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
@@ -1038,5 +1249,44 @@ onBeforeUnmount(() => {
   .compose-body, .compose-footer { width: calc(100% - 36px); }
   .compose-header { min-height: 58px; }
   .compose-header h2 { font-size: 17px; }
+}
+
+/* The title is carried by the oversized subject field on the full writing page. */
+.compose-subject-block { display: block; margin: 34px 0 21px; }
+.compose-subject-input { display: block; width: 100%; min-height: 1.2em; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: clamp(30px, 4vw, 44px); font-weight: 720; letter-spacing: -0.045em; line-height: 1.2; }
+.compose-subject-input::placeholder { color: color-mix(in srgb, var(--ink) 68%, var(--quiet)); opacity: 1; }
+.compose-subject-input:focus-visible { outline: 0; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 72%, transparent); }
+.compose-fields { padding: 0; }
+.compose-recipient-line { display: flex; min-height: 48px; align-items: center; gap: 15px; border-bottom: 1px solid color-mix(in srgb, var(--line) 58%, transparent); }
+.compose-recipient-line-label { flex: 0 0 auto; color: var(--quiet); font-size: 13px; }
+.compose-recipient-control { position: relative; min-height: 42px; flex: 1; gap: 6px; padding: 4px 0; }
+.compose-recipient-control input { min-width: 0; flex: 1 1 190px; min-height: 30px; border: 0; outline: 0; appearance: none; background: transparent; color: var(--ink); font: inherit; font-size: 13px; }
+.compose-recipient-control input::placeholder { color: var(--quiet); opacity: .9; }
+.compose-recipient-badge { display: inline-flex; max-width: min(100%, 280px); align-items: center; gap: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--accent-wash) 72%, var(--sheet)); color: var(--ink); font-size: 12px; line-height: 1.35; }
+.compose-recipient-badge-main { display: inline-flex; min-width: 0; align-items: center; gap: 6px; padding: 4px 3px 4px 10px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.compose-recipient-badge-main:focus-visible, .compose-recipient-badge-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.compose-recipient-badge-remove { display: grid; width: 22px; height: 24px; flex: 0 0 22px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--quiet); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.compose-recipient-badge-remove:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.compose-recipient-badge-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compose-recipient-badge.is-cc { border-color: color-mix(in srgb, var(--muted) 24%, var(--line)); background: color-mix(in srgb, var(--surface-soft) 80%, var(--sheet)); color: var(--muted); }
+.compose-recipient-badge.is-bcc { border-color: color-mix(in srgb, var(--quiet) 34%, var(--line)); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--surface-soft) 86%, var(--sheet)) 0 4px, color-mix(in srgb, var(--line) 22%, var(--sheet)) 4px 5px); color: var(--muted); }
+.compose-recipient-badge-main:hover, .compose-recipient-badge-remove:hover { color: var(--accent); }
+.compose-recipient-role { flex: 0 0 auto; padding: 1px 4px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--quiet); font-size: 9px; font-weight: 650; }
+.compose-recipient-badge.is-bcc .compose-recipient-role { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.compose-recipient-suggestions, .compose-recipient-menu { position: fixed; z-index: 140; display: grid; min-width: 220px; max-width: min(320px, calc(100vw - 24px)); overflow: hidden; padding: 5px; border: 1px solid var(--line); border-radius: 11px; background: var(--sheet); box-shadow: 0 12px 34px rgb(25 20 36 / 20%); }
+.compose-recipient-suggestions { position: absolute; z-index: 6; top: calc(100% + 2px); left: -8px; width: min(360px, calc(100vw - 36px)); }
+.compose-recipient-suggestions button, .compose-recipient-menu button { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 9px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.compose-recipient-suggestions button span { overflow: hidden; color: var(--quiet); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.compose-recipient-suggestions button.active, .compose-recipient-suggestions button:hover, .compose-recipient-menu button.active, .compose-recipient-menu button:hover { background: var(--accent-wash); color: var(--accent); }
+.compose-recipient-menu { width: 176px; min-width: 176px; }
+.compose-recipient-menu button { justify-content: flex-start; }
+.compose-editor .tiptap em, .compose-editor .tiptap i { font-style: italic; }
+.compose-editor .tiptap strong em, .compose-editor .tiptap em strong { font-weight: 700; font-style: italic; }
+@media (max-width: 640px) {
+  .compose-subject-block { margin: 22px 0 15px; }
+  .compose-subject-input { font-size: clamp(27px, 8vw, 34px); }
+  .compose-recipient-line { gap: 10px; }
+  .compose-recipient-control input { flex-basis: 120px; }
+  .compose-recipient-badge { max-width: min(100%, 205px); }
 }
 </style>

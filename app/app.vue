@@ -14,6 +14,7 @@
 
 <script setup lang="ts">
 import '@fontsource-variable/dm-sans/wght.css'
+import '@fontsource-variable/dm-sans/wght-italic.css'
 import AppTopbar from '~/components/AppTopbar.vue'
 import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -123,6 +124,12 @@ function handleGlobalShortcut(event: KeyboardEvent) {
     && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
   const isDialogOpen = target instanceof HTMLElement && Boolean(target.closest('[role="dialog"]'))
 
+  if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'g' && !event.altKey && !event.shiftKey) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    return
+  }
+
   if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
     event.preventDefault()
     commandPaletteOpen.value = !commandPaletteOpen.value
@@ -188,13 +195,13 @@ onBeforeMount(() => {
 
 onMounted(() => {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateSystemTheme)
-  window.addEventListener('keydown', handleGlobalShortcut)
+  window.addEventListener('keydown', handleGlobalShortcut, true)
 })
 
 onUnmounted(() => {
   if (!import.meta.client) return
   window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', updateSystemTheme)
-  window.removeEventListener('keydown', handleGlobalShortcut)
+  window.removeEventListener('keydown', handleGlobalShortcut, true)
 })
 
 watch([themeMode, themeName], ([mode, name]) => {

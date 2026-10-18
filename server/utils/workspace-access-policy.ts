@@ -63,7 +63,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
   if (normalizedMethod === 'GET' || normalizedMethod === 'HEAD') {
     if (path === '/api/export') return 'mail.export'
     if (path === '/api/messages' || path === '/api/search' || path === '/api/outgoing-drafts'
-      || path === '/api/contacts/profile'
+      || path === '/api/contacts/profile' || path === '/api/contacts/suggestions'
       || /^\/api\/messages\/[^/]+\/draft$/.test(path)
       || /^\/api\/(?:attachments\/[^/]+|outgoing-drafts\/[^/]+(?:\/attachments\/[^/]+\/content)?)$/.test(path)) {
       return 'mail.read'
