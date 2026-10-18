@@ -1,4 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+// Cloudflare may serve translation JSON from cache even when the query string
+// changes. Put the build id in the path so each deployment gets fresh assets.
+const i18nBuildId = Date.now()
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-28',
   devtools: { enabled: false },
@@ -45,6 +49,8 @@ export default defineNuxtConfig({
     ],
     defaultLocale: "fr",
     translationDir: "locales",
+    apiBaseUrl: `_locales/${i18nBuildId}`,
+    dateBuild: i18nBuildId,
     routesLocaleLinks: {
       "mail-contacts-address-edit": "mail-senders-address",
       "mail-contacts-address-note": "mail-senders-address",
