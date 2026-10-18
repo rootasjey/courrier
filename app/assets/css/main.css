@@ -1188,7 +1188,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-bottom: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
   background: var(--canvas);
 }
-.brand-trigger { gap: 9px; }
+.topbar-content { display: flex; width: min(100%, 1000px); align-items: center; justify-content: space-between; margin-inline: auto; }
+.brand-trigger { gap: 9px; padding-left: 0; }
 .brand-mark { width: 34px; height: 34px; border-radius: 11px; background: var(--accent); font-size: 23px; font-weight: 700; }
 .brand-name { font-weight: 680; letter-spacing: -0.035em; }
 .brand-chevron { stroke: var(--accent); }
@@ -1319,7 +1320,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .account-workspace-select, .settings-select-row select { border-radius: 9px; }
 
 @media (max-width: 720px) {
-  .topbar { height: 66px; padding-inline: 15px; }
+  .topbar { height: 66px; padding-inline: 16px; }
   .mail-page { min-height: calc(100vh - 66px); padding: 17px 16px 48px; }
   .inbox-heading { gap: 8px; padding: 11px 0 20px; }
   .inbox-heading h1 { font-size: clamp(28px, 8vw, 34px); letter-spacing: -0.035em; }
