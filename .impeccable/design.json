@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-17T14:40:34Z",
+  "generatedAt": "2026-10-18T11:35:50Z",
   "title": "Design System: Courrier",
   "extensions": {
     "colorMeta": {
@@ -333,7 +333,7 @@
       "refersTo": "button-primary",
       "description": "Compose or send; the compact action stays a clear teal pill.",
       "html": "<button class=\"ds-primary\" type=\"button\">Compose</button>",
-      "css": ".ds-primary { display:inline-flex; min-height:42px; align-items:center; justify-content:center; padding:0 16px; border:0; border-radius:999px; background:var(--accent); color:#fff; font:600 13px 'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease; } .ds-primary:hover:not(:disabled) { background:var(--accent-hover); } .ds-primary:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:3px; } .ds-primary:active:not(:disabled) { transform:translateY(1px); } .ds-primary:disabled { background:var(--accent-wash); color:var(--muted); cursor:not-allowed; }"
+      "css": ".ds-primary { display:inline-flex; min-height:42px; align-items:center; justify-content:center; padding:0 16px; border:0; border-radius:999px; background:var(--accent); color:#fff; font:620 13px 'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease,color 140ms ease,transform 140ms ease; } .ds-primary:hover:not(:disabled) { background:var(--accent-hover); } .ds-primary:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:3px; } .ds-primary:disabled { background:var(--accent-wash); color:var(--muted); cursor:not-allowed; }"
     },
     {
       "name": "Return Action",
@@ -349,7 +349,7 @@
       "refersTo": "input-subject",
       "description": "Edit a thread subject with a single ruled paper field.",
       "html": "<label class=\"ds-field\"><span class=\"ds-label\">Subject</span><input class=\"ds-input\" value=\"A note from the team\" /></label>",
-      "css": ".ds-field { display:grid; gap:6px; color:var(--muted); font:12px 'DM Sans Variable',sans-serif; } .ds-input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font:620 clamp(22px,3vw,34px)/1.18 'DM Sans Variable',sans-serif; letter-spacing:-.035em; } .ds-input:focus { border-color:var(--accent); outline:2px solid color-mix(in srgb,var(--accent) 22%,transparent); } .ds-input:focus-visible { outline-offset:2px; }"
+      "css": ".ds-field { display:grid; gap:6px; color:var(--muted); font:12px 'DM Sans Variable',sans-serif; } .ds-input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font:650 clamp(22px,3vw,34px)/1.18 'DM Sans Variable',sans-serif; letter-spacing:-.7px; } .ds-input:focus { border-color:var(--accent); outline:2px solid color-mix(in srgb,var(--accent) 22%,transparent); } .ds-input:focus-visible { outline-offset:2px; }"
     },
     {
       "name": "Mailbox Navigation",
@@ -364,8 +364,8 @@
       "kind": "custom",
       "refersTo": "thread-row",
       "description": "A flat message row carries sender, subject, preview, and date.",
-      "html": "<button class=\"ds-row\" type=\"button\"><span class=\"ds-avatar\">AB</span><span class=\"ds-copy\"><strong class=\"ds-subject\">A note from the team</strong><span class=\"ds-preview\">Alex Brown · Here are the details we discussed.</span></span><time class=\"ds-date\">9:41</time></button>",
-      "css": ".ds-row { display:flex; width:100%; min-height:74px; align-items:center; gap:12px; padding:11px 8px; border:0; border-bottom:1px solid var(--line); border-radius:9px; background:transparent; color:var(--ink); text-align:left; font-family:'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease; } .ds-row:hover { background:color-mix(in srgb,var(--accent-wash) 70%,transparent); } .ds-row:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:2px; } .ds-avatar { display:grid; width:40px; height:40px; flex:0 0 40px; place-items:center; border-radius:50%; background:var(--accent-wash); color:var(--accent); font-size:12px; font-weight:650; } .ds-copy { display:grid; min-width:0; flex:1; gap:3px; } .ds-subject,.ds-preview { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ds-subject { font-size:15px; font-weight:620; letter-spacing:-.018em; } .ds-preview { color:var(--muted); font-size:12px; line-height:1.5; } .ds-date { padding-left:12px; color:var(--quiet); font-size:11px; font-variant-numeric:tabular-nums; }"
+      "html": "<div class=\"ds-row-wrap\"><button class=\"ds-row\" type=\"button\"><span class=\"ds-avatar\">AB</span><span class=\"ds-copy\"><strong class=\"ds-subject\">A note from the team</strong><span class=\"ds-preview\"><span class=\"ds-sender\">Alex Brown</span> · Here are the details we discussed.</span></span><time class=\"ds-date\">9:41</time></button></div>",
+      "css": ".ds-row-wrap { padding-inline:4px; border-bottom:1px solid var(--line); } .ds-row { display:flex; width:100%; min-height:74px; align-items:center; gap:12px; padding:11px 8px; border:0; border-radius:9px; background:transparent; color:var(--ink); text-align:left; font-family:'DM Sans Variable',sans-serif; cursor:pointer; transition:background-color 140ms ease,color 140ms ease,transform 140ms ease; } .ds-row:hover { background:color-mix(in srgb,var(--accent-wash) 70%,transparent); } .ds-row:focus-visible { outline:3px solid color-mix(in srgb,var(--accent) 58%,white); outline-offset:2px; } .ds-avatar { display:grid; width:40px; height:40px; flex:0 0 40px; place-items:center; border-radius:50%; background:var(--accent-wash); color:var(--accent); font-size:12px; font-weight:650; } .ds-copy { display:flex; min-width:0; flex:1; flex-direction:column; gap:3px; } .ds-subject,.ds-preview { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ds-subject { color:var(--ink); font-size:15px; font-weight:680; letter-spacing:-.018em; } .ds-preview { color:var(--muted); font-size:12px; line-height:1.5; } .ds-sender { display:inline-block; max-width:min(20ch,40vw); overflow:hidden; padding:1px 6px; border-radius:6px; background:var(--accent-wash); color:var(--accent); font-size:11px; font-weight:650; line-height:1.35; text-overflow:ellipsis; vertical-align:middle; white-space:nowrap; } .ds-date { flex:0 0 auto; padding-left:12px; color:var(--quiet); font-size:11px; font-variant-numeric:tabular-nums; }"
     },
     {
       "name": "Mailbox State Chip",
@@ -379,9 +379,9 @@
       "name": "Focused Reader Surface",
       "kind": "card",
       "refersTo": "reader-surface",
-      "description": "A single clean sheet holds the open thread and its uninterrupted message body.",
-      "html": "<article class=\"ds-reader\"><h1 class=\"ds-reader-title\">A note from the team</h1><div class=\"ds-reader-meta\">Alex Brown <span>· 9:41</span></div><hr class=\"ds-reader-rule\" /><p class=\"ds-reader-copy\">Here are the details we discussed. The message stays readable in one comfortable column.</p></article>",
-      "css": ".ds-reader { width:min(100%,816px); margin:18px auto 34px; padding:clamp(24px,4vw,42px); border:1px solid var(--line); border-radius:16px; background:var(--sheet); color:var(--ink); font-family:'DM Sans Variable',sans-serif; } .ds-reader-title { margin:0 0 25px; font-size:clamp(28px,3.25vw,39px); font-weight:620; letter-spacing:-.035em; line-height:1.18; } .ds-reader-meta { padding-bottom:19px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; } .ds-reader-meta span { color:var(--quiet); } .ds-reader-rule { display:none; } .ds-reader-copy { max-width:68ch; margin:24px 0 0; color:var(--message-body); font-size:15px; line-height:1.8; }"
+      "description": "A centered subject heading sits above one clean sheet for the focused message body.",
+      "html": "<h1 class=\"ds-reader-title\">A note from the team</h1><article class=\"ds-reader\"><div class=\"ds-reader-meta\">Alex Brown <span>· 9:41</span></div><hr class=\"ds-reader-rule\" /><p class=\"ds-reader-copy\">Here are the details we discussed. The message stays readable in one comfortable column.</p></article>",
+      "css": ".ds-reader-title { width:min(100%,816px); margin:24px auto 18px; padding-inline:clamp(16px,4vw,42px); color:var(--ink); font:740 clamp(28px,3.25vw,39px)/1.18 'DM Sans Variable',sans-serif; letter-spacing:-.035em; text-align:center; } .ds-reader { width:min(100%,816px); margin:0 auto 34px; padding:clamp(24px,4vw,42px); border:1px solid var(--line); border-radius:16px; background:var(--sheet); color:var(--ink); font-family:'DM Sans Variable',sans-serif; } .ds-reader-meta { padding-bottom:19px; border-bottom:1px solid var(--line); color:var(--muted); font-size:12px; } .ds-reader-meta span { color:var(--quiet); } .ds-reader-rule { display:none; } .ds-reader-copy { max-width:68ch; margin:24px 0 0; color:var(--message-body); font-size:15px; line-height:1.8; } @media (max-width:720px) { .ds-reader-title { margin:18px auto 14px; padding-inline:4px; font-size:clamp(26px,7vw,34px); } .ds-reader { margin-bottom:24px; padding:22px 18px; border-radius:14px; } .ds-reader-copy { font-size:14px; line-height:1.75; } }"
     },
     {
       "name": "Screener Allow Action",
