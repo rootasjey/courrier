@@ -46,7 +46,7 @@
               @click="runCommand(item)"
             >
               <span class="command-option-icon" aria-hidden="true"><component :is="item.icon" /></span>
-              <span class="command-option-copy"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
+              <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description">{{ item.description }}</small></span>
               <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
             </button>
           </template>
@@ -131,6 +131,7 @@ const searchResults = ref<SearchResult[]>([])
 const searchPending = ref(false)
 const composeRequest = useState('courrier-compose-request', () => 0)
 const commandContext = useState<CommandContext>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [] }))
+const accountSession = useState<{ isPlatformAdmin: boolean } | null>('courrier-account-session', () => null)
 const paletteFeedback = useState('courrier-palette-feedback', () => '')
 const paletteError = useState('courrier-palette-error', () => '')
 const trashConfirmationOpen = ref(false)
@@ -142,12 +143,14 @@ let searchRevision = 0
 const icon = (path: string) => ({ render: () => h('svg', { viewBox: '0 0 20 20', fill: 'none', 'aria-hidden': 'true' }, [h('path', { d: path })]) })
 const navigationItems = computed<PaletteItem[]>(() => [
   { id: 'inbox', label: 'Inbox', description: $t('palette.inboxDescription'), icon: icon('M3 4h14v12H3z M3 11h4l1.5 2h3L13 11h4'), kind: 'navigation', action: 'navigate', to: mailboxPath('Imbox') },
+  { id: 'screener', label: 'Screener', description: $t('topbar.folderNotes.screener'), icon: icon('M3 4h14v12H3z M6 8h8m-8 4h5 M15 3v4'), kind: 'navigation', action: 'navigate', to: mailboxPath('Screener') },
   { id: 'feed', label: 'The Feed', description: $t('palette.feedDescription'), icon: icon('M3 4.5c3-.8 5.5-.4 7 1.3v10c-1.5-1.7-4-2.1-7-1.3v-10Zm14 0c-3-.8-5.5-.4-7 1.3v10c1.5-1.7 4-2.1 7-1.3v-10Z'), kind: 'navigation', action: 'navigate', to: mailboxPath('The Feed') },
   { id: 'paper', label: 'Paper Trail', description: $t('palette.paperDescription'), icon: icon('M5 2.5h10v15l-2.5-1.7L10 17.5l-2.5-1.7L5 17.5v-15Zm3 4h4m-4 3h4'), kind: 'navigation', action: 'navigate', to: mailboxPath('Paper Trail') },
   { id: 'reply-later', label: 'Reply Later', description: $t('palette.replyLaterDescription'), icon: icon('M7.5 5 3 9.5 7.5 14 M3.5 9.5H11a5 5 0 0 1 5 5v1'), kind: 'navigation', action: 'navigate', to: mailboxPath('Reply Later') },
   { id: 'set-aside', label: 'Set Aside', description: $t('palette.setAsideDescription'), icon: icon('M5 3h10v15l-2.5-1.5L10 18l-2.5-1.5L5 18V3Z'), kind: 'navigation', action: 'navigate', to: mailboxPath('Set Aside') },
   { id: 'drafts', label: $t('palette.drafts'), description: $t('palette.draftsDescription'), icon: icon('M4 3h12v14H4z M7 7h6m-6 3h6m-6 3h4'), kind: 'navigation', action: 'navigate', to: '/mail/drafts' },
   { id: 'settings', label: $t('palette.settings'), description: $t('palette.settingsDescription'), icon: icon('M10 3v2m0 10v2M3 10h2m10 0h2M5 5l1.5 1.5m7 7L15 15m0-10-1.5 1.5m-7 7L5 15 M13.5 10A3.5 3.5 0 1 1 6.5 10a3.5 3.5 0 0 1 7 0Z'), kind: 'navigation', action: 'navigate', to: '/settings' },
+  ...(accountSession.value?.isPlatformAdmin ? [{ id: 'admin', label: $t('account.adminConsole'), description: '', icon: icon('M3 16.5V5.8a1.3 1.3 0 0 1 1.3-1.3h11.4A1.3 1.3 0 0 1 17 5.8v10.7M2.5 16.5h15M7 7.5h2m2 0h2M7 10.5h2m2 0h2M8 16.5v-3h4v3'), kind: 'navigation' as const, action: 'navigate' as const, to: '/admin' }] : []),
 ])
 const actionItems = computed<PaletteItem[]>(() => {
   const { source, threadIds } = commandContext.value

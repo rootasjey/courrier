@@ -77,12 +77,24 @@
                 <span class="sender-rule-hint">{{ $t(group.blocked ? 'sender.blockedHint' : 'sender.ruleHint') }}</span>
               </div>
               <form class="sender-rule-form" @submit.prevent="applyRule(group)">
-                <label class="sr-only" :for="`sender-folder-${group.id}`">{{ $t('sender.mailboxFor', { address: group.address, domain: group.domain }) }}</label>
-                <select :id="`sender-folder-${group.id}`" :value="selectedFolder(group)" :disabled="savingDomain === group.id" @change="selectFolder(group.id, $event)">
-                  <option value="Imbox">Inbox</option>
-                  <option value="The Feed">Feed</option>
-                  <option value="Paper Trail">Paper</option>
-                </select>
+                <NCombobox
+                  class="sender-rule-folder"
+                  :items="mailboxFolderOptions"
+                  :model-value="selectedFolderOption(group)"
+                  by="value"
+                  :disabled="savingDomain === group.id"
+                  :_combobox-input="{ placeholder: $t('bulk.findFolder'), autocomplete: 'off' }"
+                  :_combobox-list="{ align: 'end', side: 'bottom', sideOffset: 7, class: 'sender-rule-folder-list z-[120]' }"
+                  :_combobox-viewport="{ class: 'sender-rule-folder-viewport' }"
+                  :_combobox-trigger="{ class: 'sender-rule-folder-trigger', trailing: 'i-lucide-chevron-down', ariaLabel: $t('sender.mailboxFor', { address: group.address, domain: group.domain }) }"
+                  :_combobox-item="{ class: 'sender-rule-folder-item' }"
+                  :text-empty="$t('bulk.noFoldersFound')"
+                  @update:model-value="(option: { value: MailboxFolder } | null | undefined) => selectFolder(group.id, option)"
+                >
+                  <template #trigger>
+                    <span>{{ selectedFolderOption(group)?.label }}</span>
+                  </template>
+                </NCombobox>
                 <button type="submit" :disabled="savingDomain === group.id || selectedFolder(group) === group.rule">
                   {{ savingDomain === group.id ? $t('sender.saving') : $t('sender.refileMessages') }}
                 </button>
@@ -167,6 +179,10 @@ const { data: profileData, pending: profilePending, error: profileError, refresh
 })
 const profile = computed(() => profileData.value)
 const ruleSelections = reactive<Record<string, MailboxFolder>>({})
+const mailboxFolderOptions = computed(() => (['Imbox', 'The Feed', 'Paper Trail'] as MailboxFolder[]).map(value => ({
+  value,
+  label: mailboxByName(value).label,
+})))
 const ruleNotice = reactive<Record<string, string>>({})
 const ruleErrors = reactive<Record<string, string>>({})
 const savingDomain = ref('')
@@ -248,8 +264,13 @@ function selectedFolder(group: SenderMailboxGroup) {
   return ruleSelections[group.id] ?? group.rule ?? 'Imbox'
 }
 
-function selectFolder(id: string, event: Event) {
-  ruleSelections[id] = (event.target as HTMLSelectElement).value as MailboxFolder
+function selectedFolderOption(group: SenderMailboxGroup) {
+  return mailboxFolderOptions.value.find(option => option.value === selectedFolder(group))
+}
+
+function selectFolder(id: string, option: { value: MailboxFolder } | null | undefined) {
+  if (!option || !mailboxFolderOptions.value.some(item => item.value === option.value)) return
+  ruleSelections[id] = option.value
   ruleNotice[id] = ''
   ruleErrors[id] = ''
 }
@@ -405,7 +426,17 @@ useSeoMeta({
 .sender-rule-hint { max-width: 540px; color: var(--quiet); font-size: 11px; line-height: 1.45; }
 .sender-blocked-status { color: var(--error); }
 .sender-rule-form { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
-.sender-rule-form select { min-width: 122px; min-height: 38px; padding: 0 30px 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; }
+.sender-rule-folder { min-width: 132px; }
+.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"] { display: inline-flex; width: 100%; min-height: 38px; align-items: center; justify-content: space-between; gap: 9px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); box-shadow: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
+.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"]:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 46%, var(--line)); background: var(--sheet); }
+.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"]:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 2px; }
+.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"] > span:first-child { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"] > span[icon-base] { flex: 0 0 auto; color: var(--quiet); }
+.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"]:disabled { color: var(--muted); cursor: wait; opacity: .65; }
+.combobox-list.sender-rule-folder-list { width: 160px; min-width: 140px; max-height: min(220px, calc(100dvh - 32px)); overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); box-shadow: 0 12px 30px rgb(33 43 38 / 14%); }
+.sender-rule-folder-viewport { max-height: 190px; overflow-y: auto; padding: 5px; }
+.sender-rule-folder-item { display: flex; min-height: 38px; align-items: center; gap: 9px; border-radius: 7px; color: var(--ink); font-size: 13px; }
+.sender-rule-folder-item[data-highlighted] { background: var(--accent-wash); color: var(--accent); }
 .sender-rule-form button, .sender-profile-state button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 20px; background: var(--accent); color: white; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: background-color 140ms ease, opacity 140ms ease; }
 .sender-rule-form button:hover:not(:disabled), .sender-profile-state button:hover:not(:disabled) { background: var(--accent-hover); }
 .sender-rule-form button:disabled, .sender-profile-state button:disabled { border: 1px solid var(--line); background: var(--accent-wash); color: var(--accent); cursor: not-allowed; }
@@ -428,7 +459,7 @@ useSeoMeta({
   .sender-profile-actions { width: 100%; margin-top: 5px; }
   .sender-rule-panel { align-items: flex-start; flex-direction: column; gap: 13px; padding: 14px; }
   .sender-rule-form { width: 100%; }
-  .sender-rule-form select { min-width: 0; flex: 1; }
+  .sender-rule-folder { min-width: 0; flex: 1; }
   .sender-rule-form button { padding-inline: 12px; }
   .sender-history-row { align-items: flex-start; flex-direction: column; gap: 9px; padding: 13px 10px; }
   .sender-history-meta { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 8px 12px; }

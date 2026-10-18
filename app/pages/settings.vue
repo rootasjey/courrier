@@ -585,11 +585,18 @@ async function removePhoto() {
 
 function returnFromSettings(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
-  if (document.querySelector('details[open]')) return
-  if (event.target instanceof HTMLSelectElement) {
-    event.target.blur()
+  if (event.defaultPrevented) return
+  const target = event.target
+  if (target instanceof HTMLSelectElement) {
+    target.blur()
     return
   }
+  if (target instanceof HTMLElement && (target.isContentEditable || target.matches('input, textarea'))) return
+  if (target instanceof Element && target.closest('[role="dialog"], [role="menu"], [role="listbox"], [data-state="open"], [aria-expanded="true"]')) return
+  const openSurface = [...document.querySelectorAll<HTMLElement>(
+    '[role="dialog"], [role="menu"], [role="listbox"], [aria-modal="true"], [aria-haspopup="dialog"][aria-expanded="true"], [aria-haspopup="menu"][aria-expanded="true"], [aria-haspopup="listbox"][aria-expanded="true"]',
+  )].some(surface => surface.getClientRects().length > 0)
+  if (openSurface || document.querySelector('details[open]')) return
 
   event.preventDefault()
   const previousPath = router.options.history.state.back

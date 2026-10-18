@@ -6,7 +6,7 @@
           <button class="compose-minimized-main" type="button" @click="restoreComposer">
             <span class="compose-minimized-copy">
               <strong>{{ subject || $t('composer.newMessage') }}</strong>
-              <small>{{ to || recipientEntry || $t('composer.draftInProgress') }}</small>
+              <small>{{ minimizedSubtitle }}</small>
             </span>
             <span class="sr-only">{{ $t('composer.resumeWriting') }}</span>
           </button>
@@ -21,7 +21,7 @@
           <header class="compose-header">
             <h2 id="compose-title">{{ $t('composer.newMessage') }}</h2>
             <div class="compose-window-actions">
-              <button class="compose-drafts-count" type="button" :disabled="loading || saving" @click="openDrafts">
+              <button class="compose-drafts-count" type="button" :disabled="loading" @click="openDrafts">
                 {{ $t(draftCount === 1 ? 'composer.draftCountOne' : 'composer.draftCountMany', { count: draftCount }) }}
               </button>
               <NTooltip :content="$t('composer.minimize')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
@@ -44,7 +44,7 @@
           </header>
 
           <div v-if="loading" class="compose-state">{{ $t('composer.loading') }}</div>
-          <div v-else-if="error && !draftId" class="compose-state compose-error" role="alert">
+          <div v-else-if="loadFailed && !draftId" class="compose-state compose-error" role="alert">
             <p>{{ error }}</p>
             <button class="compose-secondary" type="button" @click="loadDraft">{{ $t('common.retry') }}</button>
           </div>
@@ -130,7 +130,7 @@
 
             <footer class="compose-footer">
               <div class="compose-footer-status">
-                <span class="compose-save-status" role="status">{{ saving ? $t('composer.saving') : saved ? $t('composer.saved') : $t('composer.draftInProgress') }}</span>
+                <span class="compose-save-status" role="status">{{ saving ? $t('composer.saving') : saved ? $t('composer.saved') : hasMeaningfulDraftContent ? $t('composer.draftInProgress') : '' }}</span>
                 <p class="compose-size-meter" :class="{ 'compose-size-over': estimatedEmailBytes > OUTBOUND_MESSAGE_BUDGET_BYTES }" role="status">
                   {{ $t('composer.estimatedSize') }} : {{ formatSize(estimatedEmailBytes) }} / {{ formatSize(OUTBOUND_MESSAGE_BUDGET_BYTES) }}
                   <span v-if="estimatedEmailBytes <= OUTBOUND_MESSAGE_BUDGET_BYTES"> ({{ $t('composer.sizeLimit') }})</span>
@@ -142,12 +142,14 @@
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.3 10.8 5.1-5.1a2.6 2.6 0 0 1 3.7 3.7l-7.2 7.2a4.2 4.2 0 0 1-5.9-5.9l7.1-7.1" /></svg>
                 </button>
               </NTooltip>
-              <NTooltip :content="$t('composer.deleteDraft')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+              <NTooltip v-if="draftId" :content="$t('composer.deleteDraft')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
                 <button class="compose-discard compose-icon-action" type="button" :aria-label="$t('composer.deleteDraft')" :disabled="sending || draftStatus === 'sending'" @click="discardDraft">
                   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 5.5h13m-11.5 0 .7 11h8.6l.7-11M7.5 5.5V3.8h5v1.7m-3.5 3v5m2-5v5" /></svg>
                 </button>
               </NTooltip>
-              <button class="compose-send" type="button" :disabled="!canSend" @click="requestSend">{{ sending ? $t('composer.sending') : $t('composer.send') }}</button>
+              <NTooltip :content="`${$t('composer.send')} · ⌘/Ctrl + ↵`" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
+                <button class="compose-send" type="button" aria-keyshortcuts="Control+Enter Meta+Enter" :disabled="!canRequestSend" @click="requestSend">{{ sending ? $t('composer.sending') : $t('composer.send') }}</button>
+              </NTooltip>
             </footer>
           </template>
 
@@ -215,7 +217,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { estimateOutgoingEmailBytes, formatEmailSize, OUTBOUND_MESSAGE_BUDGET_BYTES } from '#shared/utils/outgoing-email-size'
 
 type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeBytes: number, contentId: string, disposition: 'attachment' | 'inline' }
-type ComposeDraft = { id: string, to: string, cc?: string, bcc?: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', attachments: ComposeAttachment[] }
+type ComposeDraft = { id: string, to: string, cc?: string, bcc?: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', updatedAt?: string, attachments: ComposeAttachment[] }
 type InitialDraft = { to: string, subject: string, body: string }
 type SlashCommand = { label: string, description: string, icon: string, apply: () => void }
 
@@ -240,6 +242,7 @@ const draftStatus = ref<'draft' | 'sending'>('draft')
 const mode = ref<'full' | 'popup' | 'minimized'>('full')
 const expandedMode = ref<'full' | 'popup'>('full')
 const loading = ref(false)
+const loadFailed = ref(false)
 const editorRevision = ref(0)
 const composerWindow = ref<HTMLElement | null>(null)
 const minimizedElement = ref<HTMLElement | null>(null)
@@ -251,6 +254,7 @@ const sending = ref(false)
 const confirmSend = ref(false)
 const confirmDiscard = ref(false)
 const discarding = ref(false)
+const sendAttempted = ref(false)
 const error = ref('')
 const attachmentInput = ref<HTMLInputElement | null>(null)
 const recipientInput = ref<HTMLInputElement | null>(null)
@@ -261,6 +265,9 @@ const slashState = ref({ open: false, query: '', from: 0, to: 0 })
 const slashIndex = ref(0)
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let saveRevision = 0
+let savedRevision = 0
+let savePromise: Promise<boolean> | null = null
+let forceDraftCreation = false
 let hydrating = false
 
 const editor = useEditor({
@@ -399,6 +406,16 @@ const toRecipientList = computed(() => [...committedRecipients.value, ...splitRe
 const ccRecipientList = computed(() => [...ccRecipients.value, ...splitRecipients(ccEntry.value)])
 const bccRecipientList = computed(() => [...bccRecipients.value, ...splitRecipients(bccEntry.value)])
 const recipientList = computed(() => [...toRecipientList.value, ...ccRecipientList.value, ...bccRecipientList.value])
+const hasMeaningfulDraftContent = computed(() => {
+  editorRevision.value
+  return Boolean(toRecipientList.value.length || ccRecipientList.value.length || bccRecipientList.value.length
+    || subject.value.trim() || editor.value?.getText().trim() || attachments.value.length)
+})
+const hasSendableContent = computed(() => {
+  editorRevision.value
+  return Boolean(editor.value?.getText().trim() || attachments.value.length)
+})
+const minimizedSubtitle = computed(() => to.value || recipientEntry.value || (saved.value ? $t('composer.saved') : hasMeaningfulDraftContent.value ? $t('composer.draftInProgress') : $t('composer.newMessage')))
 
 function recipientValue(field: 'to' | 'cc' | 'bcc') { return field === 'to' ? to : field === 'cc' ? cc : bcc }
 function recipientEntryValue(field: 'to' | 'cc' | 'bcc') { return field === 'to' ? recipientEntry : field === 'cc' ? ccEntry : bccEntry }
@@ -465,11 +482,12 @@ const estimatedEmailBytes = computed(() => {
   })
 })
 const recipientError = computed(() => !toRecipientList.value.length
-  ? $t('composer.recipientRequired')
-  : recipientList.value.length > 50 || recipientList.value.some(address => !isValidRecipient(address))
+  ? sendAttempted.value ? $t('composer.recipientRequired') : ''
+  : sendAttempted.value && (recipientList.value.length > 50 || recipientList.value.some(address => !isValidRecipient(address)))
     ? $t('composer.recipientInvalid')
     : '')
-const canSend = computed(() => Boolean(draftId.value && toRecipientList.value.length && !recipientError.value && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !saving.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
+const canRequestSend = computed(() => Boolean(hasSendableContent.value && !loading.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES))
+const canSend = computed(() => Boolean(draftId.value && toRecipientList.value.length && !recipientError.value && !recipientList.value.some(address => !isValidRecipient(address)) && estimatedEmailBytes.value <= OUTBOUND_MESSAGE_BUDGET_BYTES && !loading.value && !uploading.value && !sending.value && draftStatus.value === 'draft' && (editor.value?.getText().trim() || attachments.value.length)))
 
 watch(() => [props.open, props.draftId] as const, (values, previous = [false, null]) => {
   if (!import.meta.client) return
@@ -497,11 +515,12 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
   if (loading.value) return
   loading.value = true
   error.value = ''
+  loadFailed.value = false
   hydrating = true
   try {
     const draft = requestedDraftId
       ? await $fetch<ComposeDraft>(`/api/outgoing-drafts/${encodeURIComponent(requestedDraftId)}`)
-      : await $fetch<ComposeDraft>('/api/outgoing-drafts', { method: 'POST' })
+      : { id: '', to: '', cc: '', bcc: '', subject: '', content: { type: 'doc', content: [{ type: 'paragraph' }] }, status: 'draft' as const, attachments: [] }
     draftId.value = draft.id
     const initialDraft = !requestedDraftId ? props.initialDraft : null
     const loadedRecipients = splitRecipients(initialDraft?.to ?? draft.to)
@@ -521,13 +540,16 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
     const initialContent = initialDraft ? plainTextToDocument(initialDraft.body) : null
     editor.value?.commands.setContent(initialContent || draft.content || { type: 'doc', content: [{ type: 'paragraph' }] })
     editor.value?.setEditable(draft.status === 'draft')
-    saved.value = Boolean(draft.updatedAt)
+    saved.value = Boolean(requestedDraftId && draft.updatedAt)
+    savedRevision = saveRevision
     await refreshDraftCount()
   } catch (cause) {
     error.value = readError(cause, $t('composer.loadError'))
+    loadFailed.value = true
   } finally {
     hydrating = false
     loading.value = false
+    if (!requestedDraftId && hasMeaningfulDraftContent.value) scheduleSave()
     await nextTick()
     if (props.open && mode.value !== 'minimized') recipientInput.value?.focus()
   }
@@ -562,32 +584,70 @@ async function refreshDraftCount() {
 }
 
 function scheduleSave() {
-  if (hydrating || !draftId.value || draftStatus.value !== 'draft' || !props.open) return
+  if (hydrating || (!draftId.value && !hasMeaningfulDraftContent.value) || draftStatus.value !== 'draft' || !props.open) return
   saveRevision += 1
   saved.value = false
+  error.value = ''
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => { void saveDraft() }, 700)
 }
 
-async function saveDraft() {
-  if (!draftId.value || draftStatus.value !== 'draft' || saving.value || !editor.value) return
+function draftPayload() {
+  const recipients = (value: string, entry: string) => [value.trim(), entry.trim()].filter(Boolean).join(', ')
+  return {
+    to: recipients(to.value, recipientEntry.value),
+    cc: recipients(cc.value, ccEntry.value),
+    bcc: recipients(bcc.value, bccEntry.value),
+    subject: subject.value,
+    content: editor.value?.getJSON() || { type: 'doc', content: [{ type: 'paragraph' }] },
+  }
+}
+
+async function saveDraft(): Promise<boolean> {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = undefined
+  if (draftStatus.value !== 'draft') return false
+  if (!editor.value) return !draftId.value && !hasMeaningfulDraftContent.value && !forceDraftCreation
+  if (!draftId.value && !hasMeaningfulDraftContent.value && !forceDraftCreation) return true
+  if (draftId.value && saved.value && saveRevision === savedRevision && !forceDraftCreation) return true
+
+  if (savePromise) {
+    const activeSave = savePromise
+    const result = await activeSave
+    if (savePromise === activeSave) savePromise = null
+    if (saveRevision !== savedRevision && (draftId.value || hasMeaningfulDraftContent.value || forceDraftCreation)) return saveDraft()
+    return result
+  }
+
   const revision = saveRevision
   saving.value = true
   error.value = ''
-  try {
-    await $fetch(`/api/outgoing-drafts/${encodeURIComponent(draftId.value)}`, {
-      method: 'PATCH',
-      body: { to: to.value, cc: cc.value, bcc: bcc.value, subject: subject.value, content: editor.value.getJSON() },
-    })
-    if (revision === saveRevision) saved.value = true
-  } catch (cause) {
-    error.value = readError(cause, $t('composer.saveError'))
-  } finally {
-    saving.value = false
-    if (revision !== saveRevision && draftStatus.value === 'draft') void saveDraft()
-  }
+  const payload = draftPayload()
+  const operation = (async () => {
+    try {
+      if (!draftId.value) {
+        const draft = await $fetch<ComposeDraft>('/api/outgoing-drafts', { method: 'POST', body: payload })
+        draftId.value = draft.id
+        draftCount.value += 1
+        forceDraftCreation = false
+      } else {
+        await $fetch(`/api/outgoing-drafts/${encodeURIComponent(draftId.value)}`, { method: 'PATCH', body: payload })
+      }
+      savedRevision = revision
+      if (revision === saveRevision) saved.value = true
+      return true
+    } catch (cause) {
+      error.value = readError(cause, $t('composer.saveError'))
+      return false
+    } finally {
+      saving.value = false
+    }
+  })()
+  savePromise = operation
+  const result = await operation
+  if (savePromise === operation) savePromise = null
+  if (result && revision !== saveRevision && (draftId.value || hasMeaningfulDraftContent.value || forceDraftCreation)) return saveDraft()
+  return result
 }
 
 function chooseFiles(disposition: 'attachment' | 'inline') {
@@ -602,11 +662,16 @@ async function onFilesSelected(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
   input.value = ''
-  if (!files.length || !draftId.value) return
+  if (!files.length) return
   uploading.value = true
   error.value = ''
   try {
-    await saveDraft()
+    if (!draftId.value) {
+      forceDraftCreation = true
+      saveRevision += 1
+      saved.value = false
+    }
+    if (!await saveDraft() || !draftId.value) return
     for (const file of files) {
       const form = new FormData()
       form.append('file', file)
@@ -657,7 +722,15 @@ function addLink() {
 }
 
 function onWindowKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || !props.open) return
+  if (!props.open) return
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey
+    && mode.value !== 'minimized' && !confirmSend.value && !confirmDiscard.value && !slashState.value.open) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    void requestSend()
+    return
+  }
+  if (event.key !== 'Escape') return
   if (document.querySelector('details[open]')) return
   event.preventDefault()
   event.stopImmediatePropagation()
@@ -669,7 +742,9 @@ function onWindowKeydown(event: KeyboardEvent) {
 }
 
 async function requestSend() {
-  await saveDraft()
+  sendAttempted.value = true
+  if (recipientError.value || !canRequestSend.value) return
+  if (!await saveDraft()) return
   if (!canSend.value || !saved.value) return
   confirmSend.value = true
 }
@@ -717,28 +792,19 @@ async function confirmDiscardDraft() {
 
 async function closeComposer() {
   if (sending.value) return
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    saveTimer = undefined
-    await saveDraft()
-  }
+  if (!await saveDraft()) return
   emit('update:open', false)
 }
 
 async function openDrafts() {
   if (sending.value || loading.value) return
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    saveTimer = undefined
-  }
-  await saveDraft()
-  if (saving.value || error.value) return
+  if (!await saveDraft() || error.value) return
   emit('show-drafts')
 }
 
 async function transitionComposerMode(nextMode: 'full' | 'popup' | 'minimized') {
   if (sending.value) return
-  await saveDraft()
+  if (!await saveDraft()) return
   if (mode.value === nextMode) return
 
   const currentElement = mode.value === 'minimized' ? minimizedElement.value : composerWindow.value
@@ -772,6 +838,8 @@ function togglePopupMode() {
 }
 
 function reset() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = undefined
   draftId.value = ''
   to.value = ''
   recipientEntry.value = ''
@@ -785,6 +853,11 @@ function reset() {
   attachments.value = []
   draftStatus.value = 'draft'
   saved.value = false
+  sendAttempted.value = false
+  loadFailed.value = false
+  forceDraftCreation = false
+  saveRevision += 1
+  savedRevision = saveRevision
   error.value = ''
   editor.value?.commands.clearContent()
 }
@@ -893,7 +966,7 @@ onBeforeUnmount(() => {
 .compose-error { color: #aa3d37; }
 .compose-footer { position: relative; display: flex; width: min(76vw, 1240px); flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 auto; padding: 14px 0 max(20px, env(safe-area-inset-bottom)); background: var(--paper); }
 .compose-footer-status { display: flex; min-width: 0; flex: 1 1 300px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 14px; margin-right: auto; }
-.compose-save-status { color: var(--quiet); font-size: 11px; }
+.compose-save-status { min-width: 142px; color: var(--quiet); font-size: 11px; }
 .compose-tool-button { min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-icon-action { display: inline-grid; width: 36px; min-height: 36px; padding: 0; place-items: center; border-radius: 9px; }
 .compose-icon-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -902,7 +975,8 @@ onBeforeUnmount(() => {
 .compose-tool-button:disabled { opacity: .5; cursor: not-allowed; }
 .compose-send, .compose-secondary, .compose-discard { min-height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
 .compose-send { border-color: var(--accent); background: var(--accent); color: white; font-weight: 650; }
-.compose-send { border-radius: 9px; }
+.compose-send { min-height: 46px; padding-inline: 21px; border-radius: 12px; font-size: 14px; font-weight: 700; box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 22%, transparent); transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+.compose-send:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 28%, transparent); transform: translateY(-1px); }
 :root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: var(--accent-hover); background: var(--accent-hover); }
 .compose-send:disabled, .compose-secondary:disabled, .compose-discard:disabled { opacity: .55; cursor: not-allowed; }
@@ -955,9 +1029,8 @@ onBeforeUnmount(() => {
 .compose-minimized { border-radius: 14px 14px 0 0; background: var(--sheet); }
 .compose-recipient-badge { border-radius: 999px; background: var(--accent-wash); }
 .compose-attachment { border-radius: 11px; }
-.compose-send { border-color: var(--accent); border-radius: 999px; background: var(--accent); }
-.compose-send:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
-.compose-send:disabled { border-color: var(--line); background: var(--accent-wash); color: var(--muted); opacity: 1; cursor: not-allowed; }
+.compose-send { border-color: var(--accent); border-radius: 12px; background: var(--accent); }
+.compose-send:disabled { border-color: var(--line); background: var(--accent-wash); color: var(--muted); opacity: 1; box-shadow: none; cursor: not-allowed; transform: none; }
 :root[data-theme="dark"] .compose-send:not(:disabled) { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .compose-send:not(:disabled):hover { border-color: var(--accent-hover); background: var(--accent-hover); }
 

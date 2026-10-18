@@ -95,6 +95,26 @@ function handleGlobalShortcut(event: KeyboardEvent) {
     return
   }
 
+  if (event.key === 'Escape') {
+    if (event.defaultPrevented || isTyping || route.path.startsWith('/settings') || route.path === mailboxPath('Imbox')) return
+    const activeElement = document.activeElement
+    const activeSurface = activeElement instanceof HTMLElement
+      && Boolean(activeElement.closest('[role="dialog"], [role="menu"], [role="listbox"], [data-state="open"], [aria-expanded="true"]'))
+    const openSurface = [...document.querySelectorAll<HTMLElement>(
+      '[role="dialog"], [role="menu"], [role="listbox"], [aria-modal="true"], [aria-haspopup="dialog"][aria-expanded="true"], [aria-haspopup="menu"][aria-expanded="true"], [aria-haspopup="listbox"][aria-expanded="true"]',
+    )].some(surface => surface.getClientRects().length > 0)
+    if (activeSurface || openSurface || document.querySelector('details[open]')) return
+
+    const previousPath = window.history.state?.back
+    if (typeof previousPath === 'string' && previousPath.startsWith('/') && previousPath !== route.fullPath
+      && !previousPath.startsWith('/login') && !previousPath.startsWith('/password-reset')) {
+      void router.back()
+    } else {
+      void router.push(mailboxPath('Imbox'))
+    }
+    return
+  }
+
   if (event.metaKey || event.ctrlKey || event.altKey || isTyping || isDialogOpen) return
 
   const folder = shortcutFolder(event.key, event.code, event.shiftKey)

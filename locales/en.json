@@ -482,7 +482,7 @@
   },
   "composer": {
     "newMessage": "New message",
-    "draftInProgress": "Draft in progress",
+    "draftInProgress": "Changes waiting to be saved",
     "resumeWriting": "Resume writing",
     "closeDraft": "Close draft",
     "closeComposer": "Close composer",
@@ -538,7 +538,7 @@
     "permanentDelete": "Permanent deletion",
     "deleting": "Deleting…",
     "bodyPlaceholder": "Write your message…",
-    "recipientRequired": "Add at least one address in the To field.",
+    "recipientRequired": "Add at least one address in the To field before sending.",
     "recipientInvalid": "Check the addresses and separate them with commas.",
     "loadError": "The draft could not be loaded.",
     "saveError": "The draft could not be saved.",

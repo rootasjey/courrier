@@ -482,7 +482,7 @@
   },
   "composer": {
     "newMessage": "Nouveau message",
-    "draftInProgress": "Brouillon en cours",
+    "draftInProgress": "Modifications à enregistrer",
     "resumeWriting": "Reprendre la rédaction",
     "closeDraft": "Fermer le brouillon",
     "closeComposer": "Fermer le compositeur",
@@ -538,7 +538,7 @@
     "permanentDelete": "Suppression définitive",
     "deleting": "Suppression…",
     "bodyPlaceholder": "Écrire votre message…",
-    "recipientRequired": "Ajoute au moins une adresse dans le champ À.",
+    "recipientRequired": "Ajoute au moins une adresse dans le champ À avant d’envoyer.",
     "recipientInvalid": "Vérifie les adresses et sépare-les par une virgule.",
     "loadError": "Le brouillon n’a pas pu être chargé.",
     "saveError": "Le brouillon n’a pas pu être enregistré.",
