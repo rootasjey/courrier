@@ -2184,7 +2184,6 @@ async function moveOpenThread(destination: { value: MailboxFolder, label: string
   if (!destination || !thread || !['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(source) || isMovingOpenThread.value) return
 
   const threadId = thread.id
-  const messageId = activeThreadMessage.value?.id ?? thread.latest.id
   isMovingOpenThread.value = true
   threadActionError.value = ''
   threadActionFeedback.value = ''
@@ -2194,10 +2193,7 @@ async function moveOpenThread(destination: { value: MailboxFolder, label: string
       body: { threadIds: [threadId], source, action: 'move', folder: destination.value },
     })
     await refreshMessages()
-    await router.push({
-      path: threadPath(destination.value, threadId),
-      query: { message: messageId },
-    })
+    await router.push(mailboxPath(destination.value))
   } catch (error) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     threadActionError.value = data && typeof data === 'object' && 'statusMessage' in data
