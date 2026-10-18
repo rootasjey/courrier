@@ -1245,7 +1245,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .thread-content { gap: 3px; }
 .thread-subject { font-size: 15px; font-weight: 680; letter-spacing: -0.018em; }
 .thread-preview { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.thread-sender-badge { display: inline-block; max-width: min(20ch, 40vw); overflow: hidden; padding: 1px 6px; border-radius: 6px; background: var(--accent-wash); color: var(--accent); font-size: 11px; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; vertical-align: baseline; white-space: nowrap; }
+.thread-sender-badge { display: inline-block; max-width: min(20ch, 40vw); overflow: hidden; padding: 1px 6px; border-radius: 6px; background: var(--accent-wash); color: var(--accent); font-size: 11px; font-weight: 650; line-height: 1.35; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
 .thread-date { padding-left: 12px; color: var(--quiet); font-size: 11px; }
 .sender-avatar { width: 40px; height: 40px; flex-basis: 40px; font-size: 12px; }
 .thread-selection-row .sender-avatar, .search-result-row .sender-avatar { width: 40px; height: 40px; flex-basis: 40px; }
