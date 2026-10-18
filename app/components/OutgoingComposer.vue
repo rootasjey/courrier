@@ -216,9 +216,10 @@ import { estimateOutgoingEmailBytes, formatEmailSize, OUTBOUND_MESSAGE_BUDGET_BY
 
 type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeBytes: number, contentId: string, disposition: 'attachment' | 'inline' }
 type ComposeDraft = { id: string, to: string, cc?: string, bcc?: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', attachments: ComposeAttachment[] }
+type InitialDraft = { to: string, subject: string, body: string }
 type SlashCommand = { label: string, description: string, icon: string, apply: () => void }
 
-const props = defineProps<{ open: boolean, draftId?: string | null }>()
+const props = defineProps<{ open: boolean, draftId?: string | null, initialDraft?: InitialDraft | null }>()
 const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: string], 'show-drafts': [] }>()
 const { $t } = useI18n()
 const { locale } = useI18nLocale()
@@ -502,7 +503,8 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
       ? await $fetch<ComposeDraft>(`/api/outgoing-drafts/${encodeURIComponent(requestedDraftId)}`)
       : await $fetch<ComposeDraft>('/api/outgoing-drafts', { method: 'POST' })
     draftId.value = draft.id
-    const loadedRecipients = splitRecipients(draft.to)
+    const initialDraft = !requestedDraftId ? props.initialDraft : null
+    const loadedRecipients = splitRecipients(initialDraft?.to ?? draft.to)
     to.value = loadedRecipients.filter(isValidRecipient).join(', ')
     recipientEntry.value = loadedRecipients.filter(address => !isValidRecipient(address)).join(', ')
     const loadedCc = splitRecipients(draft.cc || '')
@@ -513,10 +515,11 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
     bccEntry.value = loadedBcc.filter(address => !isValidRecipient(address)).join(', ')
     showCc.value = Boolean(draft.cc)
     showBcc.value = Boolean(draft.bcc)
-    subject.value = draft.subject
+    subject.value = initialDraft?.subject ?? draft.subject
     attachments.value = draft.attachments || []
     draftStatus.value = draft.status
-    editor.value?.commands.setContent(draft.content || { type: 'doc', content: [{ type: 'paragraph' }] })
+    const initialContent = initialDraft ? plainTextToDocument(initialDraft.body) : null
+    editor.value?.commands.setContent(initialContent || draft.content || { type: 'doc', content: [{ type: 'paragraph' }] })
     editor.value?.setEditable(draft.status === 'draft')
     saved.value = Boolean(draft.updatedAt)
     await refreshDraftCount()
@@ -527,6 +530,25 @@ async function loadDraft(requestedDraftId: string | null | undefined = props.dra
     loading.value = false
     await nextTick()
     if (props.open && mode.value !== 'minimized') recipientInput.value?.focus()
+  }
+}
+
+function plainTextToDocument(value: string) {
+  const paragraphs = value.replace(/\r\n?/g, '\n').split(/\n{2,}/).filter(Boolean)
+  return {
+    type: 'doc',
+    content: paragraphs.length
+      ? paragraphs.map((paragraph) => {
+          const lines = paragraph.split('\n')
+          return {
+            type: 'paragraph',
+            content: lines.flatMap((line, index) => [
+              ...(index ? [{ type: 'hardBreak' }] : []),
+              ...(line ? [{ type: 'text', text: line }] : []),
+            ]),
+          }
+        })
+      : [{ type: 'paragraph' }],
   }
 }
 

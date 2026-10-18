@@ -146,7 +146,7 @@
                 <span class="thread-preview"><span class="search-folder-label">{{ mailboxByName(thread.latest.folder).label }}</span><span aria-hidden="true"> · </span><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.snippet || thread.latest.preview }}</span>
               </span>
               <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
-              <time class="thread-date">{{ thread.latest.date }}</time>
+              <time class="thread-date" :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
             </button>
           </div>
         </div>
@@ -207,7 +207,7 @@
             <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
               <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
               <span class="thread-content">
-                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time>{{ sender.latest.date }}</time></span>
+                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time :datetime="sender.latest.timestamp" :title="absoluteMailDate(sender.latest.timestamp)">{{ relativeMailDate(sender.latest.timestamp) }}</time></span>
                 <span class="thread-subject">{{ sender.latest.subject }}</span>
                 <span class="thread-preview">{{ sender.latest.preview }}</span>
               </span>
@@ -222,7 +222,7 @@
             <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
               <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
               <span class="thread-content">
-                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time>{{ sender.latest.date }}</time></span>
+                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time :datetime="sender.latest.timestamp" :title="absoluteMailDate(sender.latest.timestamp)">{{ relativeMailDate(sender.latest.timestamp) }}</time></span>
                 <span class="thread-subject">{{ sender.latest.subject }}</span>
                 <span class="thread-preview">{{ sender.latest.preview }}</span>
               </span>
@@ -256,7 +256,7 @@
                   <span class="thread-preview"><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
                 </span>
                 <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
-                <time class="thread-date">{{ thread.latest.date }}</time>
+                <time class="thread-date" :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
               </button>
             </div>
           </div>
@@ -282,7 +282,7 @@
                   <span class="thread-preview"><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
                 </span>
                 <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
-                <time class="thread-date">{{ thread.latest.date }}</time>
+                <time class="thread-date" :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
               </button>
             </div>
           </div>
@@ -308,7 +308,7 @@
               <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">{{ $t('mail.newMessageInThread') }}</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
             </span>
             <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
-            <time class="thread-date">{{ thread.latest.date }}</time>
+            <time class="thread-date" :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
           </button>
           <button v-if="activeFolder === 'Trash'" class="screener-restore trash-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(thread.latest)">{{ $t('mail.restore') }}</button>
         </div>
@@ -345,7 +345,7 @@
                   <strong>{{ thread.subject }}</strong>
                   <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
                 </span>
-                <time>{{ thread.latest.date }}</time>
+                <time :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
                 <span v-if="!isSetAsideStackExpanded && index === 0" class="set-aside-stack-count">{{ setAsideThreads.length }}</span>
               </button>
             </div>
@@ -376,7 +376,7 @@
                   <strong>{{ thread.subject }}</strong>
                   <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
                 </span>
-                <time>{{ thread.latest.date }}</time>
+                <time :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
                 <span v-if="!isReplyLaterStackExpanded && index === 0" class="set-aside-stack-count reply-later-stack-count">{{ replyLaterThreads.length }}</span>
               </button>
             </div>
@@ -395,12 +395,7 @@
           <kbd>Esc</kbd>
         </button>
       </div>
-      <div v-if="messageReadError" class="message-read-error" role="alert">
-        <span>{{ messageReadError }}</span>
-        <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">{{ $t('mail.retryMarkRead') }}</button>
-      </div>
-
-      <article class="message-paper">
+      <div class="thread-subject-header">
         <div v-if="isEditingThreadSubject" class="thread-subject-editor">
           <form @submit.prevent="saveThreadSubject">
             <input
@@ -435,6 +430,15 @@
             <button type="button" role="menuitem" @click="beginThreadSubjectEdit">{{ $t('rename.action') }}</button>
           </div>
         </div>
+      </div>
+      <div v-if="threadActionFeedback" class="thread-action-notice" role="status">{{ threadActionFeedback }}</div>
+      <div v-if="threadActionError" class="thread-action-notice is-error" role="alert">{{ threadActionError }}</div>
+      <div v-if="messageReadError" class="message-read-error" role="alert">
+        <span>{{ messageReadError }}</span>
+        <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">{{ $t('mail.retryMarkRead') }}</button>
+      </div>
+
+      <article class="message-paper">
         <div v-if="selectedThread?.manualMergeIds.length" class="merged-thread-control">
           <span>{{ $t('mail.mergedConversationNote') }}</span>
           <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
@@ -498,7 +502,7 @@
                   <span class="thread-tab-heading">
                     <span class="sender-avatar thread-tab-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
                     <span class="thread-tab-sender">{{ message.sender }}</span>
-                    <time>{{ message.date }}</time>
+                    <time :datetime="message.timestamp" :title="absoluteMailDate(message.timestamp)">{{ relativeMailDate(message.timestamp) }}</time>
                   </span>
                   <span class="thread-tab-preview">{{ message.subject }} · {{ message.preview }}</span>
                   <span class="sr-only">{{ $t('mail.messagePosition', { current: index + 1, total: chronologicalMessages.length }) }}</span>
@@ -525,13 +529,15 @@
               :aria-label="$t('mail.messageFrom', { sender: activeThreadMessage.sender })"
             >
               <div class="message-meta">
-                <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
+                <NuxtLink class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
+                  <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
+                </NuxtLink>
                 <span class="meta-copy">
-                  <strong>{{ activeThreadMessage.sender }}</strong>
+                  <NuxtLink class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
                   <span v-if="activeThreadMessage.isOutgoing">{{ $t('mail.recipient') }} {{ activeThreadMessage.recipient }}</span>
                   <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
                 </span>
-                <time>{{ activeThreadMessage.date }}</time>
+                <time :datetime="activeThreadMessage.timestamp" :title="absoluteMailDate(activeThreadMessage.timestamp)">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
               </div>
 
               <div class="message-rule" />
@@ -566,13 +572,15 @@
               :aria-label="$t('mail.messageFrom', { sender: message.sender })"
             >
               <div class="message-meta">
-                <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
+                <NuxtLink class="sender-profile-avatar" :to="senderPath(message.address)" :aria-label="$t('mail.openSenderPage', { sender: message.sender })">
+                  <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
+                </NuxtLink>
               <span class="meta-copy">
-                <strong>{{ message.sender }}</strong>
+                <NuxtLink class="sender-profile-name" :to="senderPath(message.address)">{{ message.sender }}</NuxtLink>
                 <span v-if="message.isOutgoing">{{ $t('mail.recipient') }} {{ message.recipient }}</span>
                 <NuxtLink v-else class="sender-profile-link" :to="senderPath(message.address)">{{ message.address }}</NuxtLink>
                 </span>
-                <time>{{ message.date }}</time>
+                <time :datetime="message.timestamp" :title="absoluteMailDate(message.timestamp)">{{ relativeMailDate(message.timestamp) }}</time>
               </div>
               <div class="message-rule" />
               <div v-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
@@ -616,6 +624,33 @@
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
             <span>{{ $t('mail.reply') }}</span><kbd>R</kbd>
           </button>
+          <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="markOpenThreadUnseen">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 4.5h15v11h-15z" /><path d="m3 5 7 5.5L17 5" /><circle cx="15.5" cy="4" r="2.5" /></svg>
+            <span>{{ isMarkingThreadUnseen ? $t('messageActions.markingUnseen') : $t('messageActions.markUnseen') }}</span>
+          </button>
+          <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="forwardActiveMessage">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3.5 17.5 10 11 16.5v-4c-4.4 0-7 1.2-8.5 4 .2-5.1 2.8-8 8.5-8v-5Z" /></svg>
+            <span>{{ $t('messageActions.forward') }}</span>
+          </button>
+          <NCombobox
+            v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)"
+            class="thread-action-move"
+            :items="bulkMoveOptions"
+            by="value"
+            :disabled="isMarkingThreadUnseen || isMovingOpenThread"
+            :_combobox-input="{ placeholder: $t('bulk.findFolder'), autocomplete: 'off', leading: 'i-lucide-search' }"
+            :_combobox-list="{ align: 'start', side: 'top', sideOffset: 8, class: 'thread-action-move-list z-[120]' }"
+            :_combobox-viewport="{ class: 'thread-action-move-viewport' }"
+            :_combobox-trigger="{ class: 'thread-action-move-trigger', trailing: 'i-lucide-chevron-down', ariaLabel: $t('messageActions.moveToFolder') }"
+            :_combobox-item="{ class: 'thread-action-move-item' }"
+            :text-empty="$t('bulk.noFoldersFound')"
+            @update:model-value="moveOpenThread"
+          >
+            <template #trigger>
+              <svg class="thread-action-move-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h7l2 2h8v10h-17v-12Z" /><path d="M12 11v5m-2-2 2 2 2-2" /></svg>
+              <span>{{ $t('messageActions.move') }}</span>
+            </template>
+          </NCombobox>
           <button v-if="activeFolder === 'Trash'" class="message-action-button" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
             {{ isSavingScreenerAction ? $t('mail.restoring') : $t('mail.restore') }}
           </button>
@@ -862,7 +897,7 @@
       </template>
     </NDialog>
 
-    <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" :draft-id="composeDraftId" @sent="onOutgoingMessageSent" @show-drafts="goToDrafts" />
+    <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" :draft-id="composeDraftId" :initial-draft="composeInitialDraft" @sent="onOutgoingMessageSent" @show-drafts="goToDrafts" />
   </main>
 </template>
 
@@ -927,6 +962,7 @@ type SearchThread = MessageThread & {
 
 const folders = mailboxes
 const { $t } = useI18n()
+const { locale } = useI18nLocale()
 const route = useRoute()
 const router = useRouter()
 const activeFolder = computed(() => mailboxFromPath(route.path))
@@ -987,6 +1023,10 @@ const threadMergeError = ref('')
 const threadTrashDialogOpen = ref(false)
 const bulkTrashDialogOpen = ref(false)
 const isTrashingThread = ref(false)
+const isMarkingThreadUnseen = ref(false)
+const isMovingOpenThread = ref(false)
+const threadActionFeedback = ref('')
+const threadActionError = ref('')
 const bulkActionFeedback = ref('')
 const bulkActionError = ref('')
 const isApplyingBulkAction = ref(false)
@@ -1005,6 +1045,7 @@ const isRefreshingInbox = ref(false)
 const replyComposerOpen = ref(false)
 const composeOpen = ref(false)
 const composeDraftId = ref<string | null>(null)
+const composeInitialDraft = ref<{ to: string, subject: string, body: string } | null>(null)
 const replySendConfirmOpen = ref(false)
 const replyBody = ref('')
 const replyError = ref('')
@@ -1028,6 +1069,57 @@ let undoTimer: ReturnType<typeof setTimeout> | undefined
 
 function openNewComposer() {
   composeDraftId.value = null
+  composeInitialDraft.value = null
+  composeOpen.value = true
+}
+
+function relativeMailDate(timestamp: string) {
+  const time = new Date(timestamp).getTime()
+  if (!Number.isFinite(time)) return ''
+
+  const difference = time - Date.now()
+  const absoluteDifference = Math.abs(difference)
+  const units: { unit: Intl.RelativeTimeFormatUnit, milliseconds: number }[] = [
+    { unit: 'year', milliseconds: 31_536_000_000 },
+    { unit: 'month', milliseconds: 2_592_000_000 },
+    { unit: 'day', milliseconds: 86_400_000 },
+    { unit: 'hour', milliseconds: 3_600_000 },
+    { unit: 'minute', milliseconds: 60_000 },
+    { unit: 'second', milliseconds: 1_000 },
+  ]
+  const { unit, milliseconds } = units.find(candidate => absoluteDifference >= candidate.milliseconds) ?? units.at(-1)!
+  const value = Math.round(difference / milliseconds)
+  return new Intl.RelativeTimeFormat(locale.value || 'fr', { numeric: 'auto', style: 'short' }).format(value, unit)
+}
+
+function absoluteMailDate(timestamp: string) {
+  const date = new Date(timestamp)
+  if (!Number.isFinite(date.getTime())) return ''
+  return new Intl.DateTimeFormat(locale.value || 'fr', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'Europe/Paris',
+  }).format(date)
+}
+
+function forwardActiveMessage() {
+  const message = activeThreadMessage.value || selectedMessage.value
+  if (!message) return
+  threadActionError.value = ''
+  threadActionFeedback.value = ''
+  composeDraftId.value = null
+  composeInitialDraft.value = {
+    to: '',
+    subject: $t('mail.forwardSubject', { subject: message.subject }),
+    body: [
+      $t('mail.forwardedMessageHeader'),
+      $t('mail.forwardedFrom', { sender: message.sender, address: message.address }),
+      $t('mail.forwardedDate', { date: absoluteMailDate(message.timestamp) }),
+      $t('mail.forwardedSubject', { subject: message.subject }),
+      '',
+      message.body,
+    ].join('\n'),
+  }
   composeOpen.value = true
 }
 
@@ -1532,6 +1624,13 @@ watch(activeThreadMessageId, async (messageId) => {
 })
 
 function handleThreadKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && isEditingThreadSubject.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    cancelThreadSubjectEdit()
+    return
+  }
+
   const target = event.target
   if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return
   // Let an open overlay handle Escape before page shortcuts clear selections or navigate away.
@@ -2052,6 +2151,36 @@ function moveSelectedThreads(destination: { value: MailboxFolder; label: string 
   void applyBulkAction('move', { folder: destination.value })
 }
 
+async function moveOpenThread(destination: { value: MailboxFolder, label: string } | null | undefined) {
+  const thread = selectedThread.value
+  const source = activeFolder.value
+  if (!destination || !thread || !['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(source) || isMovingOpenThread.value) return
+
+  const threadId = thread.id
+  const messageId = activeThreadMessage.value?.id ?? thread.latest.id
+  isMovingOpenThread.value = true
+  threadActionError.value = ''
+  threadActionFeedback.value = ''
+  try {
+    await $fetch('/api/threads/bulk-action', {
+      method: 'PATCH',
+      body: { threadIds: [threadId], source, action: 'move', folder: destination.value },
+    })
+    await refreshMessages()
+    await router.push({
+      path: threadPath(destination.value, threadId),
+      query: { message: messageId },
+    })
+  } catch (error) {
+    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
+    threadActionError.value = data && typeof data === 'object' && 'statusMessage' in data
+      ? String(data.statusMessage)
+      : $t('messageActions.moveError')
+  } finally {
+    isMovingOpenThread.value = false
+  }
+}
+
 function moveSelectionCursor(direction: -1 | 1) {
   const threads = selectableThreads.value
   if (!threads.length) return
@@ -2167,6 +2296,41 @@ function setMessageRead(message: InboxMessage, isRead: boolean) {
   message.isRead = isRead
   // useFetch keeps a shallow array in this page, so replace it to refresh computed thread counts.
   inboxMessages.value = [...(inboxMessages.value ?? [])]
+}
+
+async function markOpenThreadUnseen() {
+  const messages = selectedThread.value?.messages ?? []
+  if (!messages.length || isMarkingThreadUnseen.value) return
+
+  isMarkingThreadUnseen.value = true
+  threadActionError.value = ''
+  threadActionFeedback.value = ''
+  const unreadMessages = messages.filter(message => message.isRead)
+  if (!unreadMessages.length) {
+    threadActionFeedback.value = $t('messageActions.alreadyUnseen')
+    isMarkingThreadUnseen.value = false
+    return
+  }
+
+  const results = await Promise.allSettled(unreadMessages.map(async (message) => {
+    setMessageRead(message, false)
+    try {
+      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/read`, {
+        method: 'PATCH',
+        body: { isRead: false },
+      })
+    } catch (error) {
+      setMessageRead(message, true)
+      throw error
+    }
+  }))
+
+  if (results.some(result => result.status === 'rejected')) {
+    threadActionError.value = $t('messageActions.markUnseenError')
+  } else {
+    threadActionFeedback.value = $t('messageActions.markedUnseen')
+  }
+  isMarkingThreadUnseen.value = false
 }
 
 function navigateToFolder(folder: Folder) {

@@ -179,7 +179,16 @@
     "error": "The local thread name could not be saved."
   },
   "messageActions": {
-    "trashDone": "The thread was moved to Trash."
+    "trashDone": "The thread was moved to Trash.",
+    "markUnseen": "Mark as unread",
+    "markingUnseen": "Marking…",
+    "markedUnseen": "The thread is marked as unread.",
+    "alreadyUnseen": "The thread is already unread.",
+    "markUnseenError": "The thread could not be marked as unread.",
+    "forward": "Forward",
+    "move": "Move",
+    "moveToFolder": "Move thread to a mailbox",
+    "moveError": "The thread could not be moved."
   },
   "bulk": {
     "selectionActions": "Actions for selected threads",
@@ -219,6 +228,12 @@
     "search": "Search",
     "write": "Compose",
     "newMessage": "New message",
+    "openSenderPage": "Open {sender}’s sender page",
+    "forwardSubject": "Fwd: {subject}",
+    "forwardedMessageHeader": "---------- Forwarded message ----------",
+    "forwardedFrom": "From: {sender} <{address}>",
+    "forwardedDate": "Date: {date}",
+    "forwardedSubject": "Subject: {subject}",
     "reviewSenderOne": "{count} sender to review",
     "reviewSenderMany": "{count} senders to review",
     "screenerShortcuts": "Show Screener shortcuts",

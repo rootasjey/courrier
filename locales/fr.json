@@ -179,7 +179,16 @@
     "error": "Le nom local du fil n’a pas pu être enregistré."
   },
   "messageActions": {
-    "trashDone": "Le fil a été déplacé dans la corbeille."
+    "trashDone": "Le fil a été déplacé dans la corbeille.",
+    "markUnseen": "Marquer comme non lu",
+    "markingUnseen": "Marquage…",
+    "markedUnseen": "Le fil est marqué comme non lu.",
+    "alreadyUnseen": "Le fil est déjà non lu.",
+    "markUnseenError": "Le fil n’a pas pu être marqué comme non lu.",
+    "forward": "Transférer",
+    "move": "Déplacer",
+    "moveToFolder": "Déplacer le fil vers une boîte",
+    "moveError": "Le fil n’a pas pu être déplacé."
   },
   "bulk": {
     "selectionActions": "Actions sur les fils sélectionnés",
@@ -219,6 +228,12 @@
     "search": "Recherche",
     "write": "Écrire",
     "newMessage": "Nouveau message",
+    "openSenderPage": "Afficher la page de {sender}",
+    "forwardSubject": "Tr : {subject}",
+    "forwardedMessageHeader": "---------- Message transféré ----------",
+    "forwardedFrom": "De : {sender} <{address}>",
+    "forwardedDate": "Date : {date}",
+    "forwardedSubject": "Objet : {subject}",
     "reviewSenderOne": "{count} expéditeur à examiner",
     "reviewSenderMany": "{count} expéditeurs à examiner",
     "screenerShortcuts": "Afficher les raccourcis du Screener",
