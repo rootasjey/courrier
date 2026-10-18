@@ -1663,6 +1663,8 @@ watch(activeThreadMessageId, async (messageId) => {
 })
 
 function handleThreadKeydown(event: KeyboardEvent) {
+  if (event.defaultPrevented) return
+
   if (event.key === 'Escape' && isEditingThreadSubject.value) {
     event.preventDefault()
     event.stopPropagation()
@@ -1671,6 +1673,11 @@ function handleThreadKeydown(event: KeyboardEvent) {
   }
 
   const target = event.target
+  if (event.key === 'Escape' && activeFolder.value === 'Screener' && openScreenerOptionsFor.value) {
+    event.preventDefault()
+    openScreenerOptionsFor.value = ''
+    return
+  }
   if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return
   // Let an open overlay handle Escape before page shortcuts clear selections or navigate away.
   if (target instanceof Element && target.closest('[role="dialog"], [role="menu"], [role="listbox"], [aria-haspopup="dialog"][aria-expanded="true"]')) return
@@ -1705,9 +1712,10 @@ function handleThreadKeydown(event: KeyboardEvent) {
       return
     }
 
-    if (event.key === 'Escape' && openScreenerOptionsFor.value) {
+    if (event.key === 'Escape') {
+      if (hasOpenKeyboardSurface()) return
       event.preventDefault()
-      openScreenerOptionsFor.value = ''
+      navigateToFolder('Imbox')
       return
     }
 
@@ -1760,6 +1768,13 @@ function handleThreadKeydown(event: KeyboardEvent) {
     return
   }
 
+  if (event.key === 'Escape' && activeFolder.value === 'Screener' && !isReadingMessage.value && !isGlobalSearch.value) {
+    if (hasOpenKeyboardSurface()) return
+    event.preventDefault()
+    navigateToFolder('Imbox')
+    return
+  }
+
   if (event.key === 'Escape' && (isSetAsideStackExpanded.value || isReplyLaterStackExpanded.value)) {
     event.preventDefault()
     isSetAsideStackExpanded.value = false
@@ -1808,10 +1823,6 @@ function handleThreadKeydown(event: KeyboardEvent) {
     }
   }
 
-  if (event.key === 'Escape' && openScreenerOptionsFor.value) {
-    openScreenerOptionsFor.value = ''
-    return
-  }
   if (event.key === 'Escape' && activeFolder.value === 'Set Aside' && !isReadingMessage.value && !isGlobalSearch.value) {
     event.preventDefault()
     navigateToFolder('Imbox')
@@ -1865,6 +1876,13 @@ function handleThreadKeydown(event: KeyboardEvent) {
     const newestMessage = chronologicalMessages.value.at(-1)
     if (newestMessage) selectThreadMessage(newestMessage.id)
   }
+}
+
+function hasOpenKeyboardSurface() {
+  const surfaces = document.querySelectorAll<HTMLElement>(
+    '[role="dialog"], [role="menu"], [role="listbox"], [aria-modal="true"], [aria-haspopup="dialog"][aria-expanded="true"], [aria-haspopup="menu"][aria-expanded="true"], [aria-haspopup="listbox"][aria-expanded="true"]',
+  )
+  return [...surfaces].some(surface => surface.getClientRects().length > 0)
 }
 
 function handleScreenerOutsideClick(event: PointerEvent) {

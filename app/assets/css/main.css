@@ -275,7 +275,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .screener-scope-toggle[aria-checked="true"] span { transform: translateX(16px); }
 .screener-scope-message { display: inline-flex; align-items: center; justify-content: flex-start; gap: 5px; }
 .screener-apply { position: relative; display: flex; width: 100%; min-height: 40px; align-items: center; justify-content: center; margin-top: 13px; border: 0; border-radius: 8px; background: var(--accent); color: white; font-size: 13px; font-weight: 650; cursor: pointer; }
-.screener-apply kbd { position: absolute; right: 11px; }
+.screener-apply kbd { position: absolute; right: 11px; display: inline-flex; min-width: 22px; height: 22px; align-items: center; justify-content: center; padding: 0 5px; border-color: color-mix(in srgb, currentColor 34%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--accent) 82%, var(--ink)); color: inherit; font-size: 10px; opacity: .94; }
 .screener-apply:disabled { opacity: .6; }
 .screener-message { min-width: 0; flex: 1; border-bottom: 0; }
 .screener-message .thread-content { gap: 5px; }
