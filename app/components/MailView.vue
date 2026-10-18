@@ -631,7 +631,7 @@
           </button>
           <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="markOpenThreadUnseen">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 4.5h15v11h-15z" /><path d="m3 5 7 5.5L17 5" /><circle cx="15.5" cy="4" r="2.5" /></svg>
-            <span>{{ isMarkingThreadUnseen ? $t('messageActions.markingUnseen') : $t('messageActions.markUnseen') }}</span>
+            <span>{{ isMarkingThreadUnseen ? $t('messageActions.markingUnseen') : $t('messageActions.markUnseen') }}</span><kbd>U</kbd>
           </button>
           <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="forwardActiveMessage">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3.5 17.5 10 11 16.5v-4c-4.4 0-7 1.2-8.5 4 .2-5.1 2.8-8 8.5-8v-5Z" /></svg>
@@ -642,6 +642,7 @@
             class="thread-action-move"
             :items="bulkMoveOptions"
             by="value"
+            :open="threadMoveMenuOpen"
             :disabled="isMarkingThreadUnseen || isMovingOpenThread"
             :_combobox-input="{ placeholder: $t('bulk.findFolder'), autocomplete: 'off', leading: 'i-lucide-search' }"
             :_combobox-list="{ align: 'start', side: 'top', sideOffset: 8, class: 'thread-action-move-list z-[120]' }"
@@ -649,11 +650,12 @@
             :_combobox-trigger="{ class: 'thread-action-move-trigger', trailing: 'i-lucide-chevron-down', ariaLabel: $t('messageActions.moveToFolder') }"
             :_combobox-item="{ class: 'thread-action-move-item' }"
             :text-empty="$t('bulk.noFoldersFound')"
+            @update:open="setThreadMoveMenuOpen"
             @update:model-value="moveOpenThread"
           >
             <template #trigger>
               <svg class="thread-action-move-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h7l2 2h8v10h-17v-12Z" /><path d="M12 11v5m-2-2 2 2 2-2" /></svg>
-              <span>{{ $t('messageActions.move') }}</span>
+              <span>{{ $t('messageActions.move') }}</span><kbd>V</kbd>
             </template>
           </NCombobox>
           <button v-if="activeFolder === 'Trash'" class="message-action-button" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
@@ -1030,6 +1032,7 @@ const bulkTrashDialogOpen = ref(false)
 const isTrashingThread = ref(false)
 const isMarkingThreadUnseen = ref(false)
 const isMovingOpenThread = ref(false)
+const threadMoveMenuOpen = ref(false)
 const threadActionFeedback = ref('')
 const threadActionError = ref('')
 const unreadActionFeedback = useState('courrier-unread-action-feedback', () => '')
@@ -1646,6 +1649,7 @@ function handleThreadKeydown(event: KeyboardEvent) {
   if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return
   // Let an open overlay handle Escape before page shortcuts clear selections or navigate away.
   if (target instanceof Element && target.closest('[role="dialog"], [role="menu"], [role="listbox"], [aria-haspopup="dialog"][aria-expanded="true"]')) return
+  if (threadMoveMenuOpen.value) return
   if (event.altKey || event.ctrlKey || event.metaKey) return
 
   if (activeFolder.value === 'Screener' && screenerView.value === 'pending') {
@@ -1800,7 +1804,15 @@ function handleThreadKeydown(event: KeyboardEvent) {
   }
   if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return
 
-  if (event.key === 'Escape') {
+  const key = event.key.toLocaleLowerCase('en-US')
+  if (key === 'u' && activeFolder.value !== 'Trash' && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
+    event.preventDefault()
+    void markOpenThreadUnseen()
+  } else if (key === 'v' && ['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value) && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
+    event.preventDefault()
+    threadMoveMenuOpen.value = true
+    void nextTick(() => document.querySelector<HTMLInputElement>('.thread-action-move input')?.focus())
+  } else if (event.key === 'Escape') {
     event.preventDefault()
     if (replyComposerOpen.value) replyComposerOpen.value = false
     else closeMessage()
@@ -2160,6 +2172,10 @@ async function trashOpenThread() {
 function moveSelectedThreads(destination: { value: MailboxFolder; label: string } | null | undefined) {
   if (!destination) return
   void applyBulkAction('move', { folder: destination.value })
+}
+
+function setThreadMoveMenuOpen(open: boolean) {
+  threadMoveMenuOpen.value = open
 }
 
 async function moveOpenThread(destination: { value: MailboxFolder, label: string } | null | undefined) {
