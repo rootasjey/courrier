@@ -19,7 +19,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Aucun espace Courrier actif.' })
   }
 
-  const [passkeys, recoveryCodes] = await Promise.all([
+  const [preferences, passkeys, recoveryCodes] = await Promise.all([
+    getAccountDb(event).prepare(
+      'SELECT theme_mode, theme_name FROM users WHERE id = ? LIMIT 1',
+    ).bind(user.id).first<{ theme_mode: string | null, theme_name: string | null }>(),
     getAccountDb(event).prepare('SELECT COUNT(*) AS count FROM auth_passkeys WHERE user_id = ?')
       .bind(user.id).first<{ count: number }>(),
     getAccountDb(event).prepare('SELECT COUNT(*) AS count FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL')
@@ -33,7 +36,13 @@ export default defineEventHandler(async (event) => {
 
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
   return {
-    user: { id: user.id, email: user.email, displayName: user.displayName },
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      themeMode: preferences?.theme_mode ?? null,
+      themeName: preferences?.theme_name ?? null,
+    },
     activeWorkspaceId: membership?.id ?? null,
     isPlatformAdmin: platformAdmin,
     hasPasskeys,

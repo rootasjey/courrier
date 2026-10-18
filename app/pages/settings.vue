@@ -108,6 +108,12 @@
               </div>
               <p v-else class="settings-theme-empty" role="status">{{ $t('settings.noThemesFound') }}</p>
             </fieldset>
+            <p
+              v-if="themeSyncStatus !== 'idle'"
+              class="settings-theme-sync-status"
+              :class="{ 'is-error': themeSyncStatus === 'error' }"
+              role="status"
+            >{{ $t(themeSyncStatus === 'saving' ? 'settings.themeSyncing' : themeSyncStatus === 'error' ? 'settings.themeSyncError' : 'settings.themeSynced') }}</p>
           </div>
         </section>
 
@@ -268,6 +274,7 @@ type ThemeName = 'paper' | 'forest' | 'graphite' | 'lavender' | 'ayu' | 'one-dar
 type SettingsTab = 'general' | 'profile' | 'security' | 'data'
 const themeMode = useState<ThemeMode>('courrier-color-mode', () => 'system')
 const themeName = useState<ThemeName>('courrier-theme-family', () => 'paper')
+const themeSyncStatus = useState<'idle' | 'saving' | 'saved' | 'error'>('courrier-theme-sync-status', () => 'idle')
 const modeMenuOpen = ref(false)
 const themeSearch = ref('')
 const systemPrefersDark = ref(false)

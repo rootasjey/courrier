@@ -489,6 +489,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .settings-appearance-combobox button.settings-appearance-trigger[aria-haspopup="listbox"]:hover { border-color: color-mix(in srgb, var(--accent) 46%, var(--line)); background-color: var(--surface-soft); }
 .settings-appearance-combobox button.settings-appearance-trigger[aria-haspopup="listbox"]:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 2px; }
 .settings-theme-fieldset { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.settings-theme-sync-status { margin: 12px 0 0; color: var(--accent); font-size: 12px; }
+.settings-theme-sync-status.is-error { color: var(--error); }
 .settings-theme-search { position: relative; display: block; width: min(440px, 100%); margin: 0 0 11px; }
 .settings-theme-search svg { position: absolute; top: 50%; left: 13px; width: 17px; height: 17px; fill: none; stroke: var(--muted); stroke-width: 1.7; stroke-linecap: round; pointer-events: none; transform: translateY(-50%); }
 .settings-theme-search input { width: 100%; min-height: 42px; padding: 0 12px 0 39px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }

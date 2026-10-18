@@ -28,12 +28,44 @@ const pageTransition = computed(() => isPublicAuthRoute.value || route.path.star
 const activeFolder = computed(() => mailboxFromPath(route.path))
 type ThemeMode = 'system' | 'light' | 'dark'
 type ThemeName = 'paper' | 'forest' | 'graphite' | 'lavender' | 'ayu' | 'one-dark-pro' | 'synthwave' | 'shades-purple' | 'min'
-const themeMode = useState<ThemeMode>('courrier-color-mode', () => 'system')
-const themeName = useState<ThemeName>('courrier-theme-family', () => 'paper')
+type AccountThemePreferences = {
+  user: { id: string, themeMode: ThemeMode | null, themeName: ThemeName | null }
+} | null
+const accountSession = useState<AccountThemePreferences>('courrier-account-session', () => null)
+const accountHasThemePreferences = computed(() => isThemeMode(accountSession.value?.user.themeMode ?? null)
+  && isThemeName(accountSession.value?.user.themeName ?? null))
+const themeMode = useState<ThemeMode>('courrier-color-mode', () => {
+  const saved = accountSession.value?.user.themeMode
+  return isThemeMode(saved ?? null) ? saved : 'system'
+})
+const themeName = useState<ThemeName>('courrier-theme-family', () => {
+  const saved = accountSession.value?.user.themeName
+  return isThemeName(saved ?? null) ? saved : 'paper'
+})
+const themeReady = ref(false)
+const systemPrefersDark = ref(false)
+const themeSyncStatus = useState<'idle' | 'saving' | 'saved' | 'error'>('courrier-theme-sync-status', () => 'idle')
+let lastSavedThemePair = accountHasThemePreferences.value
+  ? accountSession.value!.user.themeMode + ':' + accountSession.value!.user.themeName
+  : ''
+let themeSaveQueue = Promise.resolve()
 const commandPaletteOpen = useState('courrier-command-palette-open', () => false)
 const themeModeStorageKey = 'courrier-color-mode'
 const themeNameStorageKey = 'courrier-theme-family'
 const legacyThemeStorageKey = 'courrier-theme'
+const themeBootstrapScript = '(()=>{try{const r=document.documentElement;let m=r.dataset.themeMode||"system";let n=r.dataset.themeVariant||"paper";if(r.dataset.themeSource!=="account"){const modes=["system","light","dark"];const names=["paper","forest","graphite","lavender","ayu","one-dark-pro","synthwave","shades-purple","min"];const sm=localStorage.getItem("courrier-color-mode");const sn=localStorage.getItem("courrier-theme-family");const old=localStorage.getItem("courrier-theme");if(modes.includes(sm))m=sm;if(names.includes(sn))n=sn;else if(old==="forest"){m="dark";n="forest"}else if(old==="graphite"||old==="dark"){m="dark";n="graphite"}else if(old==="black"){m="dark";n="lavender"}else if(old==="paper"||old==="light"){m="light";n="paper"}else if(old==="system"){m="system";n=matchMedia("(prefers-color-scheme: dark)").matches?"graphite":"paper"}r.dataset.themeMode=m;r.dataset.themeVariant=n}r.dataset.theme=m==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):m}catch{}})()'
+
+useHead({
+  htmlAttrs: {
+    'data-theme': computed(() => themeMode.value === 'system'
+      ? (systemPrefersDark.value ? 'dark' : 'light')
+      : themeMode.value),
+    'data-theme-mode': computed(() => themeMode.value),
+    'data-theme-variant': computed(() => themeName.value),
+    'data-theme-source': computed(() => accountHasThemePreferences.value ? 'account' : 'browser'),
+  },
+  script: [{ key: 'courrier-theme-bootstrap', innerHTML: themeBootstrapScript, tagPosition: 'head' }],
+})
 
 function selectFolder(folder: MailboxKey) {
   const destination = mailboxPath(folder)
@@ -58,10 +90,12 @@ function applyTheme(mode: ThemeMode, theme: ThemeName) {
     : mode
 
   document.documentElement.dataset.theme = resolvedMode
+  document.documentElement.dataset.themeMode = mode
   document.documentElement.dataset.themeVariant = theme
 }
 
 function updateSystemTheme() {
+  systemPrefersDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
   if (themeMode.value === 'system') applyTheme(themeMode.value, themeName.value)
 }
 
@@ -124,20 +158,35 @@ function handleGlobalShortcut(event: KeyboardEvent) {
   selectFolder(folder)
 }
 
-onMounted(() => {
+onBeforeMount(() => {
   const systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  systemPrefersDark.value = systemIsDark
   const savedMode = window.localStorage.getItem(themeModeStorageKey)
   const savedThemeName = window.localStorage.getItem(themeNameStorageKey)
   const migrated = migrateLegacyTheme(window.localStorage.getItem(legacyThemeStorageKey), systemIsDark)
 
-  if (isThemeMode(savedMode)) themeMode.value = savedMode
-  else if (migrated) themeMode.value = migrated.mode
+  if (accountHasThemePreferences.value) {
+    themeMode.value = accountSession.value!.user.themeMode!
+    themeName.value = accountSession.value!.user.themeName!
+  } else {
+    if (isThemeMode(savedMode)) themeMode.value = savedMode
+    else if (migrated) themeMode.value = migrated.mode
 
-  if (isThemeName(savedThemeName)) themeName.value = savedThemeName
-  else if (migrated) themeName.value = migrated.theme
+    if (isThemeName(savedThemeName)) themeName.value = savedThemeName
+    else if (migrated) themeName.value = migrated.theme
+  }
 
   window.localStorage.removeItem(legacyThemeStorageKey)
   applyTheme(themeMode.value, themeName.value)
+  window.localStorage.setItem(themeModeStorageKey, themeMode.value)
+  window.localStorage.setItem(themeNameStorageKey, themeName.value)
+  if (!accountHasThemePreferences.value && accountSession.value?.user.id) {
+    void persistThemePreferences(themeMode.value, themeName.value)
+  }
+  themeReady.value = true
+})
+
+onMounted(() => {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateSystemTheme)
   window.addEventListener('keydown', handleGlobalShortcut)
 })
@@ -153,5 +202,34 @@ watch([themeMode, themeName], ([mode, name]) => {
   applyTheme(mode, name)
   window.localStorage.setItem(themeModeStorageKey, mode)
   window.localStorage.setItem(themeNameStorageKey, name)
+  if (accountHasThemePreferences.value
+    && accountSession.value?.user.themeMode === mode
+    && accountSession.value.user.themeName === name) return
+  if (themeReady.value) void persistThemePreferences(mode, name)
 })
+
+function persistThemePreferences(mode: ThemeMode, name: ThemeName) {
+  const pair = mode + ':' + name
+  if (pair === lastSavedThemePair) return
+
+  themeSaveQueue = themeSaveQueue.catch(() => {}).then(async () => {
+    if (pair === lastSavedThemePair) return
+    themeSyncStatus.value = 'saving'
+    try {
+      const saved = await $fetch<{ themeMode: ThemeMode, themeName: ThemeName }>('/api/account/preferences', {
+        method: 'PATCH',
+        body: { themeMode: mode, themeName: name },
+      })
+      lastSavedThemePair = saved.themeMode + ':' + saved.themeName
+      if (accountSession.value) {
+        accountSession.value.user.themeMode = saved.themeMode
+        accountSession.value.user.themeName = saved.themeName
+      }
+      themeSyncStatus.value = 'saved'
+    } catch {
+      themeSyncStatus.value = 'error'
+    }
+  })
+  return themeSaveQueue
+}
 </script>

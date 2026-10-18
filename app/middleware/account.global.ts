@@ -1,5 +1,11 @@
 type AccountSession = {
-  user: { id: string, email: string, displayName: string }
+  user: {
+    id: string
+    email: string
+    displayName: string
+    themeMode: 'system' | 'light' | 'dark' | null
+    themeName: 'paper' | 'forest' | 'graphite' | 'lavender' | 'ayu' | 'one-dark-pro' | 'synthwave' | 'shades-purple' | 'min' | null
+  }
   activeWorkspaceId: string | null
   isPlatformAdmin: boolean
   hasPasskeys: boolean
