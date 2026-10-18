@@ -473,6 +473,7 @@
     "attachmentOne": "{count} pièce jointe",
     "attachmentMany": "{count} pièces jointes",
     "delete": "Supprimer le brouillon",
+    "deleteWithShortcut": "Supprimer le brouillon · ⌘/Ctrl + ↵",
     "deleteNamed": "Supprimer le brouillon « {subject} »",
     "deleteTitle": "Supprimer ce brouillon ?",
     "deleteDescription": "Le brouillon et ses pièces jointes seront supprimés définitivement.",

@@ -62,7 +62,9 @@
         </header>
         <footer class="dialog-actions">
           <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="Boolean(deletingId)">{{ $t('common.cancel') }}</button></NDialogClose>
-          <button class="dialog-danger" type="button" :disabled="Boolean(deletingId)" @click="deleteDraft">{{ deletingId ? $t('drafts.deleting') : $t('drafts.delete') }}</button>
+          <NTooltip :content="$t('drafts.deleteWithShortcut')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button class="dialog-danger" type="button" aria-keyshortcuts="Control+Enter Meta+Enter" :disabled="Boolean(deletingId)" @click="deleteDraft">{{ deletingId ? $t('drafts.deleting') : $t('drafts.delete') }}</button>
+          </NTooltip>
         </footer>
       </template>
     </NDialog>
@@ -153,6 +155,15 @@ async function deleteDraft() {
   }
 }
 
+function onDeleteShortcut(event: KeyboardEvent) {
+  if (!draftToDelete.value || deletingId.value || event.repeat || event.isComposing) return
+  if (event.key !== 'Enter' || (!event.metaKey && !event.ctrlKey) || event.altKey || event.shiftKey) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  void deleteDraft()
+}
+
 function recipientSummary(addresses: string) {
   return addresses.trim() || $t('drafts.noRecipients')
 }
@@ -168,7 +179,12 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
-onMounted(() => void loadDrafts())
+onMounted(() => {
+  void loadDrafts()
+  window.addEventListener('keydown', onDeleteShortcut, true)
+})
+
+onUnmounted(() => window.removeEventListener('keydown', onDeleteShortcut, true))
 </script>
 
 <style scoped>

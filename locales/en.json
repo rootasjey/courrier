@@ -473,6 +473,7 @@
     "attachmentOne": "{count} attachment",
     "attachmentMany": "{count} attachments",
     "delete": "Delete draft",
+    "deleteWithShortcut": "Delete draft · ⌘/Ctrl + ↵",
     "deleteNamed": "Delete draft “{subject}”",
     "deleteTitle": "Delete this draft?",
     "deleteDescription": "The draft and its attachments will be permanently deleted.",
