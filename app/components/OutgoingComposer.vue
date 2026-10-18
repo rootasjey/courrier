@@ -1129,8 +1129,8 @@ onBeforeUnmount(() => {
 .compose-recipient-control { display: flex; min-width: 0; min-height: 42px; flex-wrap: wrap; align-items: center; gap: 5px; padding: 4px 0; cursor: text; }
 .compose-recipient-control input { flex: 1 0 150px; min-height: 28px; }
 .compose-recipient-badge { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; padding: 3px 5px 3px 9px; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius: 999px; background: var(--accent-wash); color: var(--ink); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
-.compose-recipient-badge button { display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--quiet); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
-.compose-recipient-badge button:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.compose-recipient-badge-remove { display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--quiet); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.compose-recipient-badge-remove:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
 .compose-field input::placeholder { color: var(--quiet); }
 .compose-field-error { margin: 5px 0 0; color: #aa3d37; font-size: 11px; }
 .compose-editor-shell { position: relative; display: block; min-height: 230px; }
