@@ -41,12 +41,37 @@
 
         <section class="sender-profile-history" aria-labelledby="sender-history-title">
           <div class="sender-profile-section-heading">
-            <h2 id="sender-history-title">{{ $t('contactProfile.conversations') }}</h2>
-            <span>{{ conversations.length }}</span>
+            <div class="sender-profile-section-title">
+              <h2 id="sender-history-title">{{ $t('contactProfile.conversations') }}</h2>
+              <span>{{ filteredConversations.length }}</span>
+            </div>
+            <div class="sender-history-controls">
+              <NCombobox
+                class="sender-history-filter"
+                :items="conversationFilterOptions"
+                :model-value="selectedConversationFilterOption"
+                by="value"
+                :_combobox-input="{ placeholder: $t('contactProfile.searchConversationFilter'), autocomplete: 'off' }"
+                :_combobox-list="{ align: 'end', side: 'bottom', sideOffset: 7, class: 'sender-history-filter-list z-[120]' }"
+                :_combobox-viewport="{ class: 'sender-history-filter-viewport' }"
+                :_combobox-trigger="{ class: 'sender-history-filter-trigger', trailing: 'i-lucide-chevron-down', ariaLabel: $t('contactProfile.filterConversations') }"
+                :_combobox-item="{ class: 'sender-history-filter-item' }"
+                :text-empty="$t('contactProfile.noConversationFiltersFound')"
+                @update:model-value="selectConversationFilter"
+              >
+                <template #trigger>
+                  <span>{{ selectedConversationFilterOption?.label }}</span>
+                </template>
+              </NCombobox>
+              <button class="sender-history-write" type="button" @click="writeToContact">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
+                {{ $t('contactProfile.writeToContact') }}
+              </button>
+            </div>
           </div>
 
           <div class="sender-history-list" role="list" :aria-label="$t('contactProfile.conversationsWith', { name: contactName })">
-            <NuxtLink v-for="conversation in conversations" :key="conversation.key" class="sender-history-row" role="listitem" :to="messagePath(conversation.latest)">
+            <NuxtLink v-for="conversation in filteredConversations" :key="conversation.key" class="sender-history-row" role="listitem" :to="messagePath(conversation.latest)">
               <span class="sender-history-copy">
                 <strong>{{ conversation.subject || '(sans objet)' }}</strong>
                 <span class="sender-history-preview">
@@ -55,12 +80,17 @@
                 </span>
               </span>
               <span class="sender-history-meta">
-                <span class="sender-history-count">{{ $t(conversation.count === 1 ? 'contactProfile.messageCountOne' : 'contactProfile.messageCount', { count: conversation.count }) }}</span>
-                <span v-if="conversation.attachmentCount" class="sender-history-attachment">{{ $t('contactProfile.attachmentsCount', { count: conversation.attachmentCount }) }}</span>
-                <span v-if="!conversation.latest.isOutgoing" class="sender-folder-label" :class="{ 'is-queue': conversation.latest.isSetAside || conversation.latest.isReplyLater }">{{ folderLabel(conversation.latest) }}</span>
+                <span class="sender-history-meta-summary">
+                  <span class="sender-history-counts">
+                    <span class="sender-history-count">{{ $t(conversation.count === 1 ? 'contactProfile.messageCountOne' : 'contactProfile.messageCount', { count: conversation.count }) }}</span>
+                    <span v-if="conversation.attachmentCount" class="sender-history-attachment">{{ $t('contactProfile.attachmentsCount', { count: conversation.attachmentCount }) }}</span>
+                  </span>
+                  <span v-if="!conversation.latest.isOutgoing" class="sender-folder-label" :class="{ 'is-queue': conversation.latest.isSetAside || conversation.latest.isReplyLater }">{{ folderLabel(conversation.latest) }}</span>
+                </span>
                 <time :datetime="conversation.latest.timestamp" :title="formatDate(conversation.latest.timestamp)">{{ formatRelativeDate(conversation.latest.timestamp) }}</time>
               </span>
             </NuxtLink>
+            <p v-if="!filteredConversations.length" class="sender-history-empty" role="status">{{ $t('contactProfile.noFilteredConversations') }}</p>
           </div>
         </section>
 
@@ -154,7 +184,8 @@ type ContactView = {
 }
 type ContactProfile = { contact: ContactView | null, suggestedName: string }
 type SenderMailboxGroup = { id: string, address: string, domain: string, messages: SenderMessage[], rule: MailboxFolder | null, blocked: boolean }
-type SenderConversation = { key: string, threadId: string, latest: SenderMessage, subject: string, count: number, attachmentCount: number, direction: 'received' | 'sent' | 'correspondence' }
+type SenderConversation = { key: string, threadId: string, latest: SenderMessage, subject: string, count: number, attachmentCount: number, direction: 'received' | 'sent' | 'correspondence', hasSent: boolean, hasReceived: boolean }
+type ConversationFilter = 'all' | 'received' | 'sent'
 
 const route = useRoute()
 const router = useRouter()
@@ -172,6 +203,7 @@ const address = computed(() => {
   catch { return String(rawAddress ?? '').trim().toLocaleLowerCase('en-US') }
 })
 const profilePath = computed(() => `/mail/senders/${encodeURIComponent(address.value)}`)
+const composeDraftRequest = useState<{ to: string, subject: string, body: string } | null>('courrier-compose-draft-request', () => null)
 const { data, pending, error, refresh } = await useFetch<SenderMessage[]>('/api/messages', { default: () => [] })
 const { data: profileData, pending: profilePending, error: profileError, refresh: refreshProfile } = await useFetch<ContactProfile>('/api/contacts/profile', {
   query: computed(() => ({ address: address.value })),
@@ -235,9 +267,23 @@ const conversations = computed<SenderConversation[]>(() => {
       count: rows.length,
       attachmentCount: rows.reduce((total, item) => total + item.attachments.length, 0),
       direction: hasSent && hasReceived ? 'correspondence' : hasSent ? 'sent' : 'received',
+      hasSent,
+      hasReceived,
     }
   }).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
 })
+const conversationFilter = ref<ConversationFilter>('all')
+const conversationFilterOptions = computed(() => ([
+  { value: 'all' as const, label: $t('contactProfile.allConversations') },
+  { value: 'received' as const, label: $t('contactProfile.receivedConversations') },
+  { value: 'sent' as const, label: $t('contactProfile.sentConversations') },
+]))
+const selectedConversationFilterOption = computed(() => conversationFilterOptions.value.find(item => item.value === conversationFilter.value))
+const filteredConversations = computed(() => conversations.value.filter((conversation) => {
+  if (conversationFilter.value === 'received') return conversation.hasReceived
+  if (conversationFilter.value === 'sent') return conversation.hasSent
+  return true
+}))
 const mailboxGroups = computed<SenderMailboxGroup[]>(() => {
   const groups = new Map<string, SenderMailboxGroup>()
   for (const message of messages.value.filter(item => !item.isOutgoing)) {
@@ -258,6 +304,15 @@ const mailboxGroups = computed<SenderMailboxGroup[]>(() => {
 function retry() {
   refresh()
   refreshProfile()
+}
+
+function selectConversationFilter(option: { value: ConversationFilter } | null | undefined) {
+  if (option && conversationFilterOptions.value.some(item => item.value === option.value)) conversationFilter.value = option.value
+}
+
+async function writeToContact() {
+  await router.push(mailboxPath('Imbox'))
+  composeDraftRequest.value = { to: primaryAddress.value, subject: '', body: '' }
 }
 
 function selectedFolder(group: SenderMailboxGroup) {
@@ -400,11 +455,28 @@ useSeoMeta({
 .sender-contact-note p { margin: 12px 0 6px; color: var(--ink); font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sender-contact-note > span { color: var(--quiet); font-size: 11px; }
 .sender-profile-history { border-top: 1px solid var(--line); }
-.sender-profile-section-heading { display: flex; align-items: baseline; gap: 10px; padding: 19px 0 12px; }
+.sender-profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 19px 0 12px; }
+.sender-profile-section-title { display: flex; min-width: 0; align-items: baseline; gap: 10px; }
 .sender-profile-section-heading h2 { margin: 0; color: var(--ink); font-size: 19px; font-weight: 700; letter-spacing: -.25px; }
-.sender-profile-section-heading > span { color: var(--quiet); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sender-profile-section-title > span { color: var(--quiet); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sender-history-controls { display: flex; align-items: center; gap: 9px; }
+.sender-history-filter { min-width: 164px; }
+.sender-history-filter button.sender-history-filter-trigger[aria-haspopup="listbox"] { display: inline-flex; width: 100%; min-height: 38px; align-items: center; justify-content: space-between; gap: 9px; padding: 0 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); box-shadow: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
+.sender-history-filter button.sender-history-filter-trigger[aria-haspopup="listbox"]:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 46%, var(--line)); background: var(--sheet); }
+.sender-history-filter button.sender-history-filter-trigger[aria-haspopup="listbox"]:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 2px; }
+.sender-history-filter button.sender-history-filter-trigger[aria-haspopup="listbox"] > span:first-child { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sender-history-filter button.sender-history-filter-trigger[aria-haspopup="listbox"] > span[icon-base] { flex: 0 0 auto; color: var(--quiet); }
+.combobox-list.sender-history-filter-list { width: 190px; min-width: 170px; max-height: min(230px, calc(100dvh - 32px)); overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); box-shadow: 0 12px 30px rgb(33 43 38 / 14%); }
+.sender-history-filter-viewport { max-height: 200px; overflow-y: auto; padding: 5px; }
+.sender-history-filter-item { display: flex; min-height: 38px; align-items: center; gap: 9px; border-radius: 7px; color: var(--ink); font-size: 13px; }
+.sender-history-filter-item[data-highlighted] { background: var(--accent-wash); color: var(--accent); }
+.sender-history-write { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 680; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease; }
+.sender-history-write svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
+.sender-history-write:hover { border-color: var(--accent-hover); background: var(--accent-hover); transform: translateY(-1px); }
+:root[data-theme="dark"] .sender-history-write { color: var(--accent-ink); }
 .sender-history-list { margin-top: 3px; }
-.sender-history-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; padding: 13px 12px; border-bottom: 1px solid var(--line); border-radius: 8px; color: inherit; text-decoration: none; transition: background-color 130ms ease; }
+.sender-history-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; padding: 13px 12px; border-radius: 8px; color: inherit; text-decoration: none; transition: background-color 130ms ease; }
+.sender-history-row + .sender-history-row::before { position: absolute; top: 0; right: 0; left: 0; height: 1px; background: var(--line); content: ''; }
 .sender-history-row:hover { background: var(--accent-wash); }
 .sender-history-copy { display: grid; min-width: 0; gap: 7px; }
 .sender-history-copy > strong, .sender-history-preview > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -412,12 +484,15 @@ useSeoMeta({
 .sender-history-preview { display: flex; align-items: center; min-width: 0; gap: 8px; color: var(--muted); font-size: 12px; }
 .sender-history-preview > span:last-child { min-width: 0; }
 .sender-history-direction { flex: 0 0 auto; color: var(--quiet); }
-.sender-history-meta { display: flex; align-items: center; justify-content: flex-end; gap: 13px; flex: 0 0 auto; }
+.sender-history-meta { display: grid; min-width: 200px; flex: 0 0 auto; gap: 4px; justify-items: stretch; }
+.sender-history-meta-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.sender-history-counts { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .sender-history-count, .sender-history-attachment { color: var(--quiet); font-size: 11px; white-space: nowrap; }
 .sender-folder-label { padding: 4px 9px; border-radius: 14px; background: var(--accent-wash); color: var(--accent); font-size: 11px; font-weight: 650; white-space: nowrap; }
 .sender-folder-label.is-queue { background: #edf0fb; color: #4268cf; }
-.sender-history-meta time { color: var(--quiet); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sender-rules { margin-top: 32px; border-top: 1px solid var(--line); }
+.sender-history-meta time { justify-self: end; color: var(--quiet); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sender-history-empty { margin: 0; padding: 22px 12px; color: var(--muted); font-size: 13px; }
+.sender-rules { margin-top: 27px; }
 .sender-mailbox-group + .sender-mailbox-group { margin-top: 13px; }
 .sender-rule-panel { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 17px 19px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
 .sender-rule-description { display: grid; min-width: 0; gap: 5px; }
@@ -450,19 +525,24 @@ useSeoMeta({
 .sender-profile-state { display: grid; justify-items: start; gap: 9px; padding: 24px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); }
 .sender-profile-state strong { color: var(--ink); font-size: 16px; }
 .sender-profile-state span { font-size: 13px; }
-.sender-profile-actions a:focus-visible, .sender-contact-note-heading a:focus-visible, .sender-history-row:focus-visible, .sender-profile-back:focus-visible, .sender-rule-form :focus-visible, .sender-profile-state button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
+.sender-profile-actions a:focus-visible, .sender-contact-note-heading a:focus-visible, .sender-history-row:focus-visible, .sender-profile-back:focus-visible, .sender-rule-form :focus-visible, .sender-history-controls :focus-visible, .sender-profile-state button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 @media (max-width: 760px) {
   .sender-profile-page { padding-inline: 20px; }
   .sender-profile-heading { gap: 12px; margin-bottom: 32px; }
   .sender-profile-avatar { width: 78px; height: 78px; font-size: 22px; }
   .sender-profile-identity { width: 100%; }
   .sender-profile-actions { width: 100%; margin-top: 5px; }
+  .sender-profile-section-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .sender-history-controls { width: 100%; }
+  .sender-history-filter { min-width: 0; flex: 1 1 auto; }
+  .sender-history-write { flex: 0 0 auto; }
   .sender-rule-panel { align-items: flex-start; flex-direction: column; gap: 13px; padding: 14px; }
   .sender-rule-form { width: 100%; }
   .sender-rule-folder { min-width: 0; flex: 1; }
   .sender-rule-form button { padding-inline: 12px; }
   .sender-history-row { align-items: flex-start; flex-direction: column; gap: 9px; padding: 13px 10px; }
-  .sender-history-meta { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 8px 12px; }
+  .sender-history-meta { width: 100%; min-width: 0; gap: 4px; }
+  .sender-history-meta-summary { grid-template-columns: minmax(0, 1fr) auto; }
 }
 @media (max-width: 440px) {
   .sender-profile-page { padding-inline: 16px; }
@@ -470,8 +550,9 @@ useSeoMeta({
   .sender-profile-heading h1 { font-size: clamp(29px, 8vw, 38px); }
   .sender-profile-address { font-size: 14px; }
   .sender-profile-actions a { min-height: 40px; flex: 1 1 145px; padding-inline: 10px; font-size: 12px; white-space: nowrap; }
+  .sender-history-write { padding-inline: 11px; font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sender-profile-actions a, .sender-contact-note-heading a, .sender-history-row, .sender-rule-form button { transition: none; }
+  .sender-profile-actions a, .sender-contact-note-heading a, .sender-history-row, .sender-history-write, .sender-rule-form button { transition: none; }
 }
 </style>

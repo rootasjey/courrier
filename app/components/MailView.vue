@@ -1084,6 +1084,7 @@ const replyComposerOpen = ref(false)
 const composeOpen = ref(false)
 const composeDraftId = ref<string | null>(null)
 const composeInitialDraft = ref<{ to: string, subject: string, body: string } | null>(null)
+const composeDraftRequest = useState<{ to: string, subject: string, body: string } | null>('courrier-compose-draft-request', () => null)
 const replySendConfirmOpen = ref(false)
 const replyBody = ref('')
 const replyError = ref('')
@@ -1202,6 +1203,14 @@ watch(composeRequest, (request) => {
   lastComposeRequest = request
   openNewComposer()
 })
+
+watch(composeDraftRequest, (draft) => {
+  if (!draft) return
+  composeDraftId.value = null
+  composeInitialDraft.value = { ...draft }
+  composeOpen.value = true
+  composeDraftRequest.value = null
+}, { immediate: true })
 
 watch([search, activeFolder], () => {
   if (!import.meta.client) return
