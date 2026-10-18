@@ -24,6 +24,9 @@ export type MailboxExportData = {
   drafts: Record<string, unknown>[]
   threadMerges: Record<string, unknown>[]
   threadMergeMembers: Record<string, unknown>[]
+  contacts?: Record<string, unknown>[]
+  contactAddresses?: Record<string, unknown>[]
+  contactNotes?: Record<string, unknown>[]
 }
 
 export function createMailboxExportManifest(data: MailboxExportData, createdAt = new Date()) {
@@ -45,7 +48,7 @@ export function createMailboxExportManifest(data: MailboxExportData, createdAt =
 
   return {
     format: 'courrier-mailbox-export',
-    version: 2,
+    version: 3,
     createdAt: createdAt.toISOString(),
     messages: data.messages.map(message => ({
       ...message,
@@ -64,5 +67,8 @@ export function createMailboxExportManifest(data: MailboxExportData, createdAt =
     drafts: data.drafts,
     threadMerges: data.threadMerges,
     threadMergeMembers: data.threadMergeMembers,
+    contacts: data.contacts || [],
+    contactAddresses: (data.contactAddresses || []).map(address => ({ ...address, is_primary: Boolean(address.is_primary) })),
+    contactNotes: data.contactNotes || [],
   }
 }

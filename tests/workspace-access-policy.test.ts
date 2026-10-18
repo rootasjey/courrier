@@ -93,6 +93,10 @@ test('platform administration routes fail closed for unlisted paths and methods'
 
 test('mail permissions are method-specific and unknown endpoints are denied', () => {
   assert.equal(permissionFor('/api/messages', 'GET'), 'mail.read')
+  assert.equal(permissionFor('/api/contacts/profile', 'GET'), 'mail.read')
+  assert.equal(permissionFor('/api/contacts/profile', 'PUT'), 'mail.write')
+  assert.equal(permissionFor('/api/contacts/00000000-0000-4000-8000-000000000001/note', 'PUT'), 'mail.write')
+  assert.equal(permissionFor('/api/contacts/profile', 'DELETE'), null)
   assert.equal(permissionFor('/api/export', 'GET'), 'mail.export')
   assert.equal(permissionFor('/api/outgoing-drafts/draft-1/send', 'POST'), 'mail.send')
   assert.equal(permissionFor('/api/messages/message-1/trash', 'POST'), 'mail.trash')

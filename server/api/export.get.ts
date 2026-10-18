@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage des emails n’est pas prêt.' })
   }
 
-  const [messageResult, attachmentResult, ruleResult, blockedResult, ruleChangeResult, ruleChangeMessageResult, ruleChangeMergeResult, draftResult, threadMergeResult, threadMergeMemberResult] = await Promise.all([
+  const [messageResult, attachmentResult, ruleResult, blockedResult, ruleChangeResult, ruleChangeMessageResult, ruleChangeMergeResult, draftResult, threadMergeResult, threadMergeMemberResult, contactResult, contactAddressResult, contactNoteResult] = await Promise.all([
       bindings.DB.prepare(`
         SELECT id, message_id, envelope_from, envelope_to, sender_name, sender_address,
           subject, sent_at, received_at, in_reply_to, references_header, raw_object_key,
@@ -117,6 +117,18 @@ export default defineEventHandler(async (event) => {
       WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
       ORDER BY thread_merge_members.merge_id ASC, thread_merge_members.root_message_id ASC
     `).bind(user.activeWorkspaceId).all(),
+    bindings.DB.prepare(`
+      SELECT id, display_name, created_by_name, updated_by_name, created_at, updated_at
+      FROM contacts WHERE workspace_id = ? ORDER BY display_name COLLATE NOCASE ASC, id ASC
+    `).bind(user.activeWorkspaceId).all(),
+    bindings.DB.prepare(`
+      SELECT contact_id, address, is_primary, created_at
+      FROM contact_addresses WHERE workspace_id = ? ORDER BY contact_id ASC, is_primary DESC, address COLLATE NOCASE ASC
+    `).bind(user.activeWorkspaceId).all(),
+    bindings.DB.prepare(`
+      SELECT contact_id, body, created_by_name, updated_by_name, created_at, updated_at
+      FROM contact_notes WHERE workspace_id = ? ORDER BY contact_id ASC
+    `).bind(user.activeWorkspaceId).all(),
   ])
 
   const createdAt = new Date()
@@ -131,6 +143,9 @@ export default defineEventHandler(async (event) => {
     drafts: draftResult.results,
     threadMerges: threadMergeResult.results,
     threadMergeMembers: threadMergeMemberResult.results,
+    contacts: contactResult.results,
+    contactAddresses: contactAddressResult.results,
+    contactNotes: contactNoteResult.results,
   }, createdAt)
 
   async function* archiveEntries() {
@@ -138,7 +153,7 @@ export default defineEventHandler(async (event) => {
       name: 'README.txt',
       body: new TextEncoder().encode(
         'Courrier mailbox export\n\n' +
-        'manifest.json preserves Courrier message metadata and application state, including drafts, manual thread merges, sender rules and their undo history.\n' +
+        'manifest.json preserves Courrier message metadata and application state, including drafts, manual thread merges, sender rules and their undo history, and shared contacts and notes.\n' +
         'The messages/ directory contains the original RFC 822 emails. MIME attachments remain embedded in those originals.\n' +
         'The archive does not contain Cloudflare account, Worker, Access, Email Routing, or binding configuration.\n',
       ),

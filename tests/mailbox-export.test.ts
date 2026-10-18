@@ -75,18 +75,19 @@ const message = [
   'A test message for the restore preflight.',
 ].join('\r\n')
 
-test('v2 manifest preserves the complete mailbox-state collections', () => {
+test('v3 manifest preserves the complete mailbox-state and contact collections', () => {
   const fixture = fixtureData(message)
-  assert.equal(fixture.manifest.version, 2)
+  assert.equal(fixture.manifest.version, 3)
   assert.equal(fixture.manifest.messages[0]?.is_read, true)
   assert.equal(fixture.manifest.messages[0]?.is_outgoing, false)
   assert.deepEqual(Object.keys(fixture.manifest).slice(4), [
     'senderRules', 'blockedSenders', 'senderRuleChanges', 'senderRuleChangeMessages',
     'senderRuleChangeMerges', 'drafts', 'threadMerges', 'threadMergeMembers',
+    'contacts', 'contactAddresses', 'contactNotes',
   ])
 })
 
-test('v2 manifest keeps attachment indices in numeric order', () => {
+test('v3 manifest keeps attachment indices in numeric order', () => {
   const fixture = fixtureData(message)
   const rows = Array.from({ length: 12 }, (_, index) => ({
     id: `${fixture.id}-${index}`,
@@ -111,7 +112,7 @@ test('v2 manifest keeps attachment indices in numeric order', () => {
     .reverse())
 })
 
-test('inspect validates a Courrier v2 archive and its message hash', async () => {
+test('inspect validates a Courrier v3 archive and its message hash', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'courrier-export-test-'))
   try {
     const fixture = fixtureData(message)
@@ -119,7 +120,7 @@ test('inspect validates a Courrier v2 archive and its message hash', async () =>
     const inspected = await inspectArchive(archivePath)
     try {
       assert.deepEqual(inspected.summary, {
-        version: 2,
+        version: 3,
         messages: 1,
         attachments: 0,
         drafts: 0,
@@ -127,6 +128,9 @@ test('inspect validates a Courrier v2 archive and its message hash', async () =>
         blockedSenders: 0,
         senderRuleChanges: 0,
         threadMerges: 0,
+        contacts: 0,
+        contactAddresses: 0,
+        contactNotes: 0,
       })
       assert.equal(inspected.parsedMessages[0]?.parsed.text?.trim(), 'A test message for the restore preflight.')
       assert.equal('attachments' in (inspected.parsedMessages[0]?.parsed ?? {}), false)
@@ -188,7 +192,7 @@ test('inspect upgrades a v1 archive by supplying state introduced later', async 
     const inspected = await inspectArchive(archivePath)
     try {
       assert.equal(inspected.sourceVersion, 1)
-      assert.equal(inspected.manifest.version, 2)
+      assert.equal(inspected.manifest.version, 3)
       assert.equal(inspected.manifest.messages[0]?.is_outgoing, true)
       assert.equal(inspected.manifest.messages[0]?.attachments[0]?.object_key, `messages/${outgoingId}/attachments/0`)
       assert.deepEqual(inspected.manifest.drafts, [])
@@ -208,6 +212,30 @@ test('inspect rejects a valid ZIP whose message bytes do not match the manifest 
     const changedMessage = `${message}\r\nChanged`
     const archivePath = await writeArchive(directory, fixture.manifest, [{ id: fixture.id, rawEmail: changedMessage }])
     await assert.rejects(inspectArchive(archivePath), /Empreinte SHA-256 incorrecte/)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('inspect rejects contacts with more than one primary address', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'courrier-export-test-'))
+  try {
+    const fixture = fixtureData(message)
+    const contactId = '4471fc93-ea92-4802-b08d-c4e336e1b012'
+    fixture.manifest.contacts = [{
+      id: contactId,
+      display_name: 'Sender',
+      created_by_name: 'Test member',
+      updated_by_name: 'Test member',
+      created_at: '2026-10-04T10:02:00.000Z',
+      updated_at: '2026-10-04T10:02:00.000Z',
+    }]
+    fixture.manifest.contactAddresses = [
+      { contact_id: contactId, address: 'sender@example.test', is_primary: true, created_at: '2026-10-04T10:02:00.000Z' },
+      { contact_id: contactId, address: 'alias@example.test', is_primary: true, created_at: '2026-10-04T10:02:00.000Z' },
+    ]
+    const archivePath = await writeArchive(directory, fixture.manifest, [{ id: fixture.id, rawEmail: message }])
+    await assert.rejects(inspectArchive(archivePath), /exactement une adresse principale/)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

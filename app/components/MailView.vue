@@ -534,12 +534,22 @@
               :aria-label="$t('mail.messageFrom', { sender: activeThreadMessage.sender })"
             >
               <div class="message-meta">
-                <NuxtLink class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
+                <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
                   <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
                 </NuxtLink>
+                <span v-else class="sender-profile-avatar" aria-hidden="true">
+                  <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
+                </span>
                 <span class="meta-copy">
-                  <NuxtLink class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
-                  <span v-if="activeThreadMessage.isOutgoing">{{ $t('mail.recipient') }} {{ activeThreadMessage.recipient }}</span>
+                  <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
+                  <span v-else class="sender-profile-name">{{ activeThreadMessage.sender }}</span>
+                  <span v-if="activeThreadMessage.isOutgoing" class="sender-recipient-links">
+                    {{ $t('mail.recipient') }}
+                    <template v-if="recipientAddresses(activeThreadMessage.recipient).length">
+                      <NuxtLink v-for="email in recipientAddresses(activeThreadMessage.recipient)" :key="email" class="sender-profile-link" :to="senderPath(email)">{{ email }}</NuxtLink>
+                    </template>
+                    <span v-else>{{ activeThreadMessage.recipient }}</span>
+                  </span>
                   <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
                 </span>
                 <time :datetime="activeThreadMessage.timestamp" :title="absoluteMailDate(activeThreadMessage.timestamp)">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
@@ -577,12 +587,22 @@
               :aria-label="$t('mail.messageFrom', { sender: message.sender })"
             >
               <div class="message-meta">
-                <NuxtLink class="sender-profile-avatar" :to="senderPath(message.address)" :aria-label="$t('mail.openSenderPage', { sender: message.sender })">
+                <NuxtLink v-if="!message.isOutgoing" class="sender-profile-avatar" :to="senderPath(message.address)" :aria-label="$t('mail.openSenderPage', { sender: message.sender })">
                   <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
                 </NuxtLink>
+                <span v-else class="sender-profile-avatar" aria-hidden="true">
+                  <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
+                </span>
               <span class="meta-copy">
-                <NuxtLink class="sender-profile-name" :to="senderPath(message.address)">{{ message.sender }}</NuxtLink>
-                <span v-if="message.isOutgoing">{{ $t('mail.recipient') }} {{ message.recipient }}</span>
+                <NuxtLink v-if="!message.isOutgoing" class="sender-profile-name" :to="senderPath(message.address)">{{ message.sender }}</NuxtLink>
+                <span v-else class="sender-profile-name">{{ message.sender }}</span>
+                <span v-if="message.isOutgoing" class="sender-recipient-links">
+                  {{ $t('mail.recipient') }}
+                  <template v-if="recipientAddresses(message.recipient).length">
+                    <NuxtLink v-for="email in recipientAddresses(message.recipient)" :key="email" class="sender-profile-link" :to="senderPath(email)">{{ email }}</NuxtLink>
+                  </template>
+                  <span v-else>{{ message.recipient }}</span>
+                </span>
                 <NuxtLink v-else class="sender-profile-link" :to="senderPath(message.address)">{{ message.address }}</NuxtLink>
                 </span>
                 <time :datetime="message.timestamp" :title="absoluteMailDate(message.timestamp)">{{ relativeMailDate(message.timestamp) }}</time>
@@ -965,6 +985,11 @@ type SearchHit = {
 
 type SearchThread = MessageThread & {
   snippet: string
+}
+
+function recipientAddresses(value: string) {
+  const matches = value.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/gi) || []
+  return [...new Set(matches.map(address => address.trim().toLocaleLowerCase('en-US')))]
 }
 
 const folders = mailboxes

@@ -62,6 +62,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
   if (normalizedMethod === 'GET' || normalizedMethod === 'HEAD') {
     if (path === '/api/export') return 'mail.export'
     if (path === '/api/messages' || path === '/api/search' || path === '/api/outgoing-drafts'
+      || path === '/api/contacts/profile'
       || /^\/api\/messages\/[^/]+\/draft$/.test(path)
       || /^\/api\/(?:attachments\/[^/]+|outgoing-drafts\/[^/]+(?:\/attachments\/[^/]+\/content)?)$/.test(path)) {
       return 'mail.read'
@@ -79,6 +80,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
     return 'mail.classify'
   }
   if ((normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/draft$/.test(path))
+    || (normalizedMethod === 'PUT' && (path === '/api/contacts/profile' || /^\/api\/contacts\/[0-9a-f-]{36}\/note$/i.test(path)))
     || (normalizedMethod === 'POST' && /^\/api\/(?:outgoing-drafts|thread-merges(?:\/split)?)$/.test(path))
     || (['PATCH', 'DELETE'].includes(normalizedMethod) && /^\/api\/outgoing-drafts\/[^/]+$/.test(path))
     || (normalizedMethod === 'POST' && /^\/api\/outgoing-drafts\/[^/]+\/attachments$/.test(path))

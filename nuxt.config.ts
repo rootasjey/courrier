@@ -45,6 +45,10 @@ export default defineNuxtConfig({
     ],
     defaultLocale: "fr",
     translationDir: "locales",
+    routesLocaleLinks: {
+      "mail-contacts-address-edit": "mail-senders-address",
+      "mail-contacts-address-note": "mail-senders-address",
+    },
     strategy: "no_prefix",
     localeCookie: "courrier-locale",
     autoDetectLanguage: false,

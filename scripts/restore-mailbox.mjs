@@ -9,8 +9,8 @@ import { createInterface } from 'node:readline/promises'
 import PostalMime from 'postal-mime'
 
 const FORMAT = 'courrier-mailbox-export'
-const VERSION = 2
-const SUPPORTED_VERSIONS = new Set([1, VERSION])
+const VERSION = 3
+const SUPPORTED_VERSIONS = new Set([1, 2, VERSION])
 const MAX_DIRECTORY_BYTES = 64 * 1024 * 1024
 const MAX_ENTRY_BYTES = 64 * 1024 * 1024
 const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024
@@ -135,6 +135,7 @@ function validateManifest(manifest, files) {
   const arrays = [
     'messages', 'senderRules', 'blockedSenders', 'senderRuleChanges', 'senderRuleChangeMessages',
     'senderRuleChangeMerges', 'drafts', 'threadMerges', 'threadMergeMembers',
+    'contacts', 'contactAddresses', 'contactNotes',
   ]
   for (const name of arrays) if (!Array.isArray(manifest[name])) errors.push(`Tableau manifest.${name} manquant.`)
   if (errors.length) return errors
@@ -226,6 +227,9 @@ function validateManifest(manifest, files) {
   requiredStrings(manifest.drafts, ['id', 'reply_to_message_id', 'mailbox_domain', 'to_address', 'subject', 'text_body', 'status', 'created_at', 'updated_at'], 'drafts')
   requiredStrings(manifest.threadMerges, ['id', 'mailbox_domain', 'folder', 'created_at'], 'threadMerges')
   requiredStrings(manifest.threadMergeMembers, ['merge_id', 'root_message_id'], 'threadMergeMembers')
+  requiredStrings(manifest.contacts, ['id', 'display_name', 'created_by_name', 'updated_by_name', 'created_at', 'updated_at'], 'contacts')
+  requiredStrings(manifest.contactAddresses, ['contact_id', 'address', 'created_at'], 'contactAddresses')
+  requiredStrings(manifest.contactNotes, ['contact_id', 'body', 'created_by_name', 'updated_by_name', 'created_at', 'updated_at'], 'contactNotes')
   uniqueRows(manifest.senderRules, row => `${row.mailbox_domain}\0${row.sender_address}`, 'senderRules')
   uniqueRows(manifest.blockedSenders, row => `${row.mailbox_domain}\0${row.sender_address}`, 'blockedSenders')
   uniqueRows(manifest.senderRuleChanges, row => row.id, 'senderRuleChanges')
@@ -234,6 +238,9 @@ function validateManifest(manifest, files) {
   uniqueRows(manifest.senderRuleChangeMessages, row => `${row.change_id}\0${row.message_id}`, 'senderRuleChangeMessages')
   uniqueRows(manifest.senderRuleChangeMerges, row => `${row.change_id}\0${row.merge_id}`, 'senderRuleChangeMerges')
   uniqueRows(manifest.threadMergeMembers, row => `${row.merge_id}\0${row.root_message_id}`, 'threadMergeMembers')
+  uniqueRows(manifest.contacts, row => row.id, 'contacts')
+  uniqueRows(manifest.contactAddresses, row => String(row.address || '').toLowerCase(), 'contactAddresses')
+  uniqueRows(manifest.contactNotes, row => row.contact_id, 'contactNotes')
   for (const change of manifest.senderRuleChanges) {
     if (!USER_FOLDERS.has(change.next_folder)
       || (change.previous_rule_folder !== null && !USER_FOLDERS.has(change.previous_rule_folder))) {
@@ -248,6 +255,23 @@ function validateManifest(manifest, files) {
   }
   const changeIds = new Set(manifest.senderRuleChanges.map(change => change.id))
   const mergeIds = new Set(manifest.threadMerges.map(merge => merge.id))
+  const contactIds = new Set(manifest.contacts.map(contact => contact.id))
+  const contactPrimaryCounts = new Map()
+  for (const address of manifest.contactAddresses) {
+    if (!contactIds.has(address.contact_id) || typeof address.address !== 'string'
+      || !/^[^\s@<>(),;]+@[^\s@<>(),;]+\.[^\s@<>(),;]+$/.test(address.address)) {
+      errors.push(`Adresse de contact invalide : ${address.address}`)
+    }
+    if (typeof address.is_primary !== 'boolean') errors.push(`État principal invalide pour l’adresse ${address.address}.`)
+    if (address.is_primary) contactPrimaryCounts.set(address.contact_id, (contactPrimaryCounts.get(address.contact_id) || 0) + 1)
+  }
+  for (const contact of manifest.contacts) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contact.id)
+      || typeof contact.display_name !== 'string' || !contact.display_name.trim()) errors.push(`Fiche contact invalide : ${contact.id}`)
+    const primaryCount = contactPrimaryCounts.get(contact.id) || 0
+    if (primaryCount !== 1) errors.push(`La fiche doit avoir exactement une adresse principale : ${contact.id}`)
+  }
+  for (const note of manifest.contactNotes) if (!contactIds.has(note.contact_id)) errors.push(`Note de contact orpheline : ${note.contact_id}`)
   const mergesById = new Map(manifest.threadMerges.map(merge => [merge.id, merge]))
   for (const rule of manifest.senderRules) if (!USER_FOLDERS.has(rule.folder)) errors.push('Boîte invalide dans senderRules.')
   for (const merge of manifest.threadMerges) if (!USER_FOLDERS.has(merge.folder)) errors.push('Boîte invalide dans threadMerges.')
@@ -281,7 +305,7 @@ function validateManifest(manifest, files) {
 
 function normalizeManifest(manifest) {
   if (!manifest || manifest.format !== FORMAT || !SUPPORTED_VERSIONS.has(manifest.version)) {
-    throw new Error(`Format attendu : ${FORMAT} v1 ou v${VERSION}.`)
+    throw new Error(`Format attendu : ${FORMAT} v1, v2 ou v${VERSION}.`)
   }
   const sourceVersion = manifest.version
   if (sourceVersion === VERSION) return { manifest, sourceVersion }
@@ -319,6 +343,9 @@ function normalizeManifest(manifest) {
       drafts: manifest.drafts ?? [],
       threadMerges: manifest.threadMerges ?? [],
       threadMergeMembers: manifest.threadMergeMembers ?? [],
+      contacts: manifest.contacts ?? [],
+      contactAddresses: manifest.contactAddresses ?? [],
+      contactNotes: manifest.contactNotes ?? [],
     },
   }
 }
@@ -399,6 +426,9 @@ function summaryFor(manifest) {
     blockedSenders: manifest.blockedSenders.length,
     senderRuleChanges: manifest.senderRuleChanges.length,
     threadMerges: manifest.threadMerges.length,
+    contacts: manifest.contacts.length,
+    contactAddresses: manifest.contactAddresses.length,
+    contactNotes: manifest.contactNotes.length,
   }
 }
 
@@ -433,6 +463,9 @@ function buildRestoreSql(manifest, parsedMessages) {
     insertSql('drafts', ['id', 'reply_to_message_id', 'mailbox_domain', 'to_address', 'subject', 'text_body', 'status', 'created_at', 'updated_at'], manifest.drafts),
     insertSql('thread_merges', ['id', 'mailbox_domain', 'folder', 'created_at'], manifest.threadMerges),
     insertSql('thread_merge_members', ['merge_id', 'root_message_id'], manifest.threadMergeMembers),
+    insertSql('contacts', ['id', 'workspace_id', 'display_name', 'created_by_name', 'updated_by_name', 'created_at', 'updated_at'], manifest.contacts.map(row => ({ ...row, workspace_id: 'legacy-courrier-workspace' }))),
+    insertSql('contact_addresses', ['workspace_id', 'contact_id', 'address', 'is_primary', 'created_at'], manifest.contactAddresses.map(row => ({ ...row, workspace_id: 'legacy-courrier-workspace' }))),
+    insertSql('contact_notes', ['workspace_id', 'contact_id', 'body', 'created_by_name', 'updated_by_name', 'created_at', 'updated_at'], manifest.contactNotes.map(row => ({ ...row, workspace_id: 'legacy-courrier-workspace' }))),
   ].filter(Boolean)
   return `${statements.join('\n')}\n`
 }
@@ -520,7 +553,7 @@ async function applyRestore(archivePath, database, bucket) {
 
     await runWrangler(['d1', 'execute', 'DB', '--remote', '--config', configPath, '--file', sqlPath], process.cwd())
 
-    const counts = await runWrangler(['d1', 'execute', 'DB', '--remote', '--config', configPath, '--json', '--command', 'SELECT (SELECT COUNT(*) FROM messages) AS messages, (SELECT COUNT(*) FROM attachments) AS attachments, (SELECT COUNT(*) FROM sender_rules) AS sender_rules, (SELECT COUNT(*) FROM blocked_senders) AS blocked_senders, (SELECT COUNT(*) FROM sender_rule_changes) AS sender_rule_changes, (SELECT COUNT(*) FROM sender_rule_change_messages) AS sender_rule_change_messages, (SELECT COUNT(*) FROM sender_rule_change_merges) AS sender_rule_change_merges, (SELECT COUNT(*) FROM drafts) AS drafts, (SELECT COUNT(*) FROM thread_merges) AS thread_merges, (SELECT COUNT(*) FROM thread_merge_members) AS thread_merge_members'], process.cwd())
+    const counts = await runWrangler(['d1', 'execute', 'DB', '--remote', '--config', configPath, '--json', '--command', 'SELECT (SELECT COUNT(*) FROM messages) AS messages, (SELECT COUNT(*) FROM attachments) AS attachments, (SELECT COUNT(*) FROM sender_rules) AS sender_rules, (SELECT COUNT(*) FROM blocked_senders) AS blocked_senders, (SELECT COUNT(*) FROM sender_rule_changes) AS sender_rule_changes, (SELECT COUNT(*) FROM sender_rule_change_messages) AS sender_rule_change_messages, (SELECT COUNT(*) FROM sender_rule_change_merges) AS sender_rule_change_merges, (SELECT COUNT(*) FROM drafts) AS drafts, (SELECT COUNT(*) FROM thread_merges) AS thread_merges, (SELECT COUNT(*) FROM thread_merge_members) AS thread_merge_members, (SELECT COUNT(*) FROM contacts) AS contacts, (SELECT COUNT(*) FROM contact_addresses) AS contact_addresses, (SELECT COUNT(*) FROM contact_notes) AS contact_notes'], process.cwd())
     const actualCounts = parseWranglerJson(counts)?.[0]?.results?.[0]
     const expectedCounts = {
       messages: manifest.messages.length,
@@ -533,6 +566,9 @@ async function applyRestore(archivePath, database, bucket) {
       drafts: manifest.drafts.length,
       thread_merges: manifest.threadMerges.length,
       thread_merge_members: manifest.threadMergeMembers.length,
+      contacts: manifest.contacts.length,
+      contact_addresses: manifest.contactAddresses.length,
+      contact_notes: manifest.contactNotes.length,
     }
     if (!actualCounts || Object.entries(expectedCounts).some(([table, expected]) => actualCounts[table] !== expected)) {
       throw new Error(`Les comptes D1 restaurés ne correspondent pas au manifeste. Attendu : ${JSON.stringify(expectedCounts)} ; reçu : ${JSON.stringify(actualCounts)}`)
