@@ -126,6 +126,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .screener-callout { min-height: 42px; padding-inline: 16px; border-radius: 24px; background: var(--sage); color: var(--sage-ink); font-size: 14px; cursor: pointer; }
 .screener-callout:hover { filter: brightness(0.97); }
 .screener-callout svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.screener-callout-count { display: none; }
 .screener-done { min-height: 42px; padding: 0 19px; border: 0; border-radius: 24px; background: var(--sage); color: var(--sage-ink); font-size: 15px; font-weight: 650; cursor: pointer; }
 .screener-done:hover { filter: brightness(.97); }
 .screener-intro { width: min(100%, 660px); margin: 18px 0 0; color: var(--muted); font-size: 15px; line-height: 1.6; text-align: center; }
@@ -1326,7 +1327,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .inbox-heading h1 { font-size: clamp(28px, 8vw, 34px); letter-spacing: -0.035em; }
   .heading-actions { gap: 6px; }
   .compose-button, .screener-callout, .screener-done { min-height: 38px; padding-inline: 12px; font-size: 12px; }
+  .screener-callout { min-width: 58px; gap: 5px; padding-inline: 10px; }
+  .screener-callout-label { display: none; }
+  .screener-callout-count { display: inline; font-variant-numeric: tabular-nums; }
   .compose-button svg { width: 18px; height: 18px; }
+  .screener-callout svg { width: 18px; height: 18px; }
   .screener-intro { margin-top: 9px; font-size: 13px; }
   .thread-selection-row { min-height: 70px; gap: 7px; padding-inline: 2px; }
   .thread-selection-row .thread-row { min-height: 69px; padding-inline: 5px; }

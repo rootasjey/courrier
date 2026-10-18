@@ -15,10 +15,12 @@
               v-if="allScreenerSenders.length"
               class="screener-callout"
               type="button"
+              :aria-label="$t(allScreenerSenders.length === 1 ? 'mail.reviewSenderOne' : 'mail.reviewSenderMany', { count: allScreenerSenders.length })"
               @click="navigateToFolder('Screener')"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm16 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-1.2A4.8 4.8 0 0 1 6.8 14h.4A4.8 4.8 0 0 1 12 18.8V20m0-1.2a4.8 4.8 0 0 1 4.8-4.8h.4a4.8 4.8 0 0 1 4.8 4.8V20" /></svg>
-              <span>{{ $t(allScreenerSenders.length === 1 ? 'mail.reviewSenderOne' : 'mail.reviewSenderMany', { count: allScreenerSenders.length }) }}</span>
+              <span class="screener-callout-label" aria-hidden="true">{{ $t(allScreenerSenders.length === 1 ? 'mail.reviewSenderOne' : 'mail.reviewSenderMany', { count: allScreenerSenders.length }) }}</span>
+              <span class="screener-callout-count" aria-hidden="true">{{ allScreenerSenders.length }}</span>
             </button>
             <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" :title="$t('mail.newMessage')" @click="openNewComposer">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
