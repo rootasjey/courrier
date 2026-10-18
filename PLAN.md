@@ -1,6 +1,14 @@
-# Plan du prototype Courrier
+# Roadmap Courrier
 
 ## Avancement
+
+### État consolidé — 18 octobre 2026
+
+- **Réception et boîte quotidienne :** les jalons 0 et 1 sont terminés. Le jalon 2 a validé le pilote de réception réelle pour `courrier-test@verbatims.cc`, mais reste ouvert pour revalider les pannes/réémissions Cloudflare et décider du retrait du relais historique. Le jalon 3 est livré : pages séparées par boîte, lecture dédiée par fil, compositeur plein écran réductible/détachable, raccourcis clavier, recherche, Screener, règles d’expéditeur, renommage, fusion/séparation, Set Aside et Reply Later.
+- **Envoi :** réponses, brouillons et compositeur autonome sont implémentés. Des envois contrôlés du compositeur vers Gmail, HEY et Outlook ont été reçus le 14 octobre avec SPF/DKIM/DMARC PASS ; la délivrabilité sur la durée et les bounces réels ne sont pas établis. Détails : [Brouillons et réponses](docs/EMAIL-SENDING.md).
+- **Comptes et sécurité :** comptes sur invitation, rôles, MFA/passkeys, autorisations par boîte et console d’administration sont en place. Depuis le 17 octobre, la production est publique et protégée par les contrôles Courrier ; Cloudflare Access reste activé pour les previews. La récupération d’un compte en production n’a pas fait l’objet d’un exercice.
+- **Publication :** à l’ouverture de cette revue, le checkout `main` était en avance de quatre commits sur `origin/main` (`2266740`) : trois changements d’interface et un précédent rafraîchissement du sidecar Impeccable. Les changements d’interface ne sont donc pas encore sur GitHub/Workers Builds. Le déploiement actuellement servi en production n’a pas été vérifié dans cette revue.
+- **Suite à traiter :** confirmer l’état du relais de migration avant de le retirer ; continuer l’observation de la délivrabilité ; éprouver la restauration avec un export récent et préciser une procédure de reprise complète ; compléter l’administration des membres, la vérification des domaines et le provisionnement des boîtes. Clips, alias, Collections et fonctions assistées restent des pistes, sans ordre décidé.
 
 - **Jalon 0 — vérification préalable (vérifié le 30 septembre 2026) :** Email Routing et les enregistrements MX Cloudflare sont actifs pour `verbatims.cc`. Les règles historiques `support@verbatims.cc` et `francis@verbatims.cc` continuent de transférer vers `codingbox.fr`. Une règle dédiée `courrier-test@verbatims.cc` dirige les messages vers le Worker `courrier` ; le handler les stocke et les relaie vers la destination historique tant que `COURRIER_LEGACY_FORWARD_TO` est configuré. Les règles historiques n’ont pas été modifiées.
 - **Jalon 2 — réception réelle (validé pour l’adresse pilote le 30 septembre 2026) :** quatre messages de test ont été reçus et affichés dans Courrier. Le dernier message texte a été confirmé dans HEY ; un message avec pièce jointe a été conservé dans D1/R2 et listé dans Courrier. Les journaux Cloudflare associent `Handled` et `Forwarded` au dernier message. Un rejeu séquentiel du même `.eml` avec le même `Message-ID` dans Wrangler local n’a créé qu’un message et une pièce jointe dans D1/R2. Les tests locaux couvrent les échecs simulés et deux livraisons concurrentes avec le même `Message-ID` (identiques ou avec un contenu MIME différent) : un seul message est stocké et relayé, et les objets R2 perdants sont supprimés. Les pannes réelles et les réémissions concurrentes sur Cloudflare ne sont pas couvertes. Le relais de secours reste actif.
@@ -16,19 +24,19 @@
 - **Vérification production de la recherche (2 octobre 2026) :** la recherche renvoie un résultat correspondant dans Inbox et Feed. Le 2 octobre, un message de test déjà classé dans Paper a également été retrouvé par une recherche depuis cette boîte : un message et un fil affichés, avec l’étiquette Paper. La recherche en production est maintenant vérifiée dans les trois boîtes principales. Le contenu de la requête de test n’est pas conservé dans la documentation.
 - **Fusion réversible de fils (classement atomique et garde-fous vérifiés localement et en production) :** les originaux RFC 822 restent intacts. Une association D1 explicite relie les racines des fils choisis dans la même boîte et le même dossier ; listes et recherche utilisent le regroupement obtenu, et la conversation propose de séparer les fils. Classer une conversation déplace tous ses messages présents sans modifier les règles des expéditeurs. Dans une conversation fusionnée, l’interface ne propose que le classement du groupe ; un déplacement isolé est refusé. Le reclassement d’un expéditeur reste distinct : un groupe qui contient plusieurs expéditeurs est protégé contre sa dispersion ; si tous ses messages appartiennent au même expéditeur, le groupe suit la règle et son association est conservée. L’annulation restaure aussi le dossier de fusion. Les migrations `0009` et `0010` sont appliquées en production (aucune migration en attente après le déploiement du commit `712d5b7`, Workers version 33). Le build passe. Sur `localhost:3004`, les fils synthétiques de 2 et 3 messages ont été fusionnés, déplacés ensemble d’Inbox vers Feed puis remis dans Inbox. Les API ont refusé avec HTTP 409 le déplacement isolé d’un message et le reclassement d’un expéditeur d’un groupe mixte. Un parcours séparé avec deux fils du même expéditeur (3 et 5 messages) a confirmé que le reclassement conserve le groupe, que « Annuler » restaure le dossier et la fusion, puis que la séparation retrouve les compteurs d’origine. En production, deux fils synthétiques marqués `[Courrier test fusion]` ont été réunis en une conversation de deux messages, puis séparés ; les deux fils d’origine sont revenus dans Inbox. Aucun autre message ni règle d’expéditeur n’a été modifié.
 - **Fiche expéditeur (déployée et vérifiée en production) :** accessible depuis l’adresse d’un expéditeur dans la vue message ; l’historique est groupé par domaine Courrier. La règle peut être modifiée avec reclassement rétroactif et annulation pendant 20 secondes. Le parcours a été vérifié localement puis en production : six messages sont passés d’Inbox à Feed ; « Annuler » a restauré la règle Inbox et les six messages. Le commit `7e029d3` est publié par Workers Builds dans la version `85ee5e5c`. Voir [Classement des messages](docs/MAILBOX-CLASSIFICATION.md).
-- **Tranche brouillon et réponse (2 octobre 2026, déployée) :** la migration `0008` ajoute les brouillons persistants et le sens sortant des messages. Une première réponse en texte seul peut être rédigée, sauvegardée, puis envoyée après confirmation. Cloudflare Email Sending affiche `verbatims.cc` activé et configuré, avec `courrier-test@verbatims.cc` comme expéditeur permis. L’application ne maintient pas d’allowlist de destinataires ; les routes d’envoi exigent maintenant une session Courrier et l’accès à la boîte expéditrice. Cloudflare Access reste une barrière à l’edge. En local, Wrangler simule l’envoi ; aucune livraison réelle n’a lieu. Deux envois contrôlés vers Gmail et HEY sont arrivés ; leurs originaux indiquent SPF, DKIM et DMARC PASS. Cloudflare compte 2 envois livrés sur 2, sans bounce ni plainte observés. Cet échantillon ne suffit pas à établir une réputation durable ; continuer l’observation du volume et de la délivrabilité. Voir [Brouillons et réponses](docs/EMAIL-SENDING.md).
-- **Compositeur autonome et liste des brouillons (déployés le 13 octobre 2026) :** `Écrire` ouvre un nouveau brouillon sans reprendre le précédent ; un compteur mène à `/mail/drafts`, où les brouillons peuvent être ouverts ou supprimés. Le compositeur Tiptap prend en charge les destinataires multiples, l’objet, le texte enrichi, les images intégrées et les pièces jointes conservées dans R2. Une confirmation précède l’envoi depuis `courrier-test@verbatims.cc` ; le message et ses pièces jointes sont ensuite archivés dans D1/R2 et apparaissent dans Courrier. Les commits `6a37ca3` et `943f121` ont été publiés sur `main`. Workers Builds a déployé le commit `943f121` dans la version `fad3bbda` (100 % du trafic, état Ready). Le build local passe et les routes `/mail/inbox` et `/mail/drafts` ont été vérifiées dans le navigateur de production ; la liste de production est vide pour le moment. La migration locale `0013` est appliquée, mais sa présence distante n’a pas pu être confirmée par Wrangler car l’identifiant D1 n’est pas dans la configuration locale. Aucun envoi réel depuis le compositeur autonome n’a encore été effectué. Voir [Brouillons et réponses](docs/EMAIL-SENDING.md).
+- **Tranche brouillon et réponse (2 octobre 2026, déployée) :** la migration `0008` ajoute les brouillons persistants et le sens sortant des messages. Une première réponse en texte seul peut être rédigée, sauvegardée, puis envoyée après confirmation. Cloudflare Email Sending affiche `verbatims.cc` activé et configuré, avec `courrier-test@verbatims.cc` comme expéditeur permis. L’application ne maintient pas d’allowlist de destinataires ; les routes d’envoi exigent une session Courrier et l’accès à la boîte expéditrice. Depuis le 17 octobre, Cloudflare Access protège les previews ; la production repose sur les contrôles applicatifs. En local, Wrangler simule l’envoi ; aucune livraison réelle n’a lieu. Deux envois contrôlés vers Gmail et HEY sont arrivés ; leurs originaux indiquent SPF, DKIM et DMARC PASS. Cloudflare comptait alors 2 envois livrés sur 2, sans bounce ni plainte observés. Cet échantillon ne suffit pas à établir une réputation durable ; continuer l’observation du volume et de la délivrabilité. Voir [Brouillons et réponses](docs/EMAIL-SENDING.md).
+- **Compositeur autonome et liste des brouillons (déployés le 13 octobre 2026) :** `Écrire` ouvre un nouveau brouillon sans reprendre le précédent ; un compteur mène à `/mail/drafts`, où les brouillons peuvent être ouverts ou supprimés. Le compositeur Tiptap prend en charge les destinataires multiples, l’objet, le texte enrichi, les images intégrées et les pièces jointes conservées dans R2. Une confirmation précède l’envoi depuis `courrier-test@verbatims.cc` ; le message et ses pièces jointes sont ensuite archivés dans D1/R2 et apparaissent dans Courrier. Workers Builds a publié le commit `943f121` (version `fad3bbda`, état Ready) le 13 octobre. Les tests d’envoi autonomes et la confirmation des migrations `0013` et `0014` sont consignés dans [Brouillons et réponses](docs/EMAIL-SENDING.md) ; cette validation ne démontre pas une délivrabilité durable.
 - **Sauvegarde (déployée et exercice d’objet validé le 1 octobre 2026) :** le tableau de bord confirme que `courrier-db` dispose de Time Travel ; la base contient 135 kB et son historique courant remonte à sa création le 28 septembre. D1 assure une restauration à la minute sur 30 jours avec Workers Paid. Le bucket `courrier-mail-store` contient 1,24 MB. Le Worker copie chaque nuit les objets R2 vers `courrier-mail-backup`, bucket privé du même compte, sans effacer automatiquement les copies ; le premier passage du cron a été constaté à 03:15 UTC, avec des objets `original.eml` visibles dans le miroir. Un exercice manuel avec un `.eml` synthétique a validé la récupération du bucket de secours et la remise sous la clé d’origine : les empreintes SHA-256 avant/après étaient identiques. L’objet synthétique a ensuite été supprimé des deux buckets. L’essai ne valide pas la synchronisation cron d’un objet synthétique ni une restauration complète de boîte. L’export ZIP reste la copie portable hors Cloudflare. Le bucket de secours est en région automatique (Europe de l’Ouest), stockage Standard, accès public désactivé. Le miroir ajoute actuellement environ 1,24 MB ; le compte stocke 886,17 MB au total, sous les 10 GB-mois inclus. R2 facture 0,015 $/GB-mois au-delà, avec arrondi par unité. La copie R2 protège d’une suppression accidentelle, mais pas d’une perte d’accès au compte Cloudflare ; les sauvegardes D1 restent couvertes par Time Travel.
-- **Jalon sécurité — Cloudflare Access :** l’application de production reste actuellement protégée à l’edge par Cloudflare Access. Le Worker ne consomme plus l’identité Access ; les API s’appuient sur la session Courrier et les contrôles d’accès applicatifs. Le retrait de la politique edge reste suspendu jusqu’à la validation de production et d’une procédure de récupération de compte.
+- **Jalon sécurité — Cloudflare Access :** depuis le 17 octobre, le Worker utilise le mode `Previews only` et conserve l’Allow pour les membres du compte Cloudflare sur les previews. La production reste publique ; les sessions Courrier et les contrôles d’accès applicatifs protègent les API. La récupération de compte en production reste à éprouver.
 - **Jalon sécurité — code :** chaque route API passe par une politique applicative explicite : session et rôle Courrier, administrateur de plateforme, lien d’invitation limité dans le temps, ou endpoint de compte qui vérifie lui-même la session. Toute route inconnue est refusée et les réponses API sont privées, non mises en cache. Le mode local ne simule plus une identité Cloudflare Access.
 - **Tranche Screener et classement (2 octobre 2026, déployée et vérifiée en production) :** deux expéditeurs contrôlés distincts ont été examinés dans le Screener puis classés, l’un dans Feed et l’autre dans Paper. Dans les deux cas, un second message du même expéditeur est arrivé directement dans la boîte choisie, sans repasser par le Screener. Les deux boîtes ont conservé leurs messages après rechargement. Le flux « nouvel expéditeur → Screener → règle d’expéditeur → classement des messages futurs » est donc confirmé en production pour Feed et Paper. Les adresses et contenus des messages de test ne sont pas consignés ici. Voir [Classement des messages](docs/MAILBOX-CLASSIFICATION.md).
 - **Suivi des rejets entrants :** le Worker appelle `setReject()` pour un expéditeur bloqué avant stockage ou relais. L’utilisateur n’a pas vu d’avis de non-distribution dans Outlook ; cet avis n’est donc pas un indicateur confirmé. À la prochaine réception naturellement liée à un expéditeur bloqué, vérifier l’événement Cloudflare et l’absence du message dans D1/R2 et le relais. Ne pas fabriquer de bounce ni désactiver le relais de secours pour ce contrôle.
 - **Vérification du reclassement rétroactif et de l’annulation (2 octobre 2026) :** deux messages existants d’un expéditeur de test ont suivi sa règle de Paper vers Feed, puis sont revenus dans leurs dossiers précédents grâce à « Annuler ». Le premier essai a révélé que le bandeau disparaissait au retour à la liste ; l’état du feedback et de l’identifiant d’annulation est désormais partagé entre routes Nuxt. Le parcours a été vérifié localement, puis en production après le commit `ca0083e` (version `763500d8`). L’état non lu initial des deux messages de production a été restauré. Voir [Classement des messages](docs/MAILBOX-CLASSIFICATION.md).
-- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds. La branche `main` déploie le Worker `https://courrier.jerem-dev.workers.dev`, D1 `courrier-db` et R2 `courrier-mail-store` ; le schéma contient `messages` et `attachments`. Le Worker est protégé par Cloudflare Access. Email Routing dirige maintenant l’adresse d’essai dédiée vers ce Worker. Workers Builds exécute `npm run build`, puis applique les migrations D1 distantes avant `wrangler deploy`, pour que le nouveau code ne parte pas avec un schéma précédent.
+- **Déploiement distant :** dépôt public `rootasjey/courrier` relié à Workers Builds. La branche `main` déploie le Worker `https://courrier.jerem-dev.workers.dev`, D1 `courrier-db` et R2 `courrier-mail-store` ; le schéma contient `messages` et `attachments`. L’Access du Worker est limité aux previews ; la production publique repose sur l’authentification et les autorisations Courrier. Email Routing dirige l’adresse d’essai dédiée vers ce Worker. Workers Builds exécute `npm run build`, puis applique les migrations D1 distantes avant `wrangler deploy`, pour que le nouveau code ne parte pas avec un schéma précédent.
 
 ## Intention
 
-Construire une boîte de réception par domaine, dans une interface inspirée par les idées de HEY. Pour `verbatims.cc`, prévoir une adresse principale et des alias qui arrivent dans sa propre boîte Courrier. Commencer pour un seul utilisateur, puis envisager le multi-utilisateurs après fiabilisation du flux de réception et de conservation.
+Construire une boîte de réception par domaine, dans une interface inspirée par les idées de HEY. Pour `verbatims.cc`, prévoir une adresse principale et des alias qui arrivent dans sa propre boîte Courrier. Le pilote, contrôlé par son propriétaire, prend déjà en charge les comptes sur invitation, les espaces, les rôles et les accès explicites par boîte. La gestion autonome des membres, la vérification des domaines et le provisionnement des boîtes restent à terminer avant d’élargir la collaboration.
 
 ## Boussole produit et priorités UX
 
@@ -45,13 +53,13 @@ Les priorités ci-dessous viennent des usages HEY que l’utilisateur considère
 
 - Set Aside et Reply Later pour suivre les messages à garder sous la main ou auxquels répondre, sans encombrer l’Imbox.
 - **Renommage local de l’objet d’un fil : implémenté.** Le nom est conservé dans D1, affiché pour le fil dans Courrier, et réinitialisable sans toucher aux objets ni aux contenus des messages originaux.
-- **Fusion manuelle de fils : terminée**, avec séparation, classement atomique, annulation et garde-fous décrits en § 1. Les Collections pour regrouper plusieurs conversations sans fusion restent une piste distincte et moins prioritaire.
+- **Fusion manuelle de fils : terminée**, avec séparation, classement atomique, annulation et garde-fous détaillés plus haut dans « Avancement ». Les Collections pour regrouper plusieurs conversations sans fusion restent une piste distincte et moins prioritaire.
 - Clips pour conserver et retrouver un extrait de texte, par exemple un code promotionnel.
 - Alias par boîte/domaine.
 
 ### Piste ultérieure : agents
 
-Envisager des boîtes de réception destinées à des agents seulement après avoir défini les comptes, le multi-utilisateur et les autorisations par boîte et par action. Les droits devront être limités, visibles et révocables ; l’envoi devra rester soumis à une approbation explicite.
+Envisager des boîtes de réception destinées à des agents seulement après avoir éprouvé les comptes, l’isolation entre espaces et les autorisations par boîte et par action. Les droits devront être limités, visibles et révocables ; l’envoi devra rester soumis à une approbation explicite.
 
 ### Méthode d’observation
 
@@ -70,7 +78,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 ## Principes de départ
 
-- Le prototype mono-utilisateur est maintenant remplacé par des comptes Courrier sur invitation, des espaces, des rôles et des droits explicites par boîte. Cloudflare Access reste une barrière edge pendant la validation de la migration.
+- Le pilote utilise des comptes Courrier sur invitation, des espaces, des rôles et des droits explicites par boîte. Cloudflare Access protège les previews ; la production utilise les contrôles applicatifs Courrier.
 - Aucun changement DNS ni bascule de `codingbox.fr` pendant le prototype.
 - Vérifier les enregistrements MX et l’usage mail actuel de `verbatims.cc` avant toute modification d’Email Routing ; conserver les transferts existants sauf décision explicite contraire.
 - Conserver les messages originaux et leurs pièces jointes. La base SQL contient les champs normalisés utiles à l’affichage, au classement et à la recherche.
@@ -81,8 +89,8 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 - **Interface et API :** Nuxt sur Cloudflare Workers.
 - **Réception :** point d’entrée `worker.ts`, qui délègue `fetch` au Worker Nuxt/Nitro généré et traite directement les événements `email()` avec le service d’ingestion partagé. Un relais temporaire facultatif maintient la livraison historique pendant le pilote.
-- **Données :** D1 pour les adresses, messages, fils, dossiers et métadonnées ; R2 pour les originaux RFC 822 et les pièces jointes. Confirmer ce choix au jalon d’ingestion après vérification des limites et coûts actuels.
-- **Accès :** les sessions Courrier et les autorisations par ressource gouvernent l’API. Cloudflare Access reste temporairement devant l’application comme défense supplémentaire.
+- **Données :** D1 stocke les adresses, messages, fils, dossiers et métadonnées ; R2 conserve les originaux RFC 822 et les pièces jointes. Ce choix est en place pour le pilote ; la restauration complète reste à éprouver.
+- **Accès :** les sessions Courrier et les autorisations par ressource gouvernent l’API en production. Cloudflare Access reste activé sur les previews.
 - **Agents :** hors périmètre du premier jalon. Ils viendront après la recherche, le classement et les brouillons.
 
 ## Publication continue
@@ -99,7 +107,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 ## Étapes et critères d’acceptation
 
-### 0. Vérifier le terrain
+### 0. Vérifier le terrain — terminé
 
 - Relever les enregistrements MX actuels et les services qui utilisent `verbatims.cc`.
 - Choisir une adresse dédiée d’essai et vérifier qu’une règle Email Routing vers le Worker Courrier peut remplacer son transfert actuel sans changer les MX ni interrompre la remise : stockage dans Courrier et relais temporaire vers la destination historique.
@@ -107,7 +115,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 **Critère de sortie :** validé pour l’adresse dédiée `courrier-test@verbatims.cc` ; les MX n’ont pas été modifiés.
 
-### 1. Socle du projet
+### 1. Socle du projet — terminé
 
 - Initialiser Nuxt/Vue sur Cloudflare Workers.
 - Intégrer UnoCSS et Una UI, en gardant une voie simple pour remplacer cette dernière si son statut alpha bloque le développement.
@@ -116,7 +124,7 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 **Critère de sortie :** l’application démarre localement ; un `.eml` synthétique est importé, stocké dans les bindings locaux puis affiché dans l’interface sans être confondu avec un vrai message.
 
-### 2. Réception réelle sur une adresse d’essai
+### 2. Réception réelle sur une adresse d’essai — pilote validé, durcissement restant
 
 - Stabiliser le handler `email()` et parser le message avec PostalMime.
 - Écrire les en-têtes et parties lisibles dans D1 ; conserver la source RFC 822 et les pièces jointes dans R2.
@@ -125,26 +133,26 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 
 **Critère de sortie :** réception, relais, stockage, affichage et pièce jointe validés avec des messages réels ; rejeu séquentiel et concurrence simulée validés localement, ainsi que les chemins d’échec simulés. À compléter avant de retirer le relais : mieux couvrir les pannes réelles et décider si une vérification de concurrence Cloudflare est nécessaire et sûre.
 
-### 3. Boîte utile au quotidien
+### 3. Boîte utile au quotidien — livré
 
-- Ajouter lecture, recherche, conversations et dossiers.
-- Ajouter le suivi et le classement des messages selon le modèle HEY (Set Aside, Feed, Paper Trail).
-- Protéger toutes les routes de données par une session Courrier et des autorisations côté API ; conserver Access à l’edge jusqu’aux critères de retrait documentés.
-- Définir une stratégie de sauvegarde et d’export avant d’y conserver du courrier important.
+- Lecture, recherche, conversations et boîtes sont disponibles.
+- Set Aside, Feed, Paper Trail, Screener et classement par expéditeur sont disponibles.
+- Les routes de données sont protégées par les sessions Courrier et les autorisations côté API ; Cloudflare Access reste activé sur les previews.
+- L’export et les sauvegardes sont en place ; la restauration complète et la reprise d’activité restent à éprouver.
 
 **Critère de sortie :** l’utilisateur peut retrouver un message reçu, l’ouvrir, le classer et exporter les données conservées.
 
-### 4. Envoi et réponses
+### 4. Envoi et réponses — livré en pilote, délivrabilité à suivre
 
 - Vérifier l’envoi depuis le domaine, les en-têtes de conversation, SPF/DKIM/DMARC, les rejets et la réputation. Les deux premiers envois contrôlés (par réponse) vers Gmail et HEY sont arrivés ; leurs originaux indiquent SPF, DKIM et DMARC PASS. Le 14 octobre, deux envois du compositeur autonome avec HTML et pièce jointe texte ont été marqués Delivered par Cloudflare et vérifiés dans Gmail et HEY ; les originaux confirment SPF/DKIM/DMARC PASS dans les deux boîtes. Le journal Cloudflare affiche 3 événements livrés sur les dernières 24 heures et un quota quotidien à 3/1 000. Continuer à observer la délivrabilité ; aucun bounce réel n’a été provoqué.
 - Garder l’envoi en bêta/essai tant que la délivrabilité n’a pas été observée.
-- La confirmation d’envoi est en place pour les réponses et le compositeur autonome. Les envois contrôlés vers Gmail, HEY et Outlook ont été reçus ; le message Outlook avec HTML et fichier texte apparaît dans sa boîte de réception et sa copie est archivée dans Inbox de Courrier. Une réponse envoyée depuis HEY est arrivée dans Courrier et a été regroupée avec le message d’origine (2 messages dans le fil). Les originaux Gmail, HEY et Outlook confirment SPF/DKIM/DMARC PASS. Les migrations D1 distantes sont à jour. Aucun bounce réel n’a été provoqué. La fusion manuelle de fils est déjà implémentée et vérifiée localement et en production (voir § 1) ; aucune nouvelle implémentation n’est nécessaire pour cette étape de roadmap.
+- La confirmation d’envoi est en place pour les réponses et le compositeur autonome. Les envois contrôlés vers Gmail, HEY et Outlook ont été reçus ; le message Outlook avec HTML et fichier texte apparaît dans sa boîte de réception et sa copie est archivée dans Inbox de Courrier. Une réponse envoyée depuis HEY est arrivée dans Courrier et a été regroupée avec le message d’origine (2 messages dans le fil). Les originaux Gmail, HEY et Outlook confirment SPF/DKIM/DMARC PASS. Les migrations D1 distantes sont à jour. Aucun bounce réel n’a été provoqué. La fusion manuelle de fils est déjà implémentée et vérifiée localement et en production (voir la section « Avancement ») ; aucune nouvelle implémentation n’est nécessaire pour cette étape de roadmap.
 
 **Critère de sortie :** une réponse part avec une identité cohérente, apparaît dans le fil local et arrive correctement chez plusieurs destinataires de test.
 
-### 5. Fonctions complémentaires et agents
+### 5. Fonctions complémentaires et agents — backlog à prioriser
 
-- Après les priorités UX, étudier Set Aside, Reply Later, renommage local d’objet, clips et alias. Donner la priorité à la fusion de fils ; les Collections sont appréciées mais moins prioritaires.
+- Set Aside, Reply Later, renommage local d’objet et fusion/séparation de fils sont implémentés. Clips, alias et Collections restent des pistes à prioriser selon l’usage.
 - Envisager ensuite classification et résumé assistés, puis préparation de brouillons avec validation humaine.
 - Reporter les agents disposant de leur propre boîte à une phase ultérieure au cadrage des identités, du multi-utilisateur et des autorisations par ressource.
 
@@ -155,14 +163,14 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 - **DNS/MX :** activer Email Routing peut changer le chemin de réception du domaine.
 - **Livraison :** l’Email Sending de Cloudflare est en bêta ; le quota inclus ne garantit pas la réputation ou l’arrivée en boîte principale.
 - **Intégrité :** les emails sont du MIME complexe ; le parser doit être la source de normalisation, et les originaux doivent rester exportables.
-- **Accès :** Cloudflare Access protège actuellement l’entrée de l’application. Le code applique aussi les sessions Courrier, rôles et autorisations par ressource ; la politique edge ne doit être réduite qu’après validation des scénarios authentifiés, refusés, récupération et MFA administrateur.
+- **Accès :** la production est publiquement joignable depuis le 17 octobre ; sessions Courrier, rôles et autorisations par ressource forment la barrière applicative. Cloudflare Access reste sur les previews. La récupération de compte en production et la couverture par un administrateur humain indépendant restent à traiter.
 - **Facturation Zero Trust :** l’offre Free affiche 0 $/mois jusqu’à 50 utilisateurs ; la souscription validée autorise aussi Cloudflare à facturer les usages qui dépasseraient les limites gratuites.
 - **Coût :** les 5 $ de Workers Paid sont une base de facturation, pas une garantie que tous les composants et usages resteront sous ce montant.
 
 ## Hors périmètre initial
 
 - Remplacer HEY ou migrer `codingbox.fr`.
-- Partage multi-utilisateur et autorisations par boîte.
+- Gestion des membres depuis chaque espace, vérification des domaines et provisionnement guidé des boîtes ; partage élargi après validation de ces parcours et des autorisations par ressource.
 - Client IMAP/POP ou synchronisation avec les apps mail du système.
 - Envoi automatique par agent.
 - Reproduire toute l’interface ou tous les services internes de HEY.

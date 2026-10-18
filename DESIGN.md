@@ -34,7 +34,7 @@ typography:
   title:
     fontFamily: "DM Sans Variable, sans-serif"
     fontSize: "15px"
-    fontWeight: 620
+    fontWeight: 680
     letterSpacing: "-0.018em"
   body:
     fontFamily: "DM Sans Variable, sans-serif"
@@ -129,7 +129,7 @@ components:
 
 **Creative North Star: "IMPECCABLE’S PICK — Papeterie numérique"**
 
-Courrier is an Operate workspace for personal mail: people move between dedicated mailbox pages, screen unfamiliar senders, and read each conversation on its own route. The approved identity is IMPECCABLE’S PICK — Papeterie numérique. Warm light, fine rules, a single open sans family, and restrained ink-teal cues make the interface feel like a quiet digital writing desk without literal paper decoration.
+Courrier is an Operate workspace for personal mail: people move between dedicated mailbox pages, screen unfamiliar senders, and read each conversation on its own route. The approved identity is IMPECCABLE’S PICK — Papeterie numérique. Warm, quiet surfaces, fine rules, a single open sans family, and restrained theme-specific accents make the interface feel like a digital writing desk without literal paper decoration.
 
 A mailbox stays a single chronological list with flat rows. Opening a thread replaces the list with one centered reading column; the full-screen composer remains a focused writing workspace, with its existing popup and minimized modes. Light and dark themes keep the same hierarchy while using theme-specific values.
 
@@ -162,7 +162,7 @@ The light palette pairs warm paper neutrals with graphite-green ink and one mute
 - **Reply Later blue** (#66779a): Reserved for the Reply Later state; it is not a general brand accent.
 - The current implementation has no amber design token. Add one only when a real caution state needs it.
 
-The dark theme overrides the same CSS properties: canvas #171e1b, paper #202825, sheet #242d29, ink #edf2ee, muted #b6c2bb, quiet #a5b2aa, line #39463f, accent #9ab8ad, accent-hover #b1cbc1, accent-wash #293b33, sage #304b3f, sage-ink #d7e9df, error #f0a19a, surface-soft #252f2a, message-body #d3ded7, and reply-later #a8b6d4. The red and blue state treatments also have their own dark-mode CSS overrides.
+Appearance mode and palette are separate settings. Mode can follow the system, stay light, or stay dark; the palette selector previews the available colors, supports search, and applies the first match with Enter. Available palettes are Papeterie, Forêt, Graphite, Lavande, Ayu Dark, One Dark Pro, SynthWave ’84, Shades of Purple, and Min Dark. The values in the frontmatter above describe the base Papeterie light palette. `app/assets/css/main.css` is canonical: it applies the selected mode and palette through `data-theme` and `data-theme-variant`; the neutral dark base and each named palette override the shared color tokens there. Keep semantic states distinguishable across every palette.
 
 ## Typography
 
@@ -176,7 +176,7 @@ The dark theme overrides the same CSS properties: canvas #171e1b, paper #202825,
 ### Hierarchy
 - **Display** (650, clamp(28px, 3.7vw, 44px), 1.12): Mailbox headings; on narrow screens the heading reduces to a 28–34px clamp.
 - **Headline** (620, clamp(28px, 3.25vw, 39px), 1.18): Thread subjects in the focused reader.
-- **Title** (620, 15px, natural line height): Thread subjects in the list; previews sit at 12px with a 1.5 line height.
+- **Title** (680, 15px, natural line height): Thread subjects in the list; previews sit at 12px with a 1.5 line height.
 - **Body** (500, 15px, 1.8): Message content, with a maximum reading measure of 68ch; the mobile body uses 14px with a 1.75 line height.
 - **Label** (620, 13px): Primary controls and compact actions. Small metadata steps down to 10–12px.
 
@@ -184,7 +184,7 @@ Use weight and scale within DM Sans Variable instead of adding a separate displa
 
 ## Layout
 
-The shared header is 70px high on desktop and 66px at widths of 720px and below. It holds the quiet Courrier mailbox switcher on the left and account control on the right. Mailbox content is centered at a maximum width of 1000px, with page gutters that scale from 18px to 64px. The chronological list uses 76px rows with a fine bottom rule; at 720px and below it tightens to 70px rows while preserving sender, subject, preview, and date.
+The shared header is 70px high on desktop and 66px at widths of 720px and below. It holds the quiet Courrier mailbox switcher on the left and account control on the right. Mailbox content is centered at a maximum width of 1000px, with page gutters that scale from 18px to 64px. The chronological list uses 74px rows with a fine bottom rule; at 720px and below it tightens to 69px rows while preserving sender, subject, preview, and date.
 
 A thread route replaces the list with one reading column. The reader is capped at 816px, uses a clean sheet with 24–42px responsive padding, and keeps message text within 68ch. Opening a thread commits the viewport to the conversation; the return action restores the mailbox. The composer remains a full-screen writing surface with existing popup and minimized modes.
 
@@ -239,7 +239,7 @@ The controls feel quiet at rest and gain a clear ink-teal response on hover or k
 - **Mobile:** Keep the switcher and account control in the header; each route remains one focused surface.
 
 ### Signature Patterns
-**Chronological thread row.** Sender, subject, preview, and date share one flat 74px row; a fine rule separates rows, while selection uses a pale teal wash.
+**Chronological thread row.** A sender badge sits under the bold subject, followed by the preview; date and sender avatar stay aligned in the same 74px row. A fine rule separates rows, while hover and selection use the active palette's quiet wash.
 
 **Focused reader.** The thread route has a compact return toolbar, a centered 816px sheet, quiet sender metadata, and an uninterrupted message body.
 

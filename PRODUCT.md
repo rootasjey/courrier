@@ -12,7 +12,7 @@ Nuxt, Vue, UnoCSS and Una UI; deployed on Cloudflare Workers with D1 and R2.
 
 ## Users
 
-Initially one person managing email addresses across several personal domains. Multi-user access and agent-owned inboxes are later possibilities, not part of the first release.
+An owner-controlled mail client for several personal domains. The current pilot supports invite-only accounts, workspaces, roles and mailbox grants; workspace self-service, broader collaboration and agent-owned inboxes remain outside its current scope.
 
 ## Product Purpose
 
@@ -31,7 +31,7 @@ The initial mailbox is for `verbatims.cc`, with a dedicated pilot address. Cloud
 - Receive and retain incoming RFC 822 messages and attachments.
 - Screen unknown senders, then classify them into Imbox, The Feed or Paper Trail.
 - A sender rule applies to future messages and may reclassify that sender's history.
-- The current pilot supports invite-only accounts, workspaces, roles and explicit mailbox grants. Cloudflare Access remains an additional edge barrier during validation.
+- The current pilot supports invite-only accounts, workspaces, roles and explicit mailbox grants. Cloudflare Access protects Worker previews; production relies on Courrier sessions and application authorization.
 - Sending is limited to the configured pilot identity. Cross-user sharing and agents require explicit permission design.
 
 ## Brand Commitments
@@ -47,9 +47,9 @@ The repository contains a working Cloudflare email-receive pilot for `courrier-t
 - Preserve original messages and attachments.
 - Make sender classification explicit and understandable.
 - Keep the inbox quiet by default; notifications are opt-in.
-- Validate receiving and reading before adding sending or agent capabilities.
+- Keep sending constrained to the configured pilot identity and behind explicit human confirmation; defer agent access until mailbox-level permissions and recovery paths have been exercised.
 - Keep local development isolated from production data unless a deliberate read-only connection is configured.
 
 ## Open Decisions
 
-Thread merging and splitting are available for the current single-user mailbox. The long-term user and mailbox model remains to be designed before multi-user access or sharing is introduced.
+Thread merging and splitting are available within a mailbox. Workspace-scoped member administration, domain ownership verification and mailbox provisioning remain unfinished; broader sharing and agent access need separate product and permission design.
