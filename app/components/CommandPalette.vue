@@ -12,7 +12,7 @@
   >
     <template #content>
       <div v-if="!trashConfirmationOpen" class="command-palette" @keydown="handleKeydown">
-        <label class="command-palette-search">
+        <div class="command-palette-search">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.2 4.2" /></svg>
           <input
             ref="input"
@@ -27,14 +27,17 @@
             aria-controls="command-palette-options"
             @input="scheduleSearch"
           >
-          <kbd>ESC</kbd>
-        </label>
+          <button class="command-palette-close" type="button" :aria-label="$t('palette.close')" @click="close">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+          </button>
+        </div>
 
-        <div id="command-palette-options" class="command-palette-options" role="listbox" :aria-label="$t('palette.suggestions')">
-          <template v-if="filteredCommands.length">
-            <p class="command-palette-heading">{{ prefix === '/' ? $t('palette.actions') : prefix === '@' ? $t('palette.navigation') : $t('palette.quickAccess') }}</p>
+        <div id="command-palette-options" ref="optionsElement" class="command-palette-options" role="listbox" :aria-label="$t('palette.suggestions')">
+          <div class="command-palette-highlight" :style="activeHighlightStyle" aria-hidden="true" />
+          <div v-for="section in commandSections" :key="section.id" class="command-palette-section" role="group" :aria-label="section.label">
+            <p class="command-palette-heading">{{ section.label }}</p>
             <button
-              v-for="(item, index) in filteredCommands"
+              v-for="{ item, index } in section.items"
               :id="optionId(index)"
               :key="item.id"
               class="command-palette-option"
@@ -49,9 +52,9 @@
               <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description">{{ item.description }}</small></span>
               <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
             </button>
-          </template>
-          <p v-else-if="prefix === '/' && (commandContext.threadIds.length || commandContext.source === 'Screener')" class="command-palette-empty">{{ $t('palette.noActions') }}</p>
-          <p v-else-if="prefix === '@'" class="command-palette-empty">{{ $t('palette.noNavigation') }}</p>
+          </div>
+          <p v-if="!filteredCommands.length && prefix === '/' && (commandContext.threadIds.length || commandContext.source === 'Screener')" class="command-palette-empty">{{ $t('palette.noActions') }}</p>
+          <p v-else-if="!filteredCommands.length && prefix === '@'" class="command-palette-empty">{{ $t('palette.noNavigation') }}</p>
           <p v-if="prefix === '/' && !commandContext.threadIds.length && commandContext.source !== 'Screener'" class="command-palette-empty">{{ $t('palette.actionsNeedSelection') }}</p>
 
           <template v-if="!prefix && query.trim()">
@@ -68,8 +71,16 @@
               @mouseenter="activeIndex = filteredCommands.length + index"
               @click="openResult(result)"
             >
-              <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
-              <span class="command-option-copy"><strong>{{ result.snippet || $t('palette.open') }}</strong><small>{{ $t('palette.openThread') }}</small></span>
+              <span class="command-option-copy command-result-copy">
+                <strong>{{ result.subject || $t('palette.open') }}</strong>
+                <small><span class="command-result-sender">{{ result.sender }}</span><span v-if="result.snippet" aria-hidden="true"> · </span>{{ result.snippet }}</small>
+              </span>
+              <span class="command-result-meta">
+                <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
+                <NTooltip :content="absoluteMailDate(result.timestamp)" :una="{ tooltipContent: 'compose-tooltip-content z-[140]' }">
+                  <time :datetime="result.timestamp">{{ relativeMailDate(result.timestamp) }}</time>
+                </NTooltip>
+              </span>
             </button>
             <p v-if="searchPending" class="command-palette-empty">{{ $t('palette.searching') }}</p>
             <p v-else-if="!searchResults.length" class="command-palette-empty">{{ $t('palette.noResults', { query: query.trim() }) }}</p>
@@ -78,7 +89,7 @@
         </div>
 
         <footer class="command-palette-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> {{ $t('palette.browse') }}</span><span><kbd>↵</kbd> {{ $t('palette.open') }}</span><span><kbd>⌘</kbd><kbd>K</kbd> {{ $t('palette.close') }}</span>
+          <span><kbd>↑</kbd><kbd>↓</kbd> {{ $t('palette.browse') }}</span><span><kbd>↵</kbd> {{ $t('palette.open') }}</span><span><kbd>ESC</kbd> {{ $t('palette.close') }}</span>
         </footer>
       </div>
       <div v-else class="command-palette-confirm">
@@ -118,15 +129,18 @@ type PaletteItem = {
   enabled?: boolean
   destination?: MailboxKey
 }
-type SearchResult = { id: string, folder: MailboxKey, threadId: string, snippet: string }
+type SearchResult = { id: string, folder: MailboxKey, threadId: string, subject: string, sender: string, timestamp: string, snippet: string }
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 const router = useRouter()
 const { $t } = useI18n()
+const { locale } = useI18nLocale()
 const input = ref<HTMLInputElement | null>(null)
+const optionsElement = ref<HTMLDivElement | null>(null)
 const query = ref('')
 const activeIndex = ref(0)
+const activeHighlight = ref({ top: 0, height: 0, baseHeight: 52, visible: false })
 const searchResults = ref<SearchResult[]>([])
 const searchPending = ref(false)
 const composeRequest = useState('courrier-compose-request', () => 0)
@@ -204,10 +218,86 @@ const filteredCommands = computed(() => {
 })
 const activeOptionId = computed(() => optionId(activeIndex.value))
 const visibleOptionCount = computed(() => filteredCommands.value.length + (!prefix.value && query.value.trim() ? searchResults.value.length : 0))
+const commandSections = computed(() => {
+  const indexedItems = filteredCommands.value.map((item, index) => ({ item, index }))
+  if (!indexedItems.length) return []
+  if (prefix.value === '/') return [{ id: 'actions', label: $t('palette.actions'), items: indexedItems }]
+  if (prefix.value === '@') return [{ id: 'navigation', label: $t('palette.navigation'), items: indexedItems }]
+  if (query.value.trim()) return [{ id: 'quick-access', label: $t('palette.quickAccess'), items: indexedItems }]
+
+  return [
+    { id: 'actions', label: $t('palette.actions'), items: indexedItems.filter(({ item }) => item.kind === 'action') },
+    { id: 'mailboxes', label: $t('topbar.mailboxes'), items: indexedItems.filter(({ item }) => item.kind === 'navigation') },
+  ].filter(section => section.items.length)
+})
+const activeHighlightStyle = computed(() => ({
+  transform: `translateY(${activeHighlight.value.top}px) scaleY(${activeHighlight.value.height / activeHighlight.value.baseHeight})`,
+  opacity: activeHighlight.value.visible ? 1 : 0,
+}))
 
 function optionId(index: number) { return `command-palette-option-${index}` }
+function updateActiveHighlight(keepVisible = false) {
+  void nextTick(() => {
+    const options = optionsElement.value
+    const activeOption = document.getElementById(optionId(activeIndex.value))
+    if (!options || !activeOption || !props.open || trashConfirmationOpen.value) {
+      activeHighlight.value = { ...activeHighlight.value, visible: false }
+      return
+    }
+
+    if (keepVisible) {
+      const optionsRect = options.getBoundingClientRect()
+      const optionRect = activeOption.getBoundingClientRect()
+      const viewportTop = optionsRect.top + options.clientTop + 8
+      const viewportBottom = optionsRect.top + options.clientTop + options.clientHeight - 8
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      if (optionRect.top < viewportTop) {
+        options.scrollTo({ top: Math.max(0, options.scrollTop - (viewportTop - optionRect.top)), behavior: reduceMotion ? 'auto' : 'smooth' })
+      } else if (optionRect.bottom > viewportBottom) {
+        options.scrollTo({ top: options.scrollTop + (optionRect.bottom - viewportBottom), behavior: reduceMotion ? 'auto' : 'smooth' })
+      }
+    }
+
+    const optionsRect = options.getBoundingClientRect()
+    const optionRect = activeOption.getBoundingClientRect()
+    const baseHeight = Number.parseFloat(getComputedStyle(options).getPropertyValue('--palette-option-height')) || 52
+    activeHighlight.value = {
+      top: optionRect.top - optionsRect.top + options.scrollTop - options.clientTop,
+      height: optionRect.height,
+      baseHeight,
+      visible: true,
+    }
+  })
+}
 function folderLabel(folder: MailboxKey) {
   return folder === 'Imbox' ? 'Inbox' : folder === 'The Feed' ? 'The Feed' : folder === 'Paper Trail' ? 'Paper Trail' : folder
+}
+function relativeMailDate(timestamp: string) {
+  const time = new Date(timestamp).getTime()
+  if (!Number.isFinite(time)) return ''
+
+  const difference = time - Date.now()
+  const absoluteDifference = Math.abs(difference)
+  const units: { unit: Intl.RelativeTimeFormatUnit, milliseconds: number }[] = [
+    { unit: 'year', milliseconds: 31_536_000_000 },
+    { unit: 'month', milliseconds: 2_592_000_000 },
+    { unit: 'day', milliseconds: 86_400_000 },
+    { unit: 'hour', milliseconds: 3_600_000 },
+    { unit: 'minute', milliseconds: 60_000 },
+    { unit: 'second', milliseconds: 1_000 },
+  ]
+  const { unit, milliseconds } = units.find(candidate => absoluteDifference >= candidate.milliseconds) ?? units.at(-1)!
+  return new Intl.RelativeTimeFormat(locale.value || 'fr', { numeric: 'auto', style: 'short' }).format(Math.round(difference / milliseconds), unit)
+}
+function absoluteMailDate(timestamp: string) {
+  const date = new Date(timestamp)
+  if (!Number.isFinite(date.getTime())) return ''
+  return new Intl.DateTimeFormat(locale.value || 'fr', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'Europe/Paris',
+  }).format(date)
 }
 function close() { emit('update:open', false) }
 
@@ -325,10 +415,8 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-watch(activeIndex, async (index) => {
-  await nextTick()
-  document.getElementById(optionId(index))?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-})
+watch(activeIndex, () => updateActiveHighlight(true), { flush: 'post' })
+watch([filteredCommands, searchResults], () => updateActiveHighlight(), { flush: 'post' })
 
 watch(() => props.open, async (isOpen) => {
   if (isOpen) {
@@ -337,7 +425,11 @@ watch(() => props.open, async (isOpen) => {
     activeIndex.value = 0
     await nextTick()
     input.value?.focus()
-  } else if (searchTimer) clearTimeout(searchTimer)
+    updateActiveHighlight()
+  } else {
+    activeHighlight.value = { ...activeHighlight.value, visible: false }
+    if (searchTimer) clearTimeout(searchTimer)
+  }
 })
 onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
 </script>

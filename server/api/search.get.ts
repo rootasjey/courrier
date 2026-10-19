@@ -4,7 +4,11 @@ import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScop
 
 type SearchMessageRow = {
   id: string
+  mailbox_domain: string
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
+  sender_name: string
+  sender_address: string
+  subject: string
   snippet: string
   sent_at: string | null
   received_at: string
@@ -43,7 +47,7 @@ export default defineEventHandler(async (event) => {
   const pageSize = 40
   const bindingsList = [matchQuery]
 
-  const [countRow, page, threadRows, mergeRows] = await Promise.all([
+  const [countRow, page, threadRows, mergeRows, subjectResult] = await Promise.all([
     bindings.DB.prepare(`
       SELECT COUNT(*) AS total
       FROM messages_search
@@ -54,7 +58,9 @@ export default defineEventHandler(async (event) => {
         AND ${workspaceMessageScope('messages', user.id)}
     `).bind(...bindingsList, user.activeWorkspaceId).first<{ total: number }>(),
     bindings.DB.prepare(`
-      SELECT messages.id, messages.folder, messages.sent_at, messages.received_at,
+      SELECT messages.id, messages.mailbox_domain, messages.folder,
+        messages.sender_name, messages.sender_address, messages.subject,
+        messages.sent_at, messages.received_at,
         snippet(messages_search, 3, '', '', ' … ', 14) AS snippet
       FROM messages_search
       JOIN messages ON messages.rowid = messages_search.rowid
@@ -80,6 +86,10 @@ export default defineEventHandler(async (event) => {
       JOIN thread_merges ON thread_merges.id = thread_merge_members.merge_id
       WHERE ${workspaceDomainScope('thread_merges.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<ManualThreadMergeMember>(),
+    bindings.DB.prepare(`
+      SELECT mailbox_domain, thread_id, subject FROM thread_subject_overrides
+      WHERE ${workspaceDomainScope('thread_subject_overrides.mailbox_domain', user.id)}
+    `).bind(user.activeWorkspaceId).all<{ mailbox_domain: string, thread_id: string, subject: string }>(),
   ])
 
   const hasMore = page.results.length > pageSize
@@ -87,6 +97,10 @@ export default defineEventHandler(async (event) => {
   const { threadIds } = getThreadGrouping(threadRows.results, mergeRows.results)
   const routeIds = new Map<string, string>()
   const rowsById = new Map(threadRows.results.map(row => [row.id, row]))
+  const subjectOverrides = new Map(subjectResult.results.map(override => [
+    `${override.mailbox_domain}\u0000${override.thread_id}`,
+    override.subject,
+  ]))
 
   for (const row of threadRows.results) {
     const threadRoot = threadIds.get(row.id) || row.id
@@ -100,12 +114,21 @@ export default defineEventHandler(async (event) => {
   }
 
   return {
-    results: rows.map(row => ({
-      id: row.id,
-      folder: row.folder,
-      threadId: routeIds.get(threadIds.get(row.id) || row.id) || row.id,
-      snippet: row.snippet,
-    })),
+    results: rows.map((row) => {
+      const threadRoot = threadIds.get(row.id) || row.id
+      const threadId = routeIds.get(threadRoot) || row.id
+      const threadMailboxDomain = rowsById.get(threadId)?.mailbox_domain || row.mailbox_domain
+
+      return {
+        id: row.id,
+        folder: row.folder,
+        threadId,
+        subject: subjectOverrides.get(`${threadMailboxDomain}\u0000${threadId}`) || row.subject,
+        sender: row.sender_name || row.sender_address,
+        timestamp: row.sent_at || row.received_at,
+        snippet: row.snippet,
+      }
+    }),
     total: countRow?.total ?? 0,
     hasMore,
     nextOffset: hasMore ? offset + rows.length : null,
