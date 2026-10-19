@@ -3,6 +3,7 @@ import { getThreadGrouping, type ManualThreadMergeMember } from '../utils/thread
 import { getWorkspaceUserFromContext, workspaceDomainScope, workspaceMessageScope } from '../utils/account-auth'
 
 type SearchMessageRow = {
+  rowid: number
   id: string
   mailbox_domain: string
   folder: 'Imbox' | 'The Feed' | 'Paper Trail'
@@ -28,6 +29,13 @@ type ThreadRow = {
 function toFtsQuery(query: string) {
   const terms = query.match(/[\p{L}\p{N}]+(?:[.@_+-][\p{L}\p{N}]+)*/gu) ?? []
   return terms.map(term => `"${term.replaceAll('"', '""')}"*`).join(' AND ')
+}
+
+function textMatchesQuery(value: string, query: string) {
+  const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase()
+  const terms = query.match(/[\p{L}\p{N}]+(?:[.@_+-][\p{L}\p{N}]+)*/gu) ?? []
+  const words = normalize(value).match(/[\p{L}\p{N}]+(?:[.@_+-][\p{L}\p{N}]+)*/gu) ?? []
+  return terms.length > 0 && terms.every(term => words.some(word => word.startsWith(normalize(term))))
 }
 
 export default defineEventHandler(async (event) => {
@@ -58,7 +66,7 @@ export default defineEventHandler(async (event) => {
         AND ${workspaceMessageScope('messages', user.id)}
     `).bind(...bindingsList, user.activeWorkspaceId).first<{ total: number }>(),
     bindings.DB.prepare(`
-      SELECT messages.id, messages.mailbox_domain, messages.folder,
+      SELECT messages.rowid, messages.id, messages.mailbox_domain, messages.folder,
         messages.sender_name, messages.sender_address, messages.subject,
         messages.sent_at, messages.received_at,
         snippet(messages_search, 3, '', '', ' … ', 14) AS snippet
@@ -95,6 +103,21 @@ export default defineEventHandler(async (event) => {
   const hasMore = page.results.length > pageSize
   const rows = hasMore ? page.results.slice(0, pageSize) : page.results
   const { threadIds } = getThreadGrouping(threadRows.results, mergeRows.results)
+  const rowIds = page.results.map(row => row.rowid)
+  const bodyMatchRows = rowIds.length
+    ? await bindings.DB.prepare(`
+        SELECT messages.rowid
+        FROM messages_search
+        JOIN messages ON messages.rowid = messages_search.rowid
+        WHERE messages.rowid IN (${rowIds.map(() => '?').join(', ')})
+          AND messages_search MATCH ?
+          AND messages_search.text_body MATCH ?
+          AND messages.folder IN ('Imbox', 'The Feed', 'Paper Trail')
+          AND messages.trashed_at IS NULL
+          AND ${workspaceMessageScope('messages', user.id)}
+      `).bind(...rowIds, matchQuery, matchQuery, user.activeWorkspaceId).all<{ rowid: number }>()
+    : { results: [] }
+  const bodyMatchIds = new Set(bodyMatchRows.results.map(row => row.rowid))
   const routeIds = new Map<string, string>()
   const rowsById = new Map(threadRows.results.map(row => [row.id, row]))
   const subjectOverrides = new Map(subjectResult.results.map(override => [
@@ -126,7 +149,10 @@ export default defineEventHandler(async (event) => {
         subject: subjectOverrides.get(`${threadMailboxDomain}\u0000${threadId}`) || row.subject,
         sender: row.sender_name || row.sender_address,
         timestamp: row.sent_at || row.received_at,
-        snippet: row.snippet,
+        // Keep the preview only when it adds context beyond a matching subject or sender.
+        snippet: bodyMatchIds.has(row.rowid) && !textMatchesQuery(`${row.subject} ${row.sender_name} ${row.sender_address}`, query)
+          ? row.snippet.replace(/^\[MESSAGE FICTIF — DONNÉES LOCALES DE DÉMO\]\s*/, '')
+          : '',
       }
     }),
     total: countRow?.total ?? 0,
