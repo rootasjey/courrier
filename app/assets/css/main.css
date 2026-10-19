@@ -637,10 +637,13 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .command-result-option:hover:not(.is-active) { background: color-mix(in srgb, var(--surface-soft) 58%, transparent); }
 .command-result-copy { width: 100%; gap: 6px; }
 .command-result-title-row, .command-result-detail-row { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
-.command-result-copy strong { min-width: 0; font-size: 14px; font-weight: 680; }
+.command-result-copy strong { min-width: 0; color: var(--ink); font-size: 15px; font-weight: 730; }
 .command-result-title-row time { flex: 0 0 auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.command-result-description { display: block; min-width: 0; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.command-result-sender { color: var(--ink); font-weight: 620; }
+.command-result-description { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.command-result-sender-group { display: inline-flex; min-width: 0; flex: 0 1 auto; align-items: center; gap: 7px; }
+.command-result-avatar { width: 22px; height: 22px; flex: 0 0 22px; font-size: 9px; }
+.command-result-sender { overflow: hidden; color: var(--muted); font-weight: 560; text-overflow: ellipsis; }
+.command-result-snippet { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .command-result-folder { display: inline-flex; flex: 0 0 auto; justify-content: center; padding: 3px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--accent); font-size: 10px; font-weight: 650; white-space: nowrap; }
 .command-palette-empty { margin: 12px 10px; color: var(--muted); font-size: 12px; }
 .command-palette-error { margin: 10px 12px; color: var(--error); font-size: 12px; line-height: 1.5; }
@@ -664,7 +667,9 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .command-result-title-row, .command-result-detail-row { gap: 8px; }
   .command-result-copy strong { font-size: 13px; }
   .command-result-title-row time { font-size: 10px; }
-  .command-result-description { font-size: 10px; }
+  .command-result-description { gap: 5px; font-size: 10px; }
+  .command-result-sender-group { gap: 5px; }
+  .command-result-avatar { width: 20px; height: 20px; flex-basis: 20px; font-size: 8px; }
   .command-result-folder { padding: 3px 6px; font-size: 9px; }
   .command-palette-footer { min-height: 44px; justify-content: space-between; gap: 5px; padding: 0 10px; font-size: 11px; }
   .command-palette-footer span { gap: 3px; }

@@ -81,7 +81,13 @@
                   </NTooltip>
                 </span>
                 <span class="command-result-detail-row">
-                  <small class="command-result-description"><span class="command-result-sender">{{ result.sender }}</span><span v-if="result.snippet" aria-hidden="true"> · </span>{{ result.snippet }}</small>
+                  <small class="command-result-description">
+                    <span class="command-result-sender-group">
+                      <span class="sender-avatar command-result-avatar" :class="`avatar-${senderColor(result.id)}`" aria-hidden="true">{{ senderInitials(result.sender) }}</span>
+                      <span class="command-result-sender">{{ result.sender }}</span>
+                    </span>
+                    <template v-if="result.snippet"><span aria-hidden="true"> · </span><span class="command-result-snippet">{{ result.snippet }}</span></template>
+                  </small>
                   <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
                 </span>
               </span>
@@ -134,6 +140,15 @@ type PaletteItem = {
   destination?: MailboxKey
 }
 type SearchResult = { id: string, folder: MailboxKey, threadId: string, subject: string, sender: string, timestamp: string, snippet: string }
+
+function senderInitials(sender: string) {
+  return sender.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toLocaleUpperCase('fr')).join('') || '??'
+}
+
+function senderColor(messageId: string) {
+  const colors = ['terracotta', 'blue', 'green', 'gold']
+  return colors[Number.parseInt(messageId.slice(0, 2), 16) % colors.length] || colors[0]
+}
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
