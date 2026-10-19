@@ -47,7 +47,10 @@
               @mouseenter="activeIndex = index"
               @click="runCommand(item)"
             >
-              <span class="command-option-icon" aria-hidden="true"><component :is="item.icon" /></span>
+              <span class="command-option-icon" aria-hidden="true">
+                <span v-if="typeof item.icon === 'string'" class="command-mailbox-icon" :class="item.icon" />
+                <component :is="item.icon" v-else />
+              </span>
               <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description && section.id !== 'mailboxes'">{{ item.description }}</small></span>
               <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
             </button>
@@ -119,7 +122,7 @@ type PaletteItem = {
   id: string
   label: string
   description: string
-  icon: object
+  icon: object | string
   shortcut?: string
   kind: 'action' | 'navigation'
   action: 'compose' | 'navigate' | 'mail' | 'clear-screener'
@@ -156,10 +159,10 @@ let searchRevision = 0
 
 const icon = (path: string) => ({ render: () => h('svg', { viewBox: '0 0 20 20', fill: 'none', 'aria-hidden': 'true' }, [h('path', { d: path })]) })
 const navigationItems = computed<PaletteItem[]>(() => [
-  { id: 'inbox', label: 'Inbox', description: $t('palette.inboxDescription'), icon: icon('M3 4h14v12H3z M3 11h4l1.5 2h3L13 11h4'), kind: 'navigation', action: 'navigate', to: mailboxPath('Imbox') },
-  { id: 'screener', label: 'Screener', description: $t('topbar.folderNotes.screener'), icon: icon('M3 4h14v12H3z M6 8h8m-8 4h5 M15 3v4'), kind: 'navigation', action: 'navigate', to: mailboxPath('Screener') },
-  { id: 'feed', label: 'The Feed', description: $t('palette.feedDescription'), icon: icon('M3 4.5c3-.8 5.5-.4 7 1.3v10c-1.5-1.7-4-2.1-7-1.3v-10Zm14 0c-3-.8-5.5-.4-7 1.3v10c1.5-1.7 4-2.1 7-1.3v-10Z'), kind: 'navigation', action: 'navigate', to: mailboxPath('The Feed') },
-  { id: 'paper', label: 'Paper Trail', description: $t('palette.paperDescription'), icon: icon('M5 2.5h10v15l-2.5-1.7L10 17.5l-2.5-1.7L5 17.5v-15Zm3 4h4m-4 3h4'), kind: 'navigation', action: 'navigate', to: mailboxPath('Paper Trail') },
+  { id: 'inbox', label: 'Inbox', description: $t('palette.inboxDescription'), icon: 'i-tabler-inbox', kind: 'navigation', action: 'navigate', to: mailboxPath('Imbox') },
+  { id: 'screener', label: 'Screener', description: $t('topbar.folderNotes.screener'), icon: 'i-tabler-user-screen', kind: 'navigation', action: 'navigate', to: mailboxPath('Screener') },
+  { id: 'feed', label: 'The Feed', description: $t('palette.feedDescription'), icon: 'i-tabler-brand-feedly', kind: 'navigation', action: 'navigate', to: mailboxPath('The Feed') },
+  { id: 'paper', label: 'Paper Trail', description: $t('palette.paperDescription'), icon: 'i-tabler-toilet-paper', kind: 'navigation', action: 'navigate', to: mailboxPath('Paper Trail') },
   { id: 'reply-later', label: 'Reply Later', description: $t('palette.replyLaterDescription'), icon: icon('M7.5 5 3 9.5 7.5 14 M3.5 9.5H11a5 5 0 0 1 5 5v1'), kind: 'navigation', action: 'navigate', to: mailboxPath('Reply Later') },
   { id: 'set-aside', label: 'Set Aside', description: $t('palette.setAsideDescription'), icon: icon('M5 3h10v15l-2.5-1.5L10 18l-2.5-1.5L5 18V3Z'), kind: 'navigation', action: 'navigate', to: mailboxPath('Set Aside') },
   { id: 'drafts', label: $t('palette.drafts'), description: $t('palette.draftsDescription'), icon: icon('M4 3h12v14H4z M7 7h6m-6 3h6m-6 3h4'), kind: 'navigation', action: 'navigate', to: '/mail/drafts' },
