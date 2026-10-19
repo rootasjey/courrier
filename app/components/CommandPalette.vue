@@ -201,6 +201,7 @@ const actionItems = computed<PaletteItem[]>(() => {
 
 const prefix = computed(() => query.value.startsWith('/') || query.value.startsWith('@') ? query.value[0] : '')
 const normalizedQuery = computed(() => query.value.trim().replace(/^[/@]\s*/, '').toLocaleLowerCase('fr'))
+const primaryMailboxIds = new Set(['inbox', 'screener', 'feed', 'paper'])
 const filteredCommands = computed(() => {
   const sourceItems = prefix.value === '/'
     ? actionItems.value
@@ -213,7 +214,11 @@ const filteredCommands = computed(() => {
     if (!normalizedQuery.value) return true
     return `${item.label} ${item.description}`.toLocaleLowerCase('fr').includes(normalizedQuery.value)
   })
-  return prefix.value ? filtered : filtered.slice(0, 5)
+  if (prefix.value) return filtered
+  if (!normalizedQuery.value) {
+    return filtered.filter(item => item.kind === 'action' || primaryMailboxIds.has(item.id))
+  }
+  return filtered.slice(0, 5)
 })
 const activeOptionId = computed(() => optionId(activeIndex.value))
 const visibleOptionCount = computed(() => filteredCommands.value.length + (!prefix.value && query.value.trim() ? searchResults.value.length : 0))
