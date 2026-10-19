@@ -13,7 +13,6 @@
     <template #content>
       <div v-if="!trashConfirmationOpen" class="command-palette" @keydown="handleKeydown">
         <div class="command-palette-search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.2 4.2" /></svg>
           <input
             ref="input"
             v-model="query"
