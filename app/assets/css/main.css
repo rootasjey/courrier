@@ -614,15 +614,23 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .command-palette-highlight { position: absolute; top: 0; right: 10px; left: 10px; z-index: 0; height: var(--palette-option-height); transform-origin: top center; border-radius: 9px; background: var(--accent-wash); pointer-events: none; transition: transform 180ms cubic-bezier(.2, .72, .2, 1), opacity 100ms ease; }
 .command-palette-section { position: relative; z-index: 1; }
 .command-palette-section + .command-palette-section { margin-top: 5px; }
+.command-palette-section.is-mailbox-section { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.command-palette-section.is-mailbox-section .command-palette-heading { grid-column: 1 / -1; }
 .command-palette-heading { margin: 8px 9px 6px; color: var(--quiet); font-size: 11px; font-weight: 650; letter-spacing: .01em; }
-.command-palette-option { position: relative; display: flex; width: 100%; min-height: 52px; align-items: center; gap: 12px; padding: 7px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.command-palette-option { position: relative; display: flex; width: 100%; min-height: 52px; align-items: center; gap: 12px; padding: 7px 10px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .command-palette-option:hover, .command-palette-option.is-active { background: transparent; }
 .command-palette-option:focus-visible { outline-offset: -2px; }
+.command-palette-option.is-mailbox-option { min-height: 78px; flex-direction: column; justify-content: center; gap: 5px; padding: 9px 6px; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--surface-soft) 32%, transparent); text-align: center; transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease; }
+.command-palette-option.is-mailbox-option:hover, .command-palette-option.is-mailbox-option.is-active { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-wash); color: var(--accent); }
 .command-option-icon { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 8px; background: var(--surface-soft); color: var(--accent); }
 .command-option-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
 .command-option-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .command-option-copy strong { overflow: hidden; font-size: 13px; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
 .command-option-copy small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.command-palette-option.is-mailbox-option .command-option-icon { width: 28px; height: 28px; flex-basis: 28px; background: transparent; color: var(--muted); }
+.command-palette-option.is-mailbox-option.is-active .command-option-icon { color: var(--accent); }
+.command-palette-option.is-mailbox-option .command-option-copy { flex: 0 1 auto; }
+.command-palette-option.is-mailbox-option .command-option-copy strong { max-width: 100%; font-size: 12px; }
 .command-palette-option > kbd, .command-palette-footer kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-soft); color: var(--muted); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
 .command-result-option { min-height: 60px; }
 .command-result-copy { gap: 4px; }
@@ -645,6 +653,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .command-palette-options { --palette-option-height: 48px; max-height: none; min-height: 0; flex: 1; padding: 8px; }
   .command-palette-heading { margin: 8px 8px 5px; }
   .command-palette-option { min-height: 48px; gap: 9px; padding: 6px 8px; }
+  .command-palette-section.is-mailbox-section { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .command-palette-option.is-mailbox-option { min-height: 70px; gap: 4px; padding: 8px 5px; }
   .command-option-icon { width: 28px; height: 28px; flex-basis: 28px; }
   .command-result-meta { gap: 6px; margin-left: 4px; }
   .command-result-folder { padding: 3px 6px; font-size: 9px; }

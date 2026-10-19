@@ -33,14 +33,14 @@
 
         <div id="command-palette-options" ref="optionsElement" class="command-palette-options" role="listbox" :aria-label="$t('palette.suggestions')">
           <div class="command-palette-highlight" :style="activeHighlightStyle" aria-hidden="true" />
-          <div v-for="section in commandSections" :key="section.id" class="command-palette-section" role="group" :aria-label="section.label">
+          <div v-for="section in commandSections" :key="section.id" class="command-palette-section" :class="{ 'is-mailbox-section': section.id === 'mailboxes' }" role="group" :aria-label="section.label">
             <p class="command-palette-heading">{{ section.label }}</p>
             <button
               v-for="{ item, index } in section.items"
               :id="optionId(index)"
               :key="item.id"
               class="command-palette-option"
-              :class="{ 'is-active': activeIndex === index }"
+              :class="{ 'is-active': activeIndex === index, 'is-mailbox-option': section.id === 'mailboxes' }"
               type="button"
               role="option"
               :aria-selected="activeIndex === index"
@@ -48,7 +48,7 @@
               @click="runCommand(item)"
             >
               <span class="command-option-icon" aria-hidden="true"><component :is="item.icon" /></span>
-              <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description">{{ item.description }}</small></span>
+              <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description && section.id !== 'mailboxes'">{{ item.description }}</small></span>
               <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
             </button>
           </div>
@@ -217,6 +217,7 @@ const filteredCommands = computed(() => {
 })
 const activeOptionId = computed(() => optionId(activeIndex.value))
 const visibleOptionCount = computed(() => filteredCommands.value.length + (!prefix.value && query.value.trim() ? searchResults.value.length : 0))
+const activeMailboxTile = computed(() => !prefix.value && !query.value.trim() && filteredCommands.value[activeIndex.value]?.kind === 'navigation')
 const commandSections = computed(() => {
   const indexedItems = filteredCommands.value.map((item, index) => ({ item, index }))
   if (!indexedItems.length) return []
@@ -231,7 +232,7 @@ const commandSections = computed(() => {
 })
 const activeHighlightStyle = computed(() => ({
   transform: `translateY(${activeHighlight.value.top}px) scaleY(${activeHighlight.value.height / activeHighlight.value.baseHeight})`,
-  opacity: activeHighlight.value.visible ? 1 : 0,
+  opacity: activeHighlight.value.visible && !activeMailboxTile.value ? 1 : 0,
 }))
 
 function optionId(index: number) { return `command-palette-option-${index}` }
@@ -430,5 +431,7 @@ watch(() => props.open, async (isOpen) => {
     if (searchTimer) clearTimeout(searchTimer)
   }
 })
-onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
+onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
 </script>
