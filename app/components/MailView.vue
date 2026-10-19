@@ -924,10 +924,11 @@
           <NDialogClose as-child>
             <button class="dialog-cancel" type="button" :disabled="isClearingScreener">{{ $t('mail.cancel') }}</button>
           </NDialogClose>
-          <button class="dialog-danger screener-confirm-action" type="button" aria-keyshortcuts="Control+Enter Meta+Enter" :disabled="isClearingScreener" @click="clearAllScreener">
-            <span>{{ isClearingScreener ? $t('mail.clearing') : $t('mail.clearAll') }}</span>
-            <kbd>⌘/Ctrl + ↵</kbd>
-          </button>
+          <NTooltip :content="$t('mail.confirmClearAllShortcut') + ' · ⌘/Ctrl + ↵'" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button class="dialog-danger screener-confirm-action" type="button" aria-keyshortcuts="Control+Enter Meta+Enter" :disabled="isClearingScreener" @click="clearAllScreener">
+              {{ isClearingScreener ? $t('mail.clearing') : $t('mail.clearAll') }}
+            </button>
+          </NTooltip>
         </footer>
       </template>
     </NDialog>

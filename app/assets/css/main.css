@@ -653,8 +653,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .dialog-danger { min-height: 38px; padding: 0 13px; border: 1px solid color-mix(in srgb, var(--error) 50%, var(--line)); border-radius: 7px; background: color-mix(in srgb, var(--error) 10%, var(--paper)); color: var(--error); font-size: 12px; font-weight: 650; cursor: pointer; }
 .dialog-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 17%, var(--paper)); }
 .dialog-danger:disabled { cursor: wait; opacity: .6; }
-.screener-confirm-action { display: inline-flex; align-items: center; gap: 10px; }
-.screener-confirm-action kbd { padding: 3px 6px; border: 1px solid color-mix(in srgb, var(--error) 28%, var(--line)); border-radius: 4px; color: var(--muted); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.dialog-danger.screener-confirm-action { border-radius: 7px; }
 .screener-confirm-copy { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .dialog-content.screener-shortcut-dialog-content { width: min(calc(100% - 32px), 430px); }
 .screener-shortcut-dialog .dialog-header { margin-bottom: 16px; }
