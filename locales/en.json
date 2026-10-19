@@ -399,6 +399,7 @@
     "trashSelectedMessage": "Move its message to Trash",
     "dismissAllPending": "Dismiss all pending messages",
     "confirmClearAllShortcut": "Confirm Clear All",
+    "confirmClearAllTooltip": "Shortcut: Cmd/Ctrl + Enter",
     "chooseMailbox": "Choose Inbox, Feed, or Paper",
     "toggleSenderMessage": "Switch between sender and message",
     "applyClassification": "Apply selected filing",

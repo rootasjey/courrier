@@ -399,6 +399,7 @@
     "trashSelectedMessage": "Mettre son message en Corbeille",
     "dismissAllPending": "Écarter tous les messages en attente",
     "confirmClearAllShortcut": "Confirmer Clear All",
+    "confirmClearAllTooltip": "Raccourci : Cmd/Ctrl + Entrée",
     "chooseMailbox": "Choisir Inbox, Feed ou Paper",
     "toggleSenderMessage": "Alterner expéditeur et message",
     "applyClassification": "Appliquer le classement choisi",
