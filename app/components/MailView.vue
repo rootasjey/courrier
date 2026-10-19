@@ -507,7 +507,9 @@
                   <span class="thread-tab-heading">
                     <span class="sender-avatar thread-tab-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
                     <span class="thread-tab-sender">{{ message.sender }}</span>
-                    <time :datetime="message.timestamp" :title="absoluteMailDate(message.timestamp)">{{ relativeMailDate(message.timestamp) }}</time>
+                    <NTooltip :content="absoluteMailDate(message.timestamp)">
+                      <time :datetime="message.timestamp">{{ relativeMailDate(message.timestamp) }}</time>
+                    </NTooltip>
                   </span>
                   <span class="thread-tab-preview">{{ message.subject }} · {{ message.preview }}</span>
                   <span class="sr-only">{{ $t('mail.messagePosition', { current: index + 1, total: chronologicalMessages.length }) }}</span>
@@ -552,7 +554,9 @@
                   </span>
                   <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
                 </span>
-                <time :datetime="activeThreadMessage.timestamp" :title="absoluteMailDate(activeThreadMessage.timestamp)">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
+                <NTooltip :content="absoluteMailDate(activeThreadMessage.timestamp)">
+                  <time :datetime="activeThreadMessage.timestamp">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
+                </NTooltip>
               </div>
 
               <div class="message-rule" />
@@ -605,7 +609,9 @@
                 </span>
                 <NuxtLink v-else class="sender-profile-link" :to="senderPath(message.address)">{{ message.address }}</NuxtLink>
                 </span>
-                <time :datetime="message.timestamp" :title="absoluteMailDate(message.timestamp)">{{ relativeMailDate(message.timestamp) }}</time>
+                <NTooltip :content="absoluteMailDate(message.timestamp)">
+                  <time :datetime="message.timestamp">{{ relativeMailDate(message.timestamp) }}</time>
+                </NTooltip>
               </div>
               <div class="message-rule" />
               <div v-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
