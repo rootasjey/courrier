@@ -50,9 +50,9 @@
               <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
             </button>
           </template>
-          <p v-else-if="prefix === '/' && commandContext.threadIds.length" class="command-palette-empty">{{ $t('palette.noActions') }}</p>
+          <p v-else-if="prefix === '/' && (commandContext.threadIds.length || commandContext.source === 'Screener')" class="command-palette-empty">{{ $t('palette.noActions') }}</p>
           <p v-else-if="prefix === '@'" class="command-palette-empty">{{ $t('palette.noNavigation') }}</p>
-          <p v-if="prefix === '/' && !commandContext.threadIds.length" class="command-palette-empty">{{ $t('palette.actionsNeedSelection') }}</p>
+          <p v-if="prefix === '/' && !commandContext.threadIds.length && commandContext.source !== 'Screener'" class="command-palette-empty">{{ $t('palette.actionsNeedSelection') }}</p>
 
           <template v-if="!prefix && query.trim()">
             <p class="command-palette-heading">{{ $t('palette.results') }}</p>
@@ -103,7 +103,7 @@ import { useRouter } from 'vue-router'
 import { mailboxPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 type MailAction = 'mark-seen' | 'reply-later' | 'set-aside' | 'move' | 'trash'
-type CommandContext = { source: MailboxKey, threadIds: string[] }
+type CommandContext = { source: MailboxKey, threadIds: string[], screenerPendingCount: number }
 type PendingTrash = { item: PaletteItem, context: CommandContext }
 type PaletteItem = {
   id: string
@@ -112,7 +112,7 @@ type PaletteItem = {
   icon: object
   shortcut?: string
   kind: 'action' | 'navigation'
-  action: 'compose' | 'navigate' | 'mail'
+  action: 'compose' | 'navigate' | 'mail' | 'clear-screener'
   to?: string
   mailAction?: MailAction
   enabled?: boolean
@@ -130,7 +130,8 @@ const activeIndex = ref(0)
 const searchResults = ref<SearchResult[]>([])
 const searchPending = ref(false)
 const composeRequest = useState('courrier-compose-request', () => 0)
-const commandContext = useState<CommandContext>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [] }))
+const commandContext = useState<CommandContext>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [], screenerPendingCount: 0 }))
+const screenerClearRequest = useState('courrier-screener-clear-request', () => 0)
 const accountSession = useState<{ isPlatformAdmin: boolean } | null>('courrier-account-session', () => null)
 const paletteFeedback = useState('courrier-palette-feedback', () => '')
 const paletteError = useState('courrier-palette-error', () => '')
@@ -154,7 +155,21 @@ const navigationItems = computed<PaletteItem[]>(() => [
 ])
 const actionItems = computed<PaletteItem[]>(() => {
   const { source, threadIds } = commandContext.value
-  const compose: PaletteItem = { id: 'compose', label: $t('palette.newMessage'), description: $t('palette.newMessageDescription'), icon: icon('M4 14.5 14.8 3.7a1.7 1.7 0 0 1 2.4 2.4L6.4 16.9 3 17.5l.6-3Z M11.5 5.5l3 3'), shortcut: 'C', kind: 'action', action: 'compose' }
+  const compose: PaletteItem = { id: 'compose', label: $t('palette.newMessage'), description: $t('palette.newMessageDescription'), icon: icon('M4 14.5 14.8 3.7a1.7 1.7 0 0 1 2.4 2.4L6.4 16.9 3 17.5l.6-3Z M11.5 5.5l3 3'), shortcut: source === 'Screener' ? undefined : 'C', kind: 'action', action: 'compose' }
+  if (source === 'Screener') {
+    return [
+      compose,
+      ...(commandContext.value.screenerPendingCount > 0 ? [{
+        id: 'clear-screener',
+        label: $t('mail.clearAll'),
+        description: $t('palette.clearScreenerDescription'),
+        icon: icon('M4 6h12M8 6V4h4v2m2 0-.7 10H6.7L6 6m3 3v4m2-4v4'),
+        shortcut: 'C',
+        kind: 'action' as const,
+        action: 'clear-screener' as const,
+      }] : []),
+    ]
+  }
   if (!threadIds.length || !['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(source)) return [compose]
   const items: PaletteItem[] = [compose,
     { id: 'mark-seen', label: $t('bulk.markSeen'), description: $t('palette.markSeenDescription'), icon: icon('m4.5 10.5 3.2 3.2 7-7'), kind: 'action', action: 'mail', mailAction: 'mark-seen' },
@@ -174,7 +189,13 @@ const actionItems = computed<PaletteItem[]>(() => {
 const prefix = computed(() => query.value.startsWith('/') || query.value.startsWith('@') ? query.value[0] : '')
 const normalizedQuery = computed(() => query.value.trim().replace(/^[/@]\s*/, '').toLocaleLowerCase('fr'))
 const filteredCommands = computed(() => {
-  const sourceItems = prefix.value === '/' ? actionItems.value : prefix.value === '@' ? navigationItems.value : [actionItems.value[0]!, ...navigationItems.value]
+  const sourceItems = prefix.value === '/'
+    ? actionItems.value
+    : prefix.value === '@'
+      ? navigationItems.value
+      : commandContext.value.source === 'Screener'
+        ? [...actionItems.value, ...navigationItems.value]
+        : [actionItems.value[0]!, ...navigationItems.value]
   const filtered = sourceItems.filter((item) => {
     if (!normalizedQuery.value) return true
     return `${item.label} ${item.description}`.toLocaleLowerCase('fr').includes(normalizedQuery.value)
@@ -201,6 +222,11 @@ async function runCommand(item: PaletteItem) {
   if (item.action === 'navigate' && item.to) {
     close()
     await router.push(item.to)
+  }
+  if (item.action === 'clear-screener') {
+    close()
+    screenerClearRequest.value += 1
+    return
   }
   if (item.action === 'mail') {
     if (item.mailAction === 'trash') {

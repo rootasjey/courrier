@@ -896,6 +896,7 @@
             <div><dt><kbd>Y</kbd></dt><dd>{{ $t('mail.openClassificationOptions') }}</dd></div>
             <div><dt><kbd>T</kbd></dt><dd>{{ $t('mail.trashSelectedMessage') }}</dd></div>
             <div><dt><kbd>C</kbd></dt><dd>{{ $t('mail.dismissAllPending') }}</dd></div>
+            <div><dt><kbd>⌘/Ctrl</kbd> <kbd>Enter</kbd></dt><dd>{{ $t('mail.confirmClearAllShortcut') }}</dd></div>
             <div class="shortcut-dialog-divider"><dt><kbd>I</kbd> <kbd>F</kbd> <kbd>P</kbd></dt><dd>{{ $t('mail.chooseMailbox') }}</dd></div>
             <div><dt><kbd>G</kbd></dt><dd>{{ $t('mail.toggleSenderMessage') }}</dd></div>
             <div><dt><kbd>Enter</kbd> <kbd>Space</kbd> <kbd>Y</kbd></dt><dd>{{ $t('mail.applyClassification') }}</dd></div>
@@ -923,8 +924,9 @@
           <NDialogClose as-child>
             <button class="dialog-cancel" type="button" :disabled="isClearingScreener">{{ $t('mail.cancel') }}</button>
           </NDialogClose>
-          <button class="dialog-danger" type="button" :disabled="isClearingScreener" @click="clearAllScreener">
-            {{ isClearingScreener ? $t('mail.clearing') : $t('mail.clearAll') }}
+          <button class="dialog-danger screener-confirm-action" type="button" aria-keyshortcuts="Control+Enter Meta+Enter" :disabled="isClearingScreener" @click="clearAllScreener">
+            <span>{{ isClearingScreener ? $t('mail.clearing') : $t('mail.clearAll') }}</span>
+            <kbd>⌘/Ctrl + ↵</kbd>
           </button>
         </footer>
       </template>
@@ -1104,10 +1106,12 @@ let replySaveTimer: ReturnType<typeof setTimeout> | undefined
 let replySaveRevision = 0
 const isDevelopment = import.meta.dev
 const composeRequest = useState('courrier-compose-request', () => 0)
-const paletteContext = useState<{ source: MailboxKey, threadIds: string[] }>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [] }))
+const paletteContext = useState<{ source: MailboxKey, threadIds: string[], screenerPendingCount: number }>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [], screenerPendingCount: 0 }))
+const screenerClearRequest = useState('courrier-screener-clear-request', () => 0)
 const paletteFeedback = useState('courrier-palette-feedback', () => '')
 const paletteError = useState('courrier-palette-error', () => '')
 let lastComposeRequest = composeRequest.value
+let lastScreenerClearRequest = screenerClearRequest.value
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
 let undoTimer: ReturnType<typeof setTimeout> | undefined
@@ -1201,6 +1205,7 @@ watch([activeFolder, selectedThreadIds, selectedId], () => {
     threadIds: selectedThreadIds.value.length
       ? [...selectedThreadIds.value]
       : selectedId.value ? [selectedId.value] : [],
+    screenerPendingCount: paletteContext.value.screenerPendingCount,
   }
 }, { immediate: true, deep: true })
 
@@ -1208,6 +1213,12 @@ watch(composeRequest, (request) => {
   if (request === lastComposeRequest) return
   lastComposeRequest = request
   openNewComposer()
+})
+
+watch(screenerClearRequest, (request) => {
+  if (request === lastScreenerClearRequest) return
+  lastScreenerClearRequest = request
+  if (activeFolder.value === 'Screener' && screenerView.value === 'pending') requestClearScreener()
 })
 
 watch(composeDraftRequest, (draft) => {
@@ -1405,6 +1416,10 @@ const allScreenerSenders = computed(() => {
 
   return [...senders.values()]
 })
+
+watch(() => allScreenerSenders.value.length, (count) => {
+  paletteContext.value = { ...paletteContext.value, screenerPendingCount: count }
+}, { immediate: true })
 
 const screenerHistorySenders = computed(() => {
   const senders = new Map<string, { address: string, latest: InboxMessage, count: number, state: 'cleared' | 'blocked' }>()
@@ -1680,6 +1695,21 @@ watch(activeThreadMessageId, async (messageId) => {
 function handleThreadKeydown(event: KeyboardEvent) {
   if (event.defaultPrevented) return
 
+  if (
+    activeFolder.value === 'Screener'
+    && screenerView.value === 'pending'
+    && screenerClearDialogOpen.value
+    && event.key === 'Enter'
+    && (event.metaKey || event.ctrlKey)
+    && !event.altKey
+    && !event.shiftKey
+  ) {
+    event.preventDefault()
+    event.stopPropagation()
+    void clearAllScreener()
+    return
+  }
+
   if (event.key === 'Escape' && isEditingThreadSubject.value) {
     event.preventDefault()
     event.stopPropagation()
@@ -1747,7 +1777,7 @@ function handleThreadKeydown(event: KeyboardEvent) {
       return
     }
 
-    if (key === 'c' && senders.length) {
+    if (key === 'c' && allScreenerSenders.value.length) {
       event.preventDefault()
       screenerClearDialogOpen.value = true
       return
@@ -2549,7 +2579,9 @@ function toggleScreenerOptions(address: string, message: InboxMessage) {
 }
 
 function requestClearScreener() {
-  if (allScreenerSenders.value.length && !isClearingScreener.value) screenerClearDialogOpen.value = true
+  if (activeFolder.value === 'Screener' && screenerView.value === 'pending' && allScreenerSenders.value.length && !isClearingScreener.value) {
+    screenerClearDialogOpen.value = true
+  }
 }
 
 async function applyScreenerChoice(message: InboxMessage, folder: MailboxFolder, scope: 'sender' | 'message') {
