@@ -633,14 +633,15 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .command-palette-option.is-mailbox-option .command-option-copy { flex: 0 1 auto; }
 .command-palette-option.is-mailbox-option .command-option-copy strong { max-width: 100%; font-size: 12px; }
 .command-palette-option > kbd, .command-palette-footer kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-soft); color: var(--muted); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
-.command-result-option { min-height: 60px; }
-.command-result-copy { gap: 4px; }
-.command-result-copy strong { font-size: 14px; }
-.command-result-copy small { font-size: 11px; }
+.command-result-option { min-height: 64px; padding: 8px 12px; }
+.command-result-option:hover:not(.is-active) { background: color-mix(in srgb, var(--surface-soft) 58%, transparent); }
+.command-result-copy { width: 100%; gap: 6px; }
+.command-result-title-row, .command-result-detail-row { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
+.command-result-copy strong { min-width: 0; font-size: 14px; font-weight: 680; }
+.command-result-title-row time { flex: 0 0 auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.command-result-description { display: block; min-width: 0; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .command-result-sender { color: var(--ink); font-weight: 620; }
-.command-result-meta { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; margin-left: 10px; color: var(--quiet); }
-.command-result-folder { display: inline-flex; justify-content: center; padding: 4px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--accent); font-size: 10px; font-weight: 650; white-space: nowrap; }
-.command-result-meta time { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.command-result-folder { display: inline-flex; flex: 0 0 auto; justify-content: center; padding: 3px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--accent); font-size: 10px; font-weight: 650; white-space: nowrap; }
 .command-palette-empty { margin: 12px 10px; color: var(--muted); font-size: 12px; }
 .command-palette-error { margin: 10px 12px; color: var(--error); font-size: 12px; line-height: 1.5; }
 .command-palette-footer { display: flex; min-height: 48px; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 18px; padding: 0 18px; border-top: 1px solid var(--line); color: var(--quiet); font-size: 12px; font-weight: 600; }
@@ -659,9 +660,12 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .command-option-icon { width: 28px; height: 28px; flex-basis: 28px; }
   .command-palette-option.is-mailbox-option .command-option-icon { width: 32px; height: 32px; flex-basis: 32px; }
   .command-mailbox-icon { width: 23px; height: 23px; font-size: 23px; }
-  .command-result-meta { gap: 6px; margin-left: 4px; }
+  .command-result-option { min-height: 62px; padding: 7px 9px; }
+  .command-result-title-row, .command-result-detail-row { gap: 8px; }
+  .command-result-copy strong { font-size: 13px; }
+  .command-result-title-row time { font-size: 10px; }
+  .command-result-description { font-size: 10px; }
   .command-result-folder { padding: 3px 6px; font-size: 9px; }
-  .command-result-meta time { font-size: 10px; }
   .command-palette-footer { min-height: 44px; justify-content: space-between; gap: 5px; padding: 0 10px; font-size: 11px; }
   .command-palette-footer span { gap: 3px; }
 }

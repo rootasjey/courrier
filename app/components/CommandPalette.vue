@@ -11,7 +11,7 @@
     @update:open="(value: boolean) => { if (!value && !actionPending) { if (trashConfirmationOpen) trashConfirmationOpen = false; else emit('update:open', false) } }"
   >
     <template #content>
-      <div v-if="!trashConfirmationOpen" class="command-palette" @keydown="handleKeydown">
+      <div v-if="!trashConfirmationOpen" class="command-palette" @keydown.capture="handleKeydown">
         <div class="command-palette-search">
           <input
             ref="input"
@@ -74,14 +74,16 @@
               @click="openResult(result)"
             >
               <span class="command-option-copy command-result-copy">
-                <strong>{{ result.subject || $t('palette.open') }}</strong>
-                <small><span class="command-result-sender">{{ result.sender }}</span><span v-if="result.snippet" aria-hidden="true"> · </span>{{ result.snippet }}</small>
-              </span>
-              <span class="command-result-meta">
-                <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
-                <NTooltip :content="absoluteMailDate(result.timestamp)" :una="{ tooltipContent: 'compose-tooltip-content z-[140]' }">
-                  <time :datetime="result.timestamp">{{ relativeMailDate(result.timestamp) }}</time>
-                </NTooltip>
+                <span class="command-result-title-row">
+                  <strong>{{ result.subject || $t('palette.open') }}</strong>
+                  <NTooltip :content="absoluteMailDate(result.timestamp)" :una="{ tooltipContent: 'compose-tooltip-content z-[140]' }">
+                    <time :datetime="result.timestamp">{{ relativeMailDate(result.timestamp) }}</time>
+                  </NTooltip>
+                </span>
+                <span class="command-result-detail-row">
+                  <small class="command-result-description"><span class="command-result-sender">{{ result.sender }}</span><span v-if="result.snippet" aria-hidden="true"> · </span>{{ result.snippet }}</small>
+                  <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
+                </span>
               </span>
             </button>
             <p v-if="searchPending" class="command-palette-empty">{{ $t('palette.searching') }}</p>
@@ -111,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { mailboxPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -406,7 +408,31 @@ function scheduleSearch() {
   }, 180)
 }
 
+function handlePaletteEscape(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !props.open || trashConfirmationOpen.value) return
+
+  event.preventDefault()
+  event.stopImmediatePropagation()
+  if (query.value.length) {
+    query.value = ''
+    searchResults.value = []
+    searchPending.value = false
+    searchRevision += 1
+    if (searchTimer) clearTimeout(searchTimer)
+    activeIndex.value = 0
+    input.value?.focus()
+    updateActiveHighlight()
+  } else {
+    close()
+  }
+}
+
 function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
     const count = visibleOptionCount.value
@@ -425,6 +451,9 @@ function handleKeydown(event: KeyboardEvent) {
 
 watch(activeIndex, () => updateActiveHighlight(true), { flush: 'post' })
 watch([filteredCommands, searchResults], () => updateActiveHighlight(), { flush: 'post' })
+
+onMounted(() => window.addEventListener('keydown', handlePaletteEscape, true))
+onBeforeUnmount(() => window.removeEventListener('keydown', handlePaletteEscape, true))
 
 watch(() => props.open, async (isOpen) => {
   if (isOpen) {
