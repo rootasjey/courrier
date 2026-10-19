@@ -1231,6 +1231,7 @@ onBeforeUnmount(() => {
 .compose-window { background: var(--canvas); }
 .compose-window.is-popup { background: var(--sheet); box-shadow: 0 18px 44px rgb(37 48 44 / 18%); }
 .compose-header { min-height: 76px; border-bottom: 1px solid var(--line); background: var(--canvas); }
+.compose-window.is-full .compose-header { border-bottom: 0; }
 .compose-header h2 { font-size: 20px; font-weight: 620; letter-spacing: -0.03em; }
 .compose-body, .compose-footer { width: min(76vw, 900px); }
 .compose-footer { border-top: 1px solid var(--line); background: var(--canvas); }
