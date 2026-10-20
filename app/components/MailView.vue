@@ -83,7 +83,7 @@
           </NCombobox>
           <NTooltip :content="$t('bulk.trash')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
             <button type="button" class="thread-selection-action thread-selection-trash" :aria-label="$t('bulk.trash')" :disabled="isApplyingBulkAction" @click="bulkTrashDialogOpen = true">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16" /><path d="M9 7V4h6v3" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v5m4-5v5" /></svg>
+              <span class="thread-selection-delete-icon i-icon-park-outline-delete-themes" aria-hidden="true" />
             </button>
           </NTooltip>
           <NTooltip v-if="selectedThreadIds.length > 1" :content="$t(isMergingThreads ? 'mail.merging' : 'bulk.merge')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
@@ -248,21 +248,14 @@
               <span class="unread-indicator" :class="{ 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :aria-label="$t(thread.unreadCount === 1 ? 'mail.unreadOne' : 'mail.unreadMany', { count: thread.unreadCount })">
                 <svg v-if="keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
               </span>
-              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="$t(threadSelectionMode ? 'mail.selectionToggle' : 'mail.selectionHint')" @click="handleThreadAvatarClick(thread.id, $event)">
+              <button class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
                   <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                   <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
                 </span>
               </button>
-              <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
-                <span class="thread-content">
-                  <span class="thread-subject">{{ thread.subject }}</span>
-                  <span class="thread-preview"><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
-                </span>
-                <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
-                <time class="thread-date" :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
-              </button>
+              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
             </div>
           </div>
         </section>
@@ -274,25 +267,60 @@
           <div class="thread-list" role="list">
             <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
               <span v-if="keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
-              <button class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="$t(threadSelectionMode ? 'mail.selectionToggle' : 'mail.selectionHint')" @click="handleThreadAvatarClick(thread.id, $event)">
+              <button class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
                   <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
                   <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
                 </span>
               </button>
-              <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
-                <span class="thread-content">
-                  <span class="thread-subject">{{ thread.subject }}</span>
-                  <span class="thread-preview"><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
-                </span>
-                <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
-                <time class="thread-date" :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
-              </button>
+              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
             </div>
           </div>
         </section>
       </template>
+
+      <div v-else-if="activeFolder === 'The Feed' && visibleFeedEditions.length" class="thread-list other-folder-list feed-edition-list" role="list">
+        <div
+          v-for="message in visibleFeedEditions"
+          :key="message.id"
+          class="other-thread-row thread-selection-row feed-edition-row"
+          :class="{ 'is-thread-selected': selectedThreadIds.includes(message.threadId), 'is-selection-cursor': keyboardSelectionThreadId === message.threadId }"
+          :data-thread-selection-id="message.threadId"
+          :aria-current="keyboardSelectionThreadId === message.threadId ? 'true' : undefined"
+          role="listitem"
+        >
+          <span v-if="!message.isRead" class="unread-indicator" :aria-label="$t('mail.unreadOne', { count: 1 })" />
+          <span v-else-if="keyboardSelectionThreadId === message.threadId" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
+          <button
+            v-if="canSelectThreads"
+            class="thread-avatar-trigger"
+            :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(message.threadId), 'is-merged': message.manualMergeIds.length }"
+            type="button"
+            :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(message.threadId) ? 'mail.deselectThread' : 'mail.selectThread', { subject: message.subject }) + (message.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')"
+            :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(message.threadId) : undefined"
+            @click="handleThreadAvatarClick(message.threadId, $event)"
+          >
+            <span class="thread-avatar-wrap" :class="{ 'is-merged': message.manualMergeIds.length }">
+              <span v-if="threadSelectionMode && selectedThreadIds.includes(message.threadId)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
+              <span v-else class="sender-avatar" :class="'avatar-' + message.color">{{ message.initials }}</span>
+              <span v-if="message.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
+            </span>
+          </button>
+          <MailboxThreadSummary
+            :subject="message.subject"
+            :sender="message.sender"
+            :preview="message.preview"
+            :timestamp="message.timestamp"
+            :display-date="relativeMailDate(message.timestamp)"
+            :absolute-date="absoluteMailDate(message.timestamp)"
+            :participants="[]"
+            :attachment-count="message.attachments.length"
+            :message-count="1"
+            @open="handleFeedEditionOpen(message, $event)"
+          />
+        </div>
+      </div>
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
         <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
@@ -300,21 +328,14 @@
             <svg v-if="keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
           </span>
           <span v-else-if="keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
-          <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-merged': thread.manualMergeIds.length, 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id) }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" :title="$t(threadSelectionMode ? 'mail.selectionToggle' : 'mail.selectionHint')" @click="handleThreadAvatarClick(thread.id, $event)">
+          <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
             <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
               <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
               <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
               <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
             </span>
           </button>
-          <button class="thread-row" type="button" :data-thread-row-id="thread.id" @click="handleThreadRowClick(thread, $event)">
-            <span class="thread-content">
-              <span class="thread-subject">{{ thread.subject }}</span>
-              <span class="thread-preview"><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" class="set-aside-new-message">{{ $t('mail.newMessageInThread') }}</span><span v-if="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1" aria-hidden="true"> · </span><span class="thread-sender-badge">{{ thread.latest.sender }}</span><span aria-hidden="true"> · </span>{{ thread.latest.preview }}</span>
-            </span>
-            <span v-if="thread.messages.length > 1" class="thread-message-count">{{ thread.messages.length }}</span>
-            <time class="thread-date" :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
-          </button>
+          <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
           <button v-if="activeFolder === 'Trash'" class="screener-restore trash-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(thread.latest)">{{ $t('mail.restore') }}</button>
         </div>
       </div>
@@ -424,7 +445,7 @@
         </div>
         <div v-else class="message-subject-heading">
           <h1 ref="threadSubjectHeading" class="message-subject" @mouseup="updateSubjectSelection" @keyup="updateSubjectSelection" @contextmenu="openSubjectContextMenu">
-            {{ selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}
+            {{ isFeedReader ? activeThreadMessage?.subject : selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}
           </h1>
           <NTooltip v-if="subjectSelection.visible" :content="$t('rename.action')">
             <button class="thread-subject-selection-edit" type="button" :aria-label="$t('rename.action')" :style="{ left: `${subjectSelection.left}px`, top: `${subjectSelection.top}px` }" @mousedown.prevent @click="beginThreadSubjectEdit">
@@ -443,14 +464,60 @@
         <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">{{ $t('mail.retryMarkRead') }}</button>
       </div>
 
-      <article class="message-paper">
-        <div v-if="selectedThread?.manualMergeIds.length" class="merged-thread-control">
+      <article class="message-paper" :class="{ 'feed-reader-paper': isFeedReader, 'inbox-reader-paper': isInboxReader }" :aria-label="isFeedReader && activeThreadMessage ? $t('mail.messageFrom', { sender: activeThreadMessage.sender }) : undefined">
+        <div v-if="!isFeedReader && selectedThread?.manualMergeIds.length" class="merged-thread-control">
           <span>{{ $t('mail.mergedConversationNote') }}</span>
           <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
             {{ isSplittingThread ? $t('mail.splitting') : $t('mail.splitThreads') }}
           </button>
         </div>
-        <div class="thread-carousel">
+        <div v-if="isFeedReader && activeThreadMessage" class="feed-reader-content">
+          <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ feedEditionAnnouncement }}</span>
+
+          <header class="feed-issue-sender">
+            <div class="message-meta">
+              <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
+                <span class="sender-avatar meta-avatar" :class="'avatar-' + activeThreadMessage.color">{{ activeThreadMessage.initials }}</span>
+              </NuxtLink>
+              <span v-else class="sender-profile-avatar" aria-hidden="true">
+                <span class="sender-avatar meta-avatar" :class="'avatar-' + activeThreadMessage.color">{{ activeThreadMessage.initials }}</span>
+              </span>
+              <span class="meta-copy">
+                <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
+                <span v-else class="sender-profile-name">{{ activeThreadMessage.sender }}</span>
+                <span v-if="activeThreadMessage.isOutgoing" class="sender-recipient-links">
+                  {{ $t('mail.recipient') }}
+                  <template v-if="recipientAddresses(activeThreadMessage.recipient).length">
+                    <NuxtLink v-for="email in recipientAddresses(activeThreadMessage.recipient)" :key="email" class="sender-profile-link" :to="senderPath(email)">{{ email }}</NuxtLink>
+                  </template>
+                  <span v-else>{{ activeThreadMessage.recipient }}</span>
+                </span>
+                <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
+              </span>
+            </div>
+          </header>
+          <div class="feed-issue-body" @touchstart.passive="rememberFeedTouch" @touchend.passive="finishFeedTouch" @touchcancel.passive="feedTouchOrigin = null">
+            <div class="feed-issue-text">
+              <p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p>
+              <p v-if="!activeThreadMessage.body.trim()" class="feed-empty-body">{{ $t('mail.emptyMessageBody') }}</p>
+            </div>
+            <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
+              <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
+              <a v-for="attachment in activeThreadMessage.attachments" :key="attachment.id" class="attachment-item" :href="'/api/attachments/' + attachment.id" :download="attachment.filename" :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })">
+                <span aria-hidden="true">↳</span>
+                <strong>{{ attachment.filename }}</strong>
+                <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
+              </a>
+            </div>
+          </div>
+          <div class="feed-issue-date">
+            <NTooltip :content="absoluteMailDate(activeThreadMessage.timestamp)">
+              <time :datetime="activeThreadMessage.timestamp">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
+            </NTooltip>
+          </div>
+        </div>
+
+        <div v-else class="thread-carousel">
           <div v-if="chronologicalMessages.length > 1" class="thread-carousel-header">
             <div class="thread-carousel-status">
               <span class="thread-carousel-position" aria-live="polite">{{ $t('mail.messagePosition', { current: activeThreadMessageIndex + 1, total: chronologicalMessages.length }) }}</span>
@@ -533,9 +600,10 @@
               :key="activeThreadMessage.id"
               id="thread-message-panel"
               class="thread-message-card"
+              :class="{ 'inbox-message-card': isInboxReader }"
               :aria-label="$t('mail.messageFrom', { sender: activeThreadMessage.sender })"
             >
-              <div class="message-meta">
+              <div class="message-meta" :class="{ 'inbox-message-sender': isInboxReader }">
                 <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
                   <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
                 </NuxtLink>
@@ -554,28 +622,44 @@
                   </span>
                   <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
                 </span>
-                <NTooltip :content="absoluteMailDate(activeThreadMessage.timestamp)">
+                <NTooltip v-if="!isInboxReader" :content="absoluteMailDate(activeThreadMessage.timestamp)">
                   <time :datetime="activeThreadMessage.timestamp">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
                 </NTooltip>
               </div>
 
-              <div class="message-rule" />
-              <div v-if="activeThreadMessage.isOutgoing && activeThreadMessage.htmlBody" class="message-rich-body" v-html="activeThreadMessage.htmlBody" />
-              <template v-else><p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-              <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
-                <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
-                <a
-                  v-for="attachment in activeThreadMessage.attachments"
-                  :key="attachment.id"
-                  class="attachment-item"
-                  :href="`/api/attachments/${attachment.id}`"
-                  :download="attachment.filename"
-                  :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
-                >
-                  <span aria-hidden="true">↳</span>
-                  <strong>{{ attachment.filename }}</strong>
-                  <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
-                </a>
+              <div v-if="!isInboxReader" class="message-rule" />
+              <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
+                <div v-if="activeThreadMessage.isOutgoing && activeThreadMessage.htmlBody" class="message-rich-body" v-html="activeThreadMessage.htmlBody" />
+                <template v-else><p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
+                <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
+                  <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
+                  <a
+                    v-for="attachment in activeThreadMessage.attachments"
+                    :key="attachment.id"
+                    class="attachment-item"
+                    :href="`/api/attachments/${attachment.id}`"
+                    :download="attachment.filename"
+                    :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
+                  >
+                    <span aria-hidden="true">↳</span>
+                    <strong>{{ attachment.filename }}</strong>
+                    <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
+                  </a>
+                </div>
+              </div>
+              <div v-if="isInboxReader" class="inbox-message-footer">
+                <ThreadParticipantsStack
+                  v-if="selectedThreadParticipants.length > 1"
+                  :participants="selectedThreadParticipants"
+                  mobile-drawer
+                />
+                <span class="inbox-message-footer-date">
+                  <InboxMessageDate
+                    :timestamp="activeThreadMessage.timestamp"
+                    :relative-date="relativeMailDate(activeThreadMessage.timestamp)"
+                    :absolute-date="absoluteMailDate(activeThreadMessage.timestamp)"
+                  />
+                </span>
               </div>
             </article>
             </Transition>
@@ -587,10 +671,10 @@
               :id="'thread-full-message-' + message.id"
               :key="message.id"
               class="thread-message-card thread-full-message"
-              :class="message.id === activeThreadMessage?.id ? 'is-selected' : undefined"
+              :class="{ 'is-selected': message.id === activeThreadMessage?.id, 'inbox-message-card': isInboxReader }"
               :aria-label="$t('mail.messageFrom', { sender: message.sender })"
             >
-              <div class="message-meta">
+              <div class="message-meta" :class="{ 'inbox-message-sender': isInboxReader }">
                 <NuxtLink v-if="!message.isOutgoing" class="sender-profile-avatar" :to="senderPath(message.address)" :aria-label="$t('mail.openSenderPage', { sender: message.sender })">
                   <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
                 </NuxtLink>
@@ -609,27 +693,43 @@
                 </span>
                 <NuxtLink v-else class="sender-profile-link" :to="senderPath(message.address)">{{ message.address }}</NuxtLink>
                 </span>
-                <NTooltip :content="absoluteMailDate(message.timestamp)">
+                <NTooltip v-if="!isInboxReader" :content="absoluteMailDate(message.timestamp)">
                   <time :datetime="message.timestamp">{{ relativeMailDate(message.timestamp) }}</time>
                 </NTooltip>
               </div>
-              <div class="message-rule" />
-              <div v-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
-              <template v-else><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-              <div v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
-                <span class="attachment-heading">{{ $t(message.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: message.attachments.length }) }}</span>
-                <a
-                  v-for="attachment in message.attachments"
-                  :key="attachment.id"
-                  class="attachment-item"
-                  :href="`/api/attachments/${attachment.id}`"
-                  :download="attachment.filename"
-                  :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
-                >
-                  <span aria-hidden="true">↳</span>
-                  <strong>{{ attachment.filename }}</strong>
-                  <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
-                </a>
+              <div v-if="!isInboxReader" class="message-rule" />
+              <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
+                <div v-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
+                <template v-else><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
+                <div v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
+                  <span class="attachment-heading">{{ $t(message.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: message.attachments.length }) }}</span>
+                  <a
+                    v-for="attachment in message.attachments"
+                    :key="attachment.id"
+                    class="attachment-item"
+                    :href="`/api/attachments/${attachment.id}`"
+                    :download="attachment.filename"
+                    :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
+                  >
+                    <span aria-hidden="true">↳</span>
+                    <strong>{{ attachment.filename }}</strong>
+                    <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
+                  </a>
+                </div>
+              </div>
+              <div v-if="isInboxReader" class="inbox-message-footer">
+                <ThreadParticipantsStack
+                  v-if="message.id === chronologicalMessages[chronologicalMessages.length - 1]?.id && selectedThreadParticipants.length > 1"
+                  :participants="selectedThreadParticipants"
+                  mobile-drawer
+                />
+                <span class="inbox-message-footer-date">
+                  <InboxMessageDate
+                    :timestamp="message.timestamp"
+                    :relative-date="relativeMailDate(message.timestamp)"
+                    :absolute-date="absoluteMailDate(message.timestamp)"
+                  />
+                </span>
               </div>
             </article>
           </div>
@@ -649,19 +749,28 @@
           </button>
         </div>
       </form>
-      <div class="message-action-dock" role="toolbar" :aria-label="$t('mail.messageActions')">
+      <div class="message-action-dock" :class="{ 'has-feed-edition-navigation': isFeedReader && activeThreadMessage }" role="toolbar" :aria-label="$t('mail.messageActions')">
+        <nav v-if="isFeedReader && activeThreadMessage" class="feed-edition-navigation feed-edition-navigation-dock" :aria-label="$t('mail.feedNavigation')">
+          <button class="feed-edition-button" type="button" :aria-label="$t('mail.previousEdition')" :disabled="feedEditionIndex <= 0" @click="navigateFeedEdition(-1)">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
+          </button>
+          <span class="feed-edition-position" aria-hidden="true">{{ feedEditionIndex + 1 }} / {{ feedEditions.length }}</span>
+          <button class="feed-edition-button is-next" type="button" :aria-label="$t('mail.nextEdition')" :disabled="feedEditionIndex >= feedEditions.length - 1" @click="navigateFeedEdition(1)">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 4.5 5.5 5.5-5.5 5.5" /></svg>
+          </button>
+        </nav>
         <div class="message-action-group">
           <button v-if="!replyComposerOpen && activeFolder !== 'Trash'" class="message-action-reply" type="button" @click="openReplyComposer">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
             <span>{{ $t('mail.reply') }}</span><kbd>R</kbd>
           </button>
-          <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="markOpenThreadUnseen">
+          <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :aria-label="$t(isMarkingThreadUnseen ? 'messageActions.markingUnseen' : 'messageActions.markUnseen')" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="markOpenThreadUnseen">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 4.5h15v11h-15z" /><path d="m3 5 7 5.5L17 5" /><circle cx="15.5" cy="4" r="2.5" /></svg>
-            <span>{{ isMarkingThreadUnseen ? $t('messageActions.markingUnseen') : $t('messageActions.markUnseen') }}</span><kbd>U</kbd>
+            <span class="message-action-label">{{ isMarkingThreadUnseen ? $t('messageActions.markingUnseen') : $t('messageActions.markUnseen') }}</span><kbd>U</kbd>
           </button>
-          <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="forwardActiveMessage">
+          <button v-if="activeFolder !== 'Trash'" class="message-action-button" type="button" :aria-label="$t('messageActions.forward')" :disabled="isMarkingThreadUnseen || isMovingOpenThread" @click="forwardActiveMessage">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3.5 17.5 10 11 16.5v-4c-4.4 0-7 1.2-8.5 4 .2-5.1 2.8-8 8.5-8v-5Z" /></svg>
-            <span>{{ $t('messageActions.forward') }}</span>
+            <span class="message-action-label">{{ $t('messageActions.forward') }}</span>
           </button>
           <NCombobox
             v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)"
@@ -681,32 +790,38 @@
           >
             <template #trigger>
               <svg class="thread-action-move-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h7l2 2h8v10h-17v-12Z" /><path d="M12 11v5m-2-2 2 2 2-2" /></svg>
-              <span>{{ $t('messageActions.move') }}</span><kbd>V</kbd>
+              <span class="message-action-label thread-action-move-label">{{ $t('messageActions.move') }}</span><kbd>V</kbd>
             </template>
           </NCombobox>
-          <button v-if="activeFolder === 'Trash'" class="message-action-button" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
-            {{ isSavingScreenerAction ? $t('mail.restoring') : $t('mail.restore') }}
+          <button v-if="activeFolder === 'Trash'" class="message-action-button" type="button" :aria-label="$t(isSavingScreenerAction ? 'mail.restoring' : 'mail.restore')" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
+            <span class="message-action-icon i-tabler-mailbox" aria-hidden="true" />
+            <span class="message-action-label">{{ isSavingScreenerAction ? $t('mail.restoring') : $t('mail.restore') }}</span>
           </button>
           <template v-else>
-            <button v-if="activeFolder === 'Set Aside'" class="message-action-button" type="button" :disabled="isSavingSetAside" @click="setAsideThread(false)">
-              {{ isSavingSetAside ? $t('mail.restoring') : $t('mail.restoreToMailbox') }}<kbd>A</kbd>
+            <button v-if="activeFolder === 'Set Aside'" class="message-action-button" type="button" :aria-label="$t(isSavingSetAside ? 'mail.restoring' : 'mail.restoreToMailbox')" :disabled="isSavingSetAside" @click="setAsideThread(false)">
+              <span class="message-action-icon i-tabler-mailbox" aria-hidden="true" />
+              <span class="message-action-label">{{ isSavingSetAside ? $t('mail.restoring') : $t('mail.restoreToMailbox') }}</span><kbd>A</kbd>
             </button>
-            <button v-else-if="activeFolder === 'Imbox'" class="message-action-button" type="button" :disabled="isSavingSetAside" @click="setAsideThread(true)">
-              {{ isSavingSetAside ? $t('mail.setAsideSaving') : 'Set Aside' }}<kbd>A</kbd>
+            <button v-else-if="activeFolder === 'Imbox'" class="message-action-button" type="button" :aria-label="isSavingSetAside ? $t('mail.setAsideSaving') : $t('bulk.setAside')" :disabled="isSavingSetAside" @click="setAsideThread(true)">
+              <span class="message-action-icon i-tabler-eggs" aria-hidden="true" />
+              <span class="message-action-label">{{ isSavingSetAside ? $t('mail.setAsideSaving') : $t('bulk.setAside') }}</span><kbd>A</kbd>
             </button>
-            <button v-else-if="activeFolder !== 'Reply Later'" class="message-action-button" type="button" @click="openClassification(activeThreadMessage || selectedMessage)">
-              {{ $t(selectedThread?.manualMergeIds.length ? 'mail.classify' : 'mail.move') }}
+            <button v-else-if="activeFolder !== 'Reply Later'" class="message-action-button" type="button" :aria-label="$t(selectedThread?.manualMergeIds.length ? 'mail.classify' : 'mail.move')" @click="openClassification(activeThreadMessage || selectedMessage)">
+              <span class="message-action-icon i-tabler-mailbox" aria-hidden="true" />
+              <span class="message-action-label">{{ $t(selectedThread?.manualMergeIds.length ? 'mail.classify' : 'mail.move') }}</span>
             </button>
-            <button v-if="activeFolder === 'Reply Later'" class="message-action-button" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(false)">
-              {{ isSavingReplyLater ? $t('mail.replyLaterRemoveSaving') : $t('mail.removeFromReplyLater') }}<kbd>L</kbd>
+            <button v-if="activeFolder === 'Reply Later'" class="message-action-button" type="button" :aria-label="$t(isSavingReplyLater ? 'mail.replyLaterRemoveSaving' : 'mail.removeFromReplyLater')" :disabled="isSavingReplyLater" @click="setReplyLater(false)">
+              <span class="message-action-icon i-tabler-message-reply" aria-hidden="true" />
+              <span class="message-action-label">{{ isSavingReplyLater ? $t('mail.replyLaterRemoveSaving') : $t('mail.removeFromReplyLater') }}</span><kbd>L</kbd>
             </button>
-            <button v-else-if="activeFolder !== 'Set Aside'" class="message-action-button" type="button" :disabled="isSavingReplyLater" @click="setReplyLater(true)">
-              {{ isSavingReplyLater ? $t('mail.replyLaterSaving') : 'Reply Later' }}<kbd>L</kbd>
+            <button v-else-if="activeFolder !== 'Set Aside'" class="message-action-button" type="button" :aria-label="$t(isSavingReplyLater ? 'mail.replyLaterSaving' : 'bulk.replyLater')" :disabled="isSavingReplyLater" @click="setReplyLater(true)">
+              <span class="message-action-icon i-tabler-message-reply" aria-hidden="true" />
+              <span class="message-action-label">{{ isSavingReplyLater ? $t('mail.replyLaterSaving') : $t('bulk.replyLater') }}</span><kbd>L</kbd>
             </button>
           </template>
           <NTooltip v-if="['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder)" :content="$t('palette.trashActionDescription')">
             <button class="message-action-trash" type="button" :aria-label="$t('palette.trashTitle')" :disabled="isTrashingThread" @click="threadTrashDialogOpen = true">
-              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m2 0-.7 10H6.7L6 6m3 3v4m2-4v4" /></svg>
+              <span class="message-action-trash-icon i-icon-park-outline-delete-themes" aria-hidden="true" />
             </button>
           </NTooltip>
         </div>
@@ -939,6 +1054,9 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
+import InboxMessageDate from '~/components/InboxMessageDate.vue'
+import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
+import ThreadParticipantsStack from '~/components/ThreadParticipantsStack.vue'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 const OutgoingComposer = defineAsyncComponent(() => import('~/components/OutgoingComposer.vue'))
@@ -985,6 +1103,13 @@ type MessageThread = {
   manualMergeIds: string[]
 }
 
+type ThreadParticipant = {
+  address: string
+  name: string
+  initials: string
+  color: 'terracotta' | 'blue' | 'green' | 'gold'
+}
+
 type SearchHit = {
   id: string
   folder: StoredFolder
@@ -999,6 +1124,52 @@ type SearchThread = MessageThread & {
 function recipientAddresses(value: string) {
   const matches = value.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/gi) || []
   return [...new Set(matches.map(address => address.trim().toLocaleLowerCase('en-US')))]
+}
+
+const accountSession = useState<{ user: { email: string } } | null>('courrier-account-session', () => null)
+
+function threadParticipants(thread: MessageThread): ThreadParticipant[] {
+  const currentAddress = accountSession.value?.user.email.trim().toLocaleLowerCase('en-US')
+  const participants = new Map<string, Omit<ThreadParticipant, 'initials'>>()
+  const colors: ThreadParticipant['color'][] = ['terracotta', 'blue', 'green', 'gold']
+  const stableColor = (address: string, preferred?: string): ThreadParticipant['color'] => {
+    if (preferred && colors.includes(preferred as ThreadParticipant['color'])) return preferred as ThreadParticipant['color']
+    const hash = [...address].reduce((value, char) => (value * 31 + char.charCodeAt(0)) | 0, 7)
+    return colors[Math.abs(hash) % colors.length]!
+  }
+
+  for (const message of thread.messages) {
+    const senderAddress = message.address.trim().toLocaleLowerCase('en-US')
+    if (!message.isOutgoing && senderAddress && senderAddress !== currentAddress && !participants.has(senderAddress)) {
+      participants.set(senderAddress, { address: senderAddress, name: message.sender || senderAddress, color: stableColor(senderAddress, message.color) })
+    }
+
+    for (const address of recipientAddresses(message.recipient)) {
+      if (address === currentAddress || participants.has(address)) continue
+      const knownSender = thread.messages.find(candidate => candidate.address.trim().toLocaleLowerCase('en-US') === address)
+      participants.set(address, { address, name: knownSender?.sender || address, color: stableColor(address, knownSender?.color) })
+    }
+  }
+
+  return [...participants.values()].map((participant) => {
+    const words = participant.name.split(/\s+/).filter(Boolean)
+    const initials = words.length > 1
+      ? `${words[0]?.[0] || ''}${words.at(-1)?.[0] || ''}`
+      : (words[0] || participant.address).slice(0, 2)
+    return {
+      ...participant,
+      initials: initials.toLocaleUpperCase('fr'),
+    }
+  })
+}
+
+function threadAttachmentCount(thread: MessageThread) {
+  return thread.messages.reduce((total, message) => total + message.attachments.length, 0)
+}
+
+function otherThreadParticipants(thread: MessageThread) {
+  const latestSender = thread.latest.address.trim().toLocaleLowerCase('en-US')
+  return threadParticipants(thread).filter(participant => participant.address !== latestSender)
 }
 
 const folders = mailboxes
@@ -1133,6 +1304,7 @@ function relativeMailDate(timestamp: string) {
   const units: { unit: Intl.RelativeTimeFormatUnit, milliseconds: number }[] = [
     { unit: 'year', milliseconds: 31_536_000_000 },
     { unit: 'month', milliseconds: 2_592_000_000 },
+    { unit: 'week', milliseconds: 604_800_000 },
     { unit: 'day', milliseconds: 86_400_000 },
     { unit: 'hour', milliseconds: 3_600_000 },
     { unit: 'minute', milliseconds: 60_000 },
@@ -1302,6 +1474,10 @@ const visibleThreads = computed(() => {
     `${message.sender} ${message.subject} ${message.body}`.toLocaleLowerCase('fr').includes(query),
   ))
 })
+const feedEditions = computed(() => folderMessages.value
+  .filter(message => message.folder === 'The Feed')
+  .sort((a, b) => b.timestamp.localeCompare(a.timestamp)))
+const visibleFeedEditions = computed(() => feedEditions.value)
 const setAsideThreads = computed<MessageThread[]>(() => {
   const threads = new Map<string, InboxMessage[]>()
   for (const message of inboxMessages.value ?? []) {
@@ -1470,6 +1646,7 @@ watch(screenerSenders, (senders) => {
 })
 
 const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
+const selectedThreadParticipants = computed(() => selectedThread.value ? threadParticipants(selectedThread.value) : [])
 const selectedMessage = computed(() => selectedThread.value?.latest)
 const chronologicalMessages = computed(() => [...(selectedThread.value?.messages ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
 const activeThreadMessageId = ref('')
@@ -1480,6 +1657,25 @@ const railCanScrollStart = ref(false)
 const railCanScrollEnd = ref(false)
 const activeThreadMessage = computed(() => chronologicalMessages.value.find(message => message.id === activeThreadMessageId.value) ?? selectedMessage.value)
 const activeThreadMessageIndex = computed(() => chronologicalMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id))
+const feedEditionIndex = computed(() => {
+  const messageId = activeThreadMessage.value?.id
+  return messageId ? feedEditions.value.findIndex(message => message.id === messageId) : -1
+})
+const isFeedReader = computed(() => activeFolder.value === 'The Feed'
+  && !isGlobalSearch.value
+  && Boolean(selectedId.value)
+  && feedEditionIndex.value >= 0)
+const isInboxReader = computed(() => activeFolder.value === 'Imbox'
+  && !isGlobalSearch.value
+  && Boolean(selectedId.value))
+const feedEditionAnnouncement = computed(() => isFeedReader.value && activeThreadMessage.value
+  ? $t('mail.feedEditionAnnouncement', {
+    subject: activeThreadMessage.value.subject,
+    current: feedEditionIndex.value + 1,
+    total: feedEditions.value.length,
+  })
+  : '')
+const feedTouchOrigin = ref<{ x: number, y: number } | null>(null)
 const replyRecipient = computed(() => activeThreadMessage.value?.isOutgoing
   ? activeThreadMessage.value.recipient
   : activeThreadMessage.value?.address || '')
@@ -1577,6 +1773,39 @@ function selectThreadMessage(messageId: string) {
 function navigateThreadMessage(direction: -1 | 1) {
   const nextMessage = chronologicalMessages.value[activeThreadMessageIndex.value + direction]
   if (nextMessage) selectThreadMessage(nextMessage.id)
+}
+
+function navigateFeedEdition(direction: -1 | 1) {
+  const nextEdition = feedEditions.value[feedEditionIndex.value + direction]
+  if (nextEdition) openMessage(nextEdition, 'The Feed', true)
+}
+
+function rememberFeedTouch(event: TouchEvent) {
+  if (event.touches.length !== 1) {
+    feedTouchOrigin.value = null
+    return
+  }
+
+  const target = event.target
+  if (target instanceof Element && target.closest('a, button, input, textarea, select, [contenteditable="true"]')) {
+    feedTouchOrigin.value = null
+    return
+  }
+
+  const touch = event.touches[0]
+  if (touch) feedTouchOrigin.value = { x: touch.clientX, y: touch.clientY }
+}
+
+function finishFeedTouch(event: TouchEvent) {
+  const origin = feedTouchOrigin.value
+  feedTouchOrigin.value = null
+  const touch = event.changedTouches[0]
+  if (!origin || !touch) return
+
+  const deltaX = touch.clientX - origin.x
+  const deltaY = touch.clientY - origin.y
+  if (Math.abs(deltaX) < 72 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.35) return
+  navigateFeedEdition(deltaX < 0 ? 1 : -1)
 }
 
 function toggleReadAll() {
@@ -1688,6 +1917,7 @@ watch(activeThreadMessageId, async (messageId) => {
   }
   await nextTick()
   revealThreadTab(messageId)
+  if (isFeedReader.value) window.scrollTo({ top: 0, behavior: 'instant' })
   if (isReadingAll.value) {
     document.getElementById(`thread-full-message-${messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -1848,7 +2078,7 @@ function handleThreadKeydown(event: KeyboardEvent) {
 
   const isThreadListTarget = target instanceof Element && Boolean(target.closest('.thread-list'))
   const isPageTarget = target === document.body || target === document.documentElement
-  if (!isReadingMessage.value && canNavigateThreads.value && (isThreadListTarget || isPageTarget)) {
+  if (!isReadingMessage.value && activeFolder.value !== 'The Feed' && canNavigateThreads.value && (isThreadListTarget || isPageTarget)) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       moveSelectionCursor(event.key === 'ArrowDown' ? 1 : -1)
@@ -1887,6 +2117,19 @@ function handleThreadKeydown(event: KeyboardEvent) {
   if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return
 
   const key = event.key.toLocaleLowerCase('en-US')
+  if (isFeedReader.value && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+    const target = event.target
+    const isInteractiveTarget = target instanceof Element
+      && Boolean(target.closest('a, button, input, textarea, select, [contenteditable="true"]'))
+    if (event.altKey || event.metaKey || event.ctrlKey || isInteractiveTarget) return
+
+    event.preventDefault()
+    if (event.key === 'ArrowLeft') navigateFeedEdition(-1)
+    else if (event.key === 'ArrowRight') navigateFeedEdition(1)
+    else if (event.key === 'Home' && feedEditions.value[0]) openMessage(feedEditions.value[0], 'The Feed', true)
+    else if (event.key === 'End' && feedEditions.value.at(-1)) openMessage(feedEditions.value.at(-1)!, 'The Feed', true)
+    return
+  }
   if (key === 'u' && activeFolder.value !== 'Trash' && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
     event.preventDefault()
     void markOpenThreadUnseen()
@@ -2034,16 +2277,19 @@ async function importFixture() {
   }
 }
 
-function openMessage(message: InboxMessage, mailbox: Folder = message.folder) {
+function openMessage(message: InboxMessage, mailbox: Folder = message.folder, replaceHistory = false) {
   openedFromList.value = true
   messageReadError.value = ''
   resetThreadPresentation(message.id)
-  void router.push({
+  const routeTarget = {
     path: threadPath(mailbox, message.threadId),
     query: { ...route.query, message: message.id },
-  })
+  }
+  void (replaceHistory ? router.replace(routeTarget) : router.push(routeTarget))
 
-  const unread = (inboxMessages.value ?? []).filter(item => item.folder === message.folder && item.threadId === message.threadId && !item.isRead)
+  const unread = mailbox === 'The Feed'
+    ? [message].filter(item => !item.isRead)
+    : (inboxMessages.value ?? []).filter(item => item.folder === message.folder && item.threadId === message.threadId && !item.isRead)
   if (!unread.length) return
 
   void Promise.allSettled(unread.map(async (item) => {
@@ -2155,6 +2401,14 @@ function handleThreadRowClick(thread: MessageThread, event?: MouseEvent) {
     return
   }
   openMessage(thread.latest, activeFolder.value)
+}
+
+function handleFeedEditionOpen(message: InboxMessage, event?: MouseEvent) {
+  if (threadSelectionMode.value) {
+    toggleThreadSelection(message.threadId, event)
+    return
+  }
+  openMessage(message, 'The Feed')
 }
 
 function handleThreadAvatarClick(threadId: string, event: MouseEvent) {
@@ -2700,7 +2954,9 @@ async function restoreScreenerSender(message: InboxMessage, state: 'cleared' | '
 }
 
 async function retryMarkRead() {
-  const unread = selectedThread.value?.messages.filter(message => !message.isRead) ?? []
+  const unread = isFeedReader.value
+    ? activeThreadMessage.value && !activeThreadMessage.value.isRead ? [activeThreadMessage.value] : []
+    : selectedThread.value?.messages.filter(message => !message.isRead) ?? []
   if (!unread.length) return
 
   messageReadError.value = ''

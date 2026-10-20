@@ -30,11 +30,15 @@
                 :aria-current="activeFolder === folder.name ? 'page' : undefined"
                 @click="chooseFolder(folder.name)"
               >
-                <span>{{ folder.label }}</span>
+                <span class="menu-folder-icon" :class="folderIcons[folder.name]" aria-hidden="true" />
+                <span class="menu-folder-label">{{ folder.label }}</span>
                 <span v-if="folder.name === 'Screener' || folder.name === 'Reply Later' || folder.name === 'Set Aside'" class="menu-folder-note">{{ $t(`topbar.folderNotes.${folder.name === 'Screener' ? 'screener' : folder.name === 'Reply Later' ? 'replyLater' : 'setAside'}`) }}</span>
               </button>
               <div class="menu-divider" />
-              <NuxtLink class="menu-settings" to="/settings" @click="brandMenuOpen = false">{{ $t('topbar.settings') }}</NuxtLink>
+              <NuxtLink class="menu-settings" to="/settings" @click="brandMenuOpen = false">
+                <span class="menu-settings-icon i-tabler-settings" aria-hidden="true" />
+                <span>{{ $t('topbar.settings') }}</span>
+              </NuxtLink>
             </nav>
           </template>
         </NPopover>
@@ -100,14 +104,14 @@
               <div class="account-menu-actions">
                 <NuxtLink v-if="accountSession?.isPlatformAdmin" class="account-menu-action" to="/admin" @click="closeAccountMenu">
                   <span class="account-menu-action-icon" aria-hidden="true">
-                    <svg viewBox="0 0 20 20" fill="none"><path d="M3.5 16.5V5.8a1.3 1.3 0 0 1 1.3-1.3h10.4a1.3 1.3 0 0 1 1.3 1.3v10.7M2.5 16.5h15M7 7.5h2m2 0h2M7 10.5h2m2 0h2M8 16.5v-3h4v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    <span class="account-menu-action-symbol i-tabler-building-lighthouse" />
                   </span>
                   <span class="account-menu-action-label">{{ $t('account.adminConsole') }}</span>
                   <svg class="account-menu-action-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
                 </NuxtLink>
                 <NuxtLink class="account-menu-action" to="/settings" @click="closeAccountMenu">
                   <span class="account-menu-action-icon" aria-hidden="true">
-                    <svg viewBox="0 0 20 20" fill="none"><path d="M10 7.1a2.9 2.9 0 1 0 0 5.8 2.9 2.9 0 0 0 0-5.8Z" stroke="currentColor" stroke-width="1.5"/><path d="m16.5 11.1 1.1.8-1.5 2.6-1.3-.5a6.8 6.8 0 0 1-1.5.9l-.2 1.4h-3l-.2-1.4a6.8 6.8 0 0 1-1.5-.9l-1.3.5-1.5-2.6 1.1-.8a6.6 6.6 0 0 1 0-1.8l-1.1-.8 1.5-2.6 1.3.5a6.8 6.8 0 0 1 1.5-.9l.2-1.4h3l.2 1.4a6.8 6.8 0 0 1 1.5.9l1.3-.5 1.5 2.6-1.1.8c.1.6.1 1.2 0 1.8Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span class="account-menu-action-symbol i-tabler-settings" />
                   </span>
                   <span class="account-menu-action-label">{{ $t('topbar.settings') }}</span>
                   <svg class="account-menu-action-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
@@ -145,6 +149,15 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
+const folderIcons: Record<MailboxKey, string> = {
+  Screener: 'i-tabler-eyeglass-2-filled',
+  Imbox: 'i-tabler-mailbox',
+  'The Feed': 'i-tabler-egg-fried',
+  'Paper Trail': 'i-tabler-toilet-paper',
+  'Reply Later': 'i-tabler-message-reply',
+  'Set Aside': 'i-tabler-eggs',
+  Trash: 'i-icon-park-outline-delete-themes',
+}
   'select-folder': [folder: MailboxKey]
 }>()
 

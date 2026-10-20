@@ -48,7 +48,7 @@
               @click="runCommand(item)"
             >
               <span class="command-option-icon" aria-hidden="true">
-                <span v-if="typeof item.icon === 'string'" class="command-mailbox-icon" :class="item.icon" />
+                <span v-if="typeof item.icon === 'string'" class="command-palette-icon" :class="[item.icon, item.kind === 'navigation' ? 'is-navigation' : 'is-action']" />
                 <component :is="item.icon" v-else />
               </span>
               <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description && section.id !== 'mailboxes'">{{ item.description }}</small></span>
@@ -176,15 +176,15 @@ let searchRevision = 0
 
 const icon = (path: string) => ({ render: () => h('svg', { viewBox: '0 0 20 20', fill: 'none', 'aria-hidden': 'true' }, [h('path', { d: path })]) })
 const navigationItems = computed<PaletteItem[]>(() => [
-  { id: 'inbox', label: 'Inbox', description: $t('palette.inboxDescription'), icon: 'i-tabler-inbox', kind: 'navigation', action: 'navigate', to: mailboxPath('Imbox') },
-  { id: 'screener', label: 'Screener', description: $t('topbar.folderNotes.screener'), icon: 'i-tabler-user-screen', kind: 'navigation', action: 'navigate', to: mailboxPath('Screener') },
-  { id: 'feed', label: 'The Feed', description: $t('palette.feedDescription'), icon: 'i-tabler-brand-feedly', kind: 'navigation', action: 'navigate', to: mailboxPath('The Feed') },
+  { id: 'inbox', label: 'Inbox', description: $t('palette.inboxDescription'), icon: 'i-tabler-mailbox', kind: 'navigation', action: 'navigate', to: mailboxPath('Imbox') },
+  { id: 'screener', label: 'Screener', description: $t('topbar.folderNotes.screener'), icon: 'i-tabler-eyeglass-2-filled', kind: 'navigation', action: 'navigate', to: mailboxPath('Screener') },
+  { id: 'feed', label: 'The Feed', description: $t('palette.feedDescription'), icon: 'i-tabler-egg-fried', kind: 'navigation', action: 'navigate', to: mailboxPath('The Feed') },
   { id: 'paper', label: 'Paper Trail', description: $t('palette.paperDescription'), icon: 'i-tabler-toilet-paper', kind: 'navigation', action: 'navigate', to: mailboxPath('Paper Trail') },
-  { id: 'reply-later', label: 'Reply Later', description: $t('palette.replyLaterDescription'), icon: icon('M7.5 5 3 9.5 7.5 14 M3.5 9.5H11a5 5 0 0 1 5 5v1'), kind: 'navigation', action: 'navigate', to: mailboxPath('Reply Later') },
-  { id: 'set-aside', label: 'Set Aside', description: $t('palette.setAsideDescription'), icon: icon('M5 3h10v15l-2.5-1.5L10 18l-2.5-1.5L5 18V3Z'), kind: 'navigation', action: 'navigate', to: mailboxPath('Set Aside') },
-  { id: 'drafts', label: $t('palette.drafts'), description: $t('palette.draftsDescription'), icon: icon('M4 3h12v14H4z M7 7h6m-6 3h6m-6 3h4'), kind: 'navigation', action: 'navigate', to: '/mail/drafts' },
-  { id: 'settings', label: $t('palette.settings'), description: $t('palette.settingsDescription'), icon: icon('M10 3v2m0 10v2M3 10h2m10 0h2M5 5l1.5 1.5m7 7L15 15m0-10-1.5 1.5m-7 7L5 15 M13.5 10A3.5 3.5 0 1 1 6.5 10a3.5 3.5 0 0 1 7 0Z'), kind: 'navigation', action: 'navigate', to: '/settings' },
-  ...(accountSession.value?.isPlatformAdmin ? [{ id: 'admin', label: $t('account.adminConsole'), description: '', icon: icon('M3 16.5V5.8a1.3 1.3 0 0 1 1.3-1.3h11.4A1.3 1.3 0 0 1 17 5.8v10.7M2.5 16.5h15M7 7.5h2m2 0h2M7 10.5h2m2 0h2M8 16.5v-3h4v3'), kind: 'navigation' as const, action: 'navigate' as const, to: '/admin' }] : []),
+  { id: 'reply-later', label: 'Reply Later', description: $t('palette.replyLaterDescription'), icon: 'i-tabler-message-reply', kind: 'navigation', action: 'navigate', to: mailboxPath('Reply Later') },
+  { id: 'set-aside', label: 'Set Aside', description: $t('palette.setAsideDescription'), icon: 'i-tabler-eggs', kind: 'navigation', action: 'navigate', to: mailboxPath('Set Aside') },
+  { id: 'drafts', label: $t('palette.drafts'), description: $t('palette.draftsDescription'), icon: 'i-tabler-egg', kind: 'navigation', action: 'navigate', to: '/mail/drafts' },
+  { id: 'settings', label: $t('palette.settings'), description: $t('palette.settingsDescription'), icon: 'i-tabler-settings', kind: 'navigation', action: 'navigate', to: '/settings' },
+  ...(accountSession.value?.isPlatformAdmin ? [{ id: 'admin', label: $t('account.adminConsole'), description: '', icon: 'i-tabler-building-lighthouse', kind: 'navigation' as const, action: 'navigate' as const, to: '/admin' }] : []),
 ])
 const actionItems = computed<PaletteItem[]>(() => {
   const { source, threadIds } = commandContext.value
@@ -215,7 +215,7 @@ const actionItems = computed<PaletteItem[]>(() => {
     if (destination === source) continue
     items.push({ id: `move-${destination}`, label: $t('palette.moveTo', { folder: destination === 'Imbox' ? 'Inbox' : destination }), description: $t('palette.moveDescription'), icon: icon('M3 10h12m-4-4 4 4-4 4'), kind: 'action', action: 'mail', mailAction: 'move', destination })
   }
-  items.push({ id: 'trash', label: $t('bulk.trash'), description: $t('palette.trashActionDescription'), icon: icon('M4 6h12M8 6V4h4v2m2 0-.7 10H6.7L6 6m3 3v4m2-4v4'), kind: 'action', action: 'mail', mailAction: 'trash' })
+  items.push({ id: 'trash', label: $t('bulk.trash'), description: $t('palette.trashActionDescription'), icon: 'i-icon-park-outline-delete-themes', kind: 'action', action: 'mail', mailAction: 'trash' })
   return items
 })
 
