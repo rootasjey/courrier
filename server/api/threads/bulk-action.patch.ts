@@ -9,11 +9,11 @@ type BulkMessage = ThreadableMessage & {
   is_reply_later: number
   trashed_at: string | null
 }
-type Action = 'mark-seen' | 'reply-later' | 'set-aside' | 'move' | 'trash'
+type Action = 'mark-seen' | 'mark-unseen' | 'reply-later' | 'set-aside' | 'move' | 'trash'
 
 const folders = new Set<MailFolder>(['Imbox', 'The Feed', 'Paper Trail'])
 const sources = new Set(['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'])
-const actions = new Set<Action>(['mark-seen', 'reply-later', 'set-aside', 'move', 'trash'])
+const actions = new Set<Action>(['mark-seen', 'mark-unseen', 'reply-later', 'set-aside', 'move', 'trash'])
 
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
@@ -92,6 +92,11 @@ export default defineEventHandler(async (event) => {
   if (action === 'mark-seen') {
     statements.push(bindings.DB.prepare(`
       UPDATE messages SET is_read = 1 WHERE id IN (SELECT value FROM json_each(?))
+        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+    `).bind(messageIdsJson, user.activeWorkspaceId))
+  } else if (action === 'mark-unseen') {
+    statements.push(bindings.DB.prepare(`
+      UPDATE messages SET is_read = 0 WHERE id IN (SELECT value FROM json_each(?))
         AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(messageIdsJson, user.activeWorkspaceId))
   } else if (action === 'reply-later') {

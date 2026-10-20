@@ -42,6 +42,11 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5h12a2 2 0 0 1 2 2v2" /><path d="M3.5 7.5 10 12l4-2.8" /><path d="M3.5 9.5v8a2 2 0 0 0 2 2h6" /><path d="m15 16 2.2 2.2L21 14.5" /></svg>
             </button>
           </NTooltip>
+          <NTooltip :content="$t('messageActions.markUnseen')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button type="button" class="thread-selection-action" :aria-label="$t('messageActions.markUnseen')" :disabled="isApplyingBulkAction" @click="applyBulkAction('mark-unseen')">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5h12a2 2 0 0 1 2 2v2" /><path d="M3.5 7.5 10 12l4-2.8" /><path d="M3.5 9.5v8a2 2 0 0 0 2 2h7" /><circle cx="18" cy="17" r="3" /><path d="M18 15.5v1.7" /></svg>
+            </button>
+          </NTooltip>
           <NTooltip v-if="activeFolder !== 'Reply Later' && activeFolder !== 'Set Aside'" :content="$t('bulk.replyLater')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
             <button type="button" class="thread-selection-action" :aria-label="$t('bulk.replyLater')" :disabled="isApplyingBulkAction" @click="applyBulkAction('reply-later', { enabled: true })">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.2 2" /></svg>
@@ -2139,6 +2144,11 @@ function handleThreadKeydown(event: KeyboardEvent) {
       toggleThreadSelection(keyboardSelectionThreadId.value)
       return
     }
+    if (event.key.toLocaleLowerCase('en-US') === 'u' && canSelectThreads.value && !isApplyingBulkAction.value) {
+      event.preventDefault()
+      void applyBulkAction('mark-unseen')
+      return
+    }
   }
 
   const isThreadListTarget = target instanceof Element && Boolean(target.closest('.thread-list'))
@@ -2151,6 +2161,11 @@ function handleThreadKeydown(event: KeyboardEvent) {
     }
 
     const keyboardThread = selectableThreads.value.find(thread => thread.id === keyboardSelectionThreadId.value)
+    if (event.key.toLocaleLowerCase('en-US') === 'u' && keyboardThread && canSelectThreads.value && !isApplyingBulkAction.value) {
+      event.preventDefault()
+      void applyBulkAction('mark-unseen', {}, [keyboardThread.id], true)
+      return
+    }
     if (event.key === 'Enter' && keyboardThread) {
       event.preventDefault()
       openMessage(keyboardThread.latest)
@@ -2524,26 +2539,37 @@ function clearThreadSelection() {
   selectionAnchorThreadId.value = ''
 }
 
-async function applyBulkAction(action: 'mark-seen' | 'reply-later' | 'set-aside' | 'move' | 'trash', options: { enabled?: boolean, folder?: MailboxFolder } = {}) {
-  if (!selectedThreadIds.value.length || isApplyingBulkAction.value) return
+async function applyBulkAction(
+  action: 'mark-seen' | 'mark-unseen' | 'reply-later' | 'set-aside' | 'move' | 'trash',
+  options: { enabled?: boolean, folder?: MailboxFolder } = {},
+  targetThreadIds = selectedThreadIds.value,
+  preserveKeyboardCursor = false,
+) {
+  if (!targetThreadIds.length || isApplyingBulkAction.value) return
   isApplyingBulkAction.value = true
   bulkActionError.value = ''
   bulkActionFeedback.value = ''
   try {
     const result = await $fetch<{ affectedThreads: number }>('/api/threads/bulk-action', {
       method: 'PATCH',
-      body: { threadIds: selectedThreadIds.value, source: activeFolder.value, action, ...options },
+      body: { threadIds: targetThreadIds, source: activeFolder.value, action, ...options },
     })
     if (action === 'trash') bulkTrashDialogOpen.value = false
     await refreshMessages()
     clearThreadSelection()
+    if (preserveKeyboardCursor) keyboardSelectionThreadId.value = targetThreadIds[0] ?? ''
     const count = result.affectedThreads
     const plural = count === 1 ? 'One' : 'Many'
-    const key = action === 'mark-seen' ? `bulk.markSeenDone${plural}`
-      : action === 'reply-later' ? options.enabled ? `bulk.replyLaterDone${plural}` : `bulk.replyLaterRemoved${plural}`
-        : action === 'set-aside' ? options.enabled ? `bulk.setAsideDone${plural}` : `bulk.setAsideRemoved${plural}`
-          : action === 'move' ? `bulk.moveDone${plural}` : `bulk.trashDone${plural}`
-    bulkActionFeedback.value = $t(key, { count, folder: mailboxByName(options.folder ?? 'Imbox').label })
+    if (action === 'mark-unseen') {
+      // The changed unread state is visible in the list; use the existing singular confirmation when it applies.
+      bulkActionFeedback.value = count === 1 ? $t('messageActions.markedUnseen') : ''
+    } else {
+      const key = action === 'mark-seen' ? `bulk.markSeenDone${plural}`
+        : action === 'reply-later' ? options.enabled ? `bulk.replyLaterDone${plural}` : `bulk.replyLaterRemoved${plural}`
+          : action === 'set-aside' ? options.enabled ? `bulk.setAsideDone${plural}` : `bulk.setAsideRemoved${plural}`
+            : action === 'move' ? `bulk.moveDone${plural}` : `bulk.trashDone${plural}`
+      bulkActionFeedback.value = $t(key, { count, folder: mailboxByName(options.folder ?? 'Imbox').label })
+    }
   } catch (error) {
     const data = error && typeof error === 'object' && 'data' in error ? error.data : null
     bulkActionError.value = data && typeof data === 'object' && 'statusMessage' in data
