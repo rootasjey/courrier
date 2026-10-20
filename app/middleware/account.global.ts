@@ -1,3 +1,5 @@
+import type { TroncheAvatarConfig } from '#shared/utils/tronche-avatar'
+
 type AccountSession = {
   user: {
     id: string
@@ -5,6 +7,8 @@ type AccountSession = {
     displayName: string
     themeMode: 'system' | 'light' | 'dark' | null
     themeName: 'paper' | 'forest' | 'graphite' | 'lavender' | 'ayu' | 'one-dark-pro' | 'synthwave' | 'shades-purple' | 'min' | null
+    avatarMode: 'default' | 'photo' | 'tronche' | null
+    avatarConfig: TroncheAvatarConfig | null
   }
   activeWorkspaceId: string | null
   isPlatformAdmin: boolean

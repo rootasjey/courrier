@@ -1,5 +1,5 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
-import { assertSameOrigin, requireAccountUser } from '../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, requireAccountUser } from '../../utils/account-auth'
 import { accountAvatarObjectKey } from '../../utils/account-profile'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
@@ -32,5 +32,8 @@ export default defineEventHandler(async (event) => {
     httpMetadata: { contentType: mimeType, cacheControl: 'private, no-store' },
     customMetadata: { purpose: 'courrier-profile-avatar', userId: user.id },
   })
-  return { saved: true, mimeType, sizeBytes: file.data.byteLength }
+  await getAccountDb(event).prepare(
+    "UPDATE users SET avatar_mode = 'photo', updated_at = ? WHERE id = ? AND status = 'active'",
+  ).bind(new Date().toISOString(), user.id).run()
+  return { saved: true, mimeType, sizeBytes: file.data.byteLength, avatarMode: 'photo' }
 })

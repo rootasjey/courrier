@@ -3,7 +3,6 @@
     <div class="topbar-content">
       <div class="topbar-start">
         <NuxtLink v-if="showBackLink" class="topbar-back" :to="backTo">{{ $t('topbar.back') }}</NuxtLink>
-
         <NPopover
           :open="brandMenuOpen"
           :modal="false"
@@ -53,16 +52,18 @@
           @update:open="setAccountMenuOpen"
         >
           <template #trigger>
-            <button class="profile-button" type="button" :aria-label="$t('account.openMenu')" :aria-expanded="accountMenuOpen">
-              <img v-if="avatarAvailable" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
+            <button class="profile-button" :class="{ 'is-square-avatar': showTroncheAvatar && avatarConfig?.square }" type="button" :aria-label="$t('account.openMenu')" :aria-expanded="accountMenuOpen">
+              <img v-if="showPhotoAvatar" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
+              <Avatar v-else-if="showTroncheAvatar && avatarConfig" :name="avatarConfig.name" :variant="avatarConfig.variant" :colors="avatarConfig.colors" :square="avatarConfig.square" :size="38" aria-hidden="true" />
               <Avatar v-else :name="avatarName" variant="beam" :size="38" aria-hidden="true" />
             </button>
           </template>
           <template #default>
             <div class="account-menu-content">
               <div class="account-menu-identity">
-                <span class="account-menu-avatar" aria-hidden="true">
-                  <img v-if="avatarAvailable" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
+                <span class="account-menu-avatar" :class="{ 'is-square-avatar': showTroncheAvatar && avatarConfig?.square }" aria-hidden="true">
+                  <img v-if="showPhotoAvatar" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
+                  <Avatar v-else-if="showTroncheAvatar && avatarConfig" :name="avatarConfig.name" :variant="avatarConfig.variant" :colors="avatarConfig.colors" :square="avatarConfig.square" :size="36" aria-hidden="true" />
                   <Avatar v-else :name="avatarName" variant="beam" :size="36" aria-hidden="true" />
                 </span>
                 <div class="account-menu-identity-copy">
@@ -147,6 +148,7 @@
 
 <script setup lang="ts">
 import type { MailboxKey } from '~/utils/mailbox-routing'
+import type { TroncheAvatarConfig } from '#shared/utils/tronche-avatar'
 import { useI18n } from '#imports'
 import { Avatar } from 'tronche/vue'
 
@@ -158,6 +160,10 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'select-folder': [folder: MailboxKey]
+}>()
+
+const brandMenuOpen = ref(false)
 const folderIcons: Record<MailboxKey, string> = {
   Screener: 'i-tabler-eyeglass-2-filled',
   Imbox: 'i-tabler-mailbox',
@@ -167,17 +173,13 @@ const folderIcons: Record<MailboxKey, string> = {
   'Set Aside': 'i-tabler-eggs',
   Trash: 'i-icon-park-outline-delete-themes',
 }
-  'select-folder': [folder: MailboxKey]
-}>()
-
-const brandMenuOpen = ref(false)
 const accountMenuOpen = ref(false)
 const workspaceMenuOpen = ref(false)
 const { $t } = useI18n()
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
 type WorkspaceSummary = { id: string, name: string, role: string }
-type AccountSession = { user: { id: string, email: string, displayName: string }, activeWorkspaceId: string | null, isPlatformAdmin: boolean }
+type AccountSession = { user: { id: string, email: string, displayName: string, avatarMode: 'default' | 'photo' | 'tronche' | null, avatarConfig: TroncheAvatarConfig | null }, activeWorkspaceId: string | null, isPlatformAdmin: boolean }
 const accountSession = useState<AccountSession | null>('courrier-account-session', () => null)
 const workspaces = ref<WorkspaceSummary[]>([])
 const signingOut = ref(false)
@@ -185,6 +187,10 @@ const switchingWorkspace = ref(false)
 const workspaceError = ref('')
 const signOutError = ref('')
 const avatarName = computed(() => accountSession.value?.user.displayName || accountSession.value?.user.email || 'Courrier')
+const avatarMode = computed(() => accountSession.value?.user.avatarMode ?? (avatarAvailable.value ? 'photo' : 'default'))
+const avatarConfig = computed(() => accountSession.value?.user.avatarConfig ?? null)
+const showPhotoAvatar = computed(() => avatarAvailable.value && avatarMode.value === 'photo')
+const showTroncheAvatar = computed(() => avatarMode.value === 'tronche')
 const workspaceOptions = computed(() => workspaces.value.map(workspace => ({ value: workspace.id, label: workspace.name })))
 const activeWorkspaceOption = computed(() => workspaceOptions.value.find(option => option.value === accountSession.value?.activeWorkspaceId) || null)
 

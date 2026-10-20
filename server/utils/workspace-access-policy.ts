@@ -14,6 +14,7 @@ const accountEndpoints = new Set([
   'POST /api/auth/password-reset/confirm',
   'GET /api/account/session',
   'PATCH /api/account/preferences',
+  'PATCH /api/account/avatar',
   'GET /api/account/passkeys',
   'POST /api/account/passkeys/register/options',
   'POST /api/account/passkeys/register/verify',

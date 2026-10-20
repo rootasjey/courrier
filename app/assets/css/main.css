@@ -84,6 +84,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .menu-divider { height: 1px; margin: 7px 4px; background: var(--line); }
 .menu-settings { justify-content: flex-start; gap: 9px; font-weight: 600; }
 .profile-button { display: grid; width: 38px; height: 38px; overflow: hidden; place-items: center; padding: 0; border: 0; border-radius: 50%; background: #d9e8e2; color: #356c60; font-family: Georgia, serif; font-size: 18px; text-decoration: none; cursor: pointer; }
+.profile-button.is-square-avatar { border-radius: 10px; }
 .profile-button[aria-expanded="true"] { box-shadow: 0 0 0 3px var(--accent-wash); }
 .profile-button img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -539,13 +540,43 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .settings-section { border-top: 1px solid var(--line); }
 .settings-profile-row { display: flex; min-width: 0; align-items: center; gap: 17px; }
 .settings-avatar-preview { display: grid; width: 64px; height: 64px; flex: 0 0 64px; overflow: hidden; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface-soft); }
+.settings-avatar-preview.is-square-avatar { border-radius: 12px; }
 .settings-avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
 .settings-profile-controls { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .settings-profile-controls small { flex-basis: 100%; color: var(--quiet); font-size: 11px; }
+.settings-avatar-label { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 620; }
+.settings-avatar-modes { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); }
+.settings-avatar-modes button { min-height: 31px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.settings-avatar-modes button.is-selected { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgb(33 43 38 / 11%); font-weight: 650; }
+.settings-avatar-modes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.settings-avatar-modes button:disabled { cursor: not-allowed; opacity: .46; }
+.settings-avatar-custom { display: grid; gap: 13px; margin: 25px 0 24px; padding-top: 21px; border-top: 1px solid var(--line); }
+.settings-avatar-custom-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.settings-avatar-custom-heading h3 { margin: 0 0 5px; color: var(--ink); font-size: 14px; font-weight: 650; }
+.settings-avatar-custom-heading p { max-width: 470px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.settings-avatar-custom-heading .settings-export-button { flex: 0 0 auto; }
+.settings-avatar-url-field { display: grid; max-width: 560px; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.settings-avatar-url-field input { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; font-weight: 450; }
+.settings-avatar-url-field input::placeholder { color: var(--quiet); }
+.settings-avatar-url-field input:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 2px; }
+.settings-avatar-import-actions { display: flex; }
+.settings-avatar-preview-card { display: flex; width: min(100%, 560px); min-width: 0; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+.settings-avatar-preview-small { display: grid; width: 48px; height: 48px; flex: 0 0 48px; overflow: hidden; place-items: center; border-radius: 50%; background: var(--paper); }
+.settings-avatar-preview-small.is-square-avatar { border-radius: 9px; }
+.settings-avatar-preview-copy { display: grid; min-width: 0; gap: 3px; margin-right: auto; }
+.settings-avatar-preview-copy strong { overflow: hidden; color: var(--ink); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.settings-avatar-preview-copy small { color: var(--muted); font-size: 11px; }
+.settings-avatar-preview-card .settings-export-button { flex: 0 0 auto; }
+.settings-avatar-custom button.settings-export-button:disabled { cursor: not-allowed; opacity: .52; transform: none; }
 .settings-remove-photo { min-height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--error); font: inherit; font-size: 12px; cursor: pointer; }
 .settings-remove-photo:hover { background: color-mix(in srgb, var(--error) 8%, var(--paper)); }
 .settings-remove-photo:disabled { cursor: wait; opacity: .55; }
 .settings-photo-status { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 11px; }
+@media (max-width: 640px) {
+  .settings-avatar-custom-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .settings-avatar-preview-card { flex-wrap: wrap; }
+  .settings-avatar-preview-card .settings-export-button { margin-left: 60px; }
+}
 .settings-section-copy { padding: 24px 0 18px; }
 .settings-section-copy h2 { margin: 0 0 6px; font-size: 18px; font-weight: 670; }
 .settings-section-copy p { margin: 0; color: var(--muted); font-size: 14px; }
@@ -1198,7 +1229,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .account-menu-panel { width: min(336px, calc(100vw - 24px)); max-height: min(480px, calc(100dvh - 82px)); overflow-y: auto; overscroll-behavior: contain; padding: 12px; }
 .account-menu-content { display: grid; width: 100%; }
 .account-menu-identity { display: flex; min-width: 0; align-items: center; gap: 11px; padding: 5px 5px 13px; }
-.account-menu-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 38px; overflow: hidden; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+.account-menu-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 38px; overflow: hidden; place-items: center; border: 0; border-radius: 50%; background: transparent; }
+.account-menu-avatar.is-square-avatar { border-radius: 10px; }
 .account-menu-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .account-menu-identity-copy { min-width: 0; }
 .account-menu-name, .account-menu-email, .account-menu-label, .account-menu-workspace { overflow: hidden; margin: 0; text-overflow: ellipsis; white-space: nowrap; }

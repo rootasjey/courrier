@@ -139,16 +139,49 @@
             <p>{{ $t('settings.profileDescription') }}</p>
           </div>
           <div class="settings-profile-row">
-            <div class="settings-avatar-preview" aria-hidden="true">
-              <img v-if="avatarAvailable" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
+            <div class="settings-avatar-preview" :class="{ 'is-square-avatar': showTroncheAvatar && savedAvatarConfig?.square }" aria-hidden="true">
+              <img v-if="showPhotoAvatar" :key="avatarVersion" :src="`/api/profile/avatar?v=${avatarVersion}`" alt="" @error="avatarAvailable = false">
+              <Avatar v-else-if="showTroncheAvatar && savedAvatarConfig" :name="savedAvatarConfig.name" :variant="savedAvatarConfig.variant" :colors="savedAvatarConfig.colors" :square="savedAvatarConfig.square" :size="64" />
               <Avatar v-else :name="avatarName" variant="beam" :size="64" />
             </div>
             <div class="settings-profile-controls">
+              <span class="settings-avatar-label">{{ $t('settings.avatarDisplay') }}</span>
+              <div class="settings-avatar-modes" role="group" :aria-label="$t('settings.avatarDisplay')">
+                <button type="button" :class="{ 'is-selected': activeAvatarMode === 'default' }" :aria-pressed="activeAvatarMode === 'default'" :disabled="avatarBusy" @click="setAvatarMode('default')">{{ $t('settings.avatarDefault') }}</button>
+                <button type="button" :class="{ 'is-selected': activeAvatarMode === 'photo' }" :aria-pressed="activeAvatarMode === 'photo'" :disabled="avatarBusy || !avatarAvailable" @click="setAvatarMode('photo')">{{ $t('settings.avatarPhoto') }}</button>
+                <button type="button" :class="{ 'is-selected': activeAvatarMode === 'tronche' }" :aria-pressed="activeAvatarMode === 'tronche'" :disabled="avatarBusy || !savedAvatarConfig" @click="setAvatarMode('tronche')">{{ $t('settings.avatarTronche') }}</button>
+              </div>
               <input ref="photoInput" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" @change="uploadPhoto">
-              <button class="settings-export-button" type="button" :disabled="photoBusy" @click="photoInput?.click()">{{ photoBusy ? '…' : $t('settings.uploadPhoto') }}</button>
-              <button v-if="avatarAvailable" class="settings-remove-photo" type="button" :disabled="photoBusy" @click="removePhoto">{{ $t('settings.removePhoto') }}</button>
+              <button class="settings-export-button" type="button" :disabled="avatarBusy" @click="photoInput?.click()">{{ avatarBusy ? '…' : $t('settings.uploadPhoto') }}</button>
+              <button v-if="avatarAvailable" class="settings-remove-photo" type="button" :disabled="avatarBusy" @click="removePhoto">{{ $t('settings.removePhoto') }}</button>
               <small>{{ $t('settings.photoHint') }}</small>
-              <p v-if="photoMessage" class="settings-photo-status" role="status">{{ photoMessage }}</p>
+              <p v-if="profileMessage" class="settings-photo-status" role="status">{{ profileMessage }}</p>
+            </div>
+          </div>
+          <div class="settings-avatar-custom">
+            <div class="settings-avatar-custom-heading">
+              <div>
+                <h3>{{ $t('settings.troncheTitle') }}</h3>
+                <p>{{ $t('settings.troncheDescription') }}</p>
+              </div>
+              <a class="settings-export-button" href="https://tronche.cc/playground" target="_blank" rel="noopener noreferrer">{{ $t('settings.openPlayground') }}<span aria-hidden="true">↗</span></a>
+            </div>
+            <label class="settings-avatar-url-field">
+              <span>{{ $t('settings.playgroundUrl') }}</span>
+              <input v-model="troncheAvatarUrl" type="url" inputmode="url" autocomplete="url" autocapitalize="off" spellcheck="false" :placeholder="$t('settings.playgroundUrlPlaceholder')">
+            </label>
+            <div class="settings-avatar-import-actions">
+              <button class="settings-export-button" type="button" :disabled="avatarBusy || !troncheAvatarUrl.trim()" @click="previewTroncheAvatar">{{ $t('settings.previewAvatar') }}</button>
+            </div>
+            <div v-if="previewAvatarConfig" class="settings-avatar-preview-card">
+              <span class="settings-avatar-preview-small" :class="{ 'is-square-avatar': previewAvatarConfig.square }" aria-hidden="true">
+                <Avatar :name="previewAvatarConfig.name" :variant="previewAvatarConfig.variant" :colors="previewAvatarConfig.colors" :square="previewAvatarConfig.square" :size="48" />
+              </span>
+              <div class="settings-avatar-preview-copy">
+                <strong>{{ previewAvatarConfig.name }}</strong>
+                <small>{{ $t(`settings.avatarVariant.${previewAvatarConfig.variant}`) }}</small>
+              </div>
+              <button class="settings-export-button" type="button" :disabled="avatarBusy" @click="applyTroncheAvatar">{{ avatarBusy ? '…' : $t('settings.useAvatar') }}</button>
             </div>
           </div>
         </section>
@@ -263,6 +296,7 @@
 
 <script setup lang="ts">
 import { startRegistration } from '@simplewebauthn/browser'
+import { parseTroncheAvatarUrl, type TroncheAvatarConfig } from '#shared/utils/tronche-avatar'
 import { Avatar } from 'tronche/vue'
 
 const route = useRoute()
@@ -312,11 +346,20 @@ const previewMode = computed(() => themeMode.value === 'system' ? (systemPrefers
 const activeSettingsTab = ref<SettingsTab>(route.hash === '#security' ? 'security' : 'general')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
-const accountSession = useState<{ user: { displayName: string, email: string }, isPlatformAdmin: boolean, mfaVerified: boolean, mfaConfigured: boolean, adminMfaVerified: boolean, adminMfaConfigured: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
+const accountSession = useState<{ user: { displayName: string, email: string, avatarMode: 'default' | 'photo' | 'tronche' | null, avatarConfig: TroncheAvatarConfig | null }, isPlatformAdmin: boolean, mfaVerified: boolean, mfaConfigured: boolean, adminMfaVerified: boolean, adminMfaConfigured: boolean, hasPasskeys: boolean, requiresAdminMfa: boolean, recoveryCodesRemaining: number } | null>('courrier-account-session', () => null)
 const avatarName = computed(() => accountSession.value?.user.displayName || accountSession.value?.user.email || 'Courrier')
+const savedAvatarConfig = computed(() => accountSession.value?.user.avatarConfig ?? null)
+const activeAvatarMode = computed(() => accountSession.value?.user.avatarMode ?? (avatarAvailable.value ? 'photo' : 'default'))
+const showPhotoAvatar = computed(() => avatarAvailable.value && activeAvatarMode.value === 'photo')
+const showTroncheAvatar = computed(() => activeAvatarMode.value === 'tronche')
 const photoInput = ref<HTMLInputElement | null>(null)
-const photoBusy = ref(false)
-const photoMessage = ref('')
+const avatarBusy = ref(false)
+const profileMessage = ref('')
+const troncheAvatarUrl = ref('')
+const previewAvatarConfig = ref<TroncheAvatarConfig | null>(null)
+watch(troncheAvatarUrl, () => {
+  previewAvatarConfig.value = null
+})
 const passkeys = ref<Array<{ id: string, label: string, deviceType: string, backedUp: boolean, createdAt: string, lastUsedAt: string | null }>>([])
 const securityLoaded = ref(false)
 const securityBusy = ref(false)
@@ -552,6 +595,47 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale.value || 'fr', { dateStyle: 'medium' }).format(date)
 }
 
+async function updateAvatarSelection(mode: 'default' | 'photo' | 'tronche', config?: TroncheAvatarConfig) {
+  if (avatarBusy.value || (mode === 'tronche' && !config)) return
+  avatarBusy.value = true
+  profileMessage.value = ''
+  try {
+    const response = await $fetch<{ avatarMode: 'default' | 'photo' | 'tronche', avatarConfig?: TroncheAvatarConfig }>('/api/account/avatar', {
+      method: 'PATCH',
+      body: { mode, ...(config ? { config } : {}) },
+    })
+    if (accountSession.value) {
+      accountSession.value.user.avatarMode = response.avatarMode
+      if (response.avatarConfig) accountSession.value.user.avatarConfig = response.avatarConfig
+    }
+    profileMessage.value = String($t(mode === 'default' ? 'settings.avatarDefaultApplied' : 'settings.avatarApplied'))
+  } catch {
+    profileMessage.value = String($t('settings.avatarSaveError'))
+  } finally {
+    avatarBusy.value = false
+  }
+}
+
+function setAvatarMode(mode: 'default' | 'photo' | 'tronche') {
+  updateAvatarSelection(mode, mode === 'tronche' ? savedAvatarConfig.value ?? undefined : undefined)
+}
+
+function previewTroncheAvatar() {
+  const config = parseTroncheAvatarUrl(troncheAvatarUrl.value.trim(), accountSession.value?.user.displayName || 'Courrier')
+  if (!config) {
+    previewAvatarConfig.value = null
+    profileMessage.value = String($t('settings.avatarInvalidUrl'))
+    return
+  }
+
+  profileMessage.value = ''
+  previewAvatarConfig.value = config
+}
+
+function applyTroncheAvatar() {
+  if (previewAvatarConfig.value) updateAvatarSelection('tronche', previewAvatarConfig.value)
+}
+
 async function uploadPhoto(event: Event) {
   const input = event.target
   if (!(input instanceof HTMLInputElement)) return
@@ -560,33 +644,35 @@ async function uploadPhoto(event: Event) {
   if (!file) return
   const body = new FormData()
   body.append('file', file)
-  photoBusy.value = true
-  photoMessage.value = ''
+  avatarBusy.value = true
+  profileMessage.value = ''
   try {
-    await $fetch('/api/profile/avatar', { method: 'POST', body })
+    const response = await $fetch<{ avatarMode: 'photo' }>('/api/profile/avatar', { method: 'POST', body })
     avatarAvailable.value = true
     avatarVersion.value += 1
-    photoMessage.value = $t('settings.photoSaved')
+    if (accountSession.value) accountSession.value.user.avatarMode = response.avatarMode
+    profileMessage.value = String($t('settings.photoSaved'))
   } catch {
-    photoMessage.value = $t('settings.photoError')
+    profileMessage.value = String($t('settings.photoError'))
   } finally {
-    photoBusy.value = false
+    avatarBusy.value = false
   }
 }
 
 async function removePhoto() {
-  if (photoBusy.value || !avatarAvailable.value) return
-  photoBusy.value = true
-  photoMessage.value = ''
+  if (avatarBusy.value || !avatarAvailable.value) return
+  avatarBusy.value = true
+  profileMessage.value = ''
   try {
-    await $fetch('/api/profile/avatar', { method: 'DELETE' })
+    const response = await $fetch<{ avatarMode: 'default' | 'tronche' }>('/api/profile/avatar', { method: 'DELETE' })
     avatarAvailable.value = false
     avatarVersion.value += 1
-    photoMessage.value = $t('settings.photoRemoved')
+    if (accountSession.value) accountSession.value.user.avatarMode = response.avatarMode
+    profileMessage.value = String($t('settings.photoRemoved'))
   } catch {
-    photoMessage.value = $t('settings.photoError')
+    profileMessage.value = String($t('settings.photoError'))
   } finally {
-    photoBusy.value = false
+    avatarBusy.value = false
   }
 }
 

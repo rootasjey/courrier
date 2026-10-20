@@ -1,5 +1,6 @@
 import { getAccountDb, isPlatformAdmin, requireSessionIdentity } from '../../utils/account-auth'
 import { isMfaFresh } from '../../utils/passkeys'
+import { isTroncheAvatarConfig, type TroncheAvatarConfig } from '#shared/utils/tronche-avatar'
 
 export default defineEventHandler(async (event) => {
   const user = await requireSessionIdentity(event, { allowMfaPending: true })
@@ -21,8 +22,8 @@ export default defineEventHandler(async (event) => {
 
   const [preferences, passkeys, recoveryCodes] = await Promise.all([
     getAccountDb(event).prepare(
-      'SELECT theme_mode, theme_name FROM users WHERE id = ? LIMIT 1',
-    ).bind(user.id).first<{ theme_mode: string | null, theme_name: string | null }>(),
+      'SELECT theme_mode, theme_name, avatar_mode, avatar_config FROM users WHERE id = ? LIMIT 1',
+    ).bind(user.id).first<{ theme_mode: string | null, theme_name: string | null, avatar_mode: 'default' | 'photo' | 'tronche' | null, avatar_config: string | null }>(),
     getAccountDb(event).prepare('SELECT COUNT(*) AS count FROM auth_passkeys WHERE user_id = ?')
       .bind(user.id).first<{ count: number }>(),
     getAccountDb(event).prepare('SELECT COUNT(*) AS count FROM auth_mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL')
@@ -33,6 +34,13 @@ export default defineEventHandler(async (event) => {
   const mfaConfigured = hasPasskeys || recoveryCodesRemaining > 0
   const mfaVerified = mfaConfigured && isMfaFresh(session)
   const adminMfaConfigured = platformAdmin && mfaConfigured
+  let avatarConfig: TroncheAvatarConfig | null = null
+  try {
+    const parsed = preferences?.avatar_config ? JSON.parse(preferences.avatar_config) : null
+    if (isTroncheAvatarConfig(parsed)) avatarConfig = parsed
+  } catch {
+    avatarConfig = null
+  }
 
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
   return {
@@ -42,6 +50,8 @@ export default defineEventHandler(async (event) => {
       displayName: user.displayName,
       themeMode: preferences?.theme_mode ?? null,
       themeName: preferences?.theme_name ?? null,
+      avatarMode: preferences?.avatar_mode ?? null,
+      avatarConfig,
     },
     activeWorkspaceId: membership?.id ?? null,
     isPlatformAdmin: platformAdmin,
