@@ -580,7 +580,7 @@
                       <time :datetime="message.timestamp">{{ relativeMailDate(message.timestamp) }}</time>
                     </NTooltip>
                   </span>
-                  <span class="thread-tab-preview">{{ message.subject }} · {{ message.preview }}</span>
+                  <span class="thread-tab-preview">{{ message.preview || $t('mail.emptyMessageBody') }}</span>
                   <span class="sr-only">{{ $t('mail.messagePosition', { current: index + 1, total: chronologicalMessages.length }) }}</span>
                 </button>
               </div>
