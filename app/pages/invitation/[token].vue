@@ -2,7 +2,7 @@
   <main class="invitation-page">
     <section class="invitation-card" aria-labelledby="invitation-title">
       <NuxtLink class="login-brand" to="/login" :aria-label="$t('account.brand')">
-        <span class="login-brand-mark" aria-hidden="true">C</span>
+        <BrandMark class="login-brand-mark" />
         <span>Courrier</span>
       </NuxtLink>
 

@@ -2,7 +2,7 @@
   <main class="login-page password-reset-page">
     <section class="login-panel" aria-labelledby="password-reset-title">
       <NuxtLink class="login-brand" to="/login" :aria-label="$t('account.brand')">
-        <span class="login-brand-mark" aria-hidden="true">C</span>
+        <BrandMark class="login-brand-mark" />
         <span>Courrier</span>
       </NuxtLink>
 
@@ -98,7 +98,7 @@
 
     <aside class="login-aside" aria-label="Courrier">
       <div class="login-aside-header">
-        <span class="login-aside-mark" aria-hidden="true">C</span>
+        <BrandMark class="login-aside-mark" />
         <span>{{ $t('account.login.asideLabel') }}</span>
       </div>
       <div class="letter-preview" aria-hidden="true">
@@ -110,7 +110,7 @@
         </div>
         <div class="letter-preview-envelope">
           <span class="envelope-flap" />
-          <span class="envelope-mark">C</span>
+          <BrandMark class="envelope-mark" />
         </div>
       </div>
       <div class="login-aside-copy">

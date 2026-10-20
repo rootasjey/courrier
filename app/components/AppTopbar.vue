@@ -13,7 +13,7 @@
         >
           <template #trigger>
             <button class="brand-trigger" type="button" :aria-label="$t('topbar.openMenu')" :aria-expanded="brandMenuOpen">
-              <span class="brand-mark" aria-hidden="true">C</span>
+              <BrandMark class="brand-mark" />
               <span class="brand-name">Courrier</span>
               <svg class="brand-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
             </button>

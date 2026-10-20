@@ -2,7 +2,7 @@
   <main class="login-page">
     <section class="login-panel" aria-labelledby="login-title">
       <NuxtLink class="login-brand" to="/login" :aria-label="$t('account.brand')">
-        <span class="login-brand-mark" aria-hidden="true">C</span>
+        <BrandMark class="login-brand-mark" />
         <span>Courrier</span>
       </NuxtLink>
 
@@ -52,7 +52,7 @@
 
     <aside class="login-aside" aria-label="Courrier">
       <div class="login-aside-header">
-        <span class="login-aside-mark" aria-hidden="true">C</span>
+        <BrandMark class="login-aside-mark" />
         <span>{{ $t('account.login.asideLabel') }}</span>
       </div>
       <div class="letter-preview" aria-hidden="true">

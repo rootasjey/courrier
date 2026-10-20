@@ -8,6 +8,7 @@
       @select-folder="selectFolder"
     />
     <NuxtPage :transition="pageTransition" />
+    <PageLoadingIndicator />
     <CommandPalette v-if="!isPublicAuthRoute" v-model:open="commandPaletteOpen" />
   </div>
 </template>
@@ -16,6 +17,7 @@
 import '@fontsource-variable/dm-sans/wght.css'
 import '@fontsource-variable/dm-sans/wght-italic.css'
 import AppTopbar from '~/components/AppTopbar.vue'
+import PageLoadingIndicator from '~/components/PageLoadingIndicator.vue'
 import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/utils/mailbox-routing'
 
 const route = useRoute()
@@ -65,6 +67,12 @@ useHead({
     'data-theme-variant': computed(() => themeName.value),
     'data-theme-source': computed(() => accountHasThemePreferences.value ? 'account' : 'browser'),
   },
+  link: [
+    { rel: 'icon', type: 'image/png', href: '/courrier-mark.png' },
+    { rel: 'preload', as: 'image', href: '/courrier-loader/stamp-base.png' },
+    { rel: 'preload', as: 'image', href: '/courrier-loader/stamp-gull.png' },
+    { rel: 'preload', as: 'image', href: '/courrier-loader/stamp-waves.png' },
+  ],
   script: [{ key: 'courrier-theme-bootstrap', innerHTML: themeBootstrapScript, tagPosition: 'head' }],
 })
 

@@ -66,7 +66,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .topbar-back:hover, .settings-back:hover { color: var(--accent); }
 .brand-trigger { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .brand-trigger:hover, .brand-trigger[aria-expanded="true"] { background: var(--surface-soft); }
-.brand-mark { display: grid; width: 35px; height: 35px; place-items: center; border-radius: 11px; background: var(--accent); color: #fff; font-size: 25px; font-weight: 750; line-height: 1; }
+.brand-mark { display: block; width: 35px; height: 35px; flex: 0 0 auto; }
 .brand-name { font-size: 21px; font-weight: 710; letter-spacing: -0.6px; }
 .brand-chevron { width: 15px; height: 15px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .brand-trigger[aria-expanded="true"] .brand-chevron { transform: rotate(180deg); }
@@ -880,7 +880,6 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   --una-primary-active: 83% 0.06 290;
   --una-ring: 79% 0.07 290;
 }
-:root[data-theme="dark"] .brand-mark { background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .profile-button { background: var(--accent-wash); color: var(--accent); }
 :root[data-theme="dark"] .compose-button:not(:disabled), :root[data-theme="dark"] .screener-apply { color: var(--accent-ink); }
 :root[data-theme="dark"] .screener-callout { background: var(--accent-wash); color: var(--accent); }
@@ -975,7 +974,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .topbar-start { gap: 9px; }
   .topbar-back { font-size: 12px; }
   .brand-trigger { gap: 7px; padding: 4px; }
-  .brand-mark { width: 31px; height: 31px; border-radius: 9px; font-size: 22px; }
+  .brand-mark { width: 31px; height: 31px; }
   .brand-name { font-size: 18px; }
   .brand-chevron { width: 13px; height: 13px; }
   .profile-button { width: 32px; height: 32px; font-size: 16px; }
@@ -1244,8 +1243,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .password-reset-page .login-copy { margin: 48px 0 25px; }
 .login-panel { width: min(100%, 440px); padding: 24px 0; }
 .login-brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); font-size: 22px; font-weight: 730; letter-spacing: -.6px; text-decoration: none; }
-.login-brand-mark, .login-aside-mark { display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 760; }
-.login-brand-mark { width: 39px; height: 39px; border-radius: 12px; font-size: 27px; line-height: 1; }
+.login-brand-mark { display: block; width: 39px; height: 39px; flex: 0 0 auto; }
 .login-copy { margin: 76px 0 34px; }
 .login-kicker { margin: 0 0 12px; color: var(--accent); font-size: 13px; font-weight: 670; }
 .login-copy h1 { margin: 0; color: var(--ink); font-size: clamp(38px, 4vw, 52px); font-weight: 730; letter-spacing: -2px; line-height: 1.05; }
@@ -1269,7 +1267,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .login-footnote { max-width: 390px; margin: 22px 0 0; color: var(--quiet); font-size: 12px; line-height: 1.55; }
 .login-aside { position: relative; display: flex; min-height: 540px; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 31px; border: 1px solid var(--line); border-radius: 19px; background: var(--sheet); color: var(--ink); }
 .login-aside-header { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; font-weight: 620; }
-.login-aside-mark { width: 27px; height: 27px; border-radius: 8px; font-size: 19px; }
+.login-aside-mark { width: 27px; height: 27px; flex: 0 0 auto; }
 .letter-preview { position: relative; height: 255px; margin: 50px 12px 34px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); transform: rotate(-2deg); }
 .letter-preview-top { display: flex; gap: 6px; height: 36px; align-items: center; padding: 0 13px; border-bottom: 1px solid var(--line); }
 .letter-preview-top span { width: 6px; height: 6px; border-radius: 50%; background: var(--quiet); }
@@ -1279,14 +1277,13 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .letter-preview-line.is-medium { width: 57%; }
 .letter-preview-envelope { position: absolute; right: 25px; bottom: 20px; display: grid; width: 145px; height: 96px; place-items: center; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); border-radius: 10px; background: var(--sheet); box-shadow: 0 10px 24px rgb(33 43 38 / 12%); transform: rotate(5deg); }
 .envelope-flap { position: absolute; top: -47px; left: 13px; width: 116px; height: 116px; border-right: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); background: var(--accent-wash); transform: rotate(45deg); }
-.envelope-mark { position: relative; z-index: 1; display: grid; width: 31px; height: 31px; place-items: center; margin-top: 14px; border-radius: 9px; background: var(--accent); color: var(--sheet); font-size: 22px; font-weight: 760; }
+.envelope-mark { position: relative; z-index: 1; display: block; width: 31px; height: 31px; margin-top: 14px; }
 .login-aside-copy { max-width: 390px; }
 .login-aside-copy h2 { margin: 0; color: #fff; font-size: 24px; font-weight: 690; letter-spacing: -.5px; }
 .login-aside-copy p { margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
 :root[data-theme="dark"] .login-aside { background: var(--sheet); }
 :root[data-theme="dark"] .letter-preview { border-color: var(--line); background: var(--surface-soft); }
 :root[data-theme="dark"] .letter-preview-envelope { background: var(--sheet); }
-:root[data-theme="dark"] .login-brand-mark, :root[data-theme="dark"] .login-aside-mark { background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .login-submit { background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .login-submit:hover:not(:disabled) { background: var(--accent-hover); }
 
@@ -1306,7 +1303,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .topbar-content { display: flex; width: min(100%, 1000px); align-items: center; justify-content: space-between; margin-inline: auto; }
 .brand-trigger { gap: 9px; padding-left: 0; }
-.brand-mark { width: 34px; height: 34px; border-radius: 11px; background: var(--accent); font-size: 23px; font-weight: 700; }
+.brand-mark { width: 34px; height: 34px; }
 .brand-name { font-weight: 680; letter-spacing: -0.035em; }
 .brand-chevron { stroke: var(--accent); }
 .brand-menu-panel, .account-menu-panel { border-radius: 15px; background: var(--sheet); box-shadow: 0 12px 30px rgb(33 43 38 / 11%); }
@@ -1468,7 +1465,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .message-action-group kbd, .thread-action-move-trigger kbd { display: none; }
 }
 
-:root[data-theme="dark"] .brand-mark { background: var(--accent); }
 :root[data-theme="dark"] .message-action-reply { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .message-action-reply:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
 :root[data-theme="dark"] .message-group-seen { background: transparent; }
