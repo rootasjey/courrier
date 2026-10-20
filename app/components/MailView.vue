@@ -414,13 +414,6 @@
     </section>
 
     <section v-else-if="selectedMessage" class="reading-column" :aria-label="$t('mail.selectedMessage')">
-      <div class="reading-toolbar">
-        <button class="back-to-list" type="button" @click="closeMessage">
-          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5M7.5 10h9" /></svg>
-          <span>{{ $t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) }}</span>
-          <kbd>Esc</kbd>
-        </button>
-      </div>
       <div class="thread-subject-header">
         <div v-if="isEditingThreadSubject" class="thread-subject-editor">
           <form @submit.prevent="saveThreadSubject">
@@ -604,6 +597,17 @@
               :aria-label="$t('mail.messageFrom', { sender: activeThreadMessage.sender })"
             >
               <div class="message-meta" :class="{ 'inbox-message-sender': isInboxReader }">
+                <NTooltip v-if="isInboxReader" :content="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) + ' · Esc'" :una="{ tooltipContent: 'z-[120]' }">
+                  <button
+                    class="inbox-reader-back-button"
+                    type="button"
+                    :aria-label="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label })"
+                    aria-keyshortcuts="Escape"
+                    @click="closeMessage"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5M7.5 10h9" /></svg>
+                  </button>
+                </NTooltip>
                 <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
                   <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
                 </NuxtLink>
@@ -675,6 +679,17 @@
               :aria-label="$t('mail.messageFrom', { sender: message.sender })"
             >
               <div class="message-meta" :class="{ 'inbox-message-sender': isInboxReader }">
+                <NTooltip v-if="isInboxReader && message.id === chronologicalMessages[0]?.id" :content="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) + ' · Esc'" :una="{ tooltipContent: 'z-[120]' }">
+                  <button
+                    class="inbox-reader-back-button"
+                    type="button"
+                    :aria-label="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label })"
+                    aria-keyshortcuts="Escape"
+                    @click="closeMessage"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5M7.5 10h9" /></svg>
+                  </button>
+                </NTooltip>
                 <NuxtLink v-if="!message.isOutgoing" class="sender-profile-avatar" :to="senderPath(message.address)" :aria-label="$t('mail.openSenderPage', { sender: message.sender })">
                   <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
                 </NuxtLink>

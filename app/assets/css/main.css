@@ -310,7 +310,6 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 
 /* Focused reader */
 .reading-column { display: flex; min-height: calc(100vh - 140px); flex-direction: column; align-items: center; padding-bottom: 112px; }
-.reading-toolbar { display: flex; align-items: center; justify-content: space-between; width: min(100%, 1160px); min-height: 54px; margin: 0 auto; }
 .back-to-list { display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border: 0; border-radius: 7px; background: var(--accent-wash); color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer; }
 .back-to-list:hover { background: var(--accent-wash); }
 .back-to-list svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -1110,7 +1109,6 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
   .screener-view-switch { gap: 11px; }
   .screener-view-switch button, .screener-clear-all { font-size: 11px; }
   .reading-column { min-height: calc(100vh - 116px); }
-  .reading-toolbar { min-height: 47px; }
   .back-to-list { padding: 7px 8px; font-size: 11px; }
   .back-to-list kbd { display: none; }
   .message-action-dock { right: 10px; left: 10px; bottom: max(10px, env(safe-area-inset-bottom)); }
@@ -1489,7 +1487,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .screener-restore { border-radius: 999px; }
 
 .reading-column { width: 100%; min-height: calc(100vh - 120px); padding-bottom: 112px; }
-.reading-toolbar { width: min(100%, 816px); min-height: 46px; }
 .back-to-list { min-height: 38px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font-weight: 560; }
 .back-to-list:hover { border-color: var(--accent); background: var(--accent-wash); color: var(--accent); }
 .back-to-list kbd { border-radius: 5px; background: var(--surface-soft); color: var(--muted); }
@@ -1609,7 +1606,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .screener-choice { width: 56px; min-height: 54px; }
   .screener-actions { gap: 10px; }
   .reading-column { min-height: calc(100vh - 112px); padding-bottom: 82px; }
-  .reading-toolbar { min-height: 42px; }
   .message-paper { margin: 0 auto 24px; padding: 22px 18px; border-radius: 14px; }
   .message-subject { margin-bottom: 21px; font-size: clamp(27px, 8vw, 34px); }
   .message-paper > p, .message-rich-body { font-size: 14px; line-height: 1.75; }
@@ -1662,4 +1658,29 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (prefers-reduced-motion: reduce) {
   .login-submit { transition: none; }
+}
+
+.inbox-reader-back-button {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--muted);
+  cursor: pointer;
+}
+.inbox-reader-back-button:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-wash); color: var(--accent); }
+.inbox-reader-back-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, white); outline-offset: 2px; }
+.inbox-reader-back-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 720px) {
+  .inbox-reader-back-button {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+  }
 }
