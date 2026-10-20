@@ -11,7 +11,7 @@
     @update:open="(value: boolean) => { if (!value && !actionPending) { if (trashConfirmationOpen) trashConfirmationOpen = false; else emit('update:open', false) } }"
   >
     <template #content>
-      <div v-if="!trashConfirmationOpen" class="command-palette" @keydown.capture="handleKeydown">
+      <div v-if="!trashConfirmationOpen" ref="paletteElement" class="command-palette" :class="{ 'is-open': open }" @keydown.capture="handleKeydown">
         <div class="command-palette-search">
           <input
             ref="input"
@@ -41,6 +41,7 @@
               :key="item.id"
               class="command-palette-option"
               :class="{ 'is-active': activeIndex === index, 'is-mailbox-option': section.id === 'mailboxes' }"
+              :style="{ '--palette-stagger-index': index }"
               type="button"
               role="option"
               :aria-selected="activeIndex === index"
@@ -67,6 +68,7 @@
               :key="result.id"
               class="command-palette-option command-result-option"
               :class="{ 'is-active': activeIndex === filteredCommands.length + index }"
+              :style="{ '--palette-stagger-index': index }"
               type="button"
               role="option"
               :aria-selected="activeIndex === filteredCommands.length + index"
@@ -75,7 +77,12 @@
             >
               <span class="command-option-copy command-result-copy">
                 <span class="command-result-title-row">
-                  <strong>{{ result.subject || $t('palette.open') }}</strong>
+                  <strong>
+                    <template v-for="(part, partIndex) in textMatchParts(result.subject || $t('palette.open'))" :key="partIndex">
+                      <mark v-if="part.matched" class="command-result-match">{{ part.text }}</mark>
+                      <template v-else>{{ part.text }}</template>
+                    </template>
+                  </strong>
                   <NTooltip :content="absoluteMailDate(result.timestamp)" :una="{ tooltipContent: 'compose-tooltip-content z-[140]' }">
                     <time :datetime="result.timestamp">{{ relativeMailDate(result.timestamp) }}</time>
                   </NTooltip>
@@ -84,9 +91,14 @@
                   <small class="command-result-description">
                     <span class="command-result-sender-group">
                       <span class="sender-avatar command-result-avatar" :class="`avatar-${senderColor(result.id)}`" aria-hidden="true">{{ senderInitials(result.sender) }}</span>
-                      <span class="command-result-sender">{{ result.sender }}</span>
+                      <span class="command-result-sender">
+                        <template v-for="(part, partIndex) in textMatchParts(result.sender)" :key="partIndex">
+                          <mark v-if="part.matched" class="command-result-match">{{ part.text }}</mark>
+                          <template v-else>{{ part.text }}</template>
+                        </template>
+                      </span>
                     </span>
-                    <template v-if="result.snippet"><span aria-hidden="true"> · </span><span class="command-result-snippet">{{ result.snippet }}</span></template>
+                    <span v-if="result.snippet" class="command-result-body-match">{{ $t('palette.bodyMatch') }}</span>
                   </small>
                   <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
                 </span>
@@ -99,7 +111,12 @@
         </div>
 
         <footer class="command-palette-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> {{ $t('palette.browse') }}</span><span><kbd>↵</kbd> {{ $t('palette.open') }}</span><span><kbd>ESC</kbd> {{ $t('palette.close') }}</span>
+          <template v-if="query.trim()">
+            <span><kbd>↑</kbd><kbd>↓</kbd> {{ $t('palette.browse') }}</span><span><kbd>↵</kbd> {{ $t('palette.open') }}</span><span><kbd>ESC</kbd> {{ $t('palette.close') }}</span>
+          </template>
+          <template v-else>
+            <span><kbd>/</kbd> {{ $t('palette.actions') }}</span><span><kbd>@</kbd> {{ $t('palette.destinations') }}</span>
+          </template>
         </footer>
       </div>
       <div v-else class="command-palette-confirm">
@@ -140,6 +157,31 @@ type PaletteItem = {
   destination?: MailboxKey
 }
 type SearchResult = { id: string, folder: MailboxKey, threadId: string, subject: string, sender: string, timestamp: string, snippet: string }
+type TextMatchPart = { text: string, matched: boolean }
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function textMatchParts(text: string): TextMatchPart[] {
+  const terms = [...new Set(query.value.trim().split(/\s+/).filter(Boolean))]
+    .sort((a, b) => b.length - a.length)
+  if (!terms.length || !text) return [{ text, matched: false }]
+
+  const expression = new RegExp(terms.map(escapeRegExp).join('|'), 'giu')
+  const parts: TextMatchPart[] = []
+  let cursor = 0
+
+  for (const match of text.matchAll(expression)) {
+    const index = match.index ?? 0
+    if (index > cursor) parts.push({ text: text.slice(cursor, index), matched: false })
+    parts.push({ text: match[0], matched: true })
+    cursor = index + match[0].length
+  }
+
+  if (cursor < text.length) parts.push({ text: text.slice(cursor), matched: false })
+  return parts.length ? parts : [{ text, matched: false }]
+}
 
 function senderInitials(sender: string) {
   return sender.split(/[\s@._-]+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toLocaleUpperCase('fr')).join('') || '??'
@@ -156,6 +198,7 @@ const router = useRouter()
 const { $t } = useI18n()
 const { locale } = useI18nLocale()
 const input = ref<HTMLInputElement | null>(null)
+const paletteElement = ref<HTMLDivElement | null>(null)
 const optionsElement = ref<HTMLDivElement | null>(null)
 const query = ref('')
 const activeIndex = ref(0)
@@ -173,6 +216,7 @@ const actionPending = ref(false)
 const pendingTrash = ref<PendingTrash | null>(null)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 let searchRevision = 0
+let paletteResizeObserver: ResizeObserver | undefined
 
 const icon = (path: string) => ({ render: () => h('svg', { viewBox: '0 0 20 20', fill: 'none', 'aria-hidden': 'true' }, [h('path', { d: path })]) })
 const navigationItems = computed<PaletteItem[]>(() => [
@@ -261,6 +305,33 @@ const activeHighlightStyle = computed(() => ({
 }))
 
 function optionId(index: number) { return `command-palette-option-${index}` }
+function paletteDialogElement() {
+  return paletteElement.value?.closest<HTMLElement>('.dialog-content.command-palette-dialog') ?? null
+}
+function syncPaletteDialogHeight() {
+  if (!props.open || trashConfirmationOpen.value || !paletteElement.value) return
+  const dialog = paletteDialogElement()
+  const search = paletteElement.value.querySelector<HTMLElement>('.command-palette-search')
+  const options = paletteElement.value.querySelector<HTMLElement>('.command-palette-options')
+  const footer = paletteElement.value.querySelector<HTMLElement>('.command-palette-footer')
+  if (!dialog || !search || !options || !footer) return
+
+  const optionsStyle = getComputedStyle(options)
+  const optionsMaxHeight = optionsStyle.maxHeight === 'none'
+    ? Number.POSITIVE_INFINITY
+    : Number.parseFloat(optionsStyle.maxHeight) + Number.parseFloat(optionsStyle.paddingTop) + Number.parseFloat(optionsStyle.paddingBottom)
+  const dialogMaxHeight = Number.parseFloat(getComputedStyle(dialog).maxHeight)
+  const contentHeight = search.getBoundingClientRect().height + footer.getBoundingClientRect().height + Math.min(options.scrollHeight, optionsMaxHeight) + 2
+  const height = Math.ceil(Math.min(contentHeight, dialogMaxHeight || contentHeight))
+  if (height > 0 && dialog.style.height !== `${height}px`) dialog.style.height = `${height}px`
+}
+function observePaletteSize() {
+  paletteResizeObserver?.disconnect()
+  const options = paletteElement.value?.querySelector<HTMLElement>('.command-palette-options')
+  if (!options) return
+  paletteResizeObserver = new ResizeObserver(syncPaletteDialogHeight)
+  paletteResizeObserver.observe(options)
+}
 function updateActiveHighlight(keepVisible = false) {
   void nextTick(() => {
     const options = optionsElement.value
@@ -408,12 +479,13 @@ function scheduleSearch() {
   searchPending.value = false
   searchRevision += 1
   const revision = searchRevision
+  const searchQuery = query.value.trim()
   if (searchTimer) clearTimeout(searchTimer)
-  if (prefix.value || !query.value.trim()) return
+  if (prefix.value || !searchQuery) return
   searchPending.value = true
   searchTimer = setTimeout(async () => {
     try {
-      const response = await $fetch<{ results: SearchResult[] }>('/api/search', { query: { q: query.value.trim(), offset: 0 } })
+      const response = await $fetch<{ results: SearchResult[] }>('/api/search', { query: { q: searchQuery, offset: 0 } })
       if (revision === searchRevision) searchResults.value = response.results.slice(0, 5)
     } catch {
       if (revision === searchRevision) searchResults.value = []
@@ -465,23 +537,59 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 watch(activeIndex, () => updateActiveHighlight(true), { flush: 'post' })
-watch([filteredCommands, searchResults], () => updateActiveHighlight(), { flush: 'post' })
+watch([filteredCommands, searchResults], async () => {
+  updateActiveHighlight()
+  await nextTick()
+  syncPaletteDialogHeight()
+}, { flush: 'post' })
 
-onMounted(() => window.addEventListener('keydown', handlePaletteEscape, true))
-onBeforeUnmount(() => window.removeEventListener('keydown', handlePaletteEscape, true))
+onMounted(() => {
+  window.addEventListener('keydown', handlePaletteEscape, true)
+  observePaletteSize()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handlePaletteEscape, true)
+  paletteResizeObserver?.disconnect()
+})
 
 watch(() => props.open, async (isOpen) => {
   if (isOpen) {
-    query.value = ''
-    searchResults.value = []
+    const dialog = paletteDialogElement()
+    dialog?.classList.remove('is-size-animated')
+    if (dialog) dialog.style.height = ''
     activeIndex.value = 0
+    scheduleSearch()
     await nextTick()
+    observePaletteSize()
+    syncPaletteDialogHeight()
+    requestAnimationFrame(() => {
+      if (props.open) paletteDialogElement()?.classList.add('is-size-animated')
+    })
     input.value?.focus()
     updateActiveHighlight()
   } else {
+    const dialog = paletteDialogElement()
+    dialog?.classList.remove('is-size-animated')
+    if (dialog) dialog.style.height = ''
     activeHighlight.value = { ...activeHighlight.value, visible: false }
     if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = undefined
+    searchRevision += 1
+    searchPending.value = false
   }
+})
+watch(trashConfirmationOpen, async (isOpen) => {
+  if (isOpen) {
+    paletteResizeObserver?.disconnect()
+    return
+  }
+  if (!props.open) return
+  await nextTick()
+  observePaletteSize()
+  syncPaletteDialogHeight()
+  requestAnimationFrame(() => {
+    if (props.open && !trashConfirmationOpen.value) paletteDialogElement()?.classList.add('is-size-animated')
+  })
 })
 onBeforeUnmount(() => {
   if (searchTimer) clearTimeout(searchTimer)
