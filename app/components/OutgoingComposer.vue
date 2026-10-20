@@ -22,6 +22,7 @@
             <h2 id="compose-title" :class="{ 'sr-only': mode === 'full' }">{{ $t('composer.newMessage') }}</h2>
             <div class="compose-window-actions">
               <button class="compose-drafts-count" type="button" :disabled="loading" @click="openDrafts">
+                <span class="compose-drafts-icon i-tabler-egg" aria-hidden="true" />
                 {{ $t(draftCount === 1 ? 'composer.draftCountOne' : 'composer.draftCountMany', { count: draftCount }) }}
               </button>
               <NTooltip :content="$t('composer.minimize')" :una="{ tooltipContent: 'compose-tooltip-content z-[100]' }">
@@ -1106,7 +1107,8 @@ onBeforeUnmount(() => {
 .compose-header h2 { grid-column: 2; margin: 0; font-size: 22px; font-weight: 680; text-align: center; }
 .compose-window-actions { display: flex; gap: 4px; }
 .compose-window-actions { grid-column: 3; justify-self: end; }
-.compose-drafts-count { min-height: 34px; flex: 0 0 auto; margin-right: 4px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.compose-drafts-count { display: inline-flex; min-height: 34px; flex: 0 0 auto; align-items: center; gap: 5px; margin-right: 4px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.compose-drafts-icon { display: inline-block; width: 15px; height: 15px; flex: 0 0 15px; }
 .compose-drafts-count:hover { background: var(--accent-wash); }
 .compose-drafts-count:disabled { opacity: .55; cursor: wait; }
 .compose-icon-button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
