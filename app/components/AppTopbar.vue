@@ -133,6 +133,15 @@
         </NPopover>
       </div>
     </div>
+    <svg class="topbar-divider" aria-hidden="true" focusable="false">
+      <defs>
+        <pattern id="topbar-divider-wave" width="40" height="12" patternUnits="userSpaceOnUse">
+          <path d="M 0 0 H 40 V 6 C 28.954 6 31.046 9 20 9 C 8.954 9 11.046 6 0 6 Z" fill="var(--paper)" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="12" fill="var(--canvas)" />
+      <rect width="100%" height="12" fill="url(#topbar-divider-wave)" />
+    </svg>
   </header>
 </template>
 
