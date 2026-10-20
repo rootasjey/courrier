@@ -491,8 +491,12 @@
           </header>
           <div class="feed-issue-body" @touchstart.passive="rememberFeedTouch" @touchend.passive="finishFeedTouch" @touchcancel.passive="feedTouchOrigin = null">
             <div class="feed-issue-text">
-              <p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p>
-              <p v-if="!activeThreadMessage.body.trim()" class="feed-empty-body">{{ $t('mail.emptyMessageBody') }}</p>
+              <p v-if="activeThreadMessage.body === undefined && isThreadContentLoading" role="status">{{ $t('mail.loading') }}</p>
+              <p v-else-if="activeThreadMessage.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
+              <template v-else>
+                <p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p>
+                <p v-if="!activeThreadMessage.body.trim()" class="feed-empty-body">{{ $t('mail.emptyMessageBody') }}</p>
+              </template>
             </div>
             <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
               <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
@@ -633,8 +637,10 @@
 
               <div v-if="!isInboxReader" class="message-rule" />
               <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
-                <div v-if="activeThreadMessage.isOutgoing && activeThreadMessage.htmlBody" class="message-rich-body" v-html="activeThreadMessage.htmlBody" />
-                <template v-else><p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
+                <p v-if="activeThreadMessage.body === undefined && isThreadContentLoading" role="status">{{ $t('mail.loading') }}</p>
+                <p v-else-if="activeThreadMessage.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
+                <div v-else-if="activeThreadMessage.isOutgoing && activeThreadMessage.htmlBody" class="message-rich-body" v-html="activeThreadMessage.htmlBody" />
+                <template v-else-if="activeThreadMessage.body !== undefined"><p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
                 <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
                   <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
                   <a
@@ -714,8 +720,10 @@
               </div>
               <div v-if="!isInboxReader" class="message-rule" />
               <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
-                <div v-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
-                <template v-else><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
+                <p v-if="message.body === undefined && isThreadContentLoading" role="status">{{ $t('mail.loading') }}</p>
+                <p v-else-if="message.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
+                <div v-else-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
+                <template v-else-if="message.body !== undefined"><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
                 <div v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
                   <span class="attachment-heading">{{ $t(message.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: message.attachments.length }) }}</span>
                   <a
@@ -1104,8 +1112,8 @@ type InboxMessage = {
   mailboxDomain: string
   initials: string
   color: string
-  body: string
-  htmlBody: string
+  body?: string
+  htmlBody?: string
   attachments: { id: string, filename: string, mimeType: string, sizeBytes: number }[]
 }
 
@@ -1355,7 +1363,7 @@ function forwardActiveMessage() {
       $t('mail.forwardedDate', { date: absoluteMailDate(message.timestamp) }),
       $t('mail.forwardedSubject', { subject: message.subject }),
       '',
-      message.body,
+      message.body ?? '',
     ].join('\n'),
   }
   composeOpen.value = true
@@ -1374,9 +1382,49 @@ async function onOutgoingMessageSent() {
   }
 }
 
-const { data: inboxMessages, refresh: refreshMessages, error: inboxMessagesError } = await useFetch<InboxMessage[]>('/api/messages', {
+const { data: inboxMessages, refresh: refreshInboxMessages, error: inboxMessagesError } = await useFetch<InboxMessage[]>('/api/messages', {
   default: () => [],
 })
+
+const threadContentLoadingId = ref('')
+const threadContentRequests = new Map<string, Promise<void>>()
+const isThreadContentLoading = computed(() => Boolean(selectedId.value) && threadContentLoadingId.value === selectedId.value)
+
+async function loadThreadContent(threadId: string) {
+  const messages = (inboxMessages.value ?? []).filter(message => message.threadId === threadId)
+  if (!messages.length || messages.every(message => message.body !== undefined)) return
+
+  const pendingRequest = threadContentRequests.get(threadId)
+  if (pendingRequest) return pendingRequest
+
+  threadContentLoadingId.value = threadId
+  const request = (async () => {
+    try {
+      const details = await $fetch<InboxMessage[]>('/api/messages', {
+        query: { includeBody: 'true', threadId },
+      })
+      const detailsById = new Map(details.map(message => [message.id, message]))
+      inboxMessages.value = (inboxMessages.value ?? []).map((message) => {
+        const detail = detailsById.get(message.id)
+        return detail
+          ? { ...message, body: detail.body ?? '', htmlBody: detail.htmlBody ?? '' }
+          : message
+      })
+    } catch {
+      // The reader shows a localized retry hint when the content is still missing.
+    } finally {
+      if (threadContentLoadingId.value === threadId) threadContentLoadingId.value = ''
+      threadContentRequests.delete(threadId)
+    }
+  })()
+  threadContentRequests.set(threadId, request)
+  return request
+}
+
+async function refreshMessages() {
+  await refreshInboxMessages()
+  if (selectedId.value) await loadThreadContent(selectedId.value)
+}
 
 watch([activeFolder, isGlobalSearch], () => {
   threadSelectionMode.value = false
@@ -1486,7 +1534,7 @@ const visibleThreads = computed(() => {
   if (!query) return threads
 
   return threads.filter(thread => thread.subject.toLocaleLowerCase('fr').includes(query) || thread.messages.some(message =>
-    `${message.sender} ${message.subject} ${message.body}`.toLocaleLowerCase('fr').includes(query),
+    `${message.sender} ${message.subject} ${message.preview}`.toLocaleLowerCase('fr').includes(query),
   ))
 })
 const feedEditions = computed(() => folderMessages.value
@@ -1640,7 +1688,7 @@ const screenerSenders = computed(() => {
   if (!query) return allScreenerSenders.value
 
   return allScreenerSenders.value.filter(({ address, latest }) =>
-    `${address} ${latest.sender} ${latest.subject} ${latest.body}`.toLocaleLowerCase('fr').includes(query),
+    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
   )
 })
 
@@ -1649,7 +1697,7 @@ const visibleScreenerHistory = computed(() => {
   if (!query) return screenerHistorySenders.value
 
   return screenerHistorySenders.value.filter(({ address, latest }) =>
-    `${address} ${latest.sender} ${latest.subject} ${latest.body}`.toLocaleLowerCase('fr').includes(query),
+    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
   )
 })
 
@@ -1714,6 +1762,8 @@ watch(selectedId, (threadId) => {
     return
   }
   if (!thread) return
+
+  void loadThreadContent(threadId)
 
   const requestedMessageId = typeof route.query.message === 'string' ? route.query.message : ''
   const requestedMessage = thread.messages.find(message => message.id === requestedMessageId)

@@ -18,8 +18,7 @@ type MessageRow = {
   is_reply_later: number
   sent_at: string | null
   received_at: string
-  text_body: string
-  html_body: string
+  preview_source: string
   raw_object_key: string
   message_id: string
   in_reply_to: string | null
@@ -28,6 +27,12 @@ type MessageRow = {
   is_outgoing: number
   sender_rule_folder: 'Imbox' | 'The Feed' | 'Paper Trail' | null
   is_blocked_sender: number
+}
+
+type MessageContentRow = {
+  id: string
+  text_body: string
+  html_body: string
 }
 
 type AttachmentRow = {
@@ -39,6 +44,13 @@ type AttachmentRow = {
 
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
+  const params = getQuery(event)
+  const includeBody = params.includeBody === 'true' || params.includeBody === '1'
+  const requestedThreadId = typeof params.threadId === 'string' ? params.threadId.trim() : ''
+  if (includeBody && !requestedThreadId) {
+    throw createError({ statusCode: 400, statusMessage: 'Un identifiant de fil est requis pour charger son contenu.' })
+  }
+
   const bindings = event.context.cloudflare?.env as MailStorageBindings | undefined
   if (!bindings?.DB) {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
@@ -48,7 +60,7 @@ export default defineEventHandler(async (event) => {
     bindings.DB.prepare(`
     SELECT messages.id, messages.envelope_from, messages.envelope_to,
       messages.sender_name, messages.sender_address, messages.subject,
-      messages.sent_at, messages.received_at, messages.text_body, messages.html_body, messages.is_read, messages.trashed_at,
+      messages.sent_at, messages.received_at, substr(messages.text_body, 1, 512) AS preview_source, messages.is_read, messages.trashed_at,
       messages.raw_object_key, messages.folder, messages.screener_state, messages.message_id,
       messages.in_reply_to, messages.references_header, messages.mailbox_domain,
       messages.is_outgoing, messages.is_set_aside, messages.is_reply_later,
@@ -100,7 +112,24 @@ export default defineEventHandler(async (event) => {
     override.subject,
   ]))
 
-  return Promise.all(results.map(async (message) => {
+  const requestedMessages = includeBody
+    ? results.filter((message) => {
+        const threadRoot = threadIds.get(message.id) || message.id
+        return threadRouteIds.get(threadRoot) === requestedThreadId
+      })
+    : results
+  const messageContentById = new Map<string, MessageContentRow>()
+  if (includeBody && requestedMessages.length) {
+    const contentResult = await bindings.DB.prepare(`
+      SELECT id, text_body, html_body
+      FROM messages
+      WHERE id IN (${requestedMessages.map(() => '?').join(', ')})
+        AND ${workspaceMessageScope('messages', user.id)}
+    `).bind(...requestedMessages.map(message => message.id), user.activeWorkspaceId).all<MessageContentRow>()
+    for (const content of contentResult.results) messageContentById.set(content.id, content)
+  }
+
+  return Promise.all(requestedMessages.map(async (message) => {
     const threadId = threadRouteIds.get(threadIds.get(message.id) || message.id) || message.id
     const attachmentResult = await bindings.DB.prepare(`
       SELECT id, filename, mime_type, size_bytes
@@ -120,9 +149,11 @@ export default defineEventHandler(async (event) => {
       isOutgoing: Boolean(message.is_outgoing),
       mailboxDomain: message.mailbox_domain,
       subject: message.subject,
-      preview: message.text_body.replace(/\s+/g, ' ').trim().slice(0, 180),
-      body: message.text_body,
-      htmlBody: message.html_body || '',
+      preview: message.preview_source.replace(/\s+/g, ' ').trim().slice(0, 180),
+      ...(includeBody ? {
+        body: messageContentById.get(message.id)?.text_body ?? '',
+        htmlBody: messageContentById.get(message.id)?.html_body || '',
+      } : {}),
       timestamp: new Date(message.sent_at || message.received_at).toISOString(),
       date: new Intl.DateTimeFormat('fr-FR', {
         hour: '2-digit',
