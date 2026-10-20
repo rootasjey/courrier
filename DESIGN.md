@@ -19,6 +19,12 @@ colors:
   message-body: "#3e4a45"
   reply-later: "#66779a"
 typography:
+  brand:
+    fontFamily: "Playwrite FR Moderne, cursive"
+    fontSize: "20px"
+    fontWeight: 300
+    lineHeight: 1.2
+    letterSpacing: "-0.035em"
   display:
     fontFamily: "DM Sans Variable, sans-serif"
     fontSize: "clamp(28px, 3.7vw, 44px)"
@@ -135,7 +141,7 @@ A mailbox stays a single chronological list with flat rows. Opening a thread rep
 
 **Key Characteristics:**
 - Warm, low-chroma surfaces with fine separators.
-- DM Sans Variable supplies the entire interface hierarchy.
+- DM Sans Variable supplies the interface and message hierarchy; Playwrite FR Moderne is reserved for the Courrier wordmark.
 - Chronological mailbox rows stay flat; an open thread gets its own reading surface.
 - Muted teal marks primary action, selection, and focus; status colors stay semantic.
 
@@ -166,12 +172,14 @@ Appearance mode and palette are separate settings. Mode can follow the system, s
 
 ## Typography
 
+**Brand Font:** Playwrite FR Moderne (fallback: cursive), used only for the Courrier wordmark.
+
 **Display Font:** DM Sans Variable (fallback: sans-serif)
 
 **Body Font:** DM Sans Variable (fallback: sans-serif)
 **Label/Mono Font:** DM Sans Variable for interface labels; ui-monospace, SFMono-Regular, Menlo, monospace for keyboard hints.
 
-**Character:** The single variable sans keeps the interface open and practical. Size, weight, and modest negative tracking create hierarchy; keyboard hints use a compact system mono.
+**Character:** DM Sans keeps the interface open and practical. Playwrite FR Moderne adds a small handwritten signature to the brand without entering message copy; keyboard hints use a compact system mono.
 
 ### Hierarchy
 - **Display** (650, clamp(28px, 3.7vw, 44px), 1.12): Mailbox headings; on narrow screens the heading reduces to a 28–34px clamp.
@@ -179,8 +187,9 @@ Appearance mode and palette are separate settings. Mode can follow the system, s
 - **Title** (680, 15px, natural line height): Thread subjects in the list; previews sit at 12px with a 1.5 line height.
 - **Body** (500, 15px, 1.8): Message content, with a maximum reading measure of 68ch; the mobile body uses 14px with a 1.75 line height.
 - **Label** (620, 13px): Primary controls and compact actions. Small metadata steps down to 10–12px.
+- **Brand** (300, 20px): The Courrier wordmark in the top bar; auth pages use 23px, and the mobile top bar uses 18px.
 
-Use weight and scale within DM Sans Variable instead of adding a separate display face. Keep message copy at a comfortable reading measure.
+Use weight and scale within DM Sans Variable for interface headings. Keep message copy at a comfortable reading measure.
 
 ## Layout
 
@@ -253,10 +262,11 @@ The controls feel quiet at rest and gain a clear ink-teal response on hover or k
 - **Do** build mailbox pages as one chronological list with flat rows and fine dividers.
 - **Do** keep each open thread on its own reading route in a centered 816px maximum sheet.
 - **Do** use DM Sans Variable for interface and message content, with size and weight for hierarchy.
+- **Do** keep Playwrite FR Moderne limited to the Courrier wordmark.
 - **Do** keep keyboard focus visible and respect reduced-motion preferences.
 
 ### Don't:
 - **Don't** add paper textures, fake postage, or decorative stationery to suggest paper.
 - **Don't** keep a persistent message list beside an open thread or wrap ordinary mail rows in nested cards.
 - **Don't** use glass blur on the reader action dock.
-- **Don't** introduce a second display font or use semantic red and blue as brand accents.
+- **Don't** introduce a second display font for page headings or use semantic red and blue as brand accents.

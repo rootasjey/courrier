@@ -64,7 +64,7 @@
         </div>
         <div class="letter-preview-envelope">
           <span class="envelope-flap" />
-          <span class="envelope-mark">C</span>
+          <BrandMark class="envelope-mark" />
         </div>
       </div>
       <div class="login-aside-copy">

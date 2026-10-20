@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Playwrite FR Moderne";
+  font-style: normal;
+  font-weight: 100 400;
+  font-display: swap;
+  src: url("../fonts/PlaywriteFRModerne-VF.woff2") format("woff2");
+}
+
 :root {
   color-scheme: light;
   --canvas: #f5f4ef;
@@ -1720,4 +1728,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     height: 40px;
     flex: 0 0 40px;
   }
+}
+
+/* Reserve the handwritten face for the wordmark; DM Sans stays on all UI and mail text. */
+.brand-trigger .brand-name,
+.login-brand > span {
+  font-family: "Playwrite FR Moderne", cursive;
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+.login-brand > span { font-size: 23px; }
+
+@media (max-width: 720px) {
+  .brand-trigger .brand-name { font-size: 18px; }
 }
