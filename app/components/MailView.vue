@@ -100,16 +100,11 @@
         </div>
       </Transition>
 
-      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || bulkActionFeedback || bulkActionError || threadMergeFeedback || threadMergeError || paletteFeedback || paletteError || unreadActionFeedback || unreadActionUndoIds.length || unreadActionError" class="action-feedback">
+      <div v-if="classificationFeedback || undoClassificationId || classificationActionError || screenerActionError || bulkActionFeedback || bulkActionError || threadMergeFeedback || threadMergeError || paletteFeedback || paletteError" class="action-feedback">
         <p v-if="classificationFeedback" class="classification-feedback" role="status">{{ classificationFeedback }}</p>
         <button v-if="undoClassificationId" class="undo-action" type="button" :disabled="isUndoingClassification" @click="undoSenderRule">
           {{ isUndoingClassification ? $t('mail.undoing') : $t('mail.undoClassification') }}
         </button>
-        <p v-if="unreadActionFeedback" class="classification-feedback" role="status">{{ unreadActionFeedback }}</p>
-        <button v-if="unreadActionUndoIds.length" class="undo-action" type="button" :disabled="isUndoingUnreadAction" @click="undoMarkOpenThreadUnseen">
-          {{ isUndoingUnreadAction ? $t('messageActions.undoingMarkUnseen') : $t('messageActions.undoMarkUnseen') }}
-        </button>
-        <p v-if="unreadActionError" class="action-feedback-error" role="alert">{{ unreadActionError }}</p>
         <p v-if="classificationActionError" class="action-feedback-error" role="alert">{{ classificationActionError }}</p>
         <p v-if="screenerActionError" class="action-feedback-error" role="alert">{{ screenerActionError }}</p>
         <p v-if="bulkActionFeedback" class="classification-feedback" role="status">{{ bulkActionFeedback }}</p>
@@ -1272,11 +1267,8 @@ const isMovingOpenThread = ref(false)
 const threadMoveMenuOpen = ref(false)
 const threadActionFeedback = ref('')
 const threadActionError = ref('')
-const unreadActionFeedback = useState('courrier-unread-action-feedback', () => '')
-const unreadActionUndoIds = useState<string[]>('courrier-unread-action-undo-ids', () => [])
-const unreadActionError = useState('courrier-unread-action-error', () => '')
-const isUndoingUnreadAction = useState('courrier-unread-action-undoing', () => false)
-const unreadActionNoticeRevision = useState('courrier-unread-action-notice-revision', () => 0)
+const activityRefreshRevision = useState('courrier-activity-refresh-revision', () => 0)
+const mailStateRefreshRevision = useState('courrier-mail-state-refresh-revision', () => 0)
 const bulkActionFeedback = ref('')
 const bulkActionError = ref('')
 const isApplyingBulkAction = ref(false)
@@ -1319,7 +1311,6 @@ let lastScreenerClearRequest = screenerClearRequest.value
 const isImportingFixture = ref(false)
 const fixtureError = ref('')
 let undoTimer: ReturnType<typeof setTimeout> | undefined
-let unreadActionTimer: ReturnType<typeof setTimeout> | undefined
 
 function openNewComposer() {
   composeDraftId.value = null
@@ -1434,6 +1425,10 @@ async function refreshMessages() {
   await refreshInboxMessages()
   if (selectedId.value) await loadThreadContent(selectedId.value)
 }
+
+watch(mailStateRefreshRevision, () => {
+  void refreshMessages()
+})
 
 watch([activeFolder, isGlobalSearch], () => {
   threadSelectionMode.value = false
@@ -2565,8 +2560,7 @@ async function applyBulkAction(
     const count = result.affectedThreads
     const plural = count === 1 ? 'One' : 'Many'
     if (action === 'mark-unseen') {
-      // The changed unread state is visible in the list; use the existing singular confirmation when it applies.
-      bulkActionFeedback.value = count === 1 ? $t('messageActions.markedUnseen') : ''
+      activityRefreshRevision.value += 1
     } else {
       const key = action === 'mark-seen' ? `bulk.markSeenDone${plural}`
         : action === 'reply-later' ? options.enabled ? `bulk.replyLaterDone${plural}` : `bulk.replyLaterRemoved${plural}`
@@ -2759,22 +2753,6 @@ function setMessageRead(message: InboxMessage, isRead: boolean) {
   inboxMessages.value = [...(inboxMessages.value ?? [])]
 }
 
-function showUnreadActionNotice(message: string, undoMessageIds: string[] = [], duration = 20_000) {
-  unreadActionFeedback.value = message
-  unreadActionUndoIds.value = undoMessageIds
-  unreadActionError.value = ''
-  unreadActionNoticeRevision.value += 1
-  const noticeRevision = unreadActionNoticeRevision.value
-  if (unreadActionTimer) clearTimeout(unreadActionTimer)
-  unreadActionTimer = setTimeout(() => {
-    if (unreadActionNoticeRevision.value !== noticeRevision) return
-    unreadActionFeedback.value = ''
-    unreadActionUndoIds.value = []
-    unreadActionError.value = ''
-    unreadActionTimer = undefined
-  }, duration)
-}
-
 async function markOpenThreadUnseen() {
   const messages = selectedThread.value?.messages ?? []
   if (!messages.length || isMarkingThreadUnseen.value) return
@@ -2789,62 +2767,24 @@ async function markOpenThreadUnseen() {
     return
   }
 
-  const results = await Promise.allSettled(unreadMessages.map(async (message) => {
+  unreadMessages.forEach((message) => {
     setMessageRead(message, false)
-    try {
-      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/read`, {
-        method: 'PATCH',
-        body: { isRead: false },
-      })
-    } catch (error) {
-      setMessageRead(message, true)
-      throw error
-    }
-  }))
-
-  if (results.some(result => result.status === 'rejected')) {
-    threadActionError.value = $t('messageActions.markUnseenError')
-  } else {
-    showUnreadActionNotice($t('messageActions.markedUnseen'), unreadMessages.map(message => message.id))
+  })
+  try {
+    const result = await $fetch<{ activityId?: string, alreadyUnseen?: boolean }>(
+      `/api/threads/${encodeURIComponent(selectedThread.value!.id)}/mark-unseen`,
+      { method: 'POST' },
+    )
+    if (result.activityId) activityRefreshRevision.value += 1
     closeMessage()
+  } catch {
+    unreadMessages.forEach((message) => {
+      setMessageRead(message, true)
+    })
+    threadActionError.value = $t('messageActions.markUnseenError')
+    await refreshMessages().catch(() => {})
   }
   isMarkingThreadUnseen.value = false
-}
-
-async function undoMarkOpenThreadUnseen() {
-  const messageIds = [...unreadActionUndoIds.value]
-  if (!messageIds.length || isUndoingUnreadAction.value) return
-
-  if (unreadActionTimer) {
-    clearTimeout(unreadActionTimer)
-    unreadActionTimer = undefined
-  }
-  unreadActionNoticeRevision.value += 1
-  isUndoingUnreadAction.value = true
-  unreadActionError.value = ''
-  const messages = (inboxMessages.value ?? []).filter(message => messageIds.includes(message.id) && !message.isRead)
-  const results = await Promise.allSettled(messages.map(async (message) => {
-    setMessageRead(message, true)
-    try {
-      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/read`, {
-        method: 'PATCH',
-        body: { isRead: true },
-      })
-    } catch (error) {
-      setMessageRead(message, false)
-      throw error
-    }
-  }))
-
-  const failedIds = results.flatMap((result, index) => result.status === 'rejected' ? [messages[index]!.id] : [])
-  unreadActionUndoIds.value = failedIds
-  if (failedIds.length) {
-    showUnreadActionNotice(unreadActionFeedback.value, failedIds)
-    unreadActionError.value = $t('messageActions.undoMarkUnseenError')
-  } else {
-    showUnreadActionNotice($t('messageActions.markUnseenUndone'), [], 5_000)
-  }
-  isUndoingUnreadAction.value = false
 }
 
 function navigateToFolder(folder: Folder) {

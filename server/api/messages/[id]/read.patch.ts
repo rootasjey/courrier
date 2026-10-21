@@ -17,9 +17,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const result = await bindings.DB.prepare(`
-    UPDATE messages SET is_read = ?
+    UPDATE messages
+    SET is_read = ?,
+      read_state_version = read_state_version + CASE WHEN is_read != ? THEN 1 ELSE 0 END
     WHERE id = ? AND ${workspaceMessageScope('messages', user.id)}
-  `).bind(body.isRead ? 1 : 0, id, user.activeWorkspaceId)
+  `).bind(body.isRead ? 1 : 0, body.isRead ? 1 : 0, id, user.activeWorkspaceId)
     .run()
 
   if (!result.meta.changes) {

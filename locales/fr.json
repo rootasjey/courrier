@@ -15,6 +15,30 @@
       "setAside": "Fils mis de côté"
     }
   },
+  "activity": {
+    "title": "Historique des actions",
+    "open": "Ouvrir l’historique d’activité",
+    "retention": "Les actions des 12 derniers mois.",
+    "eyebrow": "Courrier",
+    "pageDescription": "Les actions récentes effectuées dans cet espace de travail.",
+    "actions": {
+      "markUnseen": "Fil marqué comme non lu"
+    },
+    "byActor": "Par {actor}",
+    "unknownTarget": "Fil indisponible",
+    "unknownAction": "Action dans Courrier",
+    "undo": "Annuler",
+    "undoing": "Annulation…",
+    "undoAction": "Annuler : {action} — {target}",
+    "undone": "Annulée",
+    "loading": "Chargement…",
+    "empty": "Aucune action récente.",
+    "loadError": "L’historique n’a pas pu être chargé.",
+    "undoError": "Cette action n’a pas pu être annulée. Le fil a peut-être changé.",
+    "retry": "Réessayer",
+    "loadMore": "Charger la suite",
+    "viewAll": "Voir l’historique complet"
+  },
   "palette": {
     "title": "Recherche et commandes",
     "description": "Recherche dans tes messages, ouvre une boîte ou lance une action.",

@@ -65,6 +65,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
     if (path === '/api/export') return 'mail.export'
     if (path === '/api/messages' || path === '/api/search' || path === '/api/outgoing-drafts'
       || path === '/api/contacts/profile' || path === '/api/contacts/suggestions'
+      || path === '/api/activity'
       || /^\/api\/messages\/[^/]+\/draft$/.test(path)
       || /^\/api\/(?:attachments\/[^/]+|outgoing-drafts\/[^/]+(?:\/attachments\/[^/]+\/content)?)$/.test(path)) {
       return 'mail.read'
@@ -78,7 +79,12 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
   if ((normalizedMethod === 'POST' && /^\/api\/messages\/[^/]+\/(?:block-sender|unblock-sender|restore-screener)$/.test(path))
     || (normalizedMethod === 'PATCH' && /^\/api\/messages\/[^/]+\/(?:folder|group-folder|read|reply-later|set-aside)$/.test(path))
     || (normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/sender-rule$/.test(path))
-    || (normalizedMethod === 'POST' && (path === '/api/screener/clear' || /^\/api\/sender-rule-changes\/[^/]+\/undo$/.test(path)))) {
+    || (normalizedMethod === 'POST' && (
+      path === '/api/screener/clear'
+      || /^\/api\/sender-rule-changes\/[^/]+\/undo$/.test(path)
+      || /^\/api\/activity\/[^/]+\/undo$/.test(path)
+      || /^\/api\/threads\/[^/]+\/mark-unseen$/.test(path)
+    ))) {
     return 'mail.classify'
   }
   if ((normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/draft$/.test(path))

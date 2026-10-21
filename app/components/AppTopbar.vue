@@ -44,6 +44,7 @@
       </div>
 
       <div class="topbar-end">
+        <ActivityHistoryMenu v-if="accountSession?.activeWorkspaceId" />
         <NPopover
           :open="accountMenuOpen"
           :modal="false"

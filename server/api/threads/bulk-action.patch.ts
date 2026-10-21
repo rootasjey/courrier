@@ -5,6 +5,8 @@ import { getWorkspaceUserFromContext, requireWorkspacePermission, workspaceDomai
 type MailFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
 type BulkMessage = ThreadableMessage & {
   is_read: number
+  read_state_version: number
+  mailbox_id: string
   is_set_aside: number
   is_reply_later: number
   trashed_at: string | null
@@ -34,6 +36,7 @@ export default defineEventHandler(async (event) => {
 
   const action = body.action as Action
   if (action === 'trash') await requireWorkspacePermission(event, 'mail.trash')
+  if (action === 'mark-unseen') await requireWorkspacePermission(event, 'mail.classify')
   const source = body.source
   const destination = body.folder
   if (action === 'move' && (typeof destination !== 'string' || !folders.has(destination as MailFolder))) {
@@ -45,12 +48,20 @@ export default defineEventHandler(async (event) => {
 
   const [messagesResult, mergesResult] = await Promise.all([
     bindings.DB.prepare(`
-      SELECT id, message_id, mailbox_domain, folder, in_reply_to, references_header,
-        is_read, is_set_aside, is_reply_later, trashed_at
+      SELECT messages.id, messages.message_id, messages.mailbox_domain, messages.folder,
+        messages.in_reply_to, messages.references_header, messages.is_read,
+        messages.read_state_version, messages.is_set_aside, messages.is_reply_later,
+        messages.trashed_at, mailboxes.id AS mailbox_id
       FROM messages
+      JOIN mailboxes
+        ON mailboxes.workspace_id = ?
+        AND mailboxes.status = 'active'
+        AND lower(mailboxes.address) = lower(trim(
+          CASE WHEN messages.is_outgoing = 1 THEN messages.envelope_from ELSE messages.envelope_to END
+        ))
       WHERE folder IN ('Imbox', 'The Feed', 'Paper Trail') AND trashed_at IS NULL
         AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
-    `).bind(user.activeWorkspaceId).all<BulkMessage>(),
+    `).bind(user.activeWorkspaceId, user.activeWorkspaceId).all<BulkMessage>(),
     bindings.DB.prepare(`
       SELECT thread_merge_members.merge_id, thread_merges.mailbox_domain,
         thread_merges.folder, thread_merge_members.root_message_id
@@ -88,17 +99,84 @@ export default defineEventHandler(async (event) => {
   const messageIdsJson = JSON.stringify(affectedIds)
   const mergeIdsJson = JSON.stringify(mergeIds)
   const statements: D1PreparedStatement[] = []
+  const unreadActivityIds: string[] = []
+
+  if (action === 'mark-unseen') {
+    const createdAt = new Date().toISOString()
+    const undoExpiresAt = new Date(Date.now() + 20_000).toISOString()
+    for (const root of threadRoots) {
+      const threadMessages = affectedMessages.filter(message => grouping.threadIds.get(message.id) === root)
+      const unreadMessages = threadMessages.filter(message => message.is_read === 1)
+      if (!unreadMessages.length) continue
+
+      const target = selectedMessages.find(message => grouping.threadIds.get(message!.id) === root)
+      if (!target) continue
+      const activityId = crypto.randomUUID()
+      const undoDataJson = JSON.stringify({
+        version: 1,
+        messages: unreadMessages.map(message => ({
+          id: message.id,
+          previousIsRead: 1,
+          previousReadVersion: message.read_state_version,
+          appliedIsRead: 0,
+          appliedReadVersion: message.read_state_version + 1,
+        })),
+      })
+      unreadActivityIds.push(activityId)
+      statements.push(bindings.DB.prepare(`
+        INSERT INTO workspace_activity (
+          id, workspace_id, actor_type, actor_id, actor_label, action_type,
+          target_type, target_id, mailbox_id, undo_data_json, created_at, undo_expires_at
+        )
+        SELECT ?, ?, 'user', ?, ?, 'thread.mark_unseen', 'thread', ?, ?, ?, ?, ?
+        WHERE (
+          SELECT COUNT(*) FROM json_each(?, '$.messages') AS undo_item
+          JOIN messages ON messages.id = json_extract(undo_item.value, '$.id')
+          WHERE messages.is_read = CAST(json_extract(undo_item.value, '$.previousIsRead') AS INTEGER)
+            AND messages.read_state_version = CAST(json_extract(undo_item.value, '$.previousReadVersion') AS INTEGER)
+            AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+        ) = ?
+      `).bind(
+        activityId,
+        user.activeWorkspaceId,
+        user.id,
+        user.displayName || user.email,
+        target.id,
+        target.mailbox_id,
+        undoDataJson,
+        createdAt,
+        undoExpiresAt,
+        undoDataJson,
+        user.activeWorkspaceId,
+        unreadMessages.length,
+      ))
+    }
+  }
 
   if (action === 'mark-seen') {
     statements.push(bindings.DB.prepare(`
-      UPDATE messages SET is_read = 1 WHERE id IN (SELECT value FROM json_each(?))
+      UPDATE messages SET is_read = 1,
+        read_state_version = read_state_version + CASE WHEN is_read != 1 THEN 1 ELSE 0 END
+      WHERE id IN (SELECT value FROM json_each(?))
         AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(messageIdsJson, user.activeWorkspaceId))
   } else if (action === 'mark-unseen') {
-    statements.push(bindings.DB.prepare(`
-      UPDATE messages SET is_read = 0 WHERE id IN (SELECT value FROM json_each(?))
-        AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
-    `).bind(messageIdsJson, user.activeWorkspaceId))
+    if (unreadActivityIds.length) {
+      statements.push(bindings.DB.prepare(`
+        UPDATE messages
+        SET is_read = 0, read_state_version = read_state_version + 1
+        WHERE id IN (
+          SELECT json_extract(undo_item.value, '$.id')
+          FROM workspace_activity AS activity,
+            json_each(activity.undo_data_json, '$.messages') AS undo_item
+          WHERE activity.id IN (SELECT value FROM json_each(?))
+            AND activity.workspace_id = ?
+            AND messages.is_read = CAST(json_extract(undo_item.value, '$.previousIsRead') AS INTEGER)
+            AND messages.read_state_version = CAST(json_extract(undo_item.value, '$.previousReadVersion') AS INTEGER)
+        )
+          AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
+      `).bind(JSON.stringify(unreadActivityIds), user.activeWorkspaceId, user.activeWorkspaceId))
+    }
   } else if (action === 'reply-later') {
     const enabled = body.enabled as boolean
     if (enabled && affectedMessages.some(message => message.is_set_aside)) {
@@ -138,6 +216,10 @@ export default defineEventHandler(async (event) => {
       UPDATE messages SET trashed_at = ? WHERE id IN (SELECT value FROM json_each(?))
         AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
     `).bind(new Date().toISOString(), messageIdsJson, user.activeWorkspaceId))
+  }
+
+  if (!statements.length) {
+    return { action, affectedThreads: threadRoots.size, affectedMessages: affectedIds.length }
   }
 
   await bindings.DB.batch(statements)

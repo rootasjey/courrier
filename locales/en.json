@@ -15,6 +15,30 @@
       "setAside": "Threads set aside"
     }
   },
+  "activity": {
+    "title": "Activity history",
+    "open": "Open activity history",
+    "retention": "Actions from the last 12 months.",
+    "eyebrow": "Courrier",
+    "pageDescription": "Recent actions in this workspace.",
+    "actions": {
+      "markUnseen": "Thread marked as unread"
+    },
+    "byActor": "By {actor}",
+    "unknownTarget": "Unavailable thread",
+    "unknownAction": "Courrier action",
+    "undo": "Undo",
+    "undoing": "Undoing…",
+    "undoAction": "Undo: {action} — {target}",
+    "undone": "Undone",
+    "loading": "Loading…",
+    "empty": "No recent actions.",
+    "loadError": "The activity history could not be loaded.",
+    "undoError": "This action could not be undone. The thread may have changed.",
+    "retry": "Retry",
+    "loadMore": "Load more",
+    "viewAll": "View full history"
+  },
   "palette": {
     "title": "Search and commands",
     "description": "Search your messages, open a mailbox, or run an action.",
