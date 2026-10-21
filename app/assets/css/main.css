@@ -1829,18 +1829,26 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-menu-header p { margin: 3px 0 0; color: var(--quiet); font-size: 11px; }
 .activity-menu-all {
   display: flex;
-  min-height: 38px;
+  min-height: 40px;
   align-items: center;
   justify-content: space-between;
-  margin-top: 3px;
-  padding: 0 3px;
+  margin-top: 4px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-wash) 72%, var(--sheet));
   color: var(--accent);
   font-size: 12px;
   font-weight: 640;
   text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease;
 }
 .activity-menu-all { animation-delay: 90ms; }
-.activity-menu-all:hover { text-decoration: underline; }
+.activity-menu-all:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: var(--accent-wash);
+}
+.activity-menu-all:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 48%, transparent); outline-offset: 2px; }
 .activity-menu-all span { width: 15px; height: 15px; }
 
 .workspace-activity-list { min-width: 0; }
@@ -1894,7 +1902,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .workspace-activity-undo:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); background: var(--accent-wash); }
 .workspace-activity-undo:focus-visible, .workspace-activity-load-more:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 48%, transparent); outline-offset: 2px; }
 .workspace-activity-undo:disabled { opacity: .62; cursor: wait; }
-.workspace-activity-undone { align-self: center; color: var(--quiet); font-size: 10px; }
+.workspace-activity-undone-icon {
+  width: 15px;
+  height: 15px;
+  align-self: center;
+  color: var(--quiet);
+  cursor: help;
+}
+.workspace-activity-undone-icon:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 48%, transparent); outline-offset: 2px; border-radius: 4px; }
 .workspace-activity-empty, .workspace-activity-loading { margin: 0; padding: 18px 4px; color: var(--quiet); font-size: 12px; text-align: center; }
 .workspace-activity-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0; padding: 10px 2px; color: var(--error); font-size: 12px; }
 .workspace-activity-error button { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 650; text-decoration: underline; cursor: pointer; }
@@ -1961,7 +1976,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .activity-trigger { transition: none; }
+  .activity-trigger, .activity-menu-all { transition: none; }
   .activity-menu-panel.popover-content[data-state="open"] { animation: courrier-activity-menu-fade-in 100ms ease both; }
   .activity-menu-panel.popover-content[data-state="closed"] { animation: courrier-activity-menu-fade-out 80ms ease both; }
   .activity-menu-header, .activity-menu-content > .workspace-activity-list, .activity-menu-all,

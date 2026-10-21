@@ -65,7 +65,18 @@
                   >
                     {{ undoingId === target.id ? $t('activity.undoing') : $t('activity.undo') }}
                   </button>
-                  <span v-else-if="target.undoneAt" class="workspace-activity-undone">{{ $t('activity.undone') }}</span>
+                  <NTooltip
+                    v-else-if="target.undoneAt"
+                    :content="$t('activity.undone')"
+                    :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }"
+                  >
+                    <span
+                      class="workspace-activity-undone-icon i-tabler-arrow-back-up"
+                      role="img"
+                      tabindex="0"
+                      :aria-label="$t('activity.undone')"
+                    />
+                  </NTooltip>
                   <small v-if="undoErrorForId === target.id" class="workspace-activity-error" role="alert">{{ undoError }}</small>
                 </li>
               </ul>
@@ -92,7 +103,18 @@
         >
           {{ undoingId === item.targets[0].id ? $t('activity.undoing') : $t('activity.undo') }}
         </button>
-        <span v-else-if="item.undoneAt" class="workspace-activity-undone">{{ $t('activity.undone') }}</span>
+        <NTooltip
+          v-else-if="item.undoneAt"
+          :content="$t('activity.undone')"
+          :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }"
+        >
+          <span
+            class="workspace-activity-undone-icon i-tabler-arrow-back-up"
+            role="img"
+            tabindex="0"
+            :aria-label="$t('activity.undone')"
+          />
+        </NTooltip>
       </li>
     </ol>
 
