@@ -127,6 +127,12 @@ components:
     typography: "{typography.body}"
     width: "100%"
     height: "calc(100vh - 76px)"
+  activity-menu:
+    backgroundColor: "{colors.sheet}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.menu}"
+    padding: "14px"
+    width: "min(380px, calc(100vw - 24px))"
 ---
 
 # Design System: Courrier
@@ -256,6 +262,8 @@ The controls feel quiet at rest and gain a clear ink-teal response on hover or k
 
 **Composer workspace.** Keep the full-screen writing surface with ruled recipient fields, a generous editor, and its current popup and minimized forms.
 
+**Action history.** Keep the recent-actions menu near the account control and the complete history on its own route. The menu keeps a fixed width and opens vertically; action rows remain compact, with undo presented as a separate control.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -264,6 +272,7 @@ The controls feel quiet at rest and gain a clear ink-teal response on hover or k
 - **Do** use DM Sans Variable for interface and message content, with size and weight for hierarchy.
 - **Do** keep Playwrite FR Moderne limited to the Courrier wordmark.
 - **Do** keep keyboard focus visible and respect reduced-motion preferences.
+- **Do** keep the recent-actions menu width fixed while its height expands and contracts.
 
 ### Don't:
 - **Don't** add paper textures, fake postage, or decorative stationery to suggest paper.

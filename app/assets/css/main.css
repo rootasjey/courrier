@@ -1897,12 +1897,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-page-card .workspace-activity-item:first-child { border-top: 0; }
 
 @keyframes courrier-activity-menu-in {
-  from { width: min(40px, var(--activity-menu-width)); max-height: 38px; opacity: 0; transform: scale(.94); }
-  to { width: var(--activity-menu-width); max-height: var(--activity-menu-max-height); opacity: 1; transform: scale(1); }
+  from { max-height: 38px; opacity: 0; }
+  to { max-height: var(--activity-menu-max-height); opacity: 1; }
 }
 @keyframes courrier-activity-menu-out {
-  from { width: var(--activity-menu-width); max-height: var(--activity-menu-max-height); opacity: 1; transform: scale(1); }
-  to { width: min(40px, var(--activity-menu-width)); max-height: 38px; opacity: 0; transform: scale(.96); }
+  from { max-height: var(--activity-menu-max-height); opacity: 1; }
+  to { max-height: 38px; opacity: 0; }
 }
 @keyframes courrier-activity-entry {
   from { opacity: 0; transform: translateY(5px); }

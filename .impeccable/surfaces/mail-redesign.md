@@ -1,16 +1,25 @@
+---
+version: 1
+slug: "mail-redesign"
+primary_target: "app/components/AppTopbar.vue"
+related_targets: ["app/pages/activity.vue", "app/components/ActivityHistoryMenu.vue", "app/components/WorkspaceActivityList.vue", "app/pages/mail/[...segments].vue"]
+---
+
 # Courrier — refonte de la messagerie
 
 ## Surface
 
 - Mode: Operate
 - Build path: code-first, explicitly chosen by the user
-- Scope: the shared mail shell, mailbox lists, Screener, dedicated thread reader, and the full-screen composer and its reduced and popup states
+- Scope: the shared mail shell, recent-actions menu and full history route, mailbox lists, Screener, dedicated thread reader, and the full-screen composer and its reduced and popup states
 
 ## Product truth and preserved behavior
 
 Courrier lets one person move between several personal mailboxes, explicitly screen unfamiliar senders, organize messages, and read each conversation on its own route. A message leaves the list when opened; the composer remains a full-screen workspace with existing minimize and detached-popup options.
 
 Keep the existing dedicated pages for Inbox, Screener, Feed, Paper, Reply Later, Set Aside, and Trash. Keep the message route, thread grouping and selection, sender classification, attachments, search and command palette, keyboard shortcuts, account and settings navigation, and the compose/minimize/popup/send/draft flows. Do not add a persistent list beside an open message or a dashboard column of widgets.
+
+The account area also exposes a compact recent-actions menu and a dedicated full-history route. Keep the menu's width fixed while it expands vertically, preserve a separate undo control on eligible actions, and honor reduced-motion preferences.
 
 ## Direction contract
 
@@ -39,4 +48,4 @@ The existing violet/mint styling is evidence of the incumbent UI, not an instruc
 
 ## Verification
 
-Inspect the existing local server on port 3000. Verify the Inbox list, a dedicated thread route, Screener navigation/actions, full-screen compose and its existing minimize/popup controls at desktop and mobile widths in Ego Browser. Verify keyboard navigation/shortcuts still work. Do not submit a message or change sender classification while verifying.
+Inspect the existing local server on port 3000. Verify the Inbox list, recent-actions menu and full-history route, a dedicated thread route, Screener navigation/actions, full-screen compose and its existing minimize/popup controls at desktop and mobile widths in Ego Browser. Verify keyboard navigation/shortcuts still work. Do not submit a message or change sender classification while verifying.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-19T22:09:27Z",
+  "generatedAt": "2026-10-21T09:49:12Z",
   "title": "Design System: Courrier",
   "extensions": {
     "colorMeta": {
@@ -265,6 +265,10 @@
       "label": {
         "displayName": "Label",
         "purpose": "Primary controls and compact actions."
+      },
+      "brand": {
+        "displayName": "Brand",
+        "purpose": "Courrier wordmark only."
       }
     },
     "shadows": [
@@ -309,6 +313,11 @@
         "name": "screener-popover",
         "value": "opacity 150ms ease; transform 180ms cubic-bezier(.2,.7,.2,1)",
         "purpose": "Open and close sender classification choices."
+      },
+      {
+        "name": "activity-history-menu",
+        "value": "max-height 240ms cubic-bezier(.16, 1, .3, 1); opacity 240ms cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "Recent actions menu expands vertically at a fixed width."
       }
     ],
     "breakpoints": [
@@ -414,14 +423,22 @@
       "description": "Keyboard-first actions stay in a compact list, while search results separate subject and date from sender, snippet, and mailbox for quick scanning.",
       "html": "<section class=\"ds-command-palette\"><header class=\"ds-command-search\"><span>Search mail and actions…</span><button type=\"button\" aria-label=\"Close\">×</button></header><div class=\"ds-command-options\"><h3>Messages matching</h3><button class=\"ds-command-result\"><span class=\"ds-result-title\"><strong>Project update and next steps</strong><time>2 days ago</time></span><span class=\"ds-result-detail\"><small><b>Camille Martin</b> · Here are the notes and the next steps…</small><span class=\"ds-result-folder\">Inbox</span></span></button><button class=\"ds-command-result\"><span class=\"ds-result-title\"><strong>Workshop reservation</strong><time>6 days ago</time></span><span class=\"ds-result-detail\"><small><b>Atelier Vélo</b> · Your reservation is confirmed…</small><span class=\"ds-result-folder\">Paper Trail</span></span></button></div><footer class=\"ds-command-footer\"><span>↑ ↓ Browse</span><span>↵ Open</span><span>Esc Close</span></footer></section>",
       "css": ".ds-command-palette { overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); font:13px \"DM Sans Variable\",sans-serif; box-shadow:0 16px 44px rgb(33 25 54 / 18%); } .ds-command-search { display:flex; min-height:58px; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid var(--line); color:var(--quiet); font-size:16px; } .ds-command-options { padding:10px; } .ds-command-options h3 { margin:8px 9px 6px; color:var(--quiet); font-size:11px; font-weight:650; } .ds-command-result { display:grid; width:100%; min-height:64px; gap:6px; padding:8px 12px; border:0; border-radius:9px; background:transparent; color:var(--ink); text-align:left; } .ds-command-result:hover { background:var(--surface-soft); } .ds-result-title,.ds-result-detail { display:flex; min-width:0; align-items:center; justify-content:space-between; gap:12px; } .ds-result-title strong { overflow:hidden; font-size:14px; font-weight:680; text-overflow:ellipsis; white-space:nowrap; } .ds-result-title time { flex:none; color:var(--quiet); font-size:11px; white-space:nowrap; } .ds-result-detail small { min-width:0; overflow:hidden; color:var(--quiet); font-size:11px; text-overflow:ellipsis; white-space:nowrap; } .ds-result-detail b { color:var(--ink); font-weight:620; } .ds-result-folder { flex:none; padding:3px 8px; border-radius:999px; background:var(--accent-wash); color:var(--accent); font-size:10px; font-weight:650; } .ds-command-footer { display:flex; justify-content:flex-end; gap:18px; min-height:48px; padding:0 18px; border-top:1px solid var(--line); color:var(--quiet); font-size:12px; font-weight:600; } @media(max-width:640px) { .ds-result-title,.ds-result-detail { gap:8px; } .ds-result-title strong { font-size:13px; } .ds-result-title time,.ds-result-detail small { font-size:10px; } .ds-result-folder { padding:3px 6px; font-size:9px; } .ds-command-footer { justify-content:space-between; gap:5px; padding:0 10px; font-size:11px; } }"
+    },
+    {
+      "name": "Recent Actions Menu",
+      "kind": "custom",
+      "refersTo": "activity-menu",
+      "description": "A compact topbar popover previews recent actions and opens the full history route.",
+      "html": "<section class=\"ds-activity-menu\"><header class=\"ds-activity-menu-header\"><h2>Actions récentes</h2><p>Conservation pendant 12 mois</p></header><ol class=\"ds-activity-items\"><li><div><strong>Fil marqué comme non lu</strong><span>Objet du fil</span></div><button type=\"button\">Annuler</button></li></ol><a class=\"ds-activity-all\" href=\"#\">Voir tout l’historique</a></section>",
+      "css": ".ds-activity-menu { width: min(380px, calc(100vw - 24px)); max-height: min(540px, calc(100dvh - 82px)); overflow-y: auto; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--sheet); color: var(--ink); box-shadow: 0 12px 30px rgb(33 43 38 / 12%); } .ds-activity-menu-header { padding: 2px 2px 6px; } .ds-activity-menu-header h2 { margin: 0; font-size: 15px; font-weight: 680; } .ds-activity-menu-header p { margin: 3px 0 0; color: var(--quiet); font-size: 11px; } .ds-activity-items { margin: 0; padding: 0; list-style: none; } .ds-activity-items li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px 2px; border-top: 1px solid var(--line); } .ds-activity-items li div { display: grid; min-width: 0; gap: 3px; } .ds-activity-items strong { font-size: 12px; font-weight: 650; } .ds-activity-items span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; } .ds-activity-items button { min-height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--sage-ink); font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; } .ds-activity-all { display: flex; min-height: 38px; align-items: center; justify-content: space-between; color: var(--accent); font-size: 12px; font-weight: 640; text-decoration: none; } .ds-activity-all:hover { text-decoration: underline; }"
     }
   ],
   "narrative": {
     "northStar": "IMPECCABLE’S PICK — Papeterie numérique",
-    "overview": "Courrier is an Operate workspace for personal mail: people move between dedicated mailbox pages, screen unfamiliar senders, and read each conversation on its own route. The approved identity is IMPECCABLE’S PICK — Papeterie numérique. Warm light, fine rules, a single open sans family, and restrained ink-teal cues make the interface feel like a quiet digital writing desk without literal paper decoration.\n\nA mailbox stays a single chronological list with flat rows. Opening a thread replaces the list with one centered reading column; the full-screen composer remains a focused writing workspace, with its existing popup and minimized modes. Light and dark themes keep the same hierarchy while using theme-specific values.",
+    "overview": "Courrier is an Operate workspace for personal mail: people move between dedicated mailbox pages, screen unfamiliar senders, and read each conversation on its own route. The approved identity is IMPECCABLE’S PICK — Papeterie numérique. Warm, quiet surfaces, fine rules, a single open sans family, and restrained theme-specific accents make the interface feel like a digital writing desk without literal paper decoration.\n\nA mailbox stays a single chronological list with flat rows. Opening a thread replaces the list with one centered reading column; the full-screen composer remains a focused writing workspace, with its existing popup and minimized modes. Light and dark themes keep the same hierarchy while using theme-specific values.",
     "keyCharacteristics": [
       "Warm, low-chroma surfaces with fine separators.",
-      "DM Sans Variable supplies the entire interface hierarchy.",
+      "DM Sans Variable supplies the interface and message hierarchy; Playwrite FR Moderne is reserved for the Courrier wordmark.",
       "Chronological mailbox rows stay flat; an open thread gets its own reading surface.",
       "Muted teal marks primary action, selection, and focus; status colors stay semantic."
     ],
@@ -441,13 +458,15 @@
       "Do build mailbox pages as one chronological list with flat rows and fine dividers.",
       "Do keep each open thread on its own reading route in a centered 816px maximum sheet.",
       "Do use DM Sans Variable for interface and message content, with size and weight for hierarchy.",
-      "Do keep keyboard focus visible and respect reduced-motion preferences."
+      "Do keep Playwrite FR Moderne limited to the Courrier wordmark.",
+      "Do keep keyboard focus visible and respect reduced-motion preferences.",
+      "Do keep the recent-actions menu width fixed while its height expands and contracts."
     ],
     "donts": [
-      "Don't add paper textures, fake postage, or decorative stationery to suggest paper.",
-      "Don't keep a persistent message list beside an open thread or wrap ordinary mail rows in nested cards.",
-      "Don't use glass blur on the reader action dock.",
-      "Don't introduce a second display font or use semantic red and blue as brand accents."
+      "Don’t add paper textures, fake postage, or decorative stationery to suggest paper.",
+      "Don’t keep a persistent message list beside an open thread or wrap ordinary mail rows in nested cards.",
+      "Don’t use glass blur on the reader action dock.",
+      "Don’t introduce a second display font for page headings or use semantic red and blue as brand accents."
     ]
   }
 }
