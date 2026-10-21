@@ -1,3 +1,5 @@
+@layer vendor, app, overrides;
+
 @font-face {
   font-family: "Playwrite FR Moderne";
   font-style: normal;
@@ -1805,7 +1807,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .activity-menu-panel {
   --activity-menu-width: min(380px, calc(100vw - 24px));
-  --activity-menu-max-height: min(540px, calc(100dvh - 82px));
+  --activity-menu-max-height: min(600px, calc(100dvh - 82px));
   width: var(--activity-menu-width);
   max-height: var(--activity-menu-max-height);
   overflow-y: auto;
@@ -1907,6 +1909,35 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-page-header > p:last-child { max-width: 520px; margin: 9px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 .activity-page-card { padding: 16px clamp(14px, 3vw, 24px); border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
 .activity-page-card .workspace-activity-item:first-child { border-top: 0; }
+
+@layer overrides {
+  .workspace-activity-group {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .workspace-activity-group > .workspace-activity-target-list { min-height: 0; overflow: hidden; }
+  .workspace-activity-group-enter-active,
+  .workspace-activity-group-leave-active {
+    transition:
+      grid-template-rows 220ms cubic-bezier(.16, 1, .3, 1),
+      opacity 140ms ease;
+  }
+  .workspace-activity-group-enter-from,
+  .workspace-activity-group-leave-to {
+    grid-template-rows: minmax(0, 0fr);
+    opacity: 0;
+  }
+  .workspace-activity-group-enter-to,
+  .workspace-activity-group-leave-from {
+    grid-template-rows: minmax(0, 1fr);
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .workspace-activity-group-enter-active,
+    .workspace-activity-group-leave-active { transition: none; }
+  }
+}
 
 @keyframes courrier-activity-menu-in {
   from { max-height: 38px; opacity: 0; }

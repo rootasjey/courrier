@@ -43,30 +43,34 @@
           <small v-if="item.partiallyUndone" class="workspace-activity-partial">{{ $t('activity.partiallyUndone') }}</small>
           <small v-if="undoErrorForId === item.id" class="workspace-activity-error" role="alert">{{ undoError }}</small>
 
-          <ul v-if="item.targetCount > 1 && isExpanded(item.id)" class="workspace-activity-target-list">
-            <li v-for="target in item.targets" :key="target.id" class="workspace-activity-target-item">
-              <NuxtLink
-                v-if="target.targetHref"
-                class="workspace-activity-target workspace-activity-target-link"
-                :to="target.targetHref"
-              >
-                {{ target.targetLabel || $t('activity.unknownTarget') }}
-              </NuxtLink>
-              <span v-else class="workspace-activity-target">{{ target.targetLabel || $t('activity.unknownTarget') }}</span>
-              <button
-                v-if="target.canUndo && !item.canUndo"
-                class="workspace-activity-undo workspace-activity-target-undo"
-                type="button"
-                :disabled="undoingId === target.id"
-                :aria-label="$t('activity.undoAction', { action: actionLabel(item), target: target.targetLabel || $t('activity.unknownTarget') })"
-                @click="undo(item, target)"
-              >
-                {{ undoingId === target.id ? $t('activity.undoing') : $t('activity.undo') }}
-              </button>
-              <span v-else-if="target.undoneAt" class="workspace-activity-undone">{{ $t('activity.undone') }}</span>
-              <small v-if="undoErrorForId === target.id" class="workspace-activity-error" role="alert">{{ undoError }}</small>
-            </li>
-          </ul>
+          <Transition name="workspace-activity-group">
+            <div v-if="item.targetCount > 1 && isExpanded(item.id)" class="workspace-activity-group">
+              <ul class="workspace-activity-target-list">
+                <li v-for="target in item.targets" :key="target.id" class="workspace-activity-target-item">
+                  <NuxtLink
+                    v-if="target.targetHref"
+                    class="workspace-activity-target workspace-activity-target-link"
+                    :to="target.targetHref"
+                  >
+                    {{ target.targetLabel || $t('activity.unknownTarget') }}
+                  </NuxtLink>
+                  <span v-else class="workspace-activity-target">{{ target.targetLabel || $t('activity.unknownTarget') }}</span>
+                  <button
+                    v-if="target.canUndo && !item.canUndo"
+                    class="workspace-activity-undo workspace-activity-target-undo"
+                    type="button"
+                    :disabled="undoingId === target.id"
+                    :aria-label="$t('activity.undoAction', { action: actionLabel(item), target: target.targetLabel || $t('activity.unknownTarget') })"
+                    @click="undo(item, target)"
+                  >
+                    {{ undoingId === target.id ? $t('activity.undoing') : $t('activity.undo') }}
+                  </button>
+                  <span v-else-if="target.undoneAt" class="workspace-activity-undone">{{ $t('activity.undone') }}</span>
+                  <small v-if="undoErrorForId === target.id" class="workspace-activity-error" role="alert">{{ undoError }}</small>
+                </li>
+              </ul>
+            </div>
+          </Transition>
         </div>
         <button
           v-if="item.canUndo"
