@@ -27,7 +27,7 @@ const isPublicAuthRoute = computed(() => route.path === '/login'
   || route.path.startsWith('/invitation/'))
 const pageTransition = computed(() => isPublicAuthRoute.value || route.path.startsWith('/admin')
   ? false
-  : { name: 'page', mode: 'out-in' as const })
+  : { name: 'page', mode: 'in-out' as const })
 const activeFolder = computed(() => mailboxFromPath(route.path))
 type ThemeMode = 'system' | 'light' | 'dark'
 type ThemeName = 'paper' | 'forest' | 'graphite' | 'lavender' | 'ayu' | 'one-dark-pro' | 'synthwave' | 'shades-purple' | 'min'
