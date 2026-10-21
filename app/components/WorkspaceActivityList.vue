@@ -18,7 +18,14 @@
         <span class="workspace-activity-icon" :class="activityIcon(item)" aria-hidden="true" />
         <div class="workspace-activity-copy">
           <strong>{{ actionLabel(item) }}</strong>
-          <span class="workspace-activity-target">{{ item.targetLabel || $t('activity.unknownTarget') }}</span>
+          <NuxtLink
+            v-if="item.targetHref"
+            class="workspace-activity-target workspace-activity-target-link"
+            :to="item.targetHref"
+          >
+            {{ item.targetLabel || $t('activity.unknownTarget') }}
+          </NuxtLink>
+          <span v-else class="workspace-activity-target">{{ item.targetLabel || $t('activity.unknownTarget') }}</span>
           <small>{{ $t('activity.byActor', { actor: item.actorLabel }) }} · {{ formatDate(item.createdAt) }}</small>
           <small v-if="undoErrorForId === item.id" class="workspace-activity-error" role="alert">{{ undoError }}</small>
         </div>

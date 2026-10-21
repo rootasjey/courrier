@@ -1,14 +1,20 @@
 import type { MailStorageBindings } from '../utils/mail-store'
 import { getWorkspaceUserFromContext, workspaceMessageScope } from '../utils/account-auth'
 import { workspaceActivityCutoff } from '../utils/workspace-activity'
+import { threadPath, type MailboxKey } from '../../app/utils/mailbox-routing'
 
 type ActivityRow = {
   id: string
   actor_type: 'user' | 'agent' | 'system'
   actor_label: string
   action_type: string
+  target_type: string
   target_id: string
   target_label: string | null
+  target_folder: string | null
+  target_is_set_aside: number | null
+  target_is_reply_later: number | null
+  target_trashed_at: string | null
   created_at: string
   undo_expires_at: string | null
   undone_at: string | null
@@ -57,8 +63,12 @@ export default defineEventHandler(async (event) => {
 
   const result = await bindings.DB.prepare(`
     SELECT activity.id, activity.actor_type, activity.actor_label,
-      activity.action_type, activity.target_id,
+      activity.action_type, activity.target_type, activity.target_id,
       COALESCE(subject_override.subject, target.subject) AS target_label,
+      target.folder AS target_folder,
+      target.is_set_aside AS target_is_set_aside,
+      target.is_reply_later AS target_is_reply_later,
+      target.trashed_at AS target_trashed_at,
       activity.created_at, activity.undo_expires_at, activity.undone_at,
       activity.undo_data_json,
       CASE WHEN activity.undone_at IS NULL
@@ -107,6 +117,7 @@ export default defineEventHandler(async (event) => {
       actionType: row.action_type,
       targetId: row.target_id,
       targetLabel: row.target_label,
+      targetHref: activityTargetHref(row),
       createdAt: row.created_at,
       undoExpiresAt: row.undo_expires_at,
       undoneAt: row.undone_at,
@@ -118,6 +129,24 @@ export default defineEventHandler(async (event) => {
       : null,
   }
 })
+
+function activityTargetHref(row: ActivityRow) {
+  if (row.target_type !== 'thread' || !row.target_folder) return null
+
+  const mailbox = row.target_trashed_at
+    ? 'Trash'
+    : row.target_is_reply_later
+      ? 'Reply Later'
+      : row.target_folder === 'Imbox' && row.target_is_set_aside
+        ? 'Set Aside'
+        : row.target_folder
+  const allowedMailboxes: MailboxKey[] = [
+    'Screener', 'Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside', 'Trash',
+  ]
+
+  if (!allowedMailboxes.includes(mailbox as MailboxKey)) return null
+  return threadPath(mailbox as MailboxKey, row.target_id)
+}
 
 function parseActivityCursor(value: string) {
   const separatorIndex = value.lastIndexOf('~')

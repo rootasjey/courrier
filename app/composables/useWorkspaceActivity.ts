@@ -5,6 +5,7 @@ export type WorkspaceActivity = {
   actionType: string
   targetId: string
   targetLabel: string | null
+  targetHref: string | null
   createdAt: string
   undoExpiresAt: string | null
   undoneAt: string | null

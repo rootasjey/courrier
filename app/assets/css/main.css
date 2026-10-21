@@ -1863,6 +1863,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .workspace-activity-copy { display: grid; min-width: 0; gap: 3px; }
 .workspace-activity-copy strong { color: var(--ink); font-size: 12px; font-weight: 650; line-height: 1.4; }
 .workspace-activity-target { overflow: hidden; color: var(--muted); font-size: 12px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+/* Keep this link treatment beside the existing unlayered activity styles so it overrides the global link reset. */
+.workspace-activity-target-link { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 52%, transparent); text-decoration-thickness: 1px; text-underline-offset: 2px; transition: color 140ms ease, text-decoration-color 140ms ease; }
+.workspace-activity-target-link:hover { color: var(--accent-hover); text-decoration-color: currentColor; }
 .workspace-activity-copy small { color: var(--quiet); font-size: 10px; line-height: 1.35; }
 .workspace-activity-undo {
   min-height: 30px;
