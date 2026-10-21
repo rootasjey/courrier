@@ -19,7 +19,6 @@
     "title": "Activity history",
     "open": "Open activity history",
     "retention": "Actions from the last 12 months.",
-    "eyebrow": "Courrier",
     "pageDescription": "Recent actions in this workspace.",
     "actions": {
       "markUnseen": "Thread marked as unread"

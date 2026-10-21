@@ -1,7 +1,11 @@
 <template>
   <main class="mfa-page">
     <section class="mfa-card" aria-labelledby="mfa-heading">
-      <NuxtLink class="settings-back" to="/settings#security">{{ $t('mfa.backToSettings') }}</NuxtLink>
+      <NTooltip :content="$t('mfa.backToSettings')" :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }">
+        <NuxtLink class="settings-back" to="/settings#security" :aria-label="$t('mfa.backToSettings')">
+          <span class="i-tabler-arrow-left" aria-hidden="true" />
+        </NuxtLink>
+      </NTooltip>
       <div class="mfa-mark" aria-hidden="true">⌑</div>
       <h1 id="mfa-heading">{{ $t('mfa.title') }}</h1>
       <p>{{ $t(accountSession?.isPlatformAdmin ? 'mfa.adminDescription' : 'mfa.accountDescription') }}</p>

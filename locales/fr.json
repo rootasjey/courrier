@@ -19,7 +19,6 @@
     "title": "Historique des actions",
     "open": "Ouvrir l’historique d’activité",
     "retention": "Les actions des 12 derniers mois.",
-    "eyebrow": "Courrier",
     "pageDescription": "Les actions récentes effectuées dans cet espace de travail.",
     "actions": {
       "markUnseen": "Fil marqué comme non lu"

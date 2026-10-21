@@ -70,8 +70,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .topbar-start { gap: 14px; }
 .topbar-end { justify-content: flex-end; }
 kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-soft); color: var(--quiet); font-size: 10px; line-height: 1; white-space: nowrap; }
-.topbar-back { color: var(--muted); font-size: 14px; text-decoration: none; }
-.topbar-back:hover, .settings-back:hover { color: var(--accent); }
+.topbar-back, .settings-back {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+.topbar-back:hover, .settings-back:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-wash); color: var(--accent); }
+.topbar-back:focus-visible, .settings-back:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, white); outline-offset: 2px; }
+.topbar-back .i-tabler-arrow-left, .settings-back .i-tabler-arrow-left { width: 18px; height: 18px; }
 .brand-trigger { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .brand-trigger:hover, .brand-trigger[aria-expanded="true"] { background: var(--surface-soft); }
 .brand-mark { display: block; width: 35px; height: 35px; flex: 0 0 auto; }
@@ -536,7 +551,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 /* Settings is a page; only sender classification needs a modal. */
 .settings-page { min-height: calc(100vh - 76px); padding: 56px 24px 90px; }
 .settings-content { width: min(100%, 760px); margin: 0 auto; }
-.settings-back { display: inline-block; margin-bottom: 30px; color: var(--muted); font-size: 13px; text-decoration: none; }
+.settings-back { margin-bottom: 30px; }
 .settings-content > h1 { margin: 0 0 23px; color: var(--ink); font-size: 43px; font-weight: 710; letter-spacing: -1.4px; }
 .settings-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 27px; border-bottom: 1px solid var(--line); scrollbar-width: none; }
 .settings-tabs::-webkit-scrollbar { display: none; }
@@ -1090,7 +1105,7 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 @media (max-width: 720px) {
   .topbar { height: 66px; padding: 0 15px; }
   .topbar-start { gap: 9px; }
-  .topbar-back { font-size: 12px; }
+  .topbar-back { width: 36px; height: 36px; flex-basis: 36px; }
   .brand-trigger { gap: 7px; padding: 4px; }
   .brand-mark { width: 31px; height: 31px; }
   .brand-name { font-size: 18px; }
@@ -1762,7 +1777,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   padding: 0;
   border: 1px solid transparent;
   border-radius: 50%;
-  background: transparent;
+  background: color-mix(in srgb, var(--accent-wash) 56%, var(--paper));
   color: var(--muted);
   cursor: pointer;
   transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
@@ -1789,8 +1804,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: var(--accent);
 }
 .activity-menu-panel {
-  width: min(380px, calc(100vw - 24px));
+  --activity-menu-width: min(380px, calc(100vw - 24px));
+  width: var(--activity-menu-width);
+  height: auto;
   max-height: min(540px, calc(100dvh - 82px));
+  interpolate-size: allow-keywords;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 14px;
@@ -1798,9 +1816,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-radius: 15px;
   background: var(--sheet);
   box-shadow: 0 12px 30px rgb(33 43 38 / 12%);
+  transform-origin: var(--radix-popover-content-transform-origin, top right);
 }
+.activity-menu-panel[data-state="open"] { animation: courrier-activity-menu-in 240ms cubic-bezier(.16, 1, .3, 1) both; }
+.activity-menu-panel[data-state="closed"] { animation: courrier-activity-menu-out 130ms cubic-bezier(.4, 0, 1, 1) both; }
 .activity-menu-content { display: grid; gap: 9px; }
 .activity-menu-header { display: flex; align-items: start; justify-content: space-between; padding: 2px 2px 6px; }
+.activity-menu-header, .activity-menu-all { animation: courrier-activity-entry 190ms cubic-bezier(.16, 1, .3, 1) both; }
+.activity-menu-header { animation-delay: 30ms; }
 .activity-menu-header h2 { margin: 0; color: var(--ink); font-size: 15px; font-weight: 680; }
 .activity-menu-header p { margin: 3px 0 0; color: var(--quiet); font-size: 11px; }
 .activity-menu-all {
@@ -1815,10 +1838,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-weight: 640;
   text-decoration: none;
 }
+.activity-menu-all { animation-delay: 90ms; }
 .activity-menu-all:hover { text-decoration: underline; }
 .activity-menu-all span { width: 15px; height: 15px; }
 
 .workspace-activity-list { min-width: 0; }
+.activity-menu-content > .workspace-activity-list { animation: courrier-activity-menu-fade-in 140ms ease 35ms both; }
 .workspace-activity-items { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
 .workspace-activity-item {
   display: grid;
@@ -1828,6 +1853,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   padding: 11px 2px;
   border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
 }
+.activity-menu-panel .workspace-activity-item { animation: courrier-activity-entry 180ms cubic-bezier(.16, 1, .3, 1) both; }
+.activity-menu-panel .workspace-activity-item:nth-child(1) { animation-delay: 38ms; }
+.activity-menu-panel .workspace-activity-item:nth-child(2) { animation-delay: 56ms; }
+.activity-menu-panel .workspace-activity-item:nth-child(3) { animation-delay: 74ms; }
+.activity-menu-panel .workspace-activity-item:nth-child(4) { animation-delay: 92ms; }
+.activity-menu-panel .workspace-activity-item:nth-child(5) { animation-delay: 110ms; }
+.activity-menu-panel .workspace-activity-item:nth-child(n + 6) { animation-delay: 124ms; }
 .workspace-activity-icon { width: 18px; height: 18px; margin-top: 1px; color: var(--accent); }
 .workspace-activity-copy { display: grid; min-width: 0; gap: 3px; }
 .workspace-activity-copy strong { color: var(--ink); font-size: 12px; font-weight: 650; line-height: 1.4; }
@@ -1860,17 +1892,42 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-page { min-height: calc(100vh - 70px); padding: 34px clamp(18px, 5vw, 64px) 72px; background: var(--canvas); }
 .activity-page-content { width: min(100%, 760px); margin-inline: auto; }
 .activity-page-header { margin-bottom: 22px; }
-.activity-page-eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
 .activity-page-header h1 { margin: 0; color: var(--ink); font-size: clamp(30px, 5vw, 42px); font-weight: 700; letter-spacing: -.04em; line-height: 1.1; }
 .activity-page-header > p:last-child { max-width: 520px; margin: 9px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 .activity-page-card { padding: 16px clamp(14px, 3vw, 24px); border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.activity-page-card .workspace-activity-item:first-child { border-top: 0; }
+
+@keyframes courrier-activity-menu-in {
+  from { width: min(40px, var(--activity-menu-width)); height: 38px; opacity: 0; transform: scale(.94); }
+  to { width: var(--activity-menu-width); height: auto; opacity: 1; transform: scale(1); }
+}
+@keyframes courrier-activity-menu-out {
+  from { width: var(--activity-menu-width); height: auto; opacity: 1; transform: scale(1); }
+  to { width: min(40px, var(--activity-menu-width)); height: 38px; opacity: 0; transform: scale(.96); }
+}
+@keyframes courrier-activity-entry {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes courrier-activity-menu-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes courrier-activity-menu-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .activity-trigger { transition: none; }
+  .activity-menu-panel[data-state="open"] { animation: courrier-activity-menu-fade-in 100ms ease both; }
+  .activity-menu-panel[data-state="closed"] { animation: courrier-activity-menu-fade-out 80ms ease both; }
+  .activity-menu-header, .activity-menu-content > .workspace-activity-list, .activity-menu-all,
+  .activity-menu-panel .workspace-activity-item { animation: courrier-activity-menu-fade-in 100ms ease both; }
 }
 @media (max-width: 720px) {
   .activity-trigger { width: 34px; height: 34px; flex-basis: 34px; }
   .activity-trigger-icon { width: 18px; height: 18px; }
-  .activity-menu-panel { width: min(360px, calc(100vw - 20px)); }
+  .activity-menu-panel { --activity-menu-width: min(360px, calc(100vw - 20px)); }
   .activity-page { padding-top: 24px; }
 }

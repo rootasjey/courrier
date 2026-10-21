@@ -2,7 +2,11 @@
   <header class="topbar">
     <div class="topbar-content">
       <div class="topbar-start">
-        <NuxtLink v-if="showBackLink" class="topbar-back" :to="backTo">{{ $t('topbar.back') }}</NuxtLink>
+        <NTooltip v-if="showBackLink" :content="$t('topbar.back')" :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }">
+          <NuxtLink class="topbar-back" :to="backTo" :aria-label="$t('topbar.back')">
+            <span class="i-tabler-arrow-left" aria-hidden="true" />
+          </NuxtLink>
+        </NTooltip>
         <NPopover
           :open="brandMenuOpen"
           :modal="false"

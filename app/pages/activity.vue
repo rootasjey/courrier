@@ -2,7 +2,6 @@
   <main class="activity-page">
     <div class="activity-page-content">
       <header class="activity-page-header">
-        <p class="activity-page-eyebrow">{{ $t('activity.eyebrow') }}</p>
         <h1>{{ $t('activity.title') }}</h1>
         <p>{{ $t('activity.pageDescription') }}</p>
       </header>
