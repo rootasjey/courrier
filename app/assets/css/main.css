@@ -1817,8 +1817,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: 0 12px 30px rgb(33 43 38 / 12%);
   transform-origin: var(--radix-popover-content-transform-origin, top right);
 }
-.activity-menu-panel[data-state="open"] { animation: courrier-activity-menu-in 240ms cubic-bezier(.16, 1, .3, 1) both; }
-.activity-menu-panel[data-state="closed"] { animation: courrier-activity-menu-out 130ms cubic-bezier(.4, 0, 1, 1) both; }
+.activity-menu-panel.popover-content[data-state="open"] { animation: courrier-activity-menu-in 240ms cubic-bezier(.16, 1, .3, 1) both; }
+.activity-menu-panel.popover-content[data-state="closed"] { animation: courrier-activity-menu-out 130ms cubic-bezier(.4, 0, 1, 1) both; }
 .activity-menu-content { display: grid; gap: 9px; }
 .activity-menu-header { display: flex; align-items: start; justify-content: space-between; padding: 2px 2px 6px; }
 .activity-menu-header, .activity-menu-all { animation: courrier-activity-entry 190ms cubic-bezier(.16, 1, .3, 1) both; }
@@ -1919,8 +1919,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (prefers-reduced-motion: reduce) {
   .activity-trigger { transition: none; }
-  .activity-menu-panel[data-state="open"] { animation: courrier-activity-menu-fade-in 100ms ease both; }
-  .activity-menu-panel[data-state="closed"] { animation: courrier-activity-menu-fade-out 80ms ease both; }
+  .activity-menu-panel.popover-content[data-state="open"] { animation: courrier-activity-menu-fade-in 100ms ease both; }
+  .activity-menu-panel.popover-content[data-state="closed"] { animation: courrier-activity-menu-fade-out 80ms ease both; }
   .activity-menu-header, .activity-menu-content > .workspace-activity-list, .activity-menu-all,
   .activity-menu-panel .workspace-activity-item { animation: courrier-activity-menu-fade-in 100ms ease both; }
 }
