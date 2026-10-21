@@ -71,7 +71,7 @@
                     :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }"
                   >
                     <span
-                      class="workspace-activity-undone-icon i-tabler-arrow-back-up"
+                      class="workspace-activity-undone-icon i-tabler-clock-cancel"
                       role="img"
                       tabindex="0"
                       :aria-label="$t('activity.undone')"
@@ -109,7 +109,7 @@
           :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }"
         >
           <span
-            class="workspace-activity-undone-icon i-tabler-arrow-back-up"
+            class="workspace-activity-undone-icon i-tabler-clock-cancel"
             role="img"
             tabindex="0"
             :aria-label="$t('activity.undone')"
