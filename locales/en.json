@@ -20,6 +20,10 @@
     "open": "Open activity history",
     "retention": "Actions from the last 12 months.",
     "pageDescription": "Recent actions in this workspace.",
+    "searchLabel": "Search activity history",
+    "searchPlaceholder": "Search threads, actions, or people…",
+    "clearSearch": "Clear search",
+    "noSearchResults": "No actions match this search.",
     "actions": {
       "markSeen": "Thread marked as read",
       "markSeenMany": "{count} threads marked as read",

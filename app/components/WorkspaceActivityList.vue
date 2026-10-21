@@ -10,7 +10,7 @@
     </p>
 
     <p v-else-if="!items.length" class="workspace-activity-empty">
-      {{ $t('activity.empty') }}
+      {{ queryText ? $t('activity.noSearchResults') : $t('activity.empty') }}
     </p>
 
     <ol v-else class="workspace-activity-items">
@@ -141,6 +141,7 @@ import {
 
 const props = withDefaults(defineProps<{
   limit?: number
+  query?: string
   showLoadMore?: boolean
 }>(), {
   limit: 8,
@@ -149,6 +150,18 @@ const props = withDefaults(defineProps<{
 
 const { $t } = useI18n()
 const { locale } = useI18nLocale()
+const actionKeyByType: Record<string, string> = {
+  'thread.mark_seen': 'markSeen',
+  'thread.mark_unseen': 'markUnseen',
+  'thread.reply_later.added': 'replyLaterAdded',
+  'thread.reply_later.removed': 'replyLaterRemoved',
+  'thread.set_aside.added': 'setAsideAdded',
+  'thread.set_aside.removed': 'setAsideRemoved',
+  'thread.move.inbox': 'movedInbox',
+  'thread.move.feed': 'movedFeed',
+  'thread.move.paper': 'movedPaper',
+  'thread.trashed': 'trashed',
+}
 const items = ref<WorkspaceActivity[]>([])
 const nextCursor = ref<string | null>(null)
 const loading = ref(true)
@@ -159,6 +172,19 @@ const undoErrorForId = ref('')
 const undoingId = ref('')
 const expandedGroups = ref<string[]>([])
 const requestRevision = ref(0)
+const queryText = computed(() => props.query?.trim() ?? '')
+const actionTypesForSearch = computed(() => {
+  const needle = normalizeSearchText(queryText.value).replace(/\b\d+\b/g, '').trim()
+  if (!needle) return []
+
+  return Object.entries(actionKeyByType)
+    .filter(([, actionKey]) => [1, 2].some((count) => {
+      const plural = count > 1 ? 'Many' : ''
+      const label = $t(`activity.actions.${actionKey}${plural}`, { count })
+      return normalizeSearchText(label).replace(/\b\d+\b/g, '').trim().includes(needle)
+    }))
+    .map(([actionType]) => actionType)
+})
 const activityRefreshRevision = useActivityRefreshRevision()
 const mailStateRefreshRevision = useMailStateRefreshRevision()
 const latestActivityPreview = useLatestActivityPreview()
@@ -167,26 +193,22 @@ watch(activityRefreshRevision, () => {
   void loadFirstPage()
 })
 
+watch(() => props.query, () => {
+  void loadFirstPage(true)
+})
+
 onMounted(() => {
   void loadFirstPage()
 })
 
 function actionLabel(item: WorkspaceActivity) {
   const plural = item.targetCount > 1 ? 'Many' : ''
-  const keyByAction: Record<string, string> = {
-    'thread.mark_seen': 'markSeen',
-    'thread.mark_unseen': 'markUnseen',
-    'thread.reply_later.added': 'replyLaterAdded',
-    'thread.reply_later.removed': 'replyLaterRemoved',
-    'thread.set_aside.added': 'setAsideAdded',
-    'thread.set_aside.removed': 'setAsideRemoved',
-    'thread.move.inbox': 'movedInbox',
-    'thread.move.feed': 'movedFeed',
-    'thread.move.paper': 'movedPaper',
-    'thread.trashed': 'trashed',
-  }
-  const actionKey = keyByAction[item.actionType]
+  const actionKey = actionKeyByType[item.actionType]
   return actionKey ? $t(`activity.actions.${actionKey}${plural}`, { count: item.targetCount }) : $t('activity.unknownAction')
+}
+
+function normalizeSearchText(value: string) {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase(locale.value)
 }
 
 function activityIcon(item: WorkspaceActivity) {
@@ -217,27 +239,44 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
-async function loadFirstPage() {
+function activityQuery(cursor?: string) {
+  const query: Record<string, string | number> = { limit: props.limit }
+  if (queryText.value) {
+    query.q = queryText.value
+    if (actionTypesForSearch.value.length) query.actions = actionTypesForSearch.value.join(',')
+  }
+  if (cursor) query.cursor = cursor
+  return query
+}
+
+async function loadFirstPage(resetItems = false) {
   const revision = ++requestRevision.value
   loading.value = true
   loadError.value = ''
   nextCursor.value = null
+  loadingMore.value = false
+  if (resetItems) {
+    items.value = []
+    expandedGroups.value = []
+  }
 
   try {
     const result = await $fetch<WorkspaceActivityPage>('/api/activity', {
-      query: { limit: props.limit },
+      query: activityQuery(),
     })
     if (revision !== requestRevision.value) return
     items.value = result.items
     nextCursor.value = result.nextCursor
-    latestActivityPreview.value = result.items[0]
-      ? {
-          actionType: result.items[0].actionType,
-          targetCount: result.items[0].targetCount,
-          targetLabel: result.items[0].targetLabel,
-          canUndo: result.items[0].canUndo,
-        }
-      : null
+    if (!queryText.value) {
+      latestActivityPreview.value = result.items[0]
+        ? {
+            actionType: result.items[0].actionType,
+            targetCount: result.items[0].targetCount,
+            targetLabel: result.items[0].targetLabel,
+            canUndo: result.items[0].canUndo,
+          }
+        : null
+    }
   } catch {
     if (revision === requestRevision.value) loadError.value = $t('activity.loadError')
   } finally {
@@ -247,18 +286,21 @@ async function loadFirstPage() {
 
 async function loadMore() {
   if (!nextCursor.value || loadingMore.value) return
+  const revision = requestRevision.value
+  const cursor = nextCursor.value
   loadingMore.value = true
   loadError.value = ''
   try {
     const result = await $fetch<WorkspaceActivityPage>('/api/activity', {
-      query: { limit: props.limit, cursor: nextCursor.value },
+      query: activityQuery(cursor),
     })
+    if (revision !== requestRevision.value) return
     items.value = [...items.value, ...result.items]
     nextCursor.value = result.nextCursor
   } catch {
-    loadError.value = $t('activity.loadError')
+    if (revision === requestRevision.value) loadError.value = $t('activity.loadError')
   } finally {
-    loadingMore.value = false
+    if (revision === requestRevision.value) loadingMore.value = false
   }
 }
 

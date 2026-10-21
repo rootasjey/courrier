@@ -30,12 +30,29 @@ type ActivityGroup = {
   created_at: string
 }
 
+const searchableActionTypes = new Set([
+  'thread.mark_seen',
+  'thread.mark_unseen',
+  'thread.reply_later.added',
+  'thread.reply_later.removed',
+  'thread.set_aside.added',
+  'thread.set_aside.removed',
+  'thread.move.inbox',
+  'thread.move.feed',
+  'thread.move.paper',
+  'thread.trashed',
+])
+
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
   const bindings = event.context.cloudflare?.env as Pick<MailStorageBindings, 'DB'> | undefined
   if (!bindings?.DB) throw createError({ statusCode: 503, statusMessage: 'Le stockage des emails n’est pas prêt.' })
 
   const query = getQuery(event)
+  const searchText = typeof query.q === 'string' ? query.q.trim().slice(0, 100) : ''
+  const searchActionTypes = searchText && typeof query.actions === 'string'
+    ? [...new Set(query.actions.split(',').filter(actionType => searchableActionTypes.has(actionType)))]
+    : []
   const requestedLimit = Number(query.limit)
   const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
     ? Math.min(requestedLimit, 50)
@@ -59,11 +76,32 @@ export default defineEventHandler(async (event) => {
   const groupCursorSql = cursor
     ? 'HAVING (MAX(activity.created_at) < ? OR (MAX(activity.created_at) = ? AND COALESCE(activity.batch_id, activity.id) < ?))'
     : ''
-  const groupBindings: unknown[] = [
-    user.activeWorkspaceId,
-    cutoff,
-    user.id,
-  ]
+  const searchJoins = searchText ? `
+    LEFT JOIN messages AS search_target
+      ON search_target.id = activity.target_id
+      AND activity.target_type = 'thread'
+      AND ${workspaceMessageScope('search_target', user.id)}
+    LEFT JOIN thread_subject_overrides AS search_override
+      ON search_override.thread_id = activity.target_id
+      AND search_override.mailbox_domain = search_target.mailbox_domain
+  ` : ''
+  const searchActionSql = searchActionTypes.length
+    ? `OR activity.action_type IN (${searchActionTypes.map(() => '?').join(', ')})`
+    : ''
+  const searchWhereSql = searchText ? `
+      AND (
+        instr(lower(activity.actor_label), lower(?)) > 0
+        OR instr(lower(activity.action_type), lower(?)) > 0
+        ${searchActionSql}
+        OR instr(lower(COALESCE(search_override.subject, search_target.subject, '')), lower(?)) > 0
+      )
+  ` : ''
+  const groupBindings: unknown[] = []
+  if (searchText) groupBindings.push(user.activeWorkspaceId)
+  groupBindings.push(user.activeWorkspaceId, cutoff, user.id)
+  if (searchText) {
+    groupBindings.push(searchText, searchText, ...searchActionTypes, searchText)
+  }
   if (cursor) groupBindings.push(cursor.createdAt, cursor.createdAt, cursor.id)
   groupBindings.push(limit + 1)
 
@@ -71,6 +109,7 @@ export default defineEventHandler(async (event) => {
     SELECT COALESCE(activity.batch_id, activity.id) AS group_id,
       MAX(activity.created_at) AS created_at
     FROM workspace_activity AS activity
+    ${searchJoins}
     WHERE activity.workspace_id = ?
       AND activity.created_at >= ?
       AND EXISTS (
@@ -80,6 +119,7 @@ export default defineEventHandler(async (event) => {
           AND activity_access.user_id = ?
           AND activity_access.status = 'active'
       )
+      ${searchWhereSql}
     GROUP BY COALESCE(activity.batch_id, activity.id)
     ${groupCursorSql}
     ORDER BY created_at DESC, group_id DESC

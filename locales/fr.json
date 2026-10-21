@@ -20,6 +20,10 @@
     "open": "Ouvrir l’historique d’activité",
     "retention": "Les actions des 12 derniers mois.",
     "pageDescription": "Les actions récentes effectuées dans cet espace de travail.",
+    "searchLabel": "Rechercher dans l’historique",
+    "searchPlaceholder": "Rechercher un fil, une action ou un auteur…",
+    "clearSearch": "Effacer la recherche",
+    "noSearchResults": "Aucune action ne correspond à cette recherche.",
     "actions": {
       "markSeen": "Fil marqué comme lu",
       "markSeenMany": "{count} fils marqués comme lus",

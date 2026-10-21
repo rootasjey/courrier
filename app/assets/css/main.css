@@ -1926,6 +1926,51 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-page-card .workspace-activity-item:first-child { border-top: 0; }
 
 @layer overrides {
+  .activity-page-search {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    color: var(--muted);
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+  .activity-page-search:hover { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); }
+  .activity-page-search:focus-within { border-color: var(--accent); background: var(--paper); }
+  .activity-page-search-icon { width: 18px; height: 18px; flex: 0 0 auto; }
+  .activity-page-search input {
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+  }
+  .activity-page-search input::placeholder { color: var(--quiet); opacity: 1; }
+  .activity-page-search input::-webkit-search-cancel-button { display: none; }
+  .activity-page-search-clear {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--quiet);
+    cursor: pointer;
+  }
+  .activity-page-search-clear:hover { background: var(--accent-wash); color: var(--accent); }
+  .activity-page-search-clear .i-tabler-x { width: 17px; height: 17px; }
+
   .workspace-activity-group {
     display: grid;
     grid-template-rows: minmax(0, 1fr);
