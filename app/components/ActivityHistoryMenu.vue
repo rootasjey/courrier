@@ -50,15 +50,38 @@ const { $t } = useI18n()
 const open = ref(false)
 const activityRefreshRevision = useActivityRefreshRevision()
 const latestActivityPreview = useLatestActivityPreview()
-const latestActivityIcon = computed(() => latestActivityPreview.value?.actionType === 'thread.mark_unseen'
-  ? 'i-tabler-mail-down'
-  : 'i-tabler-history')
+const latestActivityIcon = computed(() => {
+  const type = latestActivityPreview.value?.actionType
+  if (type === 'thread.mark_unseen') return 'i-tabler-mail-down'
+  if (type === 'thread.mark_seen') return 'i-tabler-mail-check'
+  if (type?.startsWith('thread.reply_later.')) return 'i-tabler-clock'
+  if (type?.startsWith('thread.set_aside.')) return 'i-tabler-inbox'
+  if (type?.startsWith('thread.move.')) return 'i-tabler-folder-symlink'
+  if (type === 'thread.trashed') return 'i-tabler-trash'
+  return 'i-tabler-history'
+})
 const tooltipLabel = computed(() => {
   if (!latestActivityPreview.value) return $t('activity.open')
-  const action = latestActivityPreview.value.actionType === 'thread.mark_unseen'
-    ? $t('activity.actions.markUnseen')
+  const keyByAction: Record<string, string> = {
+    'thread.mark_seen': 'markSeen',
+    'thread.mark_unseen': 'markUnseen',
+    'thread.reply_later.added': 'replyLaterAdded',
+    'thread.reply_later.removed': 'replyLaterRemoved',
+    'thread.set_aside.added': 'setAsideAdded',
+    'thread.set_aside.removed': 'setAsideRemoved',
+    'thread.move.inbox': 'movedInbox',
+    'thread.move.feed': 'movedFeed',
+    'thread.move.paper': 'movedPaper',
+    'thread.trashed': 'trashed',
+  }
+  const { actionType, targetCount, targetLabel } = latestActivityPreview.value
+  const actionKey = keyByAction[actionType]
+  const action = actionKey
+    ? $t(`activity.actions.${actionKey}${targetCount > 1 ? 'Many' : ''}`, { count: targetCount })
     : $t('activity.unknownAction')
-  return action + ' · ' + (latestActivityPreview.value.targetLabel || $t('activity.unknownTarget'))
+  return targetCount > 1
+    ? action
+    : action + ' · ' + (targetLabel || $t('activity.unknownTarget'))
 })
 
 function handleOpenChange(value: boolean) {
@@ -73,6 +96,7 @@ async function loadLatestActivity() {
     latestActivityPreview.value = result.items[0]
       ? {
           actionType: result.items[0].actionType,
+          targetCount: result.items[0].targetCount,
           targetLabel: result.items[0].targetLabel,
           canUndo: result.items[0].canUndo,
         }

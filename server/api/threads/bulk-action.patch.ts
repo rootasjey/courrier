@@ -100,35 +100,64 @@ export default defineEventHandler(async (event) => {
   const mergeIdsJson = JSON.stringify(mergeIds)
   const statements: D1PreparedStatement[] = []
   const unreadActivityIds: string[] = []
+  const batchId = crypto.randomUUID()
+  const activityCreatedAt = new Date().toISOString()
+  const undoExpiresAt = new Date(Date.now() + 20_000).toISOString()
+  let activityStatementCount = 0
 
-  if (action === 'mark-unseen') {
-    const createdAt = new Date().toISOString()
-    const undoExpiresAt = new Date(Date.now() + 20_000).toISOString()
-    for (const root of threadRoots) {
-      const threadMessages = affectedMessages.filter(message => grouping.threadIds.get(message.id) === root)
-      const unreadMessages = threadMessages.filter(message => message.is_read === 1)
-      if (!unreadMessages.length) continue
+  const activityActionType = action === 'mark-seen'
+    ? 'thread.mark_seen'
+    : action === 'mark-unseen'
+      ? 'thread.mark_unseen'
+      : action === 'reply-later'
+        ? (body.enabled ? 'thread.reply_later.added' : 'thread.reply_later.removed')
+        : action === 'set-aside'
+          ? (body.enabled ? 'thread.set_aside.added' : 'thread.set_aside.removed')
+          : action === 'move'
+            ? `thread.move.${destination === 'Imbox' ? 'inbox' : destination === 'The Feed' ? 'feed' : 'paper'}`
+            : 'thread.trashed'
 
-      const target = selectedMessages.find(message => grouping.threadIds.get(message!.id) === root)
-      if (!target) continue
-      const activityId = crypto.randomUUID()
-      const undoDataJson = JSON.stringify({
-        version: 1,
-        messages: unreadMessages.map(message => ({
-          id: message.id,
-          previousIsRead: 1,
-          previousReadVersion: message.read_state_version,
-          appliedIsRead: 0,
-          appliedReadVersion: message.read_state_version + 1,
-        })),
-      })
+  for (const root of threadRoots) {
+    const threadMessages = affectedMessages.filter(message => grouping.threadIds.get(message.id) === root)
+    const target = selectedMessages.find(message => grouping.threadIds.get(message!.id) === root)
+    if (!target) continue
+
+    const unreadMessages = threadMessages.filter(message => message.is_read === 1)
+    const changed = action === 'mark-unseen'
+      ? unreadMessages.length > 0
+      : action === 'mark-seen'
+        ? unreadMessages.length > 0
+        : action === 'reply-later'
+          ? threadMessages.some(message => message.is_reply_later !== Number(body.enabled))
+          : action === 'set-aside'
+            ? threadMessages.some(message => message.is_set_aside !== Number(body.enabled))
+            : action === 'move'
+              ? threadMessages.some(message => message.folder !== destination || message.is_set_aside || message.is_reply_later)
+              : true
+    if (!changed) continue
+
+    const activityId = crypto.randomUUID()
+    const undoDataJson = action === 'mark-unseen'
+      ? JSON.stringify({
+          version: 1,
+          messages: unreadMessages.map(message => ({
+            id: message.id,
+            previousIsRead: 1,
+            previousReadVersion: message.read_state_version,
+            appliedIsRead: 0,
+            appliedReadVersion: message.read_state_version + 1,
+          })),
+        })
+      : null
+
+    if (action === 'mark-unseen') {
       unreadActivityIds.push(activityId)
       statements.push(bindings.DB.prepare(`
         INSERT INTO workspace_activity (
-          id, workspace_id, actor_type, actor_id, actor_label, action_type,
+          id, batch_id, workspace_id, actor_type, actor_id, actor_label, action_type,
           target_type, target_id, mailbox_id, undo_data_json, created_at, undo_expires_at
         )
-        SELECT ?, ?, 'user', ?, ?, 'thread.mark_unseen', 'thread', ?, ?, ?, ?, ?
+        SELECT ?, ?, ?, 'user', ?, ?, ?, 'thread', ?, ?, ?, ?, ?
         WHERE (
           SELECT COUNT(*) FROM json_each(?, '$.messages') AS undo_item
           JOIN messages ON messages.id = json_extract(undo_item.value, '$.id')
@@ -138,19 +167,39 @@ export default defineEventHandler(async (event) => {
         ) = ?
       `).bind(
         activityId,
+        batchId,
         user.activeWorkspaceId,
         user.id,
         user.displayName || user.email,
+        activityActionType,
         target.id,
         target.mailbox_id,
         undoDataJson,
-        createdAt,
+        activityCreatedAt,
         undoExpiresAt,
         undoDataJson,
         user.activeWorkspaceId,
         unreadMessages.length,
       ))
+    } else {
+      statements.push(bindings.DB.prepare(`
+        INSERT INTO workspace_activity (
+          id, batch_id, workspace_id, actor_type, actor_id, actor_label, action_type,
+          target_type, target_id, mailbox_id, created_at
+        ) VALUES (?, ?, ?, 'user', ?, ?, ?, 'thread', ?, ?, ?)
+      `).bind(
+        activityId,
+        batchId,
+        user.activeWorkspaceId,
+        user.id,
+        user.displayName || user.email,
+        activityActionType,
+        target.id,
+        target.mailbox_id,
+        activityCreatedAt,
+      ))
     }
+    activityStatementCount += 1
   }
 
   if (action === 'mark-seen') {
@@ -222,6 +271,14 @@ export default defineEventHandler(async (event) => {
     return { action, affectedThreads: threadRoots.size, affectedMessages: affectedIds.length }
   }
 
-  await bindings.DB.batch(statements)
-  return { action, affectedThreads: threadRoots.size, affectedMessages: affectedIds.length }
+  const results = await bindings.DB.batch(statements)
+  const activityCount = results.slice(0, activityStatementCount)
+    .reduce((count, result) => count + result.meta.changes, 0)
+  return {
+    action,
+    affectedThreads: threadRoots.size,
+    affectedMessages: affectedIds.length,
+    activityBatchId: activityCount ? batchId : null,
+    activityCount,
+  }
 })

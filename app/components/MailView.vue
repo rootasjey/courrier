@@ -2549,7 +2549,7 @@ async function applyBulkAction(
   bulkActionError.value = ''
   bulkActionFeedback.value = ''
   try {
-    const result = await $fetch<{ affectedThreads: number }>('/api/threads/bulk-action', {
+    const result = await $fetch<{ affectedThreads: number, activityCount?: number }>('/api/threads/bulk-action', {
       method: 'PATCH',
       body: { threadIds: targetThreadIds, source: activeFolder.value, action, ...options },
     })
@@ -2559,9 +2559,8 @@ async function applyBulkAction(
     if (preserveKeyboardCursor) keyboardSelectionThreadId.value = targetThreadIds[0] ?? ''
     const count = result.affectedThreads
     const plural = count === 1 ? 'One' : 'Many'
-    if (action === 'mark-unseen') {
-      activityRefreshRevision.value += 1
-    } else {
+    if (result.activityCount) activityRefreshRevision.value += 1
+    if (action !== 'mark-unseen') {
       const key = action === 'mark-seen' ? `bulk.markSeenDone${plural}`
         : action === 'reply-later' ? options.enabled ? `bulk.replyLaterDone${plural}` : `bulk.replyLaterRemoved${plural}`
           : action === 'set-aside' ? options.enabled ? `bulk.setAsideDone${plural}` : `bulk.setAsideRemoved${plural}`

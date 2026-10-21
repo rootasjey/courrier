@@ -1866,6 +1866,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Keep this link treatment beside the existing unlayered activity styles so it overrides the global link reset. */
 .workspace-activity-target-link { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 52%, transparent); text-decoration-thickness: 1px; text-underline-offset: 2px; transition: color 140ms ease, text-decoration-color 140ms ease; }
 .workspace-activity-target-link:hover { color: var(--accent-hover); text-decoration-color: currentColor; }
+.workspace-activity-target-toggle { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 1px 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 11px; font-weight: 620; text-align: left; cursor: pointer; }
+.workspace-activity-target-toggle:hover { color: var(--accent-hover); text-decoration: underline; text-underline-offset: 2px; }
+.workspace-activity-target-toggle span:last-child { width: 13px; height: 13px; transition: transform 150ms ease; }
+.workspace-activity-target-toggle span:last-child.is-expanded { transform: rotate(180deg); }
+.workspace-activity-target-list { display: grid; gap: 7px; margin: 4px 0 1px; padding: 8px 0 0; border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent); list-style: none; }
+.workspace-activity-target-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 8px; min-width: 0; }
+.workspace-activity-target-item .workspace-activity-target { min-width: 0; }
+.workspace-activity-target-undo { min-height: 26px; padding-inline: 7px; font-size: 10px; }
+.workspace-activity-partial { color: var(--accent); font-weight: 620; }
 .workspace-activity-copy small { color: var(--quiet); font-size: 10px; line-height: 1.35; }
 .workspace-activity-undo {
   min-height: 30px;

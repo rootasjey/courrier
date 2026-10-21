@@ -5,6 +5,9 @@ import { threadPath, type MailboxKey } from '../../app/utils/mailbox-routing'
 
 type ActivityRow = {
   id: string
+  batch_id: string | null
+  group_id: string
+  group_total_count: number
   actor_type: 'user' | 'agent' | 'system'
   actor_label: string
   action_type: string
@@ -20,6 +23,11 @@ type ActivityRow = {
   undone_at: string | null
   undo_data_json: string | null
   undo_state_valid: number
+}
+
+type ActivityGroup = {
+  group_id: string
+  created_at: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -38,6 +46,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const now = new Date()
+  const nowIso = now.toISOString()
   const cutoff = workspaceActivityCutoff(now)
   const canClassify = await bindings.DB.prepare(`
     SELECT 1 AS allowed
@@ -47,23 +56,52 @@ export default defineEventHandler(async (event) => {
     LIMIT 1
   `).bind(user.id, user.activeWorkspaceId).first<{ allowed: number }>()
 
-  const cursorSql = cursor
-    ? 'AND (activity.created_at < ? OR (activity.created_at = ? AND activity.id < ?))'
+  const groupCursorSql = cursor
+    ? 'HAVING (MAX(activity.created_at) < ? OR (MAX(activity.created_at) = ? AND COALESCE(activity.batch_id, activity.id) < ?))'
     : ''
-  const bindingsList: unknown[] = [
-    now.toISOString(),
+  const groupBindings: unknown[] = [
     user.activeWorkspaceId,
-    user.activeWorkspaceId,
-    user.activeWorkspaceId,
-    user.id,
     cutoff,
+    user.id,
   ]
-  if (cursor) bindingsList.push(cursor.createdAt, cursor.createdAt, cursor.id)
-  bindingsList.push(limit + 1)
+  if (cursor) groupBindings.push(cursor.createdAt, cursor.createdAt, cursor.id)
+  groupBindings.push(limit + 1)
 
-  const result = await bindings.DB.prepare(`
-    SELECT activity.id, activity.actor_type, activity.actor_label,
-      activity.action_type, activity.target_type, activity.target_id,
+  const groupsResult = await bindings.DB.prepare(`
+    SELECT COALESCE(activity.batch_id, activity.id) AS group_id,
+      MAX(activity.created_at) AS created_at
+    FROM workspace_activity AS activity
+    WHERE activity.workspace_id = ?
+      AND activity.created_at >= ?
+      AND EXISTS (
+        SELECT 1 FROM mailbox_access_grants AS activity_access
+        WHERE activity_access.workspace_id = activity.workspace_id
+          AND activity_access.mailbox_id = activity.mailbox_id
+          AND activity_access.user_id = ?
+          AND activity_access.status = 'active'
+      )
+    GROUP BY COALESCE(activity.batch_id, activity.id)
+    ${groupCursorSql}
+    ORDER BY created_at DESC, group_id DESC
+    LIMIT ?
+  `).bind(...groupBindings).all<ActivityGroup>()
+
+  const hasMore = groupsResult.results.length > limit
+  const groups = groupsResult.results.slice(0, limit)
+  if (!groups.length) return { items: [], nextCursor: null }
+
+  const groupIds = groups.map(group => group.group_id)
+  const groupPlaceholders = groupIds.map(() => '?').join(', ')
+  const rowsResult = await bindings.DB.prepare(`
+    SELECT activity.id, activity.batch_id,
+      COALESCE(activity.batch_id, activity.id) AS group_id,
+      (
+        SELECT COUNT(*) FROM workspace_activity AS batch_count
+        WHERE batch_count.workspace_id = activity.workspace_id
+          AND COALESCE(batch_count.batch_id, batch_count.id) = COALESCE(activity.batch_id, activity.id)
+      ) AS group_total_count,
+      activity.actor_type, activity.actor_label, activity.action_type,
+      activity.target_type, activity.target_id,
       COALESCE(subject_override.subject, target.subject) AS target_label,
       target.folder AS target_folder,
       target.is_set_aside AS target_is_set_aside,
@@ -100,32 +138,66 @@ export default defineEventHandler(async (event) => {
           AND activity_access.status = 'active'
       )
       AND activity.created_at >= ?
-      ${cursorSql}
+      AND COALESCE(activity.batch_id, activity.id) IN (${groupPlaceholders})
     ORDER BY activity.created_at DESC, activity.id DESC
-    LIMIT ?
-  `).bind(...bindingsList).all<ActivityRow>()
+  `).bind(
+    nowIso,
+    user.activeWorkspaceId,
+    user.activeWorkspaceId,
+    user.activeWorkspaceId,
+    user.id,
+    cutoff,
+    ...groupIds,
+  ).all<ActivityRow>()
 
-  const hasMore = result.results.length > limit
-  const rows = result.results.slice(0, limit)
-  const nowIso = now.toISOString()
+  const rowsByGroup = new Map<string, ActivityRow[]>()
+  for (const row of rowsResult.results) {
+    const groupRows = rowsByGroup.get(row.group_id) ?? []
+    groupRows.push(row)
+    rowsByGroup.set(row.group_id, groupRows)
+  }
 
-  return {
-    items: rows.map(row => ({
+  const items = groups.flatMap((group) => {
+    const groupRows = rowsByGroup.get(group.group_id) ?? []
+    if (!groupRows.length) return []
+
+    const targets = groupRows.map(row => ({
       id: row.id,
-      actorType: row.actor_type,
-      actorLabel: row.actor_label,
-      actionType: row.action_type,
       targetId: row.target_id,
       targetLabel: row.target_label,
       targetHref: activityTargetHref(row),
-      createdAt: row.created_at,
-      undoExpiresAt: row.undo_expires_at,
-      undoneAt: row.undone_at,
       canUndo: Boolean(canClassify && row.undo_state_valid
         && row.undo_expires_at && row.undo_expires_at > nowIso),
-    })),
-    nextCursor: hasMore && rows.length
-      ? `${rows.at(-1)!.created_at}~${rows.at(-1)!.id}`
+      undoneAt: row.undone_at,
+    }))
+    const first = groupRows[0]!
+    const allTargetsVisible = groupRows.length === Number(first.group_total_count)
+    const allUndoable = allTargetsVisible && targets.every(target => target.canUndo)
+    const undoneCount = targets.filter(target => target.undoneAt).length
+
+    return [{
+      id: group.group_id,
+      batchId: first.batch_id,
+      actorType: first.actor_type,
+      actorLabel: first.actor_label,
+      actionType: first.action_type,
+      targetCount: targets.length,
+      targets,
+      targetId: targets[0]!.targetId,
+      targetLabel: targets[0]!.targetLabel,
+      targetHref: targets[0]!.targetHref,
+      createdAt: group.created_at,
+      undoExpiresAt: first.undo_expires_at,
+      undoneAt: allTargetsVisible && undoneCount === targets.length ? first.undone_at : null,
+      partiallyUndone: undoneCount > 0 && (!allTargetsVisible || undoneCount < targets.length),
+      canUndo: Boolean(canClassify && allUndoable),
+    }]
+  })
+
+  return {
+    items,
+    nextCursor: hasMore && groups.length
+      ? `${groups.at(-1)!.created_at}~${groups.at(-1)!.group_id}`
       : null,
   }
 })

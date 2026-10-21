@@ -83,6 +83,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
       path === '/api/screener/clear'
       || /^\/api\/sender-rule-changes\/[^/]+\/undo$/.test(path)
       || /^\/api\/activity\/[^/]+\/undo$/.test(path)
+      || /^\/api\/activity\/batches\/[^/]+\/undo$/.test(path)
       || /^\/api\/threads\/[^/]+\/mark-unseen$/.test(path)
     ))) {
     return 'mail.classify'

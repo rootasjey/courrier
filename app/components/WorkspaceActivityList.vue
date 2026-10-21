@@ -18,26 +18,75 @@
         <span class="workspace-activity-icon" :class="activityIcon(item)" aria-hidden="true" />
         <div class="workspace-activity-copy">
           <strong>{{ actionLabel(item) }}</strong>
-          <NuxtLink
-            v-if="item.targetHref"
-            class="workspace-activity-target workspace-activity-target-link"
-            :to="item.targetHref"
-          >
-            {{ item.targetLabel || $t('activity.unknownTarget') }}
-          </NuxtLink>
-          <span v-else class="workspace-activity-target">{{ item.targetLabel || $t('activity.unknownTarget') }}</span>
+          <template v-if="item.targetCount > 1">
+            <button
+              class="workspace-activity-target-toggle"
+              type="button"
+              :aria-expanded="isExpanded(item.id)"
+              @click="toggleExpanded(item.id)"
+            >
+              <span>{{ isExpanded(item.id) ? $t('activity.hideTargets', { count: item.targetCount }) : $t('activity.showTargets', { count: item.targetCount }) }}</span>
+              <span class="i-tabler-chevron-down" :class="{ 'is-expanded': isExpanded(item.id) }" aria-hidden="true" />
+            </button>
+          </template>
+          <template v-else>
+            <NuxtLink
+              v-if="item.targets[0]?.targetHref"
+              class="workspace-activity-target workspace-activity-target-link"
+              :to="item.targets[0].targetHref"
+            >
+              {{ item.targets[0].targetLabel || $t('activity.unknownTarget') }}
+            </NuxtLink>
+            <span v-else class="workspace-activity-target">{{ item.targets[0]?.targetLabel || $t('activity.unknownTarget') }}</span>
+          </template>
           <small>{{ $t('activity.byActor', { actor: item.actorLabel }) }} · {{ formatDate(item.createdAt) }}</small>
+          <small v-if="item.partiallyUndone" class="workspace-activity-partial">{{ $t('activity.partiallyUndone') }}</small>
           <small v-if="undoErrorForId === item.id" class="workspace-activity-error" role="alert">{{ undoError }}</small>
+
+          <ul v-if="item.targetCount > 1 && isExpanded(item.id)" class="workspace-activity-target-list">
+            <li v-for="target in item.targets" :key="target.id" class="workspace-activity-target-item">
+              <NuxtLink
+                v-if="target.targetHref"
+                class="workspace-activity-target workspace-activity-target-link"
+                :to="target.targetHref"
+              >
+                {{ target.targetLabel || $t('activity.unknownTarget') }}
+              </NuxtLink>
+              <span v-else class="workspace-activity-target">{{ target.targetLabel || $t('activity.unknownTarget') }}</span>
+              <button
+                v-if="target.canUndo && !item.canUndo"
+                class="workspace-activity-undo workspace-activity-target-undo"
+                type="button"
+                :disabled="undoingId === target.id"
+                :aria-label="$t('activity.undoAction', { action: actionLabel(item), target: target.targetLabel || $t('activity.unknownTarget') })"
+                @click="undo(item, target)"
+              >
+                {{ undoingId === target.id ? $t('activity.undoing') : $t('activity.undo') }}
+              </button>
+              <span v-else-if="target.undoneAt" class="workspace-activity-undone">{{ $t('activity.undone') }}</span>
+              <small v-if="undoErrorForId === target.id" class="workspace-activity-error" role="alert">{{ undoError }}</small>
+            </li>
+          </ul>
         </div>
         <button
           v-if="item.canUndo"
           class="workspace-activity-undo"
           type="button"
           :disabled="undoingId === item.id"
-          :aria-label="$t('activity.undoAction', { action: actionLabel(item), target: item.targetLabel || $t('activity.unknownTarget') })"
+          :aria-label="$t('activity.undoBatchAction', { action: actionLabel(item), count: item.targetCount })"
           @click="undo(item)"
         >
           {{ undoingId === item.id ? $t('activity.undoing') : $t('activity.undo') }}
+        </button>
+        <button
+          v-else-if="item.targetCount === 1 && item.targets[0]?.canUndo"
+          class="workspace-activity-undo"
+          type="button"
+          :disabled="undoingId === item.targets[0].id"
+          :aria-label="$t('activity.undoAction', { action: actionLabel(item), target: item.targets[0].targetLabel || $t('activity.unknownTarget') })"
+          @click="undo(item, item.targets[0])"
+        >
+          {{ undoingId === item.targets[0].id ? $t('activity.undoing') : $t('activity.undo') }}
         </button>
         <span v-else-if="item.undoneAt" class="workspace-activity-undone">{{ $t('activity.undone') }}</span>
       </li>
@@ -57,7 +106,7 @@
 
 <script setup lang="ts">
 import { useI18n } from '#imports'
-import type { WorkspaceActivity, WorkspaceActivityPage } from '~/composables/useWorkspaceActivity'
+import type { WorkspaceActivity, WorkspaceActivityPage, WorkspaceActivityTarget } from '~/composables/useWorkspaceActivity'
 import {
   useActivityRefreshRevision,
   useLatestActivityPreview,
@@ -82,6 +131,7 @@ const loadError = ref('')
 const undoError = ref('')
 const undoErrorForId = ref('')
 const undoingId = ref('')
+const expandedGroups = ref<string[]>([])
 const requestRevision = ref(0)
 const activityRefreshRevision = useActivityRefreshRevision()
 const mailStateRefreshRevision = useMailStateRefreshRevision()
@@ -96,13 +146,41 @@ onMounted(() => {
 })
 
 function actionLabel(item: WorkspaceActivity) {
-  if (item.actionType === 'thread.mark_unseen') return $t('activity.actions.markUnseen')
-  return $t('activity.unknownAction')
+  const plural = item.targetCount > 1 ? 'Many' : ''
+  const keyByAction: Record<string, string> = {
+    'thread.mark_seen': 'markSeen',
+    'thread.mark_unseen': 'markUnseen',
+    'thread.reply_later.added': 'replyLaterAdded',
+    'thread.reply_later.removed': 'replyLaterRemoved',
+    'thread.set_aside.added': 'setAsideAdded',
+    'thread.set_aside.removed': 'setAsideRemoved',
+    'thread.move.inbox': 'movedInbox',
+    'thread.move.feed': 'movedFeed',
+    'thread.move.paper': 'movedPaper',
+    'thread.trashed': 'trashed',
+  }
+  const actionKey = keyByAction[item.actionType]
+  return actionKey ? $t(`activity.actions.${actionKey}${plural}`, { count: item.targetCount }) : $t('activity.unknownAction')
 }
 
 function activityIcon(item: WorkspaceActivity) {
   if (item.actionType === 'thread.mark_unseen') return 'i-tabler-mail-down'
+  if (item.actionType === 'thread.mark_seen') return 'i-tabler-mail-check'
+  if (item.actionType.startsWith('thread.reply_later.')) return 'i-tabler-clock'
+  if (item.actionType.startsWith('thread.set_aside.')) return 'i-tabler-inbox'
+  if (item.actionType.startsWith('thread.move.')) return 'i-tabler-folder-symlink'
+  if (item.actionType === 'thread.trashed') return 'i-tabler-trash'
   return 'i-tabler-history'
+}
+
+function isExpanded(id: string) {
+  return expandedGroups.value.includes(id)
+}
+
+function toggleExpanded(id: string) {
+  expandedGroups.value = isExpanded(id)
+    ? expandedGroups.value.filter(groupId => groupId !== id)
+    : [...expandedGroups.value, id]
 }
 
 function formatDate(value: string) {
@@ -129,6 +207,7 @@ async function loadFirstPage() {
     latestActivityPreview.value = result.items[0]
       ? {
           actionType: result.items[0].actionType,
+          targetCount: result.items[0].targetCount,
           targetLabel: result.items[0].targetLabel,
           canUndo: result.items[0].canUndo,
         }
@@ -157,17 +236,21 @@ async function loadMore() {
   }
 }
 
-async function undo(item: WorkspaceActivity) {
+async function undo(item: WorkspaceActivity, target?: WorkspaceActivityTarget) {
   if (undoingId.value) return
-  undoingId.value = item.id
+  const targetKey = target?.id ?? item.id
+  undoingId.value = targetKey
   undoErrorForId.value = ''
   undoError.value = ''
   try {
-    await $fetch('/api/activity/' + encodeURIComponent(item.id) + '/undo', { method: 'POST' })
+    const path = item.batchId && !target
+      ? `/api/activity/batches/${encodeURIComponent(item.batchId)}/undo`
+      : `/api/activity/${encodeURIComponent(target?.id ?? item.id)}/undo`
+    await $fetch(path, { method: 'POST' })
     mailStateRefreshRevision.value += 1
     activityRefreshRevision.value += 1
   } catch {
-    undoErrorForId.value = item.id
+    undoErrorForId.value = targetKey
     undoError.value = $t('activity.undoError')
     activityRefreshRevision.value += 1
   } finally {
