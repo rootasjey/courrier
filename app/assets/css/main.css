@@ -1805,10 +1805,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .activity-menu-panel {
   --activity-menu-width: min(380px, calc(100vw - 24px));
+  --activity-menu-max-height: min(540px, calc(100dvh - 82px));
   width: var(--activity-menu-width);
-  height: auto;
-  max-height: min(540px, calc(100dvh - 82px));
-  interpolate-size: allow-keywords;
+  max-height: var(--activity-menu-max-height);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 14px;
@@ -1898,12 +1897,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .activity-page-card .workspace-activity-item:first-child { border-top: 0; }
 
 @keyframes courrier-activity-menu-in {
-  from { width: min(40px, var(--activity-menu-width)); height: 38px; opacity: 0; transform: scale(.94); }
-  to { width: var(--activity-menu-width); height: auto; opacity: 1; transform: scale(1); }
+  from { width: min(40px, var(--activity-menu-width)); max-height: 38px; opacity: 0; transform: scale(.94); }
+  to { width: var(--activity-menu-width); max-height: var(--activity-menu-max-height); opacity: 1; transform: scale(1); }
 }
 @keyframes courrier-activity-menu-out {
-  from { width: var(--activity-menu-width); height: auto; opacity: 1; transform: scale(1); }
-  to { width: min(40px, var(--activity-menu-width)); height: 38px; opacity: 0; transform: scale(.96); }
+  from { width: var(--activity-menu-width); max-height: var(--activity-menu-max-height); opacity: 1; transform: scale(1); }
+  to { width: min(40px, var(--activity-menu-width)); max-height: 38px; opacity: 0; transform: scale(.96); }
 }
 @keyframes courrier-activity-entry {
   from { opacity: 0; transform: translateY(5px); }
