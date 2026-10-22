@@ -9,9 +9,22 @@
       <section v-else-if="profilePending" class="contact-editor-state" role="status">{{ $t('sender.loading') }}</section>
       <template v-else>
         <header class="contact-editor-heading">
-          <h1>{{ $t('contactProfile.editContact') }}</h1>
-          <p>{{ $t('contactProfile.contactEditDescription') }}</p>
+          <h1>{{ $t(profileData?.contact ? 'contactProfile.editContact' : 'contactProfile.saveAsContact') }}</h1>
+          <p>{{ $t(profileData?.contact ? 'contactProfile.contactEditDescription' : 'contactProfile.saveAsContactDescription') }}</p>
         </header>
+        <section v-if="profileData?.contact" class="contact-avatar-editor" :aria-label="$t('contactProfile.photo')">
+          <img v-if="avatarUrl" :src="avatarUrl" :alt="$t('contactProfile.photoOf', { name: displayName || profileData.contact.displayName })">
+          <span v-else class="contact-avatar-placeholder" aria-hidden="true">{{ initials(displayName || profileData.contact.displayName) }}</span>
+          <div>
+            <strong>{{ $t('contactProfile.photo') }}</strong>
+            <p>{{ $t('contactProfile.photoHint') }}</p>
+            <label class="contact-avatar-upload">{{ $t(avatarSaving ? 'contactProfile.uploadingPhoto' : 'contactProfile.choosePhoto') }}
+              <input type="file" accept="image/jpeg,image/png,image/webp" :disabled="avatarSaving" @change="uploadAvatar">
+            </label>
+            <button v-if="avatarUrl" class="contact-avatar-remove" type="button" :disabled="avatarSaving" @click="removeAvatar">{{ $t('contactProfile.removePhoto') }}</button>
+            <p v-if="avatarError" class="contact-editor-error" role="alert">{{ avatarError }}</p>
+          </div>
+        </section>
         <form class="contact-editor-form" @submit.prevent="save">
           <label class="contact-editor-field">
             <span>{{ $t('contactProfile.contactName') }}</span>
@@ -71,7 +84,7 @@
 import { computed, ref, watch } from 'vue'
 
 type ContactProfile = {
-  contact: { id: string, displayName: string, company: string, addresses: { address: string, isPrimary: boolean }[], phones: { label: string, number: string }[], postalAddresses: { label: string, address: string }[] } | null
+  contact: { id: string, displayName: string, company: string, avatarUrl: string | null, addresses: { address: string, isPrimary: boolean }[], phones: { label: string, number: string }[], postalAddresses: { label: string, address: string }[] } | null
   suggestedName: string
 }
 
@@ -95,6 +108,46 @@ const phones = ref<{ label: string, number: string }[]>([])
 const postalAddresses = ref<{ label: string, address: string }[]>([])
 const saving = ref(false)
 const errorMessage = ref('')
+const avatarUrl = ref<string | null>(null)
+const avatarSaving = ref(false)
+const avatarError = ref('')
+
+watch(profileData, profile => { avatarUrl.value = profile?.contact?.avatarUrl || null }, { immediate: true })
+
+function initials(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toLocaleUpperCase() || '').join('') || '?'
+}
+
+async function uploadAvatar(event: Event) {
+  const input = event.currentTarget as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  avatarError.value = ''
+  if (!file || !profileData.value?.contact) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { avatarError.value = $t('contactProfile.invalidPhoto'); return }
+  if (file.size > 5 * 1024 * 1024) { avatarError.value = $t('contactProfile.photoTooLarge'); return }
+  avatarSaving.value = true
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const result = await $fetch<{ avatarUrl: string }>(`/api/contacts/${profileData.value.contact.id}/avatar`, { method: 'POST', body: form })
+    avatarUrl.value = result.avatarUrl
+  } catch (cause) {
+    avatarError.value = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage || $t('contactProfile.photoUploadError')
+  } finally { avatarSaving.value = false }
+}
+
+async function removeAvatar() {
+  if (!profileData.value?.contact || avatarSaving.value) return
+  avatarSaving.value = true
+  avatarError.value = ''
+  try {
+    await $fetch(`/api/contacts/${profileData.value.contact.id}/avatar`, { method: 'DELETE' })
+    avatarUrl.value = null
+  } catch (cause) {
+    avatarError.value = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage || $t('contactProfile.photoUploadError')
+  } finally { avatarSaving.value = false }
+}
 
 watch(profileData, (profile) => {
   const contact = profile?.contact
@@ -137,7 +190,7 @@ async function save() {
   }
 }
 
-useSeoMeta({ title: computed(() => `${$t('contactProfile.editContact')} — Courrier`) })
+useSeoMeta({ title: computed(() => `${$t(profileData.value?.contact ? 'contactProfile.editContact' : 'contactProfile.saveAsContact')} — Courrier`) })
 </script>
 
 <style scoped>
@@ -148,6 +201,16 @@ useSeoMeta({ title: computed(() => `${$t('contactProfile.editContact')} — Cour
 .contact-editor-heading { margin-bottom: 28px; }
 .contact-editor-heading h1 { margin: 0; color: var(--ink); font-size: clamp(27px, 4vw, 36px); font-weight: 720; letter-spacing: -.7px; }
 .contact-editor-heading p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+.contact-avatar-editor { display: flex; align-items: center; gap: 16px; margin: 0 0 24px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.contact-avatar-editor > img, .contact-avatar-placeholder { width: 76px; height: 76px; flex: 0 0 76px; border-radius: 50%; object-fit: cover; }
+.contact-avatar-placeholder { display: grid; place-items: center; background: var(--accent-wash); color: var(--accent); font-size: 22px; font-weight: 700; }
+.contact-avatar-editor > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.contact-avatar-editor strong { width: 100%; color: var(--ink); font-size: 13px; }
+.contact-avatar-editor p { width: 100%; margin: 0; color: var(--muted); font-size: 12px; }
+.contact-avatar-upload, .contact-avatar-remove { display: inline-flex; min-height: 36px; align-items: center; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--accent); font: inherit; font-size: 12px; font-weight: 620; cursor: pointer; }
+.contact-avatar-upload input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.contact-avatar-upload:focus-within, .contact-avatar-remove:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
+.contact-avatar-remove:disabled { opacity: .55; cursor: wait; }
 .contact-editor-form { display: grid; gap: 22px; }
 .contact-editor-field { display: grid; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 650; }
 .contact-editor-field input, .contact-alias-row input, .contact-postal-row input, .contact-postal-row textarea { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; font-size: 14px; font-weight: 450; }

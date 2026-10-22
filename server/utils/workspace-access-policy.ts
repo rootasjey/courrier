@@ -66,6 +66,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
     if (path === '/api/export') return 'mail.export'
     if (path === '/api/messages' || path === '/api/search' || path === '/api/files' || path === '/api/outgoing-drafts'
       || path === '/api/contacts' || path === '/api/contacts/profile' || path === '/api/contacts/suggestions'
+      || /^\/api\/contacts\/[0-9a-f-]{36}\/avatar$/i.test(path)
       || path === '/api/activity'
       || /^\/api\/messages\/[^/]+\/draft$/.test(path)
       || /^\/api\/(?:attachments\/[^/]+|outgoing-drafts\/[^/]+(?:\/attachments\/[^/]+\/content)?)$/.test(path)) {
@@ -92,6 +93,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
   if ((normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/draft$/.test(path))
     || (normalizedMethod === 'PUT' && (path === '/api/contacts/profile' || /^\/api\/contacts\/[0-9a-f-]{36}\/note$/i.test(path)))
     || (normalizedMethod === 'POST' && (path === '/api/contacts' || path === '/api/contacts/import' || /^\/api\/(?:outgoing-drafts|thread-merges(?:\/split)?)$/.test(path)))
+    || (['POST', 'DELETE'].includes(normalizedMethod) && /^\/api\/contacts\/[0-9a-f-]{36}\/avatar$/i.test(path))
     || (['PATCH', 'DELETE'].includes(normalizedMethod) && /^\/api\/outgoing-drafts\/[^/]+$/.test(path))
     || (normalizedMethod === 'POST' && /^\/api\/outgoing-drafts\/[^/]+\/attachments$/.test(path))
     || (normalizedMethod === 'DELETE' && /^\/api\/outgoing-drafts\/[^/]+\/attachments\/[^/]+$/.test(path))

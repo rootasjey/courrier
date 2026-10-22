@@ -5,6 +5,7 @@ type ContactRow = {
   id: string
   display_name: string
   company: string
+  avatar_object_key: string | null
   address: string
   is_primary: number
   note_body: string | null
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
 
   const [contactResult, messageResult] = await Promise.all([
     db.prepare(`
-      SELECT contacts.id, contacts.display_name, contacts.company, contact_addresses.address,
+      SELECT contacts.id, contacts.display_name, contacts.company, contacts.avatar_object_key, contact_addresses.address,
         contact_addresses.is_primary, contact_notes.body AS note_body
       FROM contacts
       JOIN contact_addresses ON contact_addresses.contact_id = contacts.id
@@ -71,6 +72,7 @@ export default defineEventHandler(async (event) => {
     id: string
     displayName: string
     company: string
+    avatarUrl: string | null
     addresses: { address: string, isPrimary: boolean }[]
     note: string | null
     lastMessageAt: string | null
@@ -89,6 +91,7 @@ export default defineEventHandler(async (event) => {
         id: row.id,
         displayName: row.display_name,
         company: row.company,
+        avatarUrl: row.avatar_object_key ? `/api/contacts/${row.id}/avatar` : null,
         addresses: [],
         note: row.note_body,
         lastMessageAt: message?.timestamp || null,

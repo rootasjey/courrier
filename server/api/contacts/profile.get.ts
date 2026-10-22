@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   `).bind(user.activeWorkspaceId, address).first<{ sender_name: string }>()
 
   const contact = await db.prepare(`
-    SELECT contacts.id, contacts.display_name, contacts.company, contacts.created_by_name, contacts.updated_by_name,
+    SELECT contacts.id, contacts.display_name, contacts.company, contacts.avatar_object_key, contacts.created_by_name, contacts.updated_by_name,
       contacts.created_at, contacts.updated_at,
       contact_notes.body AS note_body, contact_notes.created_by_name AS note_created_by_name,
       contact_notes.updated_by_name AS note_updated_by_name,
@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
     id: string
     display_name: string
     company: string
+    avatar_object_key: string | null
     created_by_name: string
     updated_by_name: string
     created_at: string
@@ -69,6 +70,7 @@ export default defineEventHandler(async (event) => {
       id: contact.id,
       displayName: contact.display_name,
       company: contact.company,
+      avatarUrl: contact.avatar_object_key ? `/api/contacts/${contact.id}/avatar?v=${encodeURIComponent(contact.updated_at)}` : null,
       addresses: addressResult.results.map(row => ({ address: row.address, isPrimary: Boolean(row.is_primary) })),
       phones: phoneResult.results.map(row => ({ label: row.label, number: row.number, isPrimary: Boolean(row.is_primary) })),
       postalAddresses: postalResult.results.map(row => ({ label: row.label, address: row.address, isPrimary: Boolean(row.is_primary) })),

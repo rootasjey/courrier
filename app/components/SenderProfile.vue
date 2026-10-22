@@ -14,7 +14,8 @@
       </section>
       <template v-else>
         <header class="sender-profile-heading">
-          <span class="sender-profile-avatar" :class="latestMessage ? `avatar-${latestMessage.color}` : 'avatar-blue'">{{ contactInitials }}</span>
+          <img v-if="profile?.contact?.avatarUrl" class="sender-profile-avatar sender-profile-avatar-photo" :src="profile.contact.avatarUrl" :alt="$t('contactProfile.photoOf', { name: contactName })">
+          <span v-else class="sender-profile-avatar" :class="latestMessage ? `avatar-${latestMessage.color}` : 'avatar-blue'" aria-hidden="true">{{ contactInitials }}</span>
           <div class="sender-profile-identity">
             <h1>{{ contactName }}</h1>
             <p class="sender-profile-address">{{ primaryAddress }}</p>
@@ -30,8 +31,16 @@
             </div>
           </div>
           <nav class="sender-profile-actions" :aria-label="$t('contactProfile.contactActions')">
-            <NuxtLink :to="`${contactPath}/edit`">{{ $t('contactProfile.editContact') }}</NuxtLink>
-            <NuxtLink :to="`${contactPath}/note`">{{ profile?.contact?.note ? $t('contactProfile.editNote') : $t('contactProfile.addNote') }}</NuxtLink>
+            <template v-if="profile?.contact">
+              <NuxtLink :to="`${contactPath}/edit`">{{ $t('contactProfile.editContact') }}</NuxtLink>
+              <NuxtLink :to="`${contactPath}/note`">{{ profile.contact.note ? $t('contactProfile.editNote') : $t('contactProfile.addNote') }}</NuxtLink>
+            </template>
+            <template v-else>
+              <NTooltip :content="$t('contactProfile.saveAsContactHint')" :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }">
+                <NuxtLink class="sender-profile-save-contact" :to="`${contactPath}/edit`">{{ $t('contactProfile.saveAsContact') }}</NuxtLink>
+              </NTooltip>
+              <p class="sender-profile-save-contact-hint">{{ $t('contactProfile.saveAsContactInlineHint') }}</p>
+            </template>
           </nav>
         </header>
 
@@ -187,6 +196,7 @@ type ContactView = {
   id: string
   displayName: string
   company: string
+  avatarUrl: string | null
   addresses: { address: string, isPrimary: boolean }[]
   phones: { label: string, number: string, isPrimary: boolean }[]
   postalAddresses: { label: string, address: string, isPrimary: boolean }[]
@@ -447,6 +457,7 @@ useSeoMeta({
 .sender-profile-back:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sender-profile-heading { display: grid; justify-items: center; gap: 14px; margin: 0 0 40px; text-align: center; }
 .sender-profile-avatar { display: grid; width: 88px; height: 88px; place-items: center; border-radius: 50%; font-size: 25px; font-weight: 700; }
+.sender-profile-avatar-photo { object-fit: cover; }
 .avatar-terracotta { background: #f2e5dd; color: #714b3e; }
 .avatar-blue { background: #e3eceb; color: #405e62; }
 .avatar-green { background: #deebe4; color: #31574d; }
@@ -465,6 +476,11 @@ useSeoMeta({
 .sender-profile-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 4px; }
 .sender-profile-actions a, .sender-contact-note-heading a { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; font-weight: 620; text-decoration: none; transition: background-color 140ms ease, border-color 140ms ease; }
 .sender-profile-actions a:hover, .sender-contact-note-heading a:hover { border-color: var(--accent); background: var(--accent-wash); }
+.sender-profile-actions a.sender-profile-save-contact { min-height: 42px; padding-inline: 18px; border-color: var(--accent); background: var(--accent); color: var(--accent-ink, #fff); font-size: 14px; font-weight: 680; }
+.sender-profile-actions a.sender-profile-save-contact:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+.sender-profile-save-contact-hint { flex-basis: 100%; margin: 0; color: var(--quiet); font-size: 12px; line-height: 1.5; }
+:root[data-theme="dark"] .sender-profile-actions a.sender-profile-save-contact { color: var(--accent-ink); }
+.sender-profile-actions a:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 .sender-contact-note { margin: 0 0 26px; padding: 17px 19px; border-radius: 12px; background: var(--surface-soft); }
 .sender-contact-note-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .sender-contact-note-heading h2 { margin: 0; color: var(--ink); font-size: 15px; font-weight: 680; }

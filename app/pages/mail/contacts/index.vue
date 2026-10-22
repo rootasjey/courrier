@@ -22,11 +22,12 @@
           <div class="import-preview" role="list">
             <label v-for="card in previewCards" :key="card.key" class="import-card" role="listitem">
               <input v-model="card.selected" type="checkbox" :disabled="card.duplicate || !card.addresses.length || card.unsupportedVersion">
-              <span><strong>{{ card.displayName || card.addresses[0] || $t('contacts.unnamedCard') }}</strong><small>{{ card.addresses.join(', ') || $t('contacts.noEmailInCard') }}</small><small v-if="card.company">{{ $t('contactProfile.company') }} : {{ card.company }}</small><small v-for="phone in card.phones" :key="`${phone.label}-${phone.number}`">{{ phone.label ? `${phone.label} : ` : '' }}{{ phone.number }}</small><small v-for="item in card.postalAddresses" :key="`${item.label}-${item.address}`">{{ item.label ? `${item.label} : ` : '' }}{{ item.address }}</small><small v-if="card.duplicate" class="duplicate-label">{{ $t('contacts.duplicateSkipped') }}</small><small v-else-if="card.unsupportedVersion" class="duplicate-label">{{ $t('contacts.unsupportedVcardVersion') }}</small><small v-else-if="card.unsupported.length">{{ $t('contacts.unsupportedFields', { fields: card.unsupported.join(', ') }) }}</small></span>
+              <img v-if="card.photo" class="import-card-photo" :src="card.photo.dataUrl" alt="">
+              <span><strong>{{ card.displayName || card.addresses[0] || $t('contacts.unnamedCard') }}</strong><small>{{ card.addresses.join(', ') || $t('contacts.noEmailInCard') }}</small><small v-if="card.company">{{ $t('contactProfile.company') }} : {{ card.company }}</small><small v-for="phone in card.phones" :key="`${phone.label}-${phone.number}`">{{ phone.label ? `${phone.label} : ` : '' }}{{ phone.number }}</small><small v-for="item in card.postalAddresses" :key="`${item.label}-${item.address}`">{{ item.label ? `${item.label} : ` : '' }}{{ item.address }}</small><small v-if="card.photo">{{ $t('contacts.photoIncluded') }}</small><small v-if="card.duplicate" class="duplicate-label">{{ $t('contacts.duplicateSkipped') }}</small><small v-else-if="card.unsupportedVersion" class="duplicate-label">{{ $t('contacts.unsupportedVcardVersion') }}</small><small v-else-if="card.unsupported.length">{{ $t('contacts.unsupportedFields', { fields: card.unsupported.join(', ') }) }}</small></span>
             </label>
           </div>
           <div class="import-actions"><button type="button" :disabled="importing || !selectedCards.length" @click="importSelected">{{ importing ? $t('contacts.importing') : $t('contacts.importSelected', { count: selectedCards.length }) }}</button></div>
-          <p v-if="importResult" class="import-result" role="status">{{ $t('contacts.importResult', { imported: importResult.importedCount, duplicates: importResult.duplicateCount }) }}</p>
+          <p v-if="importResult" class="import-result" role="status">{{ $t('contacts.importResult', { imported: importResult.importedCount, duplicates: importResult.duplicateCount }) }}<span v-if="importResult.photoFailures"> {{ $t('contacts.importPhotoFailures', { count: importResult.photoFailures }) }}</span></p>
         </template>
       </section>
 
@@ -58,7 +59,8 @@
               role="listitem"
               :to="`/mail/senders/${encodeURIComponent(contact.profileAddress)}`"
             >
-              <span class="contact-avatar" :class="`tone-${toneFor(contact.id)}`" aria-hidden="true">{{ initials(contact.displayName) }}</span>
+              <img v-if="contact.avatarUrl" class="contact-avatar contact-avatar-photo" :src="contact.avatarUrl" alt="" aria-hidden="true">
+              <span v-else class="contact-avatar" :class="`tone-${toneFor(contact.id)}`" aria-hidden="true">{{ initials(contact.displayName) }}</span>
               <span class="contact-copy">
                 <span class="contact-name-line">
                   <strong>{{ contact.displayName }}</strong>
@@ -145,6 +147,7 @@ type Contact = {
   id: string
   displayName: string
   company: string
+  avatarUrl: string | null
   addresses: { address: string, isPrimary: boolean }[]
   note: string | null
   lastMessageAt: string | null
@@ -163,8 +166,8 @@ const query = ref('')
 const importOpen = ref(false)
 const importError = ref('')
 const importing = ref(false)
-const importResult = ref<{ importedCount: number, duplicateCount: number } | null>(null)
-type PreviewCard = { key: string, displayName: string, addresses: string[], company: string, phones: { label: string, number: string }[], postalAddresses: { label: string, address: string }[], unsupported: string[], duplicate: boolean, unsupportedVersion: boolean, selected: boolean }
+const importResult = ref<{ importedCount: number, duplicateCount: number, photoFailures?: number } | null>(null)
+type PreviewCard = { key: string, displayName: string, addresses: string[], company: string, phones: { label: string, number: string }[], postalAddresses: { label: string, address: string }[], photo: { blob: Blob, type: string, dataUrl: string } | null, unsupported: string[], duplicate: boolean, unsupportedVersion: boolean, selected: boolean }
 const previewCards = ref<PreviewCard[]>([])
 const unsupportedCount = computed(() => previewCards.value.filter(card => card.unsupported.length).length)
 const selectedCards = computed(() => previewCards.value.filter(card => card.selected))
@@ -365,6 +368,37 @@ function decodeVcardText(value: string) {
   return value.replace(/\\n/gi, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\')
 }
 
+function parseVcardPhoto(lines: string[]) {
+  const line = lines.find(item => /^(?:item\d+\.)?PHOTO(?:;[^:]*)?:/i.test(item))
+  if (!line) return null
+  const colon = line.indexOf(':')
+  if (colon < 0) return null
+  const parameters = line.slice(0, colon).split(';').slice(1)
+  const raw = line.slice(colon + 1).trim()
+  let mimeType = ''
+  let base64 = ''
+  const uri = raw.match(/^data:(image\/(?:jpeg|png|webp));base64,([a-z0-9+/=\r\n]+)$/i)
+  if (uri) { mimeType = uri[1]!.toLowerCase(); base64 = uri[2]!.replace(/\s/g, '') }
+  else if (parameters.some(item => /^(?:ENCODING=)?(?:b|base64)$/i.test(item))) {
+    const typeParam = parameters.find(item => /^TYPE=/i.test(item))?.split('=').slice(1).join('=').toLowerCase()
+    mimeType = typeParam === 'png' ? 'image/png' : typeParam === 'webp' ? 'image/webp' : typeParam === 'jpeg' || typeParam === 'jpg' ? 'image/jpeg' : ''
+    base64 = raw.replace(/\s/g, '')
+  }
+  if (!mimeType || !base64 || base64.length > 5 * 1024 * 1024 * 1.4 || !/^[a-z0-9+/]+={0,2}$/i.test(base64)) return null
+  try {
+    const binary = atob(base64)
+    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0))
+    if (!bytes.byteLength || bytes.byteLength > 5 * 1024 * 1024) return null
+    const isPng = mimeType === 'image/png' && bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+      && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+    const isJpeg = mimeType === 'image/jpeg' && bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+    const isWebp = mimeType === 'image/webp' && bytes.length >= 12
+      && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
+    if (!isPng && !isJpeg && !isWebp) return null
+    return { blob: new Blob([bytes], { type: mimeType }), type: mimeType, dataUrl: `data:${mimeType};base64,${base64}` }
+  } catch { return null }
+}
+
 function vcardLabel(line: string, fallback: string) {
   const head = line.slice(0, line.indexOf(':')).split(';').slice(1)
   const type = head.flatMap(part => part.replace(/^TYPE=/i, '').split(',')).find(part => part && !part.includes('='))
@@ -422,10 +456,13 @@ async function readVcard(event: Event) {
       })).filter(item => item.address).slice(0, 10)
       const duplicate = addresses.some(address => known.has(address) || seen.has(address))
       addresses.forEach(address => seen.add(address))
+      const photoLine = lines.some(line => /^(?:item\d+\.)?PHOTO(?:;[^:]*)?:/i.test(line))
+      const photo = parseVcardPhoto(lines)
       const unsupported = [...new Set(lines.map(line => line.split(/[;:]/, 1)[0]!.replace(/^item\d+\./i, '').toUpperCase())
-        .filter(field => ['PHOTO', 'BDAY', 'URL', 'TITLE'].includes(field)))]
+        .filter(field => ['BDAY', 'URL', 'TITLE'].includes(field)))]
+      if (photoLine && !photo) unsupported.push('PHOTO (URL ou encodage non pris en charge)')
       if (companyParts.length > 1) unsupported.push('ORG department')
-      return { key: `${index}-${addresses[0] || 'card'}`, displayName, addresses, company, phones, postalAddresses, unsupported, duplicate, unsupportedVersion, selected: !duplicate && !unsupportedVersion && addresses.length > 0 }
+      return { key: `${index}-${addresses[0] || 'card'}`, displayName, addresses, company, phones, postalAddresses, photo, unsupported, duplicate, unsupportedVersion, selected: !duplicate && !unsupportedVersion && addresses.length > 0 }
     })
   } catch { importError.value = $t('contacts.readVcardError') }
 }
@@ -435,11 +472,21 @@ async function importSelected() {
   importing.value = true
   importError.value = ''
   try {
-    const result = await $fetch<{ importedCount: number, duplicateCount: number }>('/api/contacts/import', {
+    const result = await $fetch<{ importedCount: number, duplicateCount: number, importedContacts: { id: string, primaryAddress: string }[] }>('/api/contacts/import', {
       method: 'POST',
       body: { contacts: selectedCards.value.map(card => ({ displayName: card.displayName, addresses: card.addresses, company: card.company, phones: card.phones, postalAddresses: card.postalAddresses })) },
     })
-    importResult.value = result
+    let photoFailures = 0
+    for (const created of result.importedContacts) {
+      const card = selectedCards.value.find(item => item.addresses[0]?.toLowerCase() === created.primaryAddress.toLowerCase())
+      if (!card?.photo) continue
+      try {
+        const form = new FormData()
+        form.append('file', new File([card.photo.blob], `contact-photo.${card.photo.type.split('/')[1]}`, { type: card.photo.type }))
+        await $fetch(`/api/contacts/${created.id}/avatar`, { method: 'POST', body: form })
+      } catch { photoFailures++ }
+    }
+    importResult.value = { ...result, photoFailures }
     await refresh()
     if (result.importedCount) previewCards.value.forEach(card => { if (card.selected) card.selected = false })
   } catch (cause) {
@@ -472,6 +519,7 @@ useSeoMeta({ title: computed(() => `${$t('contacts.title')} — Courrier`) })
 .import-preview { max-height: 280px; overflow-y: auto; border-top: 1px solid var(--line); }
 .import-card { display: flex; align-items: start; gap: 10px; padding: 11px 5px; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 13px; cursor: pointer; }
 .import-card > input { margin-top: 3px; accent-color: var(--accent); }
+.import-card-photo { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; }
 .import-card > span { display: grid; gap: 3px; min-width: 0; }
 .import-card small { overflow-wrap: anywhere; color: var(--muted); font-size: 12px; font-weight: 400; }
 .import-card .duplicate-label, .import-error { color: var(--error); }
@@ -500,6 +548,7 @@ useSeoMeta({ title: computed(() => `${$t('contacts.title')} — Courrier`) })
 .contact-row { display: flex; min-height: 78px; align-items: center; gap: 15px; padding: 12px 8px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; transition: background-color 140ms ease; }
 .contact-row:hover { background: color-mix(in srgb, var(--accent-wash) 58%, transparent); }
 .contact-avatar { display: grid; width: 44px; height: 44px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: var(--ink); font-size: 14px; font-weight: 700; letter-spacing: -.02em; }
+.contact-avatar-photo { object-fit: cover; }
 .tone-sage { background: var(--accent-wash); color: var(--accent); }
 .tone-rose { background: color-mix(in srgb, var(--surface-soft) 78%, var(--error) 22%); }
 .tone-sand { background: color-mix(in srgb, var(--surface-soft) 72%, var(--sage) 28%); }

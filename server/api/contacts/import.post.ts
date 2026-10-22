@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
   const used = new Set<string>()
   const imported: string[] = []
   const duplicates: string[] = []
+  const importedContacts: { id: string, primaryAddress: string }[] = []
   for (const card of cards) {
     const name = typeof card?.displayName === 'string' ? card.displayName.trim().slice(0, 120) : ''
     const company = typeof card?.company === 'string' ? card.company.trim().slice(0, 120) : ''
@@ -42,8 +43,8 @@ export default defineEventHandler(async (event) => {
     addresses.forEach((address, index) => statements.push(db.prepare(`INSERT INTO contact_addresses (workspace_id, contact_id, address, is_primary, created_at) VALUES (?, ?, ?, ?, ?)`)
       .bind(user.activeWorkspaceId, id, address, index === 0 ? 1 : 0, now)))
     statements.push(...appendContactDetailStatements(db, user.activeWorkspaceId, id, now, phones, postalAddresses))
-    try { await db.batch(statements); imported.push(name || addresses[0]!) }
+    try { await db.batch(statements); imported.push(name || addresses[0]!); importedContacts.push({ id, primaryAddress: addresses[0]! }) }
     catch { duplicates.push(name || addresses[0]!) }
   }
-  return { imported, duplicates, importedCount: imported.length, duplicateCount: duplicates.length }
+  return { imported, duplicates, importedContacts, importedCount: imported.length, duplicateCount: duplicates.length }
 })
