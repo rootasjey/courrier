@@ -50,6 +50,16 @@
                     <span class="menu-folder-icon i-tabler-paperclip" aria-hidden="true" />
                     <span class="menu-folder-label">{{ $t('files.title') }}</span>
                   </NuxtLink>
+                  <NuxtLink
+                    class="menu-folder"
+                    :class="{ 'is-current': isContactsPage }"
+                    to="/mail/contacts"
+                    :aria-current="isContactsPage ? 'page' : undefined"
+                    @click="brandMenuOpen = false"
+                  >
+                    <span class="menu-folder-icon i-tabler-address-book" aria-hidden="true" />
+                    <span class="menu-folder-label">{{ $t('contacts.title') }}</span>
+                  </NuxtLink>
                 </div>
                 <div class="menu-divider" />
                 <NuxtLink class="menu-settings" to="/settings" @click="brandMenuOpen = false">
@@ -198,6 +208,7 @@ const workspaceMenuOpen = ref(false)
 const { $t } = useI18n()
 const route = useRoute()
 const isFilesPage = computed(() => route.path === '/mail/files')
+const isContactsPage = computed(() => route.path === '/mail/contacts')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
 type WorkspaceSummary = { id: string, name: string, role: string }
