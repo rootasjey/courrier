@@ -7,44 +7,49 @@
             <span class="i-tabler-arrow-left" aria-hidden="true" />
           </NuxtLink>
         </NTooltip>
-        <NPopover
-          :open="brandMenuOpen"
-          :modal="false"
-          :_popover-content="{ side: 'bottom', align: 'start', sideOffset: 12, avoidCollisions: true, 'aria-label': $t('topbar.menu') }"
-          :una="{ popoverContent: 'brand-menu-panel topbar-popover-surface' }"
-          @update:open="setBrandMenuOpen"
-        >
-          <template #trigger>
-            <button class="brand-trigger" type="button" :aria-label="$t('topbar.openMenu')" :aria-expanded="brandMenuOpen">
-              <BrandMark class="brand-mark" />
-              <span class="brand-name">Courrier</span>
-              <svg class="brand-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
-            </button>
-          </template>
-          <template #default>
-            <nav class="brand-menu-content" :aria-label="$t('topbar.menu')">
-              <p class="menu-heading">{{ $t('topbar.mailboxes') }}</p>
-              <button
-                v-for="folder in folders"
-                :key="folder.name"
-                class="menu-folder"
-                :class="{ 'is-current': activeFolder === folder.name }"
-                type="button"
-                :aria-current="activeFolder === folder.name ? 'page' : undefined"
-                @click="chooseFolder(folder.name)"
-              >
-                <span class="menu-folder-icon" :class="folderIcons[folder.name]" aria-hidden="true" />
-                <span class="menu-folder-label">{{ folder.label }}</span>
-                <span v-if="folder.name === 'Screener' || folder.name === 'Reply Later' || folder.name === 'Set Aside'" class="menu-folder-note">{{ $t(`topbar.folderNotes.${folder.name === 'Screener' ? 'screener' : folder.name === 'Reply Later' ? 'replyLater' : 'setAside'}`) }}</span>
+        <div class="brand-switcher">
+          <NuxtLink class="brand-home" to="/" :aria-label="$t('topbar.home')" @click="brandMenuOpen = false">
+            <BrandMark class="brand-mark" />
+            <span class="brand-name">Courrier</span>
+          </NuxtLink>
+          <NPopover
+            :open="brandMenuOpen"
+            :modal="false"
+            :_popover-content="{ side: 'bottom', align: 'start', sideOffset: 12, avoidCollisions: true, 'aria-label': $t('topbar.menu') }"
+            :una="{ popoverContent: 'brand-menu-panel topbar-popover-surface' }"
+            @update:open="setBrandMenuOpen"
+          >
+            <template #trigger>
+              <button class="brand-menu-trigger" type="button" :aria-label="$t('topbar.openMenu')" :aria-expanded="brandMenuOpen">
+                <svg class="brand-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
               </button>
-              <div class="menu-divider" />
-              <NuxtLink class="menu-settings" to="/settings" @click="brandMenuOpen = false">
-                <span class="menu-settings-icon i-tabler-settings" aria-hidden="true" />
-                <span>{{ $t('topbar.settings') }}</span>
-              </NuxtLink>
-            </nav>
-          </template>
-        </NPopover>
+            </template>
+            <template #default>
+              <nav class="brand-menu-content" :aria-label="$t('topbar.menu')">
+                <p class="menu-heading">{{ $t('topbar.mailboxes') }}</p>
+                <div class="brand-menu-grid">
+                  <button
+                    v-for="folder in folders"
+                    :key="folder.name"
+                    class="menu-folder"
+                    :class="{ 'is-current': activeFolder === folder.name }"
+                    type="button"
+                    :aria-current="activeFolder === folder.name ? 'page' : undefined"
+                    @click="chooseFolder(folder.name)"
+                  >
+                    <span class="menu-folder-icon" :class="folderIcons[folder.name]" aria-hidden="true" />
+                    <span class="menu-folder-label">{{ folder.label }}</span>
+                  </button>
+                </div>
+                <div class="menu-divider" />
+                <NuxtLink class="menu-settings" to="/settings" @click="brandMenuOpen = false">
+                  <span class="menu-settings-icon i-tabler-settings" aria-hidden="true" />
+                  <span>{{ $t('topbar.settings') }}</span>
+                </NuxtLink>
+              </nav>
+            </template>
+          </NPopover>
+        </div>
       </div>
 
       <div class="topbar-end">

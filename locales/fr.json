@@ -1,5 +1,6 @@
 {
   "topbar": {
+    "home": "Accueil Courrier",
     "search": "Rechercher",
     "searchMessages": "Rechercher dans les messages",
     "openMenu": "Ouvrir le menu Courrier",
