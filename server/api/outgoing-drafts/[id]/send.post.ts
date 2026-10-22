@@ -2,6 +2,7 @@ import type { MailStorageBindings } from '../../../utils/mail-store'
 import { normalizeDraftRecipients, type OutgoingDraftAttachment } from '../../../utils/outgoing-draft-content'
 import { estimateOutgoingEmailBytes, OUTBOUND_MESSAGE_BUDGET_BYTES } from '../../../../shared/utils/outgoing-email-size'
 import { getWorkspaceUserFromContext, requireMailboxAddressAccess, workspaceOutgoingDraftScope } from '../../../utils/account-auth'
+import { extractAttachmentText, isTextExtractableAttachment } from '../../../utils/attachment-text'
 
 const fromAddress = 'courrier-test@verbatims.cc'
 
@@ -217,6 +218,18 @@ export default defineEventHandler(async (event) => {
     await resetDraft().run()
     throw createError({ statusCode: 400, statusMessage: 'Le destinataire ou le contenu du brouillon est invalide.' })
   }
+  const attachmentSearch = []
+  let extractedBytes = 0
+  for (const file of uploaded) {
+    if (file.disposition === 'inline' || !isTextExtractableAttachment(file.filename, file.mime_type)) {
+      attachmentSearch.push({ text: '', status: file.disposition === 'inline' ? 'skipped' as const : 'unsupported' as const })
+      continue
+    }
+    extractedBytes += file.bytes.byteLength
+    attachmentSearch.push(extractedBytes <= 16 * 1024 * 1024
+      ? await extractAttachmentText({ filename: file.filename, mimeType: file.mime_type, bytes: file.bytes })
+      : { text: '', status: 'skipped' as const })
+  }
   let result: Awaited<ReturnType<SendEmail['send']>>
   try {
     result = await bindings.EMAIL.send({
@@ -277,10 +290,16 @@ export default defineEventHandler(async (event) => {
           folder, screener_state, is_read, trashed_at, is_outgoing, html_body
         ) VALUES (?, ?, ?, ?, 'Courrier', ?, ?, ?, ?, ?, ?, 'verbatims.cc', 'Imbox', 'cleared', 1, NULL, 1, ?)
       `).bind(messageRowId, messageId, fromAddress, envelopeRecipients.join(', '), fromAddress, draft.subject.trim() || '(sans objet)', sentAt, sentAt, draft.text_body, rawObjectKey, displayHtml),
-      ...copiedAttachments.map(({ id: attachmentId, objectKey, file }) => bindings.DB.prepare(`
-        INSERT INTO attachments (id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(attachmentId, messageRowId, file.filename, file.mime_type, file.size_bytes, objectKey, file.disposition === 'inline' ? file.content_id : null, file.disposition)),
+      ...copiedAttachments.map(({ id: attachmentId, objectKey, file }, index) => bindings.DB.prepare(`
+        INSERT INTO attachments (
+          id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition,
+          search_text, search_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        attachmentId, messageRowId, file.filename, file.mime_type, file.size_bytes, objectKey,
+        file.disposition === 'inline' ? file.content_id : null, file.disposition,
+        attachmentSearch[index]?.text || '', attachmentSearch[index]?.status || 'pending',
+      )),
       bindings.DB.prepare(`DELETE FROM outgoing_drafts WHERE id = ? AND mailbox_id = ? AND status = 'sending'
         AND ${workspaceOutgoingDraftScope('outgoing_drafts', user.id)}`)
         .bind(id, senderMailboxId, user.activeWorkspaceId),

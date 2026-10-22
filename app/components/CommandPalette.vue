@@ -221,6 +221,7 @@ let paletteResizeObserver: ResizeObserver | undefined
 const icon = (path: string) => ({ render: () => h('svg', { viewBox: '0 0 20 20', fill: 'none', 'aria-hidden': 'true' }, [h('path', { d: path })]) })
 const navigationItems = computed<PaletteItem[]>(() => [
   { id: 'inbox', label: 'Inbox', description: $t('palette.inboxDescription'), icon: 'i-tabler-mailbox', kind: 'navigation', action: 'navigate', to: mailboxPath('Imbox') },
+  { id: 'files', label: $t('files.title'), description: $t('palette.filesDescription'), icon: 'i-tabler-paperclip', kind: 'navigation', action: 'navigate', to: '/mail/files' },
   { id: 'screener', label: 'Screener', description: $t('topbar.folderNotes.screener'), icon: 'i-tabler-eyeglass-2-filled', kind: 'navigation', action: 'navigate', to: mailboxPath('Screener') },
   { id: 'feed', label: 'The Feed', description: $t('palette.feedDescription'), icon: 'i-tabler-egg-fried', kind: 'navigation', action: 'navigate', to: mailboxPath('The Feed') },
   { id: 'paper', label: 'Paper Trail', description: $t('palette.paperDescription'), icon: 'i-tabler-toilet-paper', kind: 'navigation', action: 'navigate', to: mailboxPath('Paper Trail') },

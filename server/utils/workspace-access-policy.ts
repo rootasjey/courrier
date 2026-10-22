@@ -28,6 +28,7 @@ const accountEndpoints = new Set([
   'POST /api/profile/avatar',
   'DELETE /api/profile/avatar',
   'POST /api/dev/ingest',
+  'POST /api/dev/reindex-attachments',
 ])
 
 export function isAccountEndpoint(path: string, method: string) {
@@ -63,7 +64,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
   const normalizedMethod = method.toUpperCase()
   if (normalizedMethod === 'GET' || normalizedMethod === 'HEAD') {
     if (path === '/api/export') return 'mail.export'
-    if (path === '/api/messages' || path === '/api/search' || path === '/api/outgoing-drafts'
+    if (path === '/api/messages' || path === '/api/search' || path === '/api/files' || path === '/api/outgoing-drafts'
       || path === '/api/contacts/profile' || path === '/api/contacts/suggestions'
       || path === '/api/activity'
       || /^\/api\/messages\/[^/]+\/draft$/.test(path)

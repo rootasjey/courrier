@@ -40,6 +40,16 @@
                     <span class="menu-folder-icon" :class="folderIcons[folder.name]" aria-hidden="true" />
                     <span class="menu-folder-label">{{ folder.label }}</span>
                   </button>
+                  <NuxtLink
+                    class="menu-folder"
+                    :class="{ 'is-current': isFilesPage }"
+                    to="/mail/files"
+                    :aria-current="isFilesPage ? 'page' : undefined"
+                    @click="brandMenuOpen = false"
+                  >
+                    <span class="menu-folder-icon i-tabler-paperclip" aria-hidden="true" />
+                    <span class="menu-folder-label">{{ $t('files.title') }}</span>
+                  </NuxtLink>
                 </div>
                 <div class="menu-divider" />
                 <NuxtLink class="menu-settings" to="/settings" @click="brandMenuOpen = false">
@@ -186,6 +196,8 @@ const folderIcons: Record<MailboxKey, string> = {
 const accountMenuOpen = ref(false)
 const workspaceMenuOpen = ref(false)
 const { $t } = useI18n()
+const route = useRoute()
+const isFilesPage = computed(() => route.path === '/mail/files')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
 type WorkspaceSummary = { id: string, name: string, role: string }

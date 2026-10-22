@@ -1,6 +1,7 @@
 import PostalMime, { type Address, type Attachment } from 'postal-mime'
 import { isLinkedToSetAsideThread } from './keep-set-aside-thread.ts'
 import { linkedReplyLaterFolder } from './reply-later-thread.ts'
+import { extractAttachmentText, isTextExtractableAttachment } from './attachment-text.ts'
 
 export type MailStorageBindings = {
   DB: D1Database
@@ -15,6 +16,21 @@ export type IncomingEnvelope = {
 }
 
 export type ParsedEmail = Awaited<ReturnType<typeof PostalMime.parse>>
+
+type StoredAttachmentRow = {
+  id: string
+  messageId: string
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  objectKey: string
+  contentId: string | null
+  disposition: string | null
+  searchText: string
+  searchStatus: string
+}
+
+const MAX_MESSAGE_EXTRACTION_BYTES = 16 * 1024 * 1024
 
 function flattenAddresses(value: Address | Address[] | undefined) {
   const addresses = value ? (Array.isArray(value) ? value : [value]) : []
@@ -138,30 +154,50 @@ export async function storeIncomingEmail(
     customMetadata: { messageId, envelopeTo: envelope.to },
   })
 
-  const attachmentRows = await Promise.all(parsed.attachments.map(async (attachment, index) => {
+  const attachmentRows: StoredAttachmentRow[] = []
+  let extractedBytes = 0
+  for (const [index, attachment] of parsed.attachments.entries()) {
     const attachmentId = `${id}-${index}`
     const objectKey = `messages/${id}/attachments/${index}`
     const content = attachmentBytes(attachment.content)
+    const filename = attachment.filename || `piece-jointe-${index + 1}`
+    let extracted: Awaited<ReturnType<typeof extractAttachmentText>>
+    if (attachment.disposition === 'inline' || attachment.contentId) {
+      extracted = { text: '', status: 'skipped' }
+    } else if (!isTextExtractableAttachment(filename, attachment.mimeType)) {
+      extracted = { text: '', status: 'unsupported' }
+    } else {
+      extractedBytes += content.byteLength
+      extracted = extractedBytes <= MAX_MESSAGE_EXTRACTION_BYTES
+        ? await extractAttachmentText({
+          filename,
+          mimeType: attachment.mimeType,
+          bytes: content,
+        })
+        : { text: '', status: 'skipped' }
+    }
 
     await bindings.MAIL_STORE.put(objectKey, content, {
       httpMetadata: { contentType: attachment.mimeType },
       customMetadata: {
-        filename: attachment.filename || `piece-jointe-${index + 1}`,
+        filename,
         messageId,
       },
     })
 
-    return {
+    attachmentRows.push({
       id: attachmentId,
       messageId: id,
-      filename: attachment.filename || `piece-jointe-${index + 1}`,
+      filename,
       mimeType: attachment.mimeType,
       sizeBytes: content.byteLength,
       objectKey,
       contentId: attachment.contentId || null,
       disposition: attachment.disposition || null,
-    }
-  }))
+      searchText: extracted.text,
+      searchStatus: extracted.status,
+    })
+  }
 
   const statements = [
     bindings.DB.prepare(`
@@ -197,8 +233,9 @@ export async function storeIncomingEmail(
     ),
     ...attachmentRows.map(attachment => bindings.DB.prepare(`
       INSERT OR IGNORE INTO attachments (
-        id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition
-      ) SELECT ?, ?, ?, ?, ?, ?, ?, ?
+        id, message_id, filename, mime_type, size_bytes, object_key, content_id, disposition,
+        search_text, search_status
+      ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       WHERE EXISTS (
         SELECT 1 FROM messages WHERE id = ? AND message_id = ?
       )
@@ -211,6 +248,8 @@ export async function storeIncomingEmail(
       attachment.objectKey,
       attachment.contentId,
       attachment.disposition,
+      attachment.searchText,
+      attachment.searchStatus,
       id,
       messageId,
     )),

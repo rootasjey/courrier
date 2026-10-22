@@ -75,7 +75,9 @@ class ConcurrentD1 {
         size_bytes INTEGER NOT NULL,
         object_key TEXT NOT NULL UNIQUE,
         content_id TEXT,
-        disposition TEXT
+        disposition TEXT,
+        search_text TEXT NOT NULL DEFAULT '',
+        search_status TEXT NOT NULL DEFAULT 'pending'
       );
     `)
   }
