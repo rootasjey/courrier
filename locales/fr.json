@@ -1033,7 +1033,6 @@
     "contactEditDescription": "Mets à jour son nom et ses adresses. Les changements sont partagés dans cet espace.",
     "saveAsContact": "Enregistrer comme contact",
     "saveAsContactHint": "Ajoute cette personne à tes contacts pour compléter ses coordonnées et lui ajouter une photo.",
-    "saveAsContactInlineHint": "Tu pourras lui ajouter une photo après l’enregistrement.",
     "saveAsContactDescription": "Complète sa fiche et enregistre-la. Tu pourras ensuite ajouter une photo depuis la modification du contact.",
     "contactName": "Nom",
     "contactNamePlaceholder": "Nom du contact",

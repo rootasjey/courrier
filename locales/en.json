@@ -1033,7 +1033,6 @@
     "contactEditDescription": "Update the name and email addresses. Changes are shared in this workspace.",
     "saveAsContact": "Save as contact",
     "saveAsContactHint": "Add this person to your contacts to complete their details and add a photo.",
-    "saveAsContactInlineHint": "You can add a photo after saving this contact.",
     "saveAsContactDescription": "Complete and save this contact profile. You can then add a photo from the contact editor.",
     "contactName": "Name",
     "contactNamePlaceholder": "Contact name",

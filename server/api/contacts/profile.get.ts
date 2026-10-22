@@ -1,6 +1,7 @@
 import { getQuery } from 'h3'
 import { getAccountDb, getWorkspaceUserFromContext, workspaceMessageScope } from '../../utils/account-auth'
 import { hasAccessibleContactAddress, isValidContactAddress, normalizeContactAddress } from '../../utils/contact-access'
+import { contactLogoUrl } from '../../utils/contact-logo'
 
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
@@ -50,7 +51,9 @@ export default defineEventHandler(async (event) => {
   if (!contact && !await hasAccessibleContactAddress(db, user.id, user.activeWorkspaceId, address)) {
     throw createError({ statusCode: 404, statusMessage: 'Aucun message accessible ne correspond à cette adresse.' })
   }
-  if (!contact) return { contact: null, suggestedName: senderHint?.sender_name?.trim() || '' }
+  const logoKey = (event.context.cloudflare?.env as { LOGO_DEV_PUBLISHABLE_KEY?: string } | undefined)?.LOGO_DEV_PUBLISHABLE_KEY
+  const logoUrl = contactLogoUrl(address, logoKey)
+  if (!contact) return { contact: null, suggestedName: senderHint?.sender_name?.trim() || '', logoUrl }
 
   const addressResult = await db.prepare(`
     SELECT address, is_primary FROM contact_addresses
@@ -66,6 +69,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     suggestedName: senderHint?.sender_name?.trim() || '',
+    logoUrl,
     contact: {
       id: contact.id,
       displayName: contact.display_name,

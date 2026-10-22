@@ -15,6 +15,7 @@
       <template v-else>
         <header class="sender-profile-heading">
           <img v-if="profile?.contact?.avatarUrl" class="sender-profile-avatar sender-profile-avatar-photo" :src="profile.contact.avatarUrl" :alt="$t('contactProfile.photoOf', { name: contactName })">
+          <img v-else-if="profile?.logoUrl && !logoFailed" class="sender-profile-avatar sender-profile-avatar-logo" :src="profile.logoUrl" alt="" aria-hidden="true" referrerpolicy="no-referrer" @error="logoFailed = true">
           <span v-else class="sender-profile-avatar" :class="latestMessage ? `avatar-${latestMessage.color}` : 'avatar-blue'" aria-hidden="true">{{ contactInitials }}</span>
           <div class="sender-profile-identity">
             <h1>{{ contactName }}</h1>
@@ -36,10 +37,9 @@
               <NuxtLink :to="`${contactPath}/note`">{{ profile.contact.note ? $t('contactProfile.editNote') : $t('contactProfile.addNote') }}</NuxtLink>
             </template>
             <template v-else>
-              <NTooltip :content="$t('contactProfile.saveAsContactHint')" :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }">
+              <NTooltip :content="$t('contactProfile.saveAsContactHint')" :_tooltip-content="{ side: 'bottom', sideOffset: 8, collisionPadding: 12 }" :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }">
                 <NuxtLink class="sender-profile-save-contact" :to="`${contactPath}/edit`">{{ $t('contactProfile.saveAsContact') }}</NuxtLink>
               </NTooltip>
-              <p class="sender-profile-save-contact-hint">{{ $t('contactProfile.saveAsContactInlineHint') }}</p>
             </template>
           </nav>
         </header>
@@ -160,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { mailboxByName, mailboxPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 type MailboxFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
@@ -202,7 +202,7 @@ type ContactView = {
   postalAddresses: { label: string, address: string, isPrimary: boolean }[]
   note: { body: string, createdBy: string, updatedBy: string, createdAt: string | null, updatedAt: string | null } | null
 }
-type ContactProfile = { contact: ContactView | null, suggestedName: string }
+type ContactProfile = { contact: ContactView | null, suggestedName: string, logoUrl: string | null }
 type SenderMailboxGroup = { id: string, address: string, domain: string, messages: SenderMessage[], rule: MailboxFolder | null, blocked: boolean }
 type SenderConversation = { key: string, threadId: string, latest: SenderMessage, subject: string, count: number, attachmentCount: number, direction: 'received' | 'sent' | 'correspondence', hasSent: boolean, hasReceived: boolean }
 type ConversationFilter = 'all' | 'received' | 'sent'
@@ -230,6 +230,8 @@ const { data: profileData, pending: profilePending, error: profileError, refresh
   default: () => ({ contact: null, suggestedName: '' }),
 })
 const profile = computed(() => profileData.value)
+const logoFailed = ref(false)
+watch(address, () => { logoFailed.value = false })
 const ruleSelections = reactive<Record<string, MailboxFolder>>({})
 const mailboxFolderOptions = computed(() => (['Imbox', 'The Feed', 'Paper Trail'] as MailboxFolder[]).map(value => ({
   value,
@@ -458,6 +460,7 @@ useSeoMeta({
 .sender-profile-heading { display: grid; justify-items: center; gap: 14px; margin: 0 0 40px; text-align: center; }
 .sender-profile-avatar { display: grid; width: 88px; height: 88px; place-items: center; border-radius: 50%; font-size: 25px; font-weight: 700; }
 .sender-profile-avatar-photo { object-fit: cover; }
+.sender-profile-avatar-logo { object-fit: contain; padding: 12px; background: white; }
 .avatar-terracotta { background: #f2e5dd; color: #714b3e; }
 .avatar-blue { background: #e3eceb; color: #405e62; }
 .avatar-green { background: #deebe4; color: #31574d; }
@@ -478,7 +481,6 @@ useSeoMeta({
 .sender-profile-actions a:hover, .sender-contact-note-heading a:hover { border-color: var(--accent); background: var(--accent-wash); }
 .sender-profile-actions a.sender-profile-save-contact { min-height: 42px; padding-inline: 18px; border-color: var(--accent); background: var(--accent); color: var(--accent-ink, #fff); font-size: 14px; font-weight: 680; }
 .sender-profile-actions a.sender-profile-save-contact:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
-.sender-profile-save-contact-hint { flex-basis: 100%; margin: 0; color: var(--quiet); font-size: 12px; line-height: 1.5; }
 :root[data-theme="dark"] .sender-profile-actions a.sender-profile-save-contact { color: var(--accent-ink); }
 .sender-profile-actions a:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 .sender-contact-note { margin: 0 0 26px; padding: 17px 19px; border-radius: 12px; background: var(--surface-soft); }
