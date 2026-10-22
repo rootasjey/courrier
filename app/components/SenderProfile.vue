@@ -8,18 +8,25 @@
         <span>{{ $t('sender.loadErrorDescription') }}</span>
         <button type="button" :disabled="pending || profilePending" @click="retry()">{{ pending || profilePending ? $t('sender.loading') : $t('common.retry') }}</button>
       </section>
-      <section v-else-if="!messages.length" class="sender-profile-state">
+      <section v-else-if="!messages.length && !profile?.contact" class="sender-profile-state">
         <strong>{{ $t('sender.emptyTitle') }}</strong>
         <span>{{ $t('sender.emptyDescription') }}</span>
       </section>
       <template v-else>
         <header class="sender-profile-heading">
-          <span class="sender-profile-avatar" :class="`avatar-${latestMessage.color}`">{{ contactInitials }}</span>
+          <span class="sender-profile-avatar" :class="latestMessage ? `avatar-${latestMessage.color}` : 'avatar-blue'">{{ contactInitials }}</span>
           <div class="sender-profile-identity">
             <h1>{{ contactName }}</h1>
             <p class="sender-profile-address">{{ primaryAddress }}</p>
+            <p v-if="profile?.contact?.company" class="sender-profile-company">{{ profile.contact.company }}</p>
             <div v-if="secondaryAddresses.length" class="sender-profile-aliases" :aria-label="$t('contactProfile.otherAddresses')">
               <span v-for="item in secondaryAddresses" :key="item.address">{{ item.address }}</span>
+            </div>
+            <div v-if="profile?.contact?.phones.length" class="sender-profile-details" :aria-label="$t('contactProfile.phones')">
+              <a v-for="phone in profile.contact.phones" :key="phone.number" :href="`tel:${phone.number}`"><span>{{ phone.label || $t('contactProfile.phone') }}</span>{{ phone.number }}</a>
+            </div>
+            <div v-if="profile?.contact?.postalAddresses.length" class="sender-profile-details sender-profile-postal" :aria-label="$t('contactProfile.postalAddresses')">
+              <div v-for="item in profile.contact.postalAddresses" :key="`${item.label}-${item.address}`"><span>{{ item.label || $t('contactProfile.postalAddress') }}</span><p>{{ item.address }}</p></div>
             </div>
           </div>
           <nav class="sender-profile-actions" :aria-label="$t('contactProfile.contactActions')">
@@ -179,7 +186,10 @@ type SenderMessage = {
 type ContactView = {
   id: string
   displayName: string
+  company: string
   addresses: { address: string, isPrimary: boolean }[]
+  phones: { label: string, number: string, isPrimary: boolean }[]
+  postalAddresses: { label: string, address: string, isPrimary: boolean }[]
   note: { body: string, createdBy: string, updatedBy: string, createdAt: string | null, updatedAt: string | null } | null
 }
 type ContactProfile = { contact: ContactView | null, suggestedName: string }
@@ -444,7 +454,14 @@ useSeoMeta({
 .sender-profile-identity { display: grid; justify-items: center; min-width: 0; width: min(100%, 720px); gap: 5px; }
 .sender-profile-heading h1 { margin: 0; color: var(--ink); font-size: clamp(32px, 4.5vw, 48px); font-weight: 740; letter-spacing: -.035em; line-height: 1.08; overflow-wrap: anywhere; }
 .sender-profile-address { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; }
+.sender-profile-company { margin: 0; color: var(--muted); font-size: 14px; font-weight: 620; }
 .sender-profile-aliases { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 14px; margin-top: 3px; color: var(--quiet); font-size: 12px; }
+.sender-profile-details { display: grid; justify-items: center; gap: 7px; margin-top: 3px; color: var(--muted); font-size: 13px; }
+.sender-profile-details a { display: flex; align-items: baseline; gap: 8px; color: inherit; text-decoration: none; }
+.sender-profile-details a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.sender-profile-details > * > span, .sender-profile-details a > span { color: var(--quiet); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.sender-profile-postal { gap: 10px; }
+.sender-profile-postal p { margin: 3px 0 0; color: var(--muted); white-space: pre-line; }
 .sender-profile-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 4px; }
 .sender-profile-actions a, .sender-contact-note-heading a { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; font-weight: 620; text-decoration: none; transition: background-color 140ms ease, border-color 140ms ease; }
 .sender-profile-actions a:hover, .sender-contact-note-heading a:hover { border-color: var(--accent); background: var(--accent-wash); }

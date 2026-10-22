@@ -1,5 +1,4 @@
 import { getAccountDb, getWorkspaceUserFromContext } from '../../../utils/account-auth'
-import { getAccessibleContactAddresses } from '../../../utils/contact-access'
 
 type NoteBody = { body?: string }
 
@@ -14,7 +13,9 @@ export default defineEventHandler(async (event) => {
   if (note.length > 10_000) throw createError({ statusCode: 400, statusMessage: 'La note ne peut pas dépasser 10 000 caractères.' })
 
   const db = getAccountDb(event)
-  await getAccessibleContactAddresses(db, user.id, user.activeWorkspaceId, id)
+  const contact = await db.prepare(`SELECT id FROM contacts WHERE id = ? AND workspace_id = ? LIMIT 1`)
+    .bind(id, user.activeWorkspaceId).first<{ id: string }>()
+  if (!contact) throw createError({ statusCode: 404, statusMessage: 'Fiche contact introuvable.' })
   if (!note) {
     await db.prepare(`DELETE FROM contact_notes WHERE workspace_id = ? AND contact_id = ?`)
       .bind(user.activeWorkspaceId, id).run()

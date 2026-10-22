@@ -4,6 +4,7 @@ import { extractEmailAddresses } from '../utils/contact-access'
 type ContactRow = {
   id: string
   display_name: string
+  company: string
   address: string
   is_primary: number
   note_body: string | null
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
   const [contactResult, messageResult] = await Promise.all([
     db.prepare(`
-      SELECT contacts.id, contacts.display_name, contact_addresses.address,
+      SELECT contacts.id, contacts.display_name, contacts.company, contact_addresses.address,
         contact_addresses.is_primary, contact_notes.body AS note_body
       FROM contacts
       JOIN contact_addresses ON contact_addresses.contact_id = contacts.id
@@ -69,9 +70,10 @@ export default defineEventHandler(async (event) => {
   const contacts = new Map<string, {
     id: string
     displayName: string
+    company: string
     addresses: { address: string, isPrimary: boolean }[]
     note: string | null
-    lastMessageAt: string
+    lastMessageAt: string | null
     messageCount: number
     latestSubject: string
     profileAddress: string
@@ -81,24 +83,25 @@ export default defineEventHandler(async (event) => {
     const address = row.address.trim().toLocaleLowerCase('en-US')
     savedAddresses.add(address)
     const message = activity.get(address)
-    if (!message) continue
     let contact = contacts.get(row.id)
     if (!contact) {
       contact = {
         id: row.id,
         displayName: row.display_name,
+        company: row.company,
         addresses: [],
         note: row.note_body,
-        lastMessageAt: message.timestamp,
+        lastMessageAt: message?.timestamp || null,
         messageCount: 0,
-        latestSubject: message.subject,
+        latestSubject: message?.subject || '',
         profileAddress: address,
       }
       contacts.set(row.id, contact)
     }
     contact.addresses.push({ address: row.address, isPrimary: Boolean(row.is_primary) })
+    if (!message) continue
     contact.messageCount += message.count
-    if (message.timestamp > contact.lastMessageAt) {
+    if (!contact.lastMessageAt || message.timestamp > contact.lastMessageAt) {
       contact.lastMessageAt = message.timestamp
       contact.latestSubject = message.subject
       contact.profileAddress = address

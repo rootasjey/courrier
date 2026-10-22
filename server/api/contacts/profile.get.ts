@@ -10,10 +10,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = getAccountDb(event)
-  if (!await hasAccessibleContactAddress(db, user.id, user.activeWorkspaceId, address)) {
-    throw createError({ statusCode: 404, statusMessage: 'Aucun message accessible ne correspond à cette adresse.' })
-  }
-
   const senderHint = await db.prepare(`
     SELECT messages.sender_name FROM messages
     WHERE ${workspaceMessageScope('messages', user.id)}
@@ -23,7 +19,7 @@ export default defineEventHandler(async (event) => {
   `).bind(user.activeWorkspaceId, address).first<{ sender_name: string }>()
 
   const contact = await db.prepare(`
-    SELECT contacts.id, contacts.display_name, contacts.created_by_name, contacts.updated_by_name,
+    SELECT contacts.id, contacts.display_name, contacts.company, contacts.created_by_name, contacts.updated_by_name,
       contacts.created_at, contacts.updated_at,
       contact_notes.body AS note_body, contact_notes.created_by_name AS note_created_by_name,
       contact_notes.updated_by_name AS note_updated_by_name,
@@ -38,6 +34,7 @@ export default defineEventHandler(async (event) => {
   `).bind(user.activeWorkspaceId, address).first<{
     id: string
     display_name: string
+    company: string
     created_by_name: string
     updated_by_name: string
     created_at: string
@@ -49,6 +46,9 @@ export default defineEventHandler(async (event) => {
     note_updated_at: string | null
   }>()
 
+  if (!contact && !await hasAccessibleContactAddress(db, user.id, user.activeWorkspaceId, address)) {
+    throw createError({ statusCode: 404, statusMessage: 'Aucun message accessible ne correspond à cette adresse.' })
+  }
   if (!contact) return { contact: null, suggestedName: senderHint?.sender_name?.trim() || '' }
 
   const addressResult = await db.prepare(`
@@ -56,13 +56,22 @@ export default defineEventHandler(async (event) => {
     WHERE workspace_id = ? AND contact_id = ?
     ORDER BY is_primary DESC, address COLLATE NOCASE ASC
   `).bind(user.activeWorkspaceId, contact.id).all<{ address: string, is_primary: number }>()
+  const [phoneResult, postalResult] = await Promise.all([
+    db.prepare(`SELECT label, number, is_primary FROM contact_phones WHERE workspace_id = ? AND contact_id = ? ORDER BY is_primary DESC, label COLLATE NOCASE ASC, number ASC`)
+      .bind(user.activeWorkspaceId, contact.id).all<{ label: string, number: string, is_primary: number }>(),
+    db.prepare(`SELECT label, address, is_primary FROM contact_postal_addresses WHERE workspace_id = ? AND contact_id = ? ORDER BY is_primary DESC, label COLLATE NOCASE ASC`)
+      .bind(user.activeWorkspaceId, contact.id).all<{ label: string, address: string, is_primary: number }>(),
+  ])
 
   return {
     suggestedName: senderHint?.sender_name?.trim() || '',
     contact: {
       id: contact.id,
       displayName: contact.display_name,
+      company: contact.company,
       addresses: addressResult.results.map(row => ({ address: row.address, isPrimary: Boolean(row.is_primary) })),
+      phones: phoneResult.results.map(row => ({ label: row.label, number: row.number, isPrimary: Boolean(row.is_primary) })),
+      postalAddresses: postalResult.results.map(row => ({ label: row.label, address: row.address, isPrimary: Boolean(row.is_primary) })),
       createdBy: contact.created_by_name,
       updatedBy: contact.updated_by_name,
       createdAt: contact.created_at,

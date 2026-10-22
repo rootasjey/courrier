@@ -6,8 +6,29 @@
           <h1 id="contacts-title">{{ $t('contacts.title') }}</h1>
           <p>{{ $t('contacts.description') }}</p>
         </div>
-        <span class="contacts-count">{{ $t(visibleCount === 1 ? 'contacts.countOne' : 'contacts.countMany', { count: visibleCount }) }}</span>
+        <div class="contacts-heading-actions">
+          <span class="contacts-count">{{ $t(visibleCount === 1 ? 'contacts.countOne' : 'contacts.countMany', { count: visibleCount }) }}</span>
+          <button type="button" class="contacts-action contacts-import" @click="importOpen = !importOpen">{{ $t('contacts.importVcard') }}</button>
+          <NuxtLink class="contacts-action contacts-new" to="/mail/contacts/new">{{ $t('contacts.newContact') }}</NuxtLink>
+        </div>
       </header>
+
+      <section v-if="importOpen" class="contacts-import-panel" aria-labelledby="import-vcard-title">
+        <div class="import-heading"><div><h2 id="import-vcard-title">{{ $t('contacts.importTitle') }}</h2><p>{{ $t('contacts.importDescription') }}</p></div><button type="button" class="import-close" @click="closeImport" :aria-label="$t('contacts.closeImport')">×</button></div>
+        <label class="vcard-file"><span>{{ $t('contacts.chooseVcard') }}</span><input type="file" accept=".vcf,text/vcard,text/x-vcard" @change="readVcard"></label>
+        <p v-if="importError" class="import-error" role="alert">{{ importError }}</p>
+        <template v-if="previewCards.length">
+          <p class="import-summary">{{ $t('contacts.importPreviewSummary', { count: previewCards.length, unsupported: unsupportedCount }) }}</p>
+          <div class="import-preview" role="list">
+            <label v-for="card in previewCards" :key="card.key" class="import-card" role="listitem">
+              <input v-model="card.selected" type="checkbox" :disabled="card.duplicate || !card.addresses.length || card.unsupportedVersion">
+              <span><strong>{{ card.displayName || card.addresses[0] || $t('contacts.unnamedCard') }}</strong><small>{{ card.addresses.join(', ') || $t('contacts.noEmailInCard') }}</small><small v-if="card.company">{{ $t('contactProfile.company') }} : {{ card.company }}</small><small v-for="phone in card.phones" :key="`${phone.label}-${phone.number}`">{{ phone.label ? `${phone.label} : ` : '' }}{{ phone.number }}</small><small v-for="item in card.postalAddresses" :key="`${item.label}-${item.address}`">{{ item.label ? `${item.label} : ` : '' }}{{ item.address }}</small><small v-if="card.duplicate" class="duplicate-label">{{ $t('contacts.duplicateSkipped') }}</small><small v-else-if="card.unsupportedVersion" class="duplicate-label">{{ $t('contacts.unsupportedVcardVersion') }}</small><small v-else-if="card.unsupported.length">{{ $t('contacts.unsupportedFields', { fields: card.unsupported.join(', ') }) }}</small></span>
+            </label>
+          </div>
+          <div class="import-actions"><button type="button" :disabled="importing || !selectedCards.length" @click="importSelected">{{ importing ? $t('contacts.importing') : $t('contacts.importSelected', { count: selectedCards.length }) }}</button></div>
+          <p v-if="importResult" class="import-result" role="status">{{ $t('contacts.importResult', { imported: importResult.importedCount, duplicates: importResult.duplicateCount }) }}</p>
+        </template>
+      </section>
 
       <label class="contacts-search">
         <span class="i-tabler-search" aria-hidden="true" />
@@ -43,12 +64,14 @@
                   <strong>{{ contact.displayName }}</strong>
                   <span v-if="contact.note" class="i-tabler-note contact-note-icon" :aria-label="$t('contacts.hasNote')" />
                 </span>
+                <span v-if="contact.company" class="contact-company">{{ contact.company }}</span>
                 <span class="contact-address">{{ primaryAddress(contact) }}</span>
                 <span v-if="contact.addresses.length > 1" class="contact-secondary">{{ $t('contacts.otherAddresses', { count: contact.addresses.length - 1 }) }}</span>
               </span>
               <span class="contact-meta">
-                <span>{{ $t(contact.messageCount === 1 ? 'contacts.messageOne' : 'contacts.messageMany', { count: contact.messageCount }) }}</span>
-                <time :datetime="contact.lastMessageAt">{{ formatRelativeDate(contact.lastMessageAt) }}</time>
+                <span v-if="contact.messageCount">{{ $t(contact.messageCount === 1 ? 'contacts.messageOne' : 'contacts.messageMany', { count: contact.messageCount }) }}</span>
+                <span v-else>{{ $t('contacts.noMessages') }}</span>
+                <time v-if="contact.lastMessageAt" :datetime="contact.lastMessageAt">{{ formatRelativeDate(contact.lastMessageAt) }}</time>
               </span>
               <span class="i-tabler-chevron-right contact-chevron" aria-hidden="true" />
             </NuxtLink>
@@ -121,9 +144,10 @@
 type Contact = {
   id: string
   displayName: string
+  company: string
   addresses: { address: string, isPrimary: boolean }[]
   note: string | null
-  lastMessageAt: string
+  lastMessageAt: string | null
   messageCount: number
   latestSubject: string
   profileAddress: string
@@ -136,6 +160,14 @@ const { locale } = useI18nLocale()
 const route = useRoute()
 const router = useRouter()
 const query = ref('')
+const importOpen = ref(false)
+const importError = ref('')
+const importing = ref(false)
+const importResult = ref<{ importedCount: number, duplicateCount: number } | null>(null)
+type PreviewCard = { key: string, displayName: string, addresses: string[], company: string, phones: { label: string, number: string }[], postalAddresses: { label: string, address: string }[], unsupported: string[], duplicate: boolean, unsupportedVersion: boolean, selected: boolean }
+const previewCards = ref<PreviewCard[]>([])
+const unsupportedCount = computed(() => previewCards.value.filter(card => card.unsupported.length).length)
+const selectedCards = computed(() => previewCards.value.filter(card => card.selected))
 const searchInput = ref<HTMLInputElement | null>(null)
 const pageSize = 20
 const { data: contactData, pending, error, refresh } = await useFetch<ContactResponse>('/api/contacts', {
@@ -144,7 +176,7 @@ const { data: contactData, pending, error, refresh } = await useFetch<ContactRes
 const contacts = computed(() => contactData.value?.contacts || [])
 const recentSenders = computed(() => contactData.value?.recentSenders || [])
 
-const filteredContacts = computed(() => contacts.value.filter(contact => matches(`${contact.displayName} ${contact.addresses.map(item => item.address).join(' ')}`, query.value)))
+const filteredContacts = computed(() => contacts.value.filter(contact => matches(`${contact.displayName} ${contact.company || ''} ${contact.addresses.map(item => item.address).join(' ')}`, query.value)))
 const filteredSenders = computed(() => recentSenders.value.filter(sender => matches(`${sender.displayName} ${sender.address}`, query.value)))
 const savedPageCount = computed(() => Math.max(1, Math.ceil(filteredContacts.value.length / pageSize)))
 const recentPageCount = computed(() => Math.max(1, Math.ceil(filteredSenders.value.length / pageSize)))
@@ -329,6 +361,94 @@ async function loadContacts() {
   await refresh()
 }
 
+function decodeVcardText(value: string) {
+  return value.replace(/\\n/gi, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\')
+}
+
+function vcardLabel(line: string, fallback: string) {
+  const head = line.slice(0, line.indexOf(':')).split(';').slice(1)
+  const type = head.flatMap(part => part.replace(/^TYPE=/i, '').split(',')).find(part => part && !part.includes('='))
+  if (!type) return fallback
+  return type.toLowerCase().replace(/(^|[-_])([a-z])/g, (_match, prefix, letter) => `${prefix ? ' ' : ''}${letter.toUpperCase()}`)
+}
+
+function splitVcardComponents(value: string) {
+  const components: string[] = []
+  let current = ''
+  let escaped = false
+  for (const character of value) {
+    if (escaped) { current += `\\${character}`; escaped = false }
+    else if (character === '\\') escaped = true
+    else if (character === ';') { components.push(current); current = '' }
+    else current += character
+  }
+  if (escaped) current += '\\'
+  components.push(current)
+  return components.map(component => decodeVcardText(component).trim()).filter(Boolean)
+}
+
+async function readVcard(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  importError.value = ''
+  importResult.value = null
+  previewCards.value = []
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) { importError.value = $t('contacts.fileTooLarge'); return }
+  try {
+    const text = (await file.text()).replace(/\r?\n[ \t]/g, '')
+    const blocks = text.split(/BEGIN:VCARD\s*/i).slice(1).map(block => block.split(/END:VCARD/i)[0] || '').filter(Boolean)
+    if (!blocks.length || blocks.length > 100) { importError.value = $t('contacts.invalidVcardCount'); return }
+    const known = new Set(contacts.value.flatMap(contact => contact.addresses.map(item => item.address.toLowerCase())))
+    const seen = new Set<string>()
+    previewCards.value = blocks.map((block, index) => {
+      const lines = block.split(/\r?\n/).filter(Boolean)
+      const version = lines.find(line => /^VERSION:/i.test(line))?.split(':').slice(1).join(':').trim() || ''
+      const unsupportedVersion = !['3.0', '4.0'].includes(version)
+      const nameLine = lines.find(line => /^(?:item\d+\.)?FN(?:;[^:]*)?:/i.test(line))
+      const displayName = nameLine ? decodeVcardText(nameLine.slice(nameLine.indexOf(':') + 1).trim()) : ''
+      const addresses = [...new Set(lines.filter(line => /^(?:item\d+\.)?EMAIL(?:;[^:]*)?:/i.test(line))
+        .map(line => decodeVcardText(line.slice(line.indexOf(':') + 1).trim()).toLowerCase())
+        .filter(value => /^[^\s@<>(),;]+@[^\s@<>(),;]+\.[^\s@<>(),;]+$/.test(value)))].slice(0, 10)
+      const companyLine = lines.find(line => /^(?:item\d+\.)?ORG(?:;[^:]*)?:/i.test(line))
+      const companyParts = companyLine ? splitVcardComponents(companyLine.slice(companyLine.indexOf(':') + 1)) : []
+      const company = companyParts[0]?.slice(0, 120) || ''
+      const phones = lines.filter(line => /^(?:item\d+\.)?TEL(?:;[^:]*)?:/i.test(line)).map(line => ({
+        label: vcardLabel(line, ''),
+        number: decodeVcardText(line.slice(line.indexOf(':') + 1).trim()),
+      })).filter(phone => phone.number && /\d/.test(phone.number)).slice(0, 10)
+      const postalAddresses = lines.filter(line => /^(?:item\d+\.)?ADR(?:;[^:]*)?:/i.test(line)).map(line => ({
+        label: vcardLabel(line, ''),
+        address: splitVcardComponents(line.slice(line.indexOf(':') + 1)).join('\n'),
+      })).filter(item => item.address).slice(0, 10)
+      const duplicate = addresses.some(address => known.has(address) || seen.has(address))
+      addresses.forEach(address => seen.add(address))
+      const unsupported = [...new Set(lines.map(line => line.split(/[;:]/, 1)[0]!.replace(/^item\d+\./i, '').toUpperCase())
+        .filter(field => ['PHOTO', 'BDAY', 'URL', 'TITLE'].includes(field)))]
+      if (companyParts.length > 1) unsupported.push('ORG department')
+      return { key: `${index}-${addresses[0] || 'card'}`, displayName, addresses, company, phones, postalAddresses, unsupported, duplicate, unsupportedVersion, selected: !duplicate && !unsupportedVersion && addresses.length > 0 }
+    })
+  } catch { importError.value = $t('contacts.readVcardError') }
+}
+
+async function importSelected() {
+  if (!selectedCards.value.length || importing.value) return
+  importing.value = true
+  importError.value = ''
+  try {
+    const result = await $fetch<{ importedCount: number, duplicateCount: number }>('/api/contacts/import', {
+      method: 'POST',
+      body: { contacts: selectedCards.value.map(card => ({ displayName: card.displayName, addresses: card.addresses, company: card.company, phones: card.phones, postalAddresses: card.postalAddresses })) },
+    })
+    importResult.value = result
+    await refresh()
+    if (result.importedCount) previewCards.value.forEach(card => { if (card.selected) card.selected = false })
+  } catch (cause) {
+    importError.value = (cause as { data?: { statusMessage?: string } })?.data?.statusMessage || $t('contacts.importError')
+  } finally { importing.value = false }
+}
+
+function closeImport() { importOpen.value = false; previewCards.value = []; importError.value = ''; importResult.value = null }
+
 useSeoMeta({ title: computed(() => `${$t('contacts.title')} — Courrier`) })
 </script>
 
@@ -336,6 +456,28 @@ useSeoMeta({ title: computed(() => `${$t('contacts.title')} — Courrier`) })
 .contacts-page { padding-top: 30px; }
 .contacts-view { width: min(100%, 920px); margin: 0 auto; }
 .contacts-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 0 0 27px; }
+.contacts-heading-actions { display: flex; align-items: center; gap: 9px; }
+.contacts-action { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 0 13px; border: 1px solid var(--accent); border-radius: 999px; background: transparent; color: var(--accent); font: inherit; font-size: 13px; font-weight: 650; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.contacts-action:hover { background: var(--accent-wash); }
+.contacts-new { background: var(--accent); color: white; }
+.contacts-new:hover { color: white; filter: brightness(.95); }
+.contacts-import-panel { margin: -8px 0 24px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.import-heading { display: flex; justify-content: space-between; gap: 18px; }
+.import-heading h2 { margin: 0; color: var(--ink); font-size: 16px; }
+.import-heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.import-close { width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 25px; cursor: pointer; }
+.vcard-file { display: grid; gap: 8px; margin: 18px 0 10px; color: var(--ink); font-size: 13px; font-weight: 650; }
+.vcard-file input { font: inherit; font-size: 13px; }
+.import-summary, .import-result { color: var(--muted); font-size: 13px; }
+.import-preview { max-height: 280px; overflow-y: auto; border-top: 1px solid var(--line); }
+.import-card { display: flex; align-items: start; gap: 10px; padding: 11px 5px; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 13px; cursor: pointer; }
+.import-card > input { margin-top: 3px; accent-color: var(--accent); }
+.import-card > span { display: grid; gap: 3px; min-width: 0; }
+.import-card small { overflow-wrap: anywhere; color: var(--muted); font-size: 12px; font-weight: 400; }
+.import-card .duplicate-label, .import-error { color: var(--error); }
+.import-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.import-actions button { min-height: 38px; padding: 0 14px; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent); color: white; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.import-actions button:disabled { opacity: .55; cursor: not-allowed; }
 .contacts-heading h1 { margin: 0; color: var(--ink); font-size: clamp(28px, 3.25vw, 39px); font-weight: 680; letter-spacing: -.03em; line-height: 1.15; }
 .contacts-heading p { margin: 8px 0 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
 .contacts-count { padding-bottom: 3px; color: var(--quiet); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -366,6 +508,7 @@ useSeoMeta({ title: computed(() => `${$t('contacts.title')} — Courrier`) })
 .contact-name-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .contact-copy strong { overflow: hidden; color: var(--ink); font-size: 15px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
 .contact-address, .contact-secondary { overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.contact-company { overflow: hidden; color: var(--quiet); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .contact-secondary { color: var(--quiet); font-size: 13px; }
 .contact-note-icon { color: var(--accent); font-size: 15px; }
 .contact-meta { display: grid; flex: 0 0 auto; justify-items: end; gap: 5px; color: var(--quiet); font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -382,7 +525,8 @@ useSeoMeta({ title: computed(() => `${$t('contacts.title')} — Courrier`) })
 .contact-row:focus-visible, .contacts-search button:focus-visible, .contacts-error button:focus-visible, .contacts-pagination button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 @media (max-width: 560px) {
   .contacts-page { padding-top: 22px; }
-  .contacts-heading { align-items: start; }
+  .contacts-heading { align-items: start; flex-direction: column; }
+  .contacts-heading-actions { width: 100%; flex-wrap: wrap; }
   .contacts-heading p { max-width: 33ch; font-size: 13px; }
   .contact-row { gap: 11px; padding-inline: 2px; }
   .contact-avatar { width: 40px; height: 40px; font-size: 12px; }

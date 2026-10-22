@@ -1,5 +1,6 @@
 import { getAccountDb, getWorkspaceUserFromContext } from '../../utils/account-auth'
 import { hasAccessibleContactAddress, isValidContactAddress, normalizeContactAddress } from '../../utils/contact-access'
+import { appendContactDetailStatements, parseContactPhones, parseContactPostalAddresses } from '../../utils/contact-details'
 
 type ProfileBody = {
   id?: string
@@ -7,6 +8,9 @@ type ProfileBody = {
   displayName?: string
   primaryAddress?: string
   secondaryAddresses?: string[]
+  company?: unknown
+  phones?: unknown
+  postalAddresses?: unknown
 }
 
 export default defineEventHandler(async (event) => {
@@ -17,6 +21,11 @@ export default defineEventHandler(async (event) => {
   const primaryAddress = normalizeContactAddress(body?.primaryAddress)
   const rawSecondaryAddresses: unknown[] = Array.isArray(body?.secondaryAddresses) ? body.secondaryAddresses : []
   const secondaryAddresses = rawSecondaryAddresses.map(normalizeContactAddress).filter(Boolean)
+  const company = typeof body?.company === 'string' ? body.company.trim() : ''
+  if (body?.company !== undefined && typeof body.company !== 'string') throw createError({ statusCode: 400, statusMessage: 'La société est invalide.' })
+  if (company.length > 120) throw createError({ statusCode: 400, statusMessage: 'Le nom de la société ne peut pas dépasser 120 caractères.' })
+  const phones = parseContactPhones(body?.phones)
+  const postalAddresses = parseContactPostalAddresses(body?.postalAddresses)
 
   if (!isValidContactAddress(sourceAddress) || !isValidContactAddress(primaryAddress)) {
     throw createError({ statusCode: 400, statusMessage: 'Vérifie l’adresse principale et l’adresse du contact.' })
@@ -33,10 +42,6 @@ export default defineEventHandler(async (event) => {
   if (new Set([primaryAddress, ...secondaryAddresses]).size !== 1 + secondaryAddresses.length) {
     throw createError({ statusCode: 400, statusMessage: 'Chaque adresse doit être unique.' })
   }
-  if (!await hasAccessibleContactAddress(getAccountDb(event), user.id, user.activeWorkspaceId, sourceAddress)) {
-    throw createError({ statusCode: 404, statusMessage: 'Aucun message accessible ne correspond à cette adresse.' })
-  }
-
   const db = getAccountDb(event)
   const bySource = await db.prepare(`
     SELECT contact_id FROM contact_addresses
@@ -54,14 +59,13 @@ export default defineEventHandler(async (event) => {
     SELECT id FROM contacts WHERE id = ? AND workspace_id = ? LIMIT 1
   `).bind(contactId, user.activeWorkspaceId).first<{ id: string }>()
   if (body.id && !existing) throw createError({ statusCode: 404, statusMessage: 'Fiche contact introuvable.' })
+  if (!existing && !await hasAccessibleContactAddress(db, user.id, user.activeWorkspaceId, sourceAddress)) {
+    throw createError({ statusCode: 404, statusMessage: 'Aucun message accessible ne correspond à cette adresse.' })
+  }
   if (body.id) {
     const currentAddresses = await db.prepare(`
       SELECT address FROM contact_addresses WHERE workspace_id = ? AND contact_id = ?
     `).bind(user.activeWorkspaceId, contactId).all<{ address: string }>()
-    const hasAccess = await Promise.all(currentAddresses.results.map(row =>
-      hasAccessibleContactAddress(db, user.id, user.activeWorkspaceId, row.address),
-    ))
-    if (!hasAccess.some(Boolean)) throw createError({ statusCode: 404, statusMessage: 'Fiche contact introuvable.' })
     if (!currentAddresses.results.some(row => normalizeContactAddress(row.address) === sourceAddress)) {
       throw createError({ statusCode: 409, statusMessage: 'L’adresse de départ ne correspond pas à cette fiche.' })
     }
@@ -71,7 +75,7 @@ export default defineEventHandler(async (event) => {
   const accessibleAddresses = await Promise.all(addresses.map(address =>
     hasAccessibleContactAddress(db, user.id, user.activeWorkspaceId, address),
   ))
-  if (!accessibleAddresses.some(Boolean)) {
+  if (!existing && !accessibleAddresses.some(Boolean)) {
     throw createError({ statusCode: 400, statusMessage: 'Conserve au moins une adresse liée à des échanges accessibles.' })
   }
   const placeholders = addresses.map(() => '?').join(', ')
@@ -85,15 +89,22 @@ export default defineEventHandler(async (event) => {
   const now = new Date().toISOString()
   const statements = existing
     ? [
-        db.prepare(`UPDATE contacts SET display_name = ?, updated_by_name = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`)
-          .bind(displayName, user.displayName, now, contactId, user.activeWorkspaceId),
+        db.prepare(`UPDATE contacts SET display_name = ?, company = COALESCE(?, company), updated_by_name = ?, updated_at = ? WHERE id = ? AND workspace_id = ?`)
+          .bind(displayName, body.company === undefined ? null : company, user.displayName, now, contactId, user.activeWorkspaceId),
         db.prepare(`DELETE FROM contact_addresses WHERE workspace_id = ? AND contact_id = ?`)
           .bind(user.activeWorkspaceId, contactId),
       ]
     : [db.prepare(`
-        INSERT INTO contacts (id, workspace_id, display_name, created_by_name, updated_by_name, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(contactId, user.activeWorkspaceId, displayName, user.displayName, user.displayName, now, now)]
+        INSERT INTO contacts (id, workspace_id, display_name, company, created_by_name, updated_by_name, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(contactId, user.activeWorkspaceId, displayName, company, user.displayName, user.displayName, now, now)]
+
+  if (existing && phones !== undefined) {
+    statements.push(db.prepare(`DELETE FROM contact_phones WHERE workspace_id = ? AND contact_id = ?`).bind(user.activeWorkspaceId, contactId))
+  }
+  if (existing && postalAddresses !== undefined) {
+    statements.push(db.prepare(`DELETE FROM contact_postal_addresses WHERE workspace_id = ? AND contact_id = ?`).bind(user.activeWorkspaceId, contactId))
+  }
 
   for (const address of addresses) {
     statements.push(db.prepare(`
@@ -101,6 +112,7 @@ export default defineEventHandler(async (event) => {
       VALUES (?, ?, ?, ?, ?)
     `).bind(user.activeWorkspaceId, contactId, address, address === primaryAddress ? 1 : 0, now))
   }
+  statements.push(...appendContactDetailStatements(db, user.activeWorkspaceId, contactId, now, phones, postalAddresses))
 
   try {
     await db.batch(statements)

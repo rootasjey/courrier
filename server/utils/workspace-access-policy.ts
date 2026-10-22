@@ -91,7 +91,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
   }
   if ((normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/draft$/.test(path))
     || (normalizedMethod === 'PUT' && (path === '/api/contacts/profile' || /^\/api\/contacts\/[0-9a-f-]{36}\/note$/i.test(path)))
-    || (normalizedMethod === 'POST' && /^\/api\/(?:outgoing-drafts|thread-merges(?:\/split)?)$/.test(path))
+    || (normalizedMethod === 'POST' && (path === '/api/contacts' || path === '/api/contacts/import' || /^\/api\/(?:outgoing-drafts|thread-merges(?:\/split)?)$/.test(path)))
     || (['PATCH', 'DELETE'].includes(normalizedMethod) && /^\/api\/outgoing-drafts\/[^/]+$/.test(path))
     || (normalizedMethod === 'POST' && /^\/api\/outgoing-drafts\/[^/]+\/attachments$/.test(path))
     || (normalizedMethod === 'DELETE' && /^\/api\/outgoing-drafts\/[^/]+\/attachments\/[^/]+$/.test(path))
