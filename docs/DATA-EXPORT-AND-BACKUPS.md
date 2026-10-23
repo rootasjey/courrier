@@ -2,7 +2,7 @@
 
 Ce guide décrit comment Courrier conserve les emails, comment en télécharger une copie et ce que permettent les mécanismes de récupération actuels. Il s'adresse aux personnes qui utilisent ou déploient le projet.
 
-> **État du pilote (18 octobre 2026) :** l’export ZIP version 3 et un importeur de restauration sont disponibles dans le dépôt. La version 3 inclut les fiches contact, leurs adresses et leurs notes partagées. Les exercices précédents ont confirmé une restauration manuelle locale et dans des ressources Cloudflare temporaires isolées ; aucune ressource de production n’a été modifiée. L’importeur vérifie et reconstruit une archive vers de nouvelles ressources D1/R2, mais ne remplace pas une base de production, ne restaure pas l’infrastructure Cloudflare et n’est pas encore validé comme procédure de reprise après perte complète du compte.
+> **État du pilote (23 octobre 2026) :** l’export ZIP version 4 et un importeur de restauration sont disponibles dans le dépôt. La version 4 inclut les tags d’espace et leur attribution aux messages, en plus des fiches contact, adresses et notes partagées. Les exercices précédents ont confirmé une restauration manuelle locale et dans des ressources Cloudflare temporaires isolées ; aucune ressource de production n’a été modifiée. L’importeur vérifie et reconstruit une archive vers de nouvelles ressources D1/R2, mais ne remplace pas une base de production, ne restaure pas l’infrastructure Cloudflare et n’est pas encore validé comme procédure de reprise après perte complète du compte.
 
 ## Où sont les données ?
 
@@ -23,7 +23,7 @@ Le miroir copie les objets sous `messages/`, y compris les originaux et les fich
 La route `/api/export` exige une session Courrier avec la permission `mail.export` et des accès actifs à toutes les boîtes incluses. Depuis le 17 octobre, l’Access du Worker ne s’applique qu’aux previews ; la production est publiquement joignable et l’autorisation de cette route dépend de ces contrôles applicatifs. L'archive contient :
 
 - `README.txt`, qui explique le format ;
-- `manifest.json` version 3, avec les métadonnées et états des messages, les brouillons, les fusions réversibles de fils, les règles d’expéditeurs et leur historique d’annulation, les expéditeurs bloqués, ainsi que les fiches contact, leurs adresses et les notes partagées ;
+- `manifest.json` version 4, avec les métadonnées et états des messages, les brouillons, les fusions réversibles de fils, les règles d’expéditeurs et leur historique d’annulation, les expéditeurs bloqués, les tags d’espace et leurs attributions, ainsi que les fiches contact, leurs adresses et les notes partagées ;
 - `messages/<id>.eml`, avec l'email RFC 822 reçu à l'origine ou, pour un email envoyé par Courrier, une copie RFC 822 reconstruite depuis le contenu remis à Cloudflare. Les pièces jointes MIME des messages reçus restent incluses dans leur `.eml`.
 
 Le texte indexé des messages est reconstruit à partir du `.eml` pendant l’import ; l’index de recherche est recréé par les migrations et les déclencheurs SQLite. L’archive n’inclut pas la configuration d’infrastructure. Elle n’est pas chiffrée : toute personne qui peut la lire peut consulter le courrier qu’elle contient. Protège-la comme les emails originaux.

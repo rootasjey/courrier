@@ -13,14 +13,14 @@
 
 Workspace roles are deliberately fixed in the first release:
 
-| Role | Mail | Members | Domains and settings |
-| --- | --- | --- | --- |
-| Owner | read, write, send, classify, trash, export | manage | manage |
-| Admin | read, write, send, classify, trash, export | manage | manage |
-| Member | read, write, send, classify, trash, export | — | — |
-| Viewer | read | — | — |
+| Role | Mail | Shared tag catalogue | Members | Domains and settings |
+| --- | --- | --- | --- | --- |
+| Owner | read, write, send, classify, trash, export | manage | manage | manage |
+| Admin | read, write, send, classify, trash, export | manage | manage | manage |
+| Member | read, write, send, classify, trash, export | assign existing tags | — | — |
+| Viewer | read | — | — | — |
 
-The `role_permissions` table is the source of grants. The client may hide unavailable actions, but every API operation must enforce its permission in the server. There are no user-defined roles in this first version.
+The `role_permissions` table is the source of grants. The client may hide unavailable actions, but every API operation must enforce its permission in the server. There are no user-defined roles in this first version. Managing the shared tag catalogue requires `mail.tags.manage` (owner and admin); assigning existing tags to messages uses `mail.classify` (owner, admin, and member). Draft creation and editing remain under `mail.write`.
 
 The `owner` and `admin` roles also have `members.manage`, `domains.manage`, and `workspace.settings.manage` permission keys, but workspace-scoped management screens and API workflows are not implemented yet. The current user, domain, invitation, and mailbox-grant controls are platform-admin-only.
 
@@ -30,7 +30,7 @@ Platform administration uses the separate `platform_admins` table and a separate
 
 | Profile | Scope and capabilities | Access to email content | Additional gate |
 | --- | --- | --- | --- |
-| Courrier user | Belongs to one or more workspaces as an owner, admin, member, or viewer. Mail access also requires an active grant to each exact mailbox. | Only granted mailboxes, with actions limited by the workspace role. `viewer` is read-only; `owner`, `admin`, and `member` currently have the same mail permissions. | Courrier account session. Worker-level Cloudflare Access protects previews only; production is public so users can reach Courrier login and recovery. |
+| Courrier user | Belongs to one or more workspaces as an owner, admin, member, or viewer. Mail access also requires an active grant to each exact mailbox. | Only granted mailboxes, with actions limited by the workspace role. `viewer` is read-only; owners and admins can manage shared tags, while members can assign existing tags. | Courrier account session. Worker-level Cloudflare Access protects previews only; production is public so users can reach Courrier login and recovery. |
 | Super-admin | Not a separate role in the current data model. The workspace `owner` role is not a super-admin role. | No additional access is implied. | None beyond the role that actually applies. |
 | Courrier platform admin (`platform_admins`) | Global control plane: workspace and domain metadata, mailbox addresses and grants, memberships, invitations, platform-admin assignments, and audit metadata. Some lists are capped. | Does not grant access to message bodies, attachments, raw mail, exports, or sending. A platform admin needs ordinary workspace membership and mailbox grants to use those features. | Courrier platform-admin session, configured MFA, and a recent MFA step-up. Worker-level Cloudflare Access protects previews only; Courrier enforces production checks itself. |
 | Cloudflare account admin/member | Cloudflare infrastructure, limited by the Cloudflare account role: Workers, D1/R2, Access policies, and deployments as permitted. This is separate from Courrier roles. | No email-content access through the Courrier application role. Infrastructure permissions may allow powerful access or changes outside the app. | Cloudflare Access protects Worker preview URLs for eligible account members; production remains public. |

@@ -42,6 +42,8 @@ type AttachmentRow = {
   size_bytes: number
 }
 
+type MessageTagRow = { message_id: string, id: string, name: string, color: string }
+
 export default defineEventHandler(async (event) => {
   const user = getWorkspaceUserFromContext(event)
   const params = getQuery(event)
@@ -56,7 +58,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 503, statusMessage: 'Le stockage local des emails n’est pas prêt.' })
   }
 
-  const [messageResult, mergeResult, subjectResult] = await Promise.all([
+  const [messageResult, mergeResult, subjectResult, tagResult] = await Promise.all([
     bindings.DB.prepare(`
     SELECT messages.id, messages.envelope_from, messages.envelope_to,
       messages.sender_name, messages.sender_address, messages.subject,
@@ -90,6 +92,14 @@ export default defineEventHandler(async (event) => {
       SELECT mailbox_domain, thread_id, subject FROM thread_subject_overrides
       WHERE ${workspaceDomainScope('thread_subject_overrides.mailbox_domain', user.id)}
     `).bind(user.activeWorkspaceId).all<{ mailbox_domain: string, thread_id: string, subject: string }>(),
+    bindings.DB.prepare(`
+      SELECT message_tags.message_id, workspace_tags.id, workspace_tags.name, workspace_tags.color
+      FROM message_tags
+      JOIN workspace_tags ON workspace_tags.id = message_tags.tag_id
+      JOIN messages ON messages.id = message_tags.message_id
+      WHERE workspace_tags.workspace_id = ? AND ${workspaceMessageScope('messages', user.id)}
+      ORDER BY workspace_tags.name COLLATE NOCASE ASC
+    `).bind(user.activeWorkspaceId, user.activeWorkspaceId).all<MessageTagRow>(),
   ])
   const results = messageResult.results
   const { threadIds, manualMergeIds } = getThreadGrouping(results, mergeResult.results)
@@ -111,6 +121,12 @@ export default defineEventHandler(async (event) => {
     `${override.mailbox_domain}\u0000${override.thread_id}`,
     override.subject,
   ]))
+  const tagsByMessage = new Map<string, { id: string, name: string, color: string }[]>()
+  for (const tag of tagResult.results) {
+    const tags = tagsByMessage.get(tag.message_id) ?? []
+    tags.push({ id: tag.id, name: tag.name, color: tag.color })
+    tagsByMessage.set(tag.message_id, tags)
+  }
 
   const requestedMessages = includeBody
     ? results.filter((message) => {
@@ -143,6 +159,7 @@ export default defineEventHandler(async (event) => {
       threadId,
       threadSubject: subjectOverrides.get(`${message.mailbox_domain}\u0000${threadId}`) ?? null,
       manualMergeIds: manualMergeIds.get(message.id) ?? [],
+      tags: tagsByMessage.get(message.id) ?? [],
       sender: message.sender_name || message.sender_address || message.envelope_from,
       address: message.sender_address || message.envelope_from,
       recipient: message.is_outgoing ? message.envelope_to : '',

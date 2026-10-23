@@ -96,6 +96,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="18" r="2.2" /><circle cx="18" cy="6" r="2.2" /><path d="M8.2 6h3a4 4 0 0 1 4 4v5.8M8.2 6H10a5 5 0 0 1 5 5" /></svg>
             </button>
           </NTooltip>
+          <ThreadTagPicker v-if="canAssignTags" :tags="workspaceTags" :assigned="selectedThreadTags" :message-ids="selectedThreadMessageIds" @changed="refreshTagAssignments" />
           <button type="button" class="thread-selection-cancel" :disabled="isApplyingBulkAction" @click="clearThreadSelection">{{ $t('bulk.cancel') }}</button>
         </div>
       </Transition>
@@ -255,7 +256,7 @@
                   <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
                 </span>
               </button>
-              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
+              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :tags="thread.tags" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
             </div>
           </div>
         </section>
@@ -274,7 +275,7 @@
                   <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
                 </span>
               </button>
-              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
+              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :tags="thread.tags" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
             </div>
           </div>
         </section>
@@ -317,6 +318,7 @@
             :participants="[]"
             :attachment-count="message.attachments.length"
             :message-count="1"
+            :tags="message.tags"
             @open="handleFeedEditionOpen(message, $event)"
           />
         </div>
@@ -335,7 +337,7 @@
               <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
             </span>
           </button>
-          <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
+          <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :tags="thread.tags" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
           <button v-if="activeFolder === 'Trash'" class="screener-restore trash-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(thread.latest)">{{ $t('mail.restore') }}</button>
         </div>
       </div>
@@ -818,6 +820,7 @@
                   <span class="message-action-label thread-action-move-label">{{ $t('messageActions.move') }}</span><kbd>V</kbd>
                 </template>
               </NCombobox>
+              <ThreadTagPicker v-if="canAssignTags && selectedThread" ref="threadTagPicker" :tags="workspaceTags" :assigned="selectedThread.tags" :message-ids="selectedThread.messages.map(message => message.id)" :can-manage="canManageTags" @changed="refreshTagAssignments" />
               <button v-if="activeFolder === 'Trash'" class="message-action-button" type="button" :aria-label="$t(isSavingScreenerAction ? 'mail.restoring' : 'mail.restore')" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(activeThreadMessage || selectedMessage)">
                 <span class="message-action-icon i-tabler-mailbox" aria-hidden="true" />
                 <span class="message-action-label">{{ isSavingScreenerAction ? $t('mail.restoring') : $t('mail.restore') }}</span>
@@ -1084,6 +1087,7 @@ import { defineAsyncComponent } from 'vue'
 import InboxMessageDate from '~/components/InboxMessageDate.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
 import ThreadParticipantsStack from '~/components/ThreadParticipantsStack.vue'
+import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 const OutgoingComposer = defineAsyncComponent(() => import('~/components/OutgoingComposer.vue'))
@@ -1097,6 +1101,7 @@ type InboxMessage = {
   threadId: string
   threadSubject: string | null
   manualMergeIds: string[]
+  tags: WorkspaceTag[]
   sender: string
   address: string
   subject: string
@@ -1128,7 +1133,10 @@ type MessageThread = {
   subject: string
   unreadCount: number
   manualMergeIds: string[]
+  tags: WorkspaceTag[]
 }
+
+type WorkspaceTag = { id: string, name: string, color: string }
 
 type ThreadParticipant = {
   address: string
@@ -1197,6 +1205,10 @@ function threadAttachmentCount(thread: MessageThread) {
   return thread.messages.reduce((total, message) => total + message.attachments.length, 0)
 }
 
+function uniqueTags(tags: WorkspaceTag[]) {
+  return [...new Map(tags.map(tag => [tag.id, tag])).values()]
+}
+
 function otherThreadParticipants(thread: MessageThread) {
   const latestSender = thread.latest.address.trim().toLocaleLowerCase('en-US')
   return threadParticipants(thread).filter(participant => participant.address !== latestSender)
@@ -1208,6 +1220,7 @@ const { locale } = useI18nLocale()
 const route = useRoute()
 const router = useRouter()
 const activeFolder = computed(() => mailboxFromPath(route.path))
+const selectedTagId = computed(() => typeof route.query.tag === 'string' ? route.query.tag : '')
 const isGlobalSearch = computed(() => Boolean(search.value.trim()) && activeFolder.value !== 'Screener' && activeFolder.value !== 'Trash')
 const searchExceedsLimit = computed(() => search.value.trim().length > 200)
 const search = computed({
@@ -1221,6 +1234,11 @@ const search = computed({
 })
 const selectedId = computed(() => threadIdFromPath(route.path))
 const isReadingMessage = computed(() => Boolean(selectedId.value))
+const threadTagPicker = ref<{
+  openPicker: () => Promise<void>
+  closePicker: () => Promise<void>
+  isPickerOpen: () => boolean
+} | null>(null)
 const searchResults = ref<SearchHit[]>([])
 const searchTotal = ref(0)
 const searchOffset = ref(0)
@@ -1388,6 +1406,26 @@ async function onOutgoingMessageSent() {
 const { data: inboxMessages, refresh: refreshInboxMessages, error: inboxMessagesError } = await useFetch<InboxMessage[]>('/api/messages', {
   default: () => [],
 })
+const { data: workspaceTagState, refresh: refreshWorkspaceTagState } = await useFetch<{ canManage: boolean, canAssign: boolean, tags: WorkspaceTag[] }>('/api/tags', {
+  default: () => ({ canManage: false, canAssign: false, tags: [] }),
+})
+const workspaceTags = computed(() => workspaceTagState.value?.tags ?? [])
+const canManageTags = computed(() => Boolean(workspaceTagState.value?.canManage))
+const canAssignTags = computed(() => Boolean(workspaceTagState.value?.canAssign))
+
+async function refreshTagAssignments() {
+  const threadId = selectedId.value
+  if (threadId) threadContentLoadingId.value = threadId
+
+  try {
+    await Promise.all([refreshInboxMessages(), refreshWorkspaceTagState()])
+    if (threadId) await loadThreadContent(threadId)
+  } finally {
+    if (threadId && threadContentLoadingId.value === threadId && !threadContentRequests.has(threadId)) {
+      threadContentLoadingId.value = ''
+    }
+  }
+}
 
 const threadContentLoadingId = ref('')
 const threadContentRequests = new Map<string, Promise<void>>()
@@ -1529,6 +1567,7 @@ const folderThreads = computed<MessageThread[]>(() => {
       subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
       unreadCount: messages.filter(message => !message.isRead).length,
       manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
+      tags: uniqueTags(messages.flatMap(message => message.tags)),
     }
   })
 })
@@ -1538,9 +1577,10 @@ const visibleThreads = computed(() => {
   const threads = ['Set Aside', 'Reply Later'].includes(activeFolder.value)
     ? [...folderThreads.value].sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
     : folderThreads.value
-  if (!query) return threads
+  const taggedThreads = selectedTagId.value ? threads.filter(thread => thread.tags.some(tag => tag.id === selectedTagId.value)) : threads
+  if (!query) return taggedThreads
 
-  return threads.filter(thread => thread.subject.toLocaleLowerCase('fr').includes(query) || thread.messages.some(message =>
+  return taggedThreads.filter(thread => thread.subject.toLocaleLowerCase('fr').includes(query) || thread.messages.some(message =>
     `${message.sender} ${message.subject} ${message.preview}`.toLocaleLowerCase('fr').includes(query),
   ))
 })
@@ -1549,7 +1589,9 @@ const participantAvatars = ref<Record<string, { avatarUrl: string | null, logoUr
 const feedEditions = computed(() => folderMessages.value
   .filter(message => message.folder === 'The Feed')
   .sort((a, b) => b.timestamp.localeCompare(a.timestamp)))
-const visibleFeedEditions = computed(() => feedEditions.value)
+const visibleFeedEditions = computed(() => selectedTagId.value
+  ? feedEditions.value.filter(message => message.tags.some(tag => tag.id === selectedTagId.value))
+  : feedEditions.value)
 const setAsideThreads = computed<MessageThread[]>(() => {
   const threads = new Map<string, InboxMessage[]>()
   for (const message of inboxMessages.value ?? []) {
@@ -1568,8 +1610,9 @@ const setAsideThreads = computed<MessageThread[]>(() => {
       subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
       unreadCount: messages.filter(message => !message.isRead).length,
       manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
+      tags: uniqueTags(messages.flatMap(message => message.tags)),
     }
-}).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
+}).filter(thread => !selectedTagId.value || thread.tags.some(tag => tag.id === selectedTagId.value)).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
 })
 const stackPreviewLimit = computed(() => Math.max(1, Math.min(5, Math.floor((viewportHeight.value - 148) / 70) + 1)))
 const setAsideStackPreview = computed(() => setAsideThreads.value.slice(0, stackPreviewLimit.value))
@@ -1597,8 +1640,9 @@ const replyLaterThreads = computed<MessageThread[]>(() => {
       subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
       unreadCount: messages.filter(message => !message.isRead).length,
       manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
+      tags: uniqueTags(messages.flatMap(message => message.tags)),
     }
-  }).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
+  }).filter(thread => !selectedTagId.value || thread.tags.some(tag => tag.id === selectedTagId.value)).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
 })
 const replyLaterStackPreview = computed(() => replyLaterThreads.value.slice(0, stackPreviewLimit.value))
 const replyLaterStackExpandedHeight = computed(() => `${76 + replyLaterStackPreview.value.length * 70}px`)
@@ -1613,6 +1657,16 @@ const canSelectThreads = computed(() => !isGlobalSearch.value
 const canNavigateThreads = computed(() => !isGlobalSearch.value
   && activeFolder.value !== 'Screener'
   && visibleThreads.value.length > 0)
+const selectedThreads = computed(() => selectableThreads.value.filter(thread => selectedThreadIds.value.includes(thread.id)))
+const selectedThreadMessageIds = computed(() => [...new Set(selectedThreads.value.flatMap(thread => thread.messages.map(message => message.id)))])
+const selectedThreadTags = computed(() => {
+  if (!selectedThreads.value.length) return []
+  const commonIds = new Set(selectedThreads.value[0]!.tags.map(tag => tag.id))
+  for (const thread of selectedThreads.value.slice(1)) {
+    for (const id of [...commonIds]) if (!thread.tags.some(tag => tag.id === id)) commonIds.delete(id)
+  }
+  return selectedThreads.value[0]!.tags.filter(tag => commonIds.has(tag.id))
+})
 
 const globalSearchThreads = computed<SearchThread[]>(() => {
   const messages = inboxMessages.value ?? []
@@ -1636,15 +1690,17 @@ const globalSearchThreads = computed<SearchThread[]>(() => {
     })
   }
 
-  return [...groups.entries()].map(([id, group]) => ({
+  const result = [...groups.entries()].map(([id, group]) => ({
     id,
     messages: group.messages,
     latest: group.latest,
     subject: group.subject,
     unreadCount: group.messages.filter(message => !message.isRead).length,
     manualMergeIds: [...new Set(group.messages.flatMap(message => message.manualMergeIds))],
+    tags: uniqueTags(group.messages.flatMap(message => message.tags)),
     snippet: group.snippet,
   }))
+  return selectedTagId.value ? result.filter(thread => thread.tags.some(tag => tag.id === selectedTagId.value)) : result
 })
 
 const newThreads = computed(() => visibleThreads.value.filter(thread => thread.unreadCount > 0))
@@ -2059,6 +2115,13 @@ watch(activeThreadMessageId, async (messageId) => {
 function handleThreadKeydown(event: KeyboardEvent) {
   if (event.defaultPrevented) return
 
+  if (event.key === 'Escape' && threadTagPicker.value?.isPickerOpen()) {
+    event.preventDefault()
+    event.stopPropagation()
+    void threadTagPicker.value.closePicker()
+    return
+  }
+
   if (
     activeFolder.value === 'Screener'
     && screenerView.value === 'pending'
@@ -2273,7 +2336,10 @@ function handleThreadKeydown(event: KeyboardEvent) {
     else if (event.key === 'End' && feedEditions.value.at(-1)) openMessage(feedEditions.value.at(-1)!, 'The Feed', true)
     return
   }
-  if (key === 'u' && activeFolder.value !== 'Trash' && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
+  if (key === 'b' && canAssignTags.value) {
+    event.preventDefault()
+    void threadTagPicker.value?.openPicker()
+  } else if (key === 'u' && activeFolder.value !== 'Trash' && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
     event.preventDefault()
     void markOpenThreadUnseen()
   } else if (key === 'v' && ['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value) && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {

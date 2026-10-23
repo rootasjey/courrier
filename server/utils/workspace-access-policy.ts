@@ -1,6 +1,7 @@
 export type WorkspaceMailPermission =
   | 'mail.read'
   | 'mail.write'
+  | 'mail.tags.manage'
   | 'mail.send'
   | 'mail.classify'
   | 'mail.trash'
@@ -66,6 +67,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
     if (path === '/api/export') return 'mail.export'
     if (path === '/api/messages' || path === '/api/search' || path === '/api/files' || path === '/api/outgoing-drafts'
       || path === '/api/contacts' || path === '/api/contacts/profile' || path === '/api/contacts/suggestions' || path === '/api/contacts/avatars'
+      || path === '/api/tags'
       || /^\/api\/contacts\/[0-9a-f-]{36}\/avatar$/i.test(path)
       || path === '/api/activity'
       || /^\/api\/messages\/[^/]+\/draft$/.test(path)
@@ -78,8 +80,12 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
   if (normalizedMethod === 'POST' && /^\/api\/(?:messages\/[^/]+\/send|outgoing-drafts\/[^/]+\/send)$/.test(path)) return 'mail.send'
   if (normalizedMethod === 'POST' && /^\/api\/messages\/[^/]+\/(?:trash|restore-trash)$/.test(path)) return 'mail.trash'
   if (normalizedMethod === 'PATCH' && path === '/api/threads/bulk-action') return 'mail.write'
+  if (normalizedMethod === 'POST' && path === '/api/tags') return 'mail.tags.manage'
+  if ((normalizedMethod === 'PATCH' && /^\/api\/tags\/[0-9a-f-]{36}$/i.test(path))
+    || (normalizedMethod === 'DELETE' && /^\/api\/tags\/[0-9a-f-]{36}$/i.test(path))) return 'mail.tags.manage'
   if ((normalizedMethod === 'POST' && /^\/api\/messages\/[^/]+\/(?:block-sender|unblock-sender|restore-screener)$/.test(path))
     || (normalizedMethod === 'PATCH' && /^\/api\/messages\/[^/]+\/(?:folder|group-folder|read|reply-later|set-aside)$/.test(path))
+    || (normalizedMethod === 'PATCH' && path === '/api/tags/assign')
     || (normalizedMethod === 'PUT' && /^\/api\/messages\/[^/]+\/sender-rule$/.test(path))
     || (normalizedMethod === 'POST' && (
       path === '/api/screener/clear'

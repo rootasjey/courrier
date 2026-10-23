@@ -1101,5 +1101,42 @@
     "messageCount": "{count} messages",
     "attachmentsCount": "{count} attachments",
     "filingRules": "Filing rules"
+  },
+  "tags": {
+    "title": "Tags",
+    "filter": "Filter by tag",
+    "all": "All",
+    "manage": "Manage tags",
+    "pageDescription": "Tags in this workspace are shared with all its members.",
+    "name": "Tag name",
+    "namePlaceholder": "New tag",
+    "color": "Tag color",
+    "colorNoMatches": "No matching colors.",
+    "create": "Create",
+    "add": "Add",
+    "noMatches": "No matching tags.",
+    "saving": "Saving…",
+    "empty": "No tags in this space yet.",
+    "emptyReadOnly": "No tags have been created in this workspace yet.",
+    "noneCreated": "No tags are available yet.",
+    "assign": "Assign tags",
+    "assignError": "Tags could not be saved. Try again.",
+    "saveError": "The tag could not be saved. Check its name and try again.",
+    "deleteError": "The tag could not be deleted. Try again.",
+    "rename": "Rename {name}",
+    "saveName": "Save the name of {name}",
+    "delete": "Delete {name}",
+    "deleteTitle": "Delete this tag?",
+    "deleteDescription": "“{name}” will be removed from every conversation in this space.",
+    "cancel": "Cancel",
+    "deleteConfirm": "Delete",
+    "colors": {
+      "teal": "Teal",
+      "blue": "Blue",
+      "green": "Green",
+      "amber": "Amber",
+      "rose": "Rose",
+      "violet": "Violet"
+    }
   }
 }

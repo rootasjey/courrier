@@ -27,6 +27,8 @@ export type MailboxExportData = {
   contacts?: Record<string, unknown>[]
   contactAddresses?: Record<string, unknown>[]
   contactNotes?: Record<string, unknown>[]
+  workspaceTags?: Record<string, unknown>[]
+  messageTags?: Record<string, unknown>[]
 }
 
 export function createMailboxExportManifest(data: MailboxExportData, createdAt = new Date()) {
@@ -48,7 +50,7 @@ export function createMailboxExportManifest(data: MailboxExportData, createdAt =
 
   return {
     format: 'courrier-mailbox-export',
-    version: 3,
+    version: 4,
     createdAt: createdAt.toISOString(),
     messages: data.messages.map(message => ({
       ...message,
@@ -70,5 +72,7 @@ export function createMailboxExportManifest(data: MailboxExportData, createdAt =
     contacts: data.contacts || [],
     contactAddresses: (data.contactAddresses || []).map(address => ({ ...address, is_primary: Boolean(address.is_primary) })),
     contactNotes: data.contactNotes || [],
+    workspaceTags: data.workspaceTags || [],
+    messageTags: data.messageTags || [],
   }
 }

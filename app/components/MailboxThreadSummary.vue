@@ -17,6 +17,7 @@
     <button v-else class="mailbox-thread-subject" type="button" @click="$emit('open', $event)">{{ subject }}</button>
     <div class="thread-secondary">
       <span v-if="newMessageLabel" class="set-aside-new-message">{{ newMessageLabel }}</span>
+      <span v-for="tag in tags" :key="tag.id" class="workspace-tag-chip" :class="`tag-color-${tag.color}`">{{ tag.name }}</span>
       <span class="thread-sender-badge">{{ sender }}</span>
       <ThreadParticipantsStack v-if="participants.length" inline :participants="participants" />
       <NTooltip v-if="attachmentCount" :content="$t('mail.attachmentCount', { count: attachmentCount })" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
@@ -89,6 +90,7 @@ defineProps<{
   attachmentCount: number
   messageCount: number
   newMessageLabel?: string
+  tags?: { id: string, name: string, color: string }[]
 }>()
 
 defineEmits<{ open: [event: MouseEvent] }>()

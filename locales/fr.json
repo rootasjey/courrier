@@ -1101,5 +1101,42 @@
     "messageCount": "{count} messages",
     "attachmentsCount": "{count} pièces jointes",
     "filingRules": "Règles de classement"
+  },
+  "tags": {
+    "title": "Tags",
+    "filter": "Filtrer par tag",
+    "all": "Tous",
+    "manage": "Gérer les tags",
+    "pageDescription": "Les tags de cet espace sont partagés avec tous ses membres.",
+    "name": "Nom du tag",
+    "namePlaceholder": "Nouveau tag",
+    "color": "Couleur du tag",
+    "colorNoMatches": "Aucune couleur correspondante.",
+    "create": "Créer",
+    "add": "Ajouter",
+    "noMatches": "Aucun tag correspondant.",
+    "saving": "Enregistrement…",
+    "empty": "Aucun tag dans cet espace.",
+    "emptyReadOnly": "Aucun tag n’a encore été créé dans cet espace.",
+    "noneCreated": "Aucun tag n’est disponible pour le moment.",
+    "assign": "Attribuer des tags",
+    "assignError": "Les tags n’ont pas pu être enregistrés. Réessaie.",
+    "saveError": "Le tag n’a pas pu être enregistré. Vérifie son nom et réessaie.",
+    "deleteError": "Le tag n’a pas pu être supprimé. Réessaie.",
+    "rename": "Renommer {name}",
+    "saveName": "Enregistrer le nom de {name}",
+    "delete": "Supprimer {name}",
+    "deleteTitle": "Supprimer ce tag ?",
+    "deleteDescription": "« {name} » sera retiré de toutes les conversations de cet espace.",
+    "cancel": "Annuler",
+    "deleteConfirm": "Supprimer",
+    "colors": {
+      "teal": "Turquoise",
+      "blue": "Bleu",
+      "green": "Vert",
+      "amber": "Ambre",
+      "rose": "Rose",
+      "violet": "Violet"
+    }
   }
 }
