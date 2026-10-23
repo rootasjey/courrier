@@ -7,6 +7,8 @@
 	"name": "courrier",
 	"main": "./.output/server/index.mjs",
 	"compatibility_date": "2026-09-28",
+	"workers_dev": true,
+	"preview_urls": true,
 	"assets": {
 		"binding": "ASSETS",
 		"directory": "./.output/public/"
@@ -15,11 +17,17 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	"routes": [
+		{
+			"pattern": "courrier.day",
+			"custom_domain": true
+		}
+	],
 	"triggers": {
 		"crons": ["15 3 * * *"]
 	},
 	"vars": {
-		"COURRIER_PUBLIC_ORIGIN": "https://courrier.jerem-dev.workers.dev"
+		"COURRIER_PUBLIC_ORIGIN": "https://courrier.day"
 	},
 	"d1_databases": [
 		{
