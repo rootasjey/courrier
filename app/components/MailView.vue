@@ -1088,6 +1088,7 @@ import InboxMessageDate from '~/components/InboxMessageDate.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
 import ThreadParticipantsStack from '~/components/ThreadParticipantsStack.vue'
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
+import { useMailViewSearch, type SearchHit } from '~/composables/useMailViewSearch'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 const OutgoingComposer = defineAsyncComponent(() => import('~/components/OutgoingComposer.vue'))
@@ -1145,13 +1146,6 @@ type ThreadParticipant = {
   color: 'terracotta' | 'blue' | 'green' | 'gold'
   avatarUrl?: string | null
   logoUrl?: string | null
-}
-
-type SearchHit = {
-  id: string
-  folder: StoredFolder
-  threadId: string
-  snippet: string
 }
 
 type SearchThread = MessageThread & {
@@ -1221,7 +1215,6 @@ const route = useRoute()
 const router = useRouter()
 const activeFolder = computed(() => mailboxFromPath(route.path))
 const selectedTagId = computed(() => typeof route.query.tag === 'string' ? route.query.tag : '')
-const isGlobalSearch = computed(() => Boolean(search.value.trim()) && activeFolder.value !== 'Screener' && activeFolder.value !== 'Trash')
 const searchExceedsLimit = computed(() => search.value.trim().length > 200)
 const search = computed({
   get: () => typeof route.query.q === 'string' ? route.query.q : '',
@@ -1232,6 +1225,15 @@ const search = computed({
     if (value !== search.value) void router.replace({ path: route.path, query })
   },
 })
+const {
+  isGlobalSearch,
+  loadMoreSearchResults,
+  searchError,
+  searchHasMore,
+  searchLoading,
+  searchResults,
+  searchTotal,
+} = useMailViewSearch(search, activeFolder)
 const selectedId = computed(() => threadIdFromPath(route.path))
 const isReadingMessage = computed(() => Boolean(selectedId.value))
 const threadTagPicker = ref<{
@@ -1239,14 +1241,6 @@ const threadTagPicker = ref<{
   closePicker: () => Promise<void>
   isPickerOpen: () => boolean
 } | null>(null)
-const searchResults = ref<SearchHit[]>([])
-const searchTotal = ref(0)
-const searchOffset = ref(0)
-const searchHasMore = ref(false)
-const searchLoading = ref(Boolean(isGlobalSearch.value))
-const searchError = ref('')
-let searchTimer: ReturnType<typeof setTimeout> | undefined
-let searchRevision = 0
 const openedFromList = ref(false)
 const classificationTarget = ref<InboxMessage | null>(null)
 const classificationScope = ref<'sender' | 'message' | 'group'>('sender')
@@ -1508,25 +1502,6 @@ watch(composeDraftRequest, (draft) => {
   composeInitialDraft.value = { ...draft }
   composeOpen.value = true
   composeDraftRequest.value = null
-}, { immediate: true })
-
-watch([search, activeFolder], () => {
-  if (!import.meta.client) return
-  searchRevision += 1
-  if (searchTimer) clearTimeout(searchTimer)
-  searchResults.value = []
-  searchTotal.value = 0
-  searchOffset.value = 0
-  searchHasMore.value = false
-  searchError.value = ''
-
-  if (!isGlobalSearch.value) {
-    searchLoading.value = false
-    return
-  }
-
-  searchLoading.value = true
-  searchTimer = setTimeout(() => { void loadSearchPage(true) }, 240)
 }, { immediate: true })
 
 const folderMessages = computed(() => {
@@ -1836,36 +1811,40 @@ const selectedThread = computed(() => folderThreads.value.find(thread => thread.
 const selectedThreadParticipants = computed(() => selectedThread.value ? threadParticipants(selectedThread.value) : [])
 const selectedMessage = computed(() => selectedThread.value?.latest)
 const chronologicalMessages = computed(() => [...(selectedThread.value?.messages ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
-const activeThreadMessageId = ref('')
-const threadSlideDirection = ref(1)
-const isReadingAll = ref(false)
-const threadMessageRail = ref<HTMLDivElement | null>(null)
-const railCanScrollStart = ref(false)
-const railCanScrollEnd = ref(false)
-const activeThreadMessage = computed(() => chronologicalMessages.value.find(message => message.id === activeThreadMessageId.value) ?? selectedMessage.value)
-const activeThreadMessageIndex = computed(() => chronologicalMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id))
-const feedEditionIndex = computed(() => {
-  const messageId = activeThreadMessage.value?.id
-  return messageId ? feedEditions.value.findIndex(message => message.id === messageId) : -1
+const {
+  activeThreadMessage,
+  activeThreadMessageId,
+  activeThreadMessageIndex,
+  feedEditionAnnouncement,
+  feedEditionIndex,
+  feedTouchOrigin,
+  finishFeedTouch,
+  isFeedReader,
+  isInboxReader,
+  isReadingAll,
+  navigateFeedEdition,
+  navigateThreadMessage,
+  railCanScrollEnd,
+  railCanScrollStart,
+  rememberFeedTouch,
+  replyRecipient,
+  resetThreadPresentation,
+  revealThreadTab,
+  selectThreadMessage,
+  threadMessageRail,
+  threadSlideDirection,
+  toggleReadAll,
+  updateThreadRailOverflow,
+} = useMailThreadNavigation({
+  activeFolder,
+  chronologicalMessages,
+  feedEditions,
+  isGlobalSearch,
+  isReadingMessage,
+  openMessage,
+  selectedId,
+  selectedMessage,
 })
-const isFeedReader = computed(() => activeFolder.value === 'The Feed'
-  && !isGlobalSearch.value
-  && Boolean(selectedId.value)
-  && feedEditionIndex.value >= 0)
-const isInboxReader = computed(() => activeFolder.value === 'Imbox'
-  && !isGlobalSearch.value
-  && Boolean(selectedId.value))
-const feedEditionAnnouncement = computed(() => isFeedReader.value && activeThreadMessage.value
-  ? $t('mail.feedEditionAnnouncement', {
-    subject: activeThreadMessage.value.subject,
-    current: feedEditionIndex.value + 1,
-    total: feedEditions.value.length,
-  })
-  : '')
-const feedTouchOrigin = ref<{ x: number, y: number } | null>(null)
-const replyRecipient = computed(() => activeThreadMessage.value?.isOutgoing
-  ? activeThreadMessage.value.recipient
-  : activeThreadMessage.value?.address || '')
 
 watch(replyBody, () => {
   if (!replyComposerOpen.value || replyLoading.value || replyDraftStatus.value === 'sending') return
@@ -1915,91 +1894,6 @@ watch(() => route.query.message, (messageParam) => {
     void router.replace({ path: route.path, query: { ...route.query, message: message.id } })
   }
 })
-
-function updateThreadRailOverflow() {
-  const rail = threadMessageRail.value
-  if (!rail) {
-    railCanScrollStart.value = false
-    railCanScrollEnd.value = false
-    return
-  }
-
-  const hasOverflow = rail.scrollWidth > rail.clientWidth + 2
-  railCanScrollStart.value = hasOverflow && activeThreadMessageIndex.value > 0
-  railCanScrollEnd.value = hasOverflow && activeThreadMessageIndex.value < chronologicalMessages.value.length - 1
-}
-
-function revealThreadTab(messageId: string) {
-  const rail = threadMessageRail.value
-  const tab = document.getElementById(`thread-message-tab-${messageId}`)
-  if (!rail || !tab) return
-
-  const railRect = rail.getBoundingClientRect()
-  const tabRect = tab.getBoundingClientRect()
-  const nextScrollLeft = tabRect.left < railRect.left
-    ? rail.scrollLeft + tabRect.left - railRect.left
-    : tabRect.right > railRect.right
-      ? rail.scrollLeft + tabRect.right - railRect.right
-      : rail.scrollLeft
-  rail.scrollTo({ left: nextScrollLeft, behavior: 'instant' })
-  updateThreadRailOverflow()
-}
-
-function resetThreadPresentation(activeMessageId: string) {
-  activeThreadMessageId.value = activeMessageId
-  isReadingAll.value = false
-}
-
-function selectThreadMessage(messageId: string) {
-  const nextIndex = chronologicalMessages.value.findIndex(message => message.id === messageId)
-  if (nextIndex < 0) return
-
-  threadSlideDirection.value = nextIndex > activeThreadMessageIndex.value ? 1 : -1
-  activeThreadMessageId.value = messageId
-  void router.replace({ path: route.path, query: { ...route.query, message: messageId } })
-}
-
-function navigateThreadMessage(direction: -1 | 1) {
-  const nextMessage = chronologicalMessages.value[activeThreadMessageIndex.value + direction]
-  if (nextMessage) selectThreadMessage(nextMessage.id)
-}
-
-function navigateFeedEdition(direction: -1 | 1) {
-  const nextEdition = feedEditions.value[feedEditionIndex.value + direction]
-  if (nextEdition) openMessage(nextEdition, 'The Feed', true)
-}
-
-function rememberFeedTouch(event: TouchEvent) {
-  if (event.touches.length !== 1) {
-    feedTouchOrigin.value = null
-    return
-  }
-
-  const target = event.target
-  if (target instanceof Element && target.closest('a, button, input, textarea, select, [contenteditable="true"]')) {
-    feedTouchOrigin.value = null
-    return
-  }
-
-  const touch = event.touches[0]
-  if (touch) feedTouchOrigin.value = { x: touch.clientX, y: touch.clientY }
-}
-
-function finishFeedTouch(event: TouchEvent) {
-  const origin = feedTouchOrigin.value
-  feedTouchOrigin.value = null
-  const touch = event.changedTouches[0]
-  if (!origin || !touch) return
-
-  const deltaX = touch.clientX - origin.x
-  const deltaY = touch.clientY - origin.y
-  if (Math.abs(deltaX) < 72 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.35) return
-  navigateFeedEdition(deltaX < 0 ? 1 : -1)
-}
-
-function toggleReadAll() {
-  isReadingAll.value = !isReadingAll.value
-}
 
 async function openReplyComposer() {
   const message = activeThreadMessage.value
@@ -2413,33 +2307,9 @@ function openOrFollowStackCard(isExpanded: boolean, stack: 'set-aside' | 'reply-
   }
 }
 
-let threadRailResizeObserver: ResizeObserver | undefined
 function updateStackPreviewLimit() {
   viewportHeight.value = window.innerHeight
 }
-
-watch(threadMessageRail, async (rail) => {
-  threadRailResizeObserver?.disconnect()
-  if (rail && typeof ResizeObserver !== 'undefined') {
-    threadRailResizeObserver = new ResizeObserver(updateThreadRailOverflow)
-    threadRailResizeObserver.observe(rail)
-  }
-  await nextTick()
-  if (rail && activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
-  updateThreadRailOverflow()
-}, { flush: 'post' })
-
-watch(isReadingMessage, async (isOpen) => {
-  if (!isOpen) return
-  await nextTick()
-  if (activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
-  updateThreadRailOverflow()
-}, { flush: 'post' })
-
-watch(() => chronologicalMessages.value.length, async () => {
-  await nextTick()
-  updateThreadRailOverflow()
-}, { flush: 'post' })
 
 onMounted(() => {
   updateStackPreviewLimit()
@@ -2459,7 +2329,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointerdown', closeSubjectContextMenu)
   window.removeEventListener('keydown', closeSubjectContextMenuOnEscape)
   document.removeEventListener('selectionchange', updateSubjectSelection)
-  threadRailResizeObserver?.disconnect()
 })
 
 async function importFixture() {
@@ -2830,50 +2699,6 @@ async function splitSelectedThread() {
   } finally {
     isSplittingThread.value = false
   }
-}
-
-async function loadSearchPage(reset = false) {
-  if (!isGlobalSearch.value) return
-
-  if (reset) {
-    searchResults.value = []
-    searchOffset.value = 0
-  }
-
-  const offset = reset ? 0 : searchOffset.value
-  const revision = ++searchRevision
-  searchLoading.value = true
-  searchError.value = ''
-
-  try {
-    const response = await $fetch<{
-      results: SearchHit[]
-      total: number
-      hasMore: boolean
-      nextOffset: number | null
-    }>('/api/search', {
-      query: { q: search.value.trim(), offset },
-    })
-
-    if (revision !== searchRevision) return
-
-    if (reset) searchResults.value = response.results
-    else {
-      const knownIds = new Set(searchResults.value.map(result => result.id))
-      searchResults.value = [...searchResults.value, ...response.results.filter(result => !knownIds.has(result.id))]
-    }
-    searchTotal.value = response.total
-    searchHasMore.value = response.hasMore
-    searchOffset.value = response.nextOffset ?? offset + response.results.length
-  } catch {
-    if (revision === searchRevision) searchError.value = $t('mail.searchError')
-  } finally {
-    if (revision === searchRevision) searchLoading.value = false
-  }
-}
-
-function loadMoreSearchResults() {
-  if (searchHasMore.value && !searchLoading.value) void loadSearchPage()
 }
 
 function setMessageRead(message: InboxMessage, isRead: boolean) {
@@ -3250,11 +3075,6 @@ async function saveClassification() {
     isSavingClassification.value = false
   }
 }
-
-onUnmounted(() => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchRevision += 1
-})
 
 useSeoMeta({
   title: 'Courrier — votre boîte, à votre façon',
