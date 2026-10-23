@@ -85,7 +85,7 @@ defineProps<{
   timestamp: string
   displayDate: string
   absoluteDate: string
-  participants: { address: string, name: string, initials: string, color: 'terracotta' | 'blue' | 'green' | 'gold' }[]
+  participants: { address: string, name: string, initials: string, color: 'terracotta' | 'blue' | 'green' | 'gold', avatarUrl?: string | null, logoUrl?: string | null }[]
   attachmentCount: number
   messageCount: number
   newMessageLabel?: string

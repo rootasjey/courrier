@@ -1135,6 +1135,8 @@ type ThreadParticipant = {
   name: string
   initials: string
   color: 'terracotta' | 'blue' | 'green' | 'gold'
+  avatarUrl?: string | null
+  logoUrl?: string | null
 }
 
 type SearchHit = {
@@ -1186,6 +1188,7 @@ function threadParticipants(thread: MessageThread): ThreadParticipant[] {
     return {
       ...participant,
       initials: initials.toLocaleUpperCase('fr'),
+      ...participantAvatars.value[participant.address],
     }
   })
 }
@@ -1541,6 +1544,42 @@ const visibleThreads = computed(() => {
     `${message.sender} ${message.subject} ${message.preview}`.toLocaleLowerCase('fr').includes(query),
   ))
 })
+
+const participantAvatars = ref<Record<string, { avatarUrl: string | null, logoUrl: string | null }>>({})
+const participantAvatarAddresses = computed(() => {
+  const currentAddress = accountSession.value?.user.email.trim().toLocaleLowerCase('en-US')
+  const addresses = visibleThreads.value.flatMap(thread => thread.messages.flatMap((message) => {
+    const senderAddress = message.address.trim().toLocaleLowerCase('en-US')
+    return [
+      ...(!message.isOutgoing && senderAddress !== currentAddress ? [senderAddress] : []),
+      ...recipientAddresses(message.recipient).filter(address => address !== currentAddress),
+    ]
+  }))
+  return [...new Set(addresses.filter(Boolean))].sort()
+})
+let participantAvatarRequestId = 0
+
+watch(participantAvatarAddresses, async (addresses) => {
+  const requestId = ++participantAvatarRequestId
+  if (!addresses.length) {
+    participantAvatars.value = {}
+    return
+  }
+
+  try {
+    const chunks: string[][] = []
+    for (let index = 0; index < addresses.length; index += 30) chunks.push(addresses.slice(index, index + 30))
+    const responses = await Promise.all(chunks.map(chunk => $fetch<{ avatars: Record<string, { avatarUrl: string | null, logoUrl: string | null }> }>('/api/contacts/avatars', {
+      query: { addresses: chunk.join(',') },
+    })))
+    if (requestId === participantAvatarRequestId) {
+      participantAvatars.value = Object.assign({}, ...responses.map(response => response.avatars))
+    }
+  } catch {
+    // Avatars remain initials if contact lookup is temporarily unavailable.
+  }
+}, { immediate: true })
+
 const feedEditions = computed(() => folderMessages.value
   .filter(message => message.folder === 'The Feed')
   .sort((a, b) => b.timestamp.localeCompare(a.timestamp)))

@@ -5,7 +5,7 @@
     :to="senderPath(participants[0]!.address)"
     :aria-label="$t('mail.openContactPage', { name: participants[0]!.name })"
   >
-    <span class="thread-participant-avatar" :class="`avatar-${participants[0]!.color}`" aria-hidden="true">{{ participants[0]!.initials }}</span>
+    <ThreadParticipantAvatar :participant="participants[0]!" />
   </NuxtLink>
 
   <template v-else-if="participants.length > 1">
@@ -18,9 +18,7 @@
     >
       <template #trigger>
         <button :class="['thread-participants-trigger', { 'thread-participants-inline': inline, 'thread-participants-desktop-trigger': mobileDrawer }]" type="button" :aria-label="$t('mail.showParticipants', { count: participants.length })" :aria-expanded="open">
-          <span v-for="(participant, index) in visibleParticipants" :key="participant.address" class="thread-participant-avatar" :class="[`avatar-${participant.color}`, { 'is-overflow': index === 2 && participants.length > 3 }]" :style="{ zIndex: index + 1 }" aria-hidden="true">
-            {{ index === 2 && participants.length > 3 ? `+${participants.length - 2}` : participant.initials }}
-          </span>
+          <ThreadParticipantAvatar v-for="(participant, index) in visibleParticipants" :key="participant.address" :participant="participant" :overflow-text="index === 2 && participants.length > 3 ? `+${participants.length - 2}` : undefined" :z-index="index + 1" />
         </button>
       </template>
       <template #default>
@@ -40,9 +38,7 @@
     >
       <template #trigger="{ open: drawerOpen }">
         <button class="thread-participants-trigger thread-participants-mobile-trigger" type="button" :aria-label="$t('mail.showParticipants', { count: participants.length })" :aria-expanded="drawerOpen">
-          <span v-for="(participant, index) in visibleParticipants" :key="participant.address" class="thread-participant-avatar" :class="[`avatar-${participant.color}`, { 'is-overflow': index === 2 && participants.length > 3 }]" :style="{ zIndex: index + 1 }" aria-hidden="true">
-            {{ index === 2 && participants.length > 3 ? `+${participants.length - 2}` : participant.initials }}
-          </span>
+          <ThreadParticipantAvatar v-for="(participant, index) in visibleParticipants" :key="participant.address" :participant="participant" :overflow-text="index === 2 && participants.length > 3 ? `+${participants.length - 2}` : undefined" :z-index="index + 1" />
         </button>
       </template>
       <template #body>
@@ -60,6 +56,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import ParticipantList from '~/components/ThreadParticipantList.vue'
+import ThreadParticipantAvatar from '~/components/ThreadParticipantAvatar.vue'
 import { senderPath } from '~/utils/mailbox-routing'
 
 type Participant = {
@@ -67,6 +64,8 @@ type Participant = {
   name: string
   initials: string
   color: 'terracotta' | 'blue' | 'green' | 'gold'
+  avatarUrl?: string | null
+  logoUrl?: string | null
 }
 
 const props = defineProps<{ participants: Participant[], inline?: boolean, mobileDrawer?: boolean }>()
