@@ -594,169 +594,38 @@
 
           <div v-if="!isReadingAll" class="thread-carousel-stage" aria-live="polite">
             <Transition :name="threadSlideDirection > 0 ? 'message-slide-next' : 'message-slide-prev'" mode="out-in">
-            <article
+            <MailThreadMessageCard
               v-if="activeThreadMessage"
               :key="activeThreadMessage.id"
-              id="thread-message-panel"
-              class="thread-message-card"
-              :class="{ 'inbox-message-card': isInboxReader }"
-              :aria-label="$t('mail.messageFrom', { sender: activeThreadMessage.sender })"
-            >
-              <div class="message-meta" :class="{ 'inbox-message-sender': isInboxReader }">
-                <NTooltip v-if="isInboxReader" :content="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) + ' · Esc'" :una="{ tooltipContent: 'z-[120]' }">
-                  <button
-                    class="inbox-reader-back-button"
-                    type="button"
-                    :aria-label="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label })"
-                    aria-keyshortcuts="Escape"
-                    @click="closeMessage"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5M7.5 10h9" /></svg>
-                  </button>
-                </NTooltip>
-                <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
-                  <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
-                </NuxtLink>
-                <span v-else class="sender-profile-avatar" aria-hidden="true">
-                  <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
-                </span>
-                <span class="meta-copy">
-                  <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
-                  <span v-else class="sender-profile-name">{{ activeThreadMessage.sender }}</span>
-                  <span v-if="activeThreadMessage.isOutgoing" class="sender-recipient-links">
-                    {{ $t('mail.recipient') }}
-                    <template v-if="recipientAddresses(activeThreadMessage.recipient).length">
-                      <NuxtLink v-for="email in recipientAddresses(activeThreadMessage.recipient)" :key="email" class="sender-profile-link" :to="senderPath(email)">{{ email }}</NuxtLink>
-                    </template>
-                    <span v-else>{{ activeThreadMessage.recipient }}</span>
-                  </span>
-                  <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
-                </span>
-                <NTooltip v-if="!isInboxReader" :content="absoluteMailDate(activeThreadMessage.timestamp)">
-                  <time :datetime="activeThreadMessage.timestamp">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
-                </NTooltip>
-              </div>
-
-              <div v-if="!isInboxReader" class="message-rule" />
-              <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
-                <p v-if="activeThreadMessage.body === undefined && isThreadContentLoading" role="status">{{ $t('mail.loading') }}</p>
-                <p v-else-if="activeThreadMessage.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
-                <div v-else-if="activeThreadMessage.isOutgoing && activeThreadMessage.htmlBody" class="message-rich-body" v-html="activeThreadMessage.htmlBody" />
-                <template v-else-if="activeThreadMessage.body !== undefined"><p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-                <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
-                  <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
-                  <a
-                    v-for="attachment in activeThreadMessage.attachments"
-                    :key="attachment.id"
-                    class="attachment-item"
-                    :href="`/api/attachments/${attachment.id}`"
-                    :download="attachment.filename"
-                    :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
-                  >
-                    <span aria-hidden="true">↳</span>
-                    <strong>{{ attachment.filename }}</strong>
-                    <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
-                  </a>
-                </div>
-              </div>
-              <div v-if="isInboxReader" class="inbox-message-footer">
-                <ThreadParticipantsStack
-                  v-if="selectedThreadParticipants.length > 1"
-                  :participants="selectedThreadParticipants"
-                  mobile-drawer
-                />
-                <span class="inbox-message-footer-date">
-                  <InboxMessageDate
-                    :timestamp="activeThreadMessage.timestamp"
-                    :relative-date="relativeMailDate(activeThreadMessage.timestamp)"
-                    :absolute-date="absoluteMailDate(activeThreadMessage.timestamp)"
-                  />
-                </span>
-              </div>
-            </article>
+              :message="activeThreadMessage"
+              :is-inbox-reader="isInboxReader"
+              :is-loading="isThreadContentLoading"
+              :show-back-button="isInboxReader"
+              :folder-label="mailboxByName(activeFolder).label"
+              :avatar="senderAvatarFor(activeThreadMessage)"
+              :participants="selectedThreadParticipants"
+              :show-participants="selectedThreadParticipants.length > 1"
+              @close="closeMessage"
+            />
             </Transition>
           </div>
 
           <div v-else class="thread-full-thread">
-            <article
-              v-for="message in chronologicalMessages"
-              :id="'thread-full-message-' + message.id"
+            <MailThreadMessageCard
+              v-for="(message, index) in chronologicalMessages"
               :key="message.id"
-              class="thread-message-card thread-full-message"
-              :class="{ 'is-selected': message.id === activeThreadMessage?.id, 'inbox-message-card': isInboxReader }"
-              :aria-label="$t('mail.messageFrom', { sender: message.sender })"
-            >
-              <div class="message-meta" :class="{ 'inbox-message-sender': isInboxReader }">
-                <NTooltip v-if="isInboxReader && message.id === chronologicalMessages[0]?.id" :content="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) + ' · Esc'" :una="{ tooltipContent: 'z-[120]' }">
-                  <button
-                    class="inbox-reader-back-button"
-                    type="button"
-                    :aria-label="$t('mail.backToFolder', { folder: mailboxByName(activeFolder).label })"
-                    aria-keyshortcuts="Escape"
-                    @click="closeMessage"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5M7.5 10h9" /></svg>
-                  </button>
-                </NTooltip>
-                <NuxtLink v-if="!message.isOutgoing" class="sender-profile-avatar" :to="senderPath(message.address)" :aria-label="$t('mail.openSenderPage', { sender: message.sender })">
-                  <MailSenderAvatar class="meta-avatar" :initials="message.initials" :color="message.color" v-bind="senderAvatarFor(message)" />
-                </NuxtLink>
-                <span v-else class="sender-profile-avatar" aria-hidden="true">
-                  <MailSenderAvatar class="meta-avatar" :initials="message.initials" :color="message.color" v-bind="senderAvatarFor(message)" />
-                </span>
-              <span class="meta-copy">
-                <NuxtLink v-if="!message.isOutgoing" class="sender-profile-name" :to="senderPath(message.address)">{{ message.sender }}</NuxtLink>
-                <span v-else class="sender-profile-name">{{ message.sender }}</span>
-                <span v-if="message.isOutgoing" class="sender-recipient-links">
-                  {{ $t('mail.recipient') }}
-                  <template v-if="recipientAddresses(message.recipient).length">
-                    <NuxtLink v-for="email in recipientAddresses(message.recipient)" :key="email" class="sender-profile-link" :to="senderPath(email)">{{ email }}</NuxtLink>
-                  </template>
-                  <span v-else>{{ message.recipient }}</span>
-                </span>
-                <NuxtLink v-else class="sender-profile-link" :to="senderPath(message.address)">{{ message.address }}</NuxtLink>
-                </span>
-                <NTooltip v-if="!isInboxReader" :content="absoluteMailDate(message.timestamp)">
-                  <time :datetime="message.timestamp">{{ relativeMailDate(message.timestamp) }}</time>
-                </NTooltip>
-              </div>
-              <div v-if="!isInboxReader" class="message-rule" />
-              <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
-                <p v-if="message.body === undefined && isThreadContentLoading" role="status">{{ $t('mail.loading') }}</p>
-                <p v-else-if="message.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
-                <div v-else-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
-                <template v-else-if="message.body !== undefined"><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-                <div v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
-                  <span class="attachment-heading">{{ $t(message.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: message.attachments.length }) }}</span>
-                  <a
-                    v-for="attachment in message.attachments"
-                    :key="attachment.id"
-                    class="attachment-item"
-                    :href="`/api/attachments/${attachment.id}`"
-                    :download="attachment.filename"
-                    :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
-                  >
-                    <span aria-hidden="true">↳</span>
-                    <strong>{{ attachment.filename }}</strong>
-                    <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
-                  </a>
-                </div>
-              </div>
-              <div v-if="isInboxReader" class="inbox-message-footer">
-                <ThreadParticipantsStack
-                  v-if="message.id === chronologicalMessages[chronologicalMessages.length - 1]?.id && selectedThreadParticipants.length > 1"
-                  :participants="selectedThreadParticipants"
-                  mobile-drawer
-                />
-                <span class="inbox-message-footer-date">
-                  <InboxMessageDate
-                    :timestamp="message.timestamp"
-                    :relative-date="relativeMailDate(message.timestamp)"
-                    :absolute-date="absoluteMailDate(message.timestamp)"
-                  />
-                </span>
-              </div>
-            </article>
+              variant="full"
+              :message="message"
+              :is-inbox-reader="isInboxReader"
+              :is-loading="isThreadContentLoading"
+              :is-selected="message.id === activeThreadMessage?.id"
+              :show-back-button="isInboxReader && index === 0"
+              :folder-label="mailboxByName(activeFolder).label"
+              :avatar="senderAvatarFor(message)"
+              :participants="selectedThreadParticipants"
+              :show-participants="index === chronologicalMessages.length - 1 && selectedThreadParticipants.length > 1"
+              @close="closeMessage"
+            />
           </div>
         </div>
       </article>
@@ -1084,9 +953,8 @@
 
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
-import InboxMessageDate from '~/components/InboxMessageDate.vue'
+import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
-import ThreadParticipantsStack from '~/components/ThreadParticipantsStack.vue'
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
 import { useMailViewSearch, type SearchHit } from '~/composables/useMailViewSearch'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
