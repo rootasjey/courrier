@@ -460,7 +460,7 @@ useSeoMeta({
 .sender-profile-heading { display: grid; justify-items: center; gap: 14px; margin: 0 0 40px; text-align: center; }
 .sender-profile-avatar { display: grid; width: 88px; height: 88px; place-items: center; border-radius: 50%; font-size: 25px; font-weight: 700; }
 .sender-profile-avatar-photo { object-fit: cover; }
-.sender-profile-avatar-logo { object-fit: contain; padding: 12px; background: white; }
+.sender-profile-avatar-logo { object-fit: contain; padding: 6px; background: white; }
 .avatar-terracotta { background: #f2e5dd; color: #714b3e; }
 .avatar-blue { background: #e3eceb; color: #405e62; }
 .avatar-green { background: #deebe4; color: #31574d; }

@@ -143,7 +143,7 @@
           <div v-for="thread in globalSearchThreads" :key="thread.id" role="listitem">
             <button class="thread-row search-result-row" type="button" @click="openMessage(thread.latest)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }" :title="thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : undefined">
-                <span class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                <MailSenderAvatar :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
                 <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
               </span>
               <span class="thread-content">
@@ -210,7 +210,7 @@
               </div>
             </div>
             <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
-              <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
+              <MailSenderAvatar :initials="sender.latest.initials" :color="sender.latest.color" v-bind="threadAvatarFor(sender.latest)" />
               <span class="thread-content">
                 <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time :datetime="sender.latest.timestamp" :title="absoluteMailDate(sender.latest.timestamp)">{{ relativeMailDate(sender.latest.timestamp) }}</time></span>
                 <span class="thread-subject">{{ sender.latest.subject }}</span>
@@ -225,7 +225,7 @@
           <article v-for="sender in visibleScreenerHistory" :key="`${sender.address}-${sender.state}`" class="screener-row screener-history-row" role="listitem">
             <span class="screener-history-state" :class="`is-${sender.state}`">{{ $t(sender.state === 'blocked' ? 'mail.blocked' : 'mail.dismissed') }}</span>
             <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
-              <span class="sender-avatar" :class="`avatar-${sender.latest.color}`">{{ sender.latest.initials }}</span>
+              <MailSenderAvatar :initials="sender.latest.initials" :color="sender.latest.color" v-bind="threadAvatarFor(sender.latest)" />
               <span class="thread-content">
                 <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time :datetime="sender.latest.timestamp" :title="absoluteMailDate(sender.latest.timestamp)">{{ relativeMailDate(sender.latest.timestamp) }}</time></span>
                 <span class="thread-subject">{{ sender.latest.subject }}</span>
@@ -251,7 +251,7 @@
               <button class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-                  <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                  <MailSenderAvatar v-else :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
                   <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
                 </span>
               </button>
@@ -270,7 +270,7 @@
               <button class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
                 <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
                   <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-                  <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                  <MailSenderAvatar v-else :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
                   <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
                 </span>
               </button>
@@ -303,7 +303,7 @@
           >
             <span class="thread-avatar-wrap" :class="{ 'is-merged': message.manualMergeIds.length }">
               <span v-if="threadSelectionMode && selectedThreadIds.includes(message.threadId)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-              <span v-else class="sender-avatar" :class="'avatar-' + message.color">{{ message.initials }}</span>
+              <MailSenderAvatar v-else :initials="message.initials" :color="message.color" v-bind="threadAvatarFor(message)" />
               <span v-if="message.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
             </span>
           </button>
@@ -331,7 +331,7 @@
           <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
             <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
               <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-              <span v-else class="sender-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+              <MailSenderAvatar v-else :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
               <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
             </span>
           </button>
@@ -366,7 +366,7 @@
                 :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: setAsideStackPreview.length - index + 1 }"
                 @click="openOrFollowStackCard(isSetAsideStackExpanded, 'set-aside', thread)"
               >
-                <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                <MailSenderAvatar class="set-aside-stack-avatar" :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
                 <span class="set-aside-stack-copy">
                   <strong>{{ thread.subject }}</strong>
                   <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
@@ -397,7 +397,7 @@
                 :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: replyLaterStackPreview.length - index + 1 }"
                 @click="openOrFollowStackCard(isReplyLaterStackExpanded, 'reply-later', thread)"
               >
-                <span class="sender-avatar set-aside-stack-avatar" :class="`avatar-${thread.latest.color}`">{{ thread.latest.initials }}</span>
+                <MailSenderAvatar class="set-aside-stack-avatar" :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
                 <span class="set-aside-stack-copy">
                   <strong>{{ thread.subject }}</strong>
                   <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
@@ -470,10 +470,10 @@
           <header class="feed-issue-sender">
             <div class="message-meta">
               <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
-                <span class="sender-avatar meta-avatar" :class="'avatar-' + activeThreadMessage.color">{{ activeThreadMessage.initials }}</span>
+                <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
               </NuxtLink>
               <span v-else class="sender-profile-avatar" aria-hidden="true">
-                <span class="sender-avatar meta-avatar" :class="'avatar-' + activeThreadMessage.color">{{ activeThreadMessage.initials }}</span>
+                <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
               </span>
               <span class="meta-copy">
                 <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
@@ -569,7 +569,7 @@
                   @click="selectThreadMessage(message.id)"
                 >
                   <span class="thread-tab-heading">
-                    <span class="sender-avatar thread-tab-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
+                    <MailSenderAvatar class="thread-tab-avatar" :initials="message.initials" :color="message.color" v-bind="senderAvatarFor(message)" />
                     <span class="thread-tab-sender">{{ message.sender }}</span>
                     <NTooltip :content="absoluteMailDate(message.timestamp)">
                       <time :datetime="message.timestamp">{{ relativeMailDate(message.timestamp) }}</time>
@@ -613,10 +613,10 @@
                   </button>
                 </NTooltip>
                 <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
-                  <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
+                  <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
                 </NuxtLink>
                 <span v-else class="sender-profile-avatar" aria-hidden="true">
-                  <span class="sender-avatar meta-avatar" :class="`avatar-${activeThreadMessage.color}`">{{ activeThreadMessage.initials }}</span>
+                  <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
                 </span>
                 <span class="meta-copy">
                   <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
@@ -697,10 +697,10 @@
                   </button>
                 </NTooltip>
                 <NuxtLink v-if="!message.isOutgoing" class="sender-profile-avatar" :to="senderPath(message.address)" :aria-label="$t('mail.openSenderPage', { sender: message.sender })">
-                  <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
+                  <MailSenderAvatar class="meta-avatar" :initials="message.initials" :color="message.color" v-bind="senderAvatarFor(message)" />
                 </NuxtLink>
                 <span v-else class="sender-profile-avatar" aria-hidden="true">
-                  <span class="sender-avatar meta-avatar" :class="`avatar-${message.color}`">{{ message.initials }}</span>
+                  <MailSenderAvatar class="meta-avatar" :initials="message.initials" :color="message.color" v-bind="senderAvatarFor(message)" />
                 </span>
               <span class="meta-copy">
                 <NuxtLink v-if="!message.isOutgoing" class="sender-profile-name" :to="senderPath(message.address)">{{ message.sender }}</NuxtLink>
@@ -1546,40 +1546,6 @@ const visibleThreads = computed(() => {
 })
 
 const participantAvatars = ref<Record<string, { avatarUrl: string | null, logoUrl: string | null }>>({})
-const participantAvatarAddresses = computed(() => {
-  const currentAddress = accountSession.value?.user.email.trim().toLocaleLowerCase('en-US')
-  const addresses = visibleThreads.value.flatMap(thread => thread.messages.flatMap((message) => {
-    const senderAddress = message.address.trim().toLocaleLowerCase('en-US')
-    return [
-      ...(!message.isOutgoing && senderAddress !== currentAddress ? [senderAddress] : []),
-      ...recipientAddresses(message.recipient).filter(address => address !== currentAddress),
-    ]
-  }))
-  return [...new Set(addresses.filter(Boolean))].sort()
-})
-let participantAvatarRequestId = 0
-
-watch(participantAvatarAddresses, async (addresses) => {
-  const requestId = ++participantAvatarRequestId
-  if (!addresses.length) {
-    participantAvatars.value = {}
-    return
-  }
-
-  try {
-    const chunks: string[][] = []
-    for (let index = 0; index < addresses.length; index += 30) chunks.push(addresses.slice(index, index + 30))
-    const responses = await Promise.all(chunks.map(chunk => $fetch<{ avatars: Record<string, { avatarUrl: string | null, logoUrl: string | null }> }>('/api/contacts/avatars', {
-      query: { addresses: chunk.join(',') },
-    })))
-    if (requestId === participantAvatarRequestId) {
-      participantAvatars.value = Object.assign({}, ...responses.map(response => response.avatars))
-    }
-  } catch {
-    // Avatars remain initials if contact lookup is temporarily unavailable.
-  }
-}, { immediate: true })
-
 const feedEditions = computed(() => folderMessages.value
   .filter(message => message.folder === 'The Feed')
   .sort((a, b) => b.timestamp.localeCompare(a.timestamp)))
@@ -1743,6 +1709,65 @@ const visibleScreenerHistory = computed(() => {
     `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
   )
 })
+
+const participantAvatarAddresses = computed(() => {
+  const currentAddress = accountSession.value?.user.email.trim().toLocaleLowerCase('en-US')
+  const displayedThreads = isGlobalSearch.value
+    ? globalSearchThreads.value
+    : visibleThreads.value
+  const displayedMessages = displayedThreads.flatMap(thread => thread.messages)
+  if (activeFolder.value === 'Screener') {
+    displayedMessages.push(...screenerSenders.value.map(sender => sender.latest))
+    displayedMessages.push(...visibleScreenerHistory.value.map(sender => sender.latest))
+  }
+  if (activeFolder.value === 'Imbox' && !isGlobalSearch.value) {
+    displayedMessages.push(...setAsideThreads.value.flatMap(thread => thread.messages))
+    displayedMessages.push(...replyLaterThreads.value.flatMap(thread => thread.messages))
+  }
+
+  const addresses = displayedMessages.flatMap((message) => {
+    const senderAddress = message.address.trim().toLocaleLowerCase('en-US')
+    return [
+      ...(!message.isOutgoing && senderAddress !== currentAddress ? [senderAddress] : []),
+      ...recipientAddresses(message.recipient).filter(address => address !== currentAddress),
+    ]
+  })
+  return [...new Set(addresses.filter(Boolean))].sort()
+})
+let participantAvatarRequestId = 0
+
+watch(participantAvatarAddresses, async (addresses) => {
+  const requestId = ++participantAvatarRequestId
+  if (!addresses.length) {
+    participantAvatars.value = {}
+    return
+  }
+
+  try {
+    const chunks: string[][] = []
+    for (let index = 0; index < addresses.length; index += 30) chunks.push(addresses.slice(index, index + 30))
+    const responses = await Promise.all(chunks.map(chunk => $fetch<{ avatars: Record<string, { avatarUrl: string | null, logoUrl: string | null }> }>('/api/contacts/avatars', {
+      query: { addresses: chunk.join(',') },
+    })))
+    if (requestId === participantAvatarRequestId) {
+      participantAvatars.value = Object.assign({}, ...responses.map(response => response.avatars))
+    }
+  } catch {
+    // Avatars remain initials if contact lookup is temporarily unavailable.
+  }
+}, { immediate: true })
+
+function senderAvatarFor(message: InboxMessage) {
+  if (message.isOutgoing) return {}
+  return participantAvatars.value[message.address.trim().toLocaleLowerCase('en-US')] ?? {}
+}
+
+function threadAvatarFor(message: InboxMessage) {
+  const address = message.isOutgoing
+    ? recipientAddresses(message.recipient)[0]
+    : message.address.trim().toLocaleLowerCase('en-US')
+  return address ? participantAvatars.value[address] ?? {} : {}
+}
 
 watch(screenerSenders, (senders) => {
   if (!senders.some(sender => sender.address.trim().toLocaleLowerCase('en-US') === selectedScreenerAddress.value)) {

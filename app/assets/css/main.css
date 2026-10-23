@@ -245,6 +245,10 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .set-aside-new-message { color: var(--accent); font-weight: 650; }
 .thread-date { flex: 0 0 auto; padding-left: 16px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .sender-avatar { display: grid; width: 47px; height: 47px; flex: 0 0 47px; place-items: center; border-radius: 50%; background: var(--accent-wash); color: var(--accent); font-size: 15px; font-weight: 650; }
+.sender-avatar.has-avatar-image { overflow: hidden; }
+.sender-avatar > img { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.sender-avatar.has-avatar-logo { background: #fff; color: transparent; }
+.sender-avatar.has-avatar-logo > img { padding: 4px; object-fit: contain; }
 .avatar-terracotta { background: #f4dcd7; color: #824639; }
 .avatar-blue { background: #ccecff; color: #285272; }
 .avatar-green { background: #b4f1df; color: #20594a; }
