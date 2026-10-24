@@ -98,74 +98,14 @@
           </div>
         </section>
 
-        <section class="admin-section" aria-labelledby="admin-domains-heading">
-          <h2 id="admin-domains-heading">{{ $t('admin.domains') }}</h2>
-          <p class="admin-section-description">{{ $t('admin.domainVerificationDescription') }}</p>
-          <p v-if="domainError" class="admin-access-error" role="alert">{{ domainError }}</p>
-          <p v-if="domainNotice" class="admin-access-notice" role="status">{{ domainNotice }}</p>
-          <div class="admin-domain-controls">
-            <label class="admin-access-field">
-              <span>{{ $t('admin.workspace') }}</span>
-              <select v-model="selectedDomainWorkspaceId" :disabled="domainBusy || !activeWorkspaces.length">
-                <option value="">{{ $t('admin.chooseWorkspace') }}</option>
-                <option v-for="workspace in activeWorkspaces" :key="workspace.id" :value="workspace.id">
-                  {{ workspace.name }}
-                </option>
-              </select>
-            </label>
-            <label class="admin-access-field">
-              <span>{{ $t('admin.domain') }}</span>
-              <input v-model="domainInput" type="text" :placeholder="$t('admin.domainPlaceholder')" :disabled="domainBusy" autocomplete="off" spellcheck="false">
-            </label>
-            <button class="admin-access-action" type="button" :disabled="domainBusy || !selectedDomainWorkspaceId || !domainInput.trim()" @click="addDomain">
-              {{ domainBusy ? $t('admin.savingDomain') : $t('admin.addDomain') }}
-            </button>
-          </div>
-
-          <div v-if="domainChallenge" class="admin-domain-challenge" aria-live="polite">
-            <div class="admin-domain-challenge-heading">
-              <div>
-                <h3>{{ $t('admin.dnsRecordTitle', { domain: domainChallenge.domain }) }}</h3>
-                <p>{{ $t('admin.dnsRecordDescription') }} <strong>{{ formatDate(domainChallenge.expiresAt) }}</strong></p>
-              </div>
-              <button class="admin-domain-dismiss" type="button" :aria-label="$t('admin.hideDnsRecord')" @click="domainChallenge = null">×</button>
-            </div>
-            <dl class="admin-domain-record">
-              <div><dt>{{ $t('admin.dnsRecordType') }}</dt><dd><code>TXT</code></dd></div>
-              <div><dt>{{ $t('admin.dnsRecordName') }}</dt><dd><code>{{ domainChallenge.recordName }}</code></dd></div>
-              <div><dt>{{ $t('admin.dnsRecordValue') }}</dt><dd><code>{{ domainChallenge.recordValue }}</code></dd></div>
-            </dl>
-            <div class="admin-domain-challenge-actions">
-              <button class="admin-access-action" type="button" :disabled="domainBusy" @click="verifyDomain(domainChallenge)">
-                {{ domainBusy ? $t('admin.checkingDns') : $t('admin.checkDns') }}
-              </button>
-            </div>
-          </div>
-          <div class="admin-table-wrap">
-            <table>
-              <thead><tr><th>{{ $t('admin.domain') }}</th><th>{{ $t('admin.workspace') }}</th><th>{{ $t('admin.verification') }}</th><th>{{ $t('admin.mailboxes') }}</th><th>{{ $t('admin.verifiedAt') }}</th><th>{{ $t('admin.action') }}</th></tr></thead>
-              <tbody>
-                <tr v-for="domain in overview.domains" :key="domain.id">
-                  <td><strong>{{ domain.domain }}</strong></td><td>{{ domain.workspace_name }}</td>
-                  <td><span class="admin-status" :class="`is-${domain.verification_status}`">{{ statusLabel(domain.verification_status) }}</span></td>
-                  <td>{{ domain.mailbox_count }}</td><td>{{ domain.verified_at ? formatDate(domain.verified_at) : '—' }}</td>
-                  <td>
-                    <div v-if="domain.verification_status === 'pending' || domain.verification_status === 'legacy_unverified'" class="admin-domain-row-actions">
-                      <button class="admin-membership-action is-reactivate" type="button" :disabled="domainBusy" @click="prepareDomainChallenge(domain)">
-                        {{ $t(domain.verification_status === 'pending' ? 'admin.configureDns' : 'admin.verifyLegacyDomain') }}
-                      </button>
-                      <button v-if="domain.verification_status === 'pending'" class="admin-membership-action is-suspend" type="button" :disabled="domainBusy || domain.mailbox_count > 0" @click="domainToRemove = domain">
-                        {{ $t('admin.removePendingDomain') }}
-                      </button>
-                    </div>
-                    <span v-else class="admin-access-protected">—</span>
-                  </td>
-                </tr>
-                <tr v-if="!overview.domains.length"><td colspan="6" class="admin-empty">{{ $t('admin.noRows') }}</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <AdminDomainsSection
+          :active-workspaces="activeWorkspaces"
+          :domains="overview.domains"
+          :admin-fetch="adminFetch"
+          :format-date="formatDate"
+          :status-label="statusLabel"
+          @refresh="loadOverview"
+        />
 
         <section class="admin-section" aria-labelledby="admin-members-heading">
           <h2 id="admin-members-heading">{{ $t('admin.memberships') }}</h2>
@@ -392,27 +332,7 @@
       </template>
     </NDialog>
 
-    <NDialog
-      :open="Boolean(domainToRemove)"
-      :title="$t('admin.removePendingDomain')"
-      :description="$t('admin.removePendingDomainDescription', { domain: domainToRemove?.domain || '' })"
-      :show-close="false"
-      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
-      @update:open="(open: boolean) => { if (!open && !domainBusy) domainToRemove = null }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <NDialogTitle class="dialog-title">{{ $t('admin.removePendingDomain') }}</NDialogTitle>
-          <NDialogDescription>{{ $t('admin.removePendingDomainDescription', { domain: domainToRemove?.domain || '' }) }}</NDialogDescription>
-        </header>
-        <div class="dialog-actions">
-          <button class="dialog-cancel" type="button" :disabled="domainBusy" @click="domainToRemove = null">{{ $t('common.cancel') }}</button>
-          <button class="dialog-danger" type="button" :disabled="domainBusy" @click="removePendingDomain">
-            {{ domainBusy ? $t('admin.removingDomain') : $t('admin.removePendingDomain') }}
-          </button>
-        </div>
-      </template>
-    </NDialog>
+
 
     <NDialog
       :open="Boolean(platformAdminToGrant)"
@@ -499,6 +419,7 @@
 </template>
 
 <script setup lang="ts">
+import AdminDomainsSection from '~/components/AdminDomainsSection.vue'
 import { createAdminAuthorizationRecovery } from '../utils/admin-authorization-recovery.mjs'
 import { getAdminAuthorizationRedirect } from '../utils/admin-authorization-redirect.mjs'
 
@@ -516,7 +437,6 @@ type AdminOverview = {
 type PlatformAdmin = { user_id: string, email: string, display_name: string, user_status: string, created_at: string, created_by_user_id: string | null, created_by_email: string | null }
 type PlatformAdminCandidate = { user_id: string, email: string, display_name: string }
 type PlatformAdminState = { actorUserId: string, admins: PlatformAdmin[], candidates: PlatformAdminCandidate[], candidatesTruncated: boolean }
-type DomainChallenge = { domainId: string, domain: string, recordName: string, recordValue: string, expiresAt: string }
 type MailboxAccess = {
   mailboxes: { id: string, workspace_id: string, workspace_name: string, address: string }[]
   members: { workspace_id: string, user_id: string, email: string, display_name: string | null, role: string }[]
@@ -554,13 +474,6 @@ const membershipBusy = ref(false)
 const membershipError = ref('')
 const membershipNotice = ref('')
 const membershipToChange = ref<AdminMembership | null>(null)
-const selectedDomainWorkspaceId = ref('')
-const domainInput = ref('')
-const domainBusy = ref(false)
-const domainError = ref('')
-const domainNotice = ref('')
-const domainChallenge = ref<DomainChallenge | null>(null)
-const domainToRemove = ref<AdminOverview['domains'][number] | null>(null)
 const invitationWorkspaceId = ref('')
 const invitationEmail = ref('')
 const invitationRole = ref<'member' | 'viewer'>('member')
@@ -615,14 +528,10 @@ function clearAdminData() {
   platformAdminState.value = null
   selectedMailboxId.value = ''
   selectedUserId.value = ''
-  selectedDomainWorkspaceId.value = ''
   invitationWorkspaceId.value = ''
   platformAdminCandidateId.value = ''
-  domainInput.value = ''
   invitationEmail.value = ''
   invitationRole.value = 'member'
-  domainChallenge.value = null
-  domainToRemove.value = null
   invitationToRevoke.value = null
   membershipToChange.value = null
   accessToRevoke.value = null
@@ -635,8 +544,6 @@ function clearAdminData() {
   accessNotice.value = ''
   membershipError.value = ''
   membershipNotice.value = ''
-  domainError.value = ''
-  domainNotice.value = ''
   invitationError.value = ''
   invitationNotice.value = ''
   platformAdminError.value = ''
@@ -720,9 +627,6 @@ function applyAdminSnapshot(snapshot: AdminSnapshot) {
   mailboxAccess.value = snapshot.mailboxAccess
   platformAdminState.value = snapshot.platformAdminState
 
-  if (!activeWorkspaces.value.some(workspace => workspace.id === selectedDomainWorkspaceId.value)) {
-    selectedDomainWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
-  }
   if (!activeWorkspaces.value.some(workspace => workspace.id === invitationWorkspaceId.value)) {
     invitationWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''
   }
@@ -953,82 +857,6 @@ async function revokeInvitation() {
     invitationError.value = $t('admin.invitationError')
   } finally {
     invitationBusy.value = false
-  }
-}
-
-async function addDomain() {
-  if (!selectedDomainWorkspaceId.value || !domainInput.value.trim() || domainBusy.value) return
-  domainBusy.value = true
-  domainError.value = ''
-  domainNotice.value = ''
-  try {
-    await adminFetch('/api/admin/domains', {
-      method: 'POST',
-      body: { workspaceId: selectedDomainWorkspaceId.value, domain: domainInput.value },
-    })
-    domainNotice.value = $t('admin.domainAddedNotice')
-    domainInput.value = ''
-    await loadOverview()
-  } catch (error) {
-    const statusCode = (error as { statusCode?: number, status?: number })?.statusCode ?? (error as { status?: number })?.status
-    domainError.value = $t(statusCode === 409 ? 'admin.domainAlreadyAdded' : statusCode === 400 ? 'admin.domainInvalid' : 'admin.domainSaveError')
-  } finally {
-    domainBusy.value = false
-  }
-}
-
-async function prepareDomainChallenge(domain: AdminOverview['domains'][number]) {
-  if (domainBusy.value) return
-  domainBusy.value = true
-  domainError.value = ''
-  domainNotice.value = ''
-  try {
-    domainChallenge.value = await adminFetch<DomainChallenge>(`/api/admin/domains/${encodeURIComponent(domain.id)}/challenge`, { method: 'POST' })
-  } catch {
-    domainError.value = $t('admin.domainChallengeError')
-  } finally {
-    domainBusy.value = false
-  }
-}
-
-async function verifyDomain(challenge: DomainChallenge) {
-  if (domainBusy.value) return
-  domainBusy.value = true
-  domainError.value = ''
-  domainNotice.value = ''
-  try {
-    const result = await adminFetch<{ verified: boolean }>(`/api/admin/domains/${encodeURIComponent(challenge.domainId)}/verify`, { method: 'POST' })
-    if (!result.verified) {
-      domainNotice.value = $t('admin.domainDnsNotVisible')
-      return
-    }
-    domainChallenge.value = null
-    domainNotice.value = $t('admin.domainVerifiedNotice')
-    await loadOverview()
-  } catch (error) {
-    const statusCode = (error as { statusCode?: number, status?: number })?.statusCode ?? (error as { status?: number })?.status
-    domainError.value = $t(statusCode === 410 ? 'admin.domainChallengeExpired' : 'admin.domainVerifyError')
-  } finally {
-    domainBusy.value = false
-  }
-}
-
-async function removePendingDomain() {
-  const domain = domainToRemove.value
-  if (!domain || domainBusy.value) return
-  domainBusy.value = true
-  domainError.value = ''
-  domainNotice.value = ''
-  try {
-    await adminFetch(`/api/admin/domains/${encodeURIComponent(domain.id)}`, { method: 'DELETE' })
-    if (domainChallenge.value?.domainId === domain.id) domainChallenge.value = null
-    domainToRemove.value = null
-    domainNotice.value = $t('admin.domainRemovedNotice')
-    await loadOverview()
-  } catch {
-    domainError.value = $t('admin.domainRemoveError')
-  } finally {
-    domainBusy.value = false
   }
 }
 
