@@ -486,168 +486,15 @@
       </Teleport>
     </section>
 
-    <NDialog
-      :open="threadTrashDialogOpen"
-      :title="$t('palette.trashTitle')"
-      :description="$t('palette.trashDescriptionOne')"
-      :show-close="false"
-      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
-      @update:open="(open: boolean) => { if (!isTrashingThread) threadTrashDialogOpen = open }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <NDialogTitle class="dialog-title">{{ $t('palette.trashTitle') }}</NDialogTitle>
-          <NDialogDescription>{{ $t('palette.trashDescriptionOne') }}</NDialogDescription>
-        </header>
-        <p v-if="bulkActionError" class="action-feedback-error" role="alert">{{ bulkActionError }}</p>
-        <div class="dialog-actions">
-          <button class="dialog-cancel" type="button" :disabled="isTrashingThread" @click="threadTrashDialogOpen = false">{{ $t('palette.cancel') }}</button>
-          <button class="dialog-danger" type="button" :disabled="isTrashingThread" @click="trashOpenThread">
-            {{ isTrashingThread ? $t('palette.applying') : $t('palette.confirmTrash') }}
-          </button>
-        </div>
-      </template>
-    </NDialog>
-
-    <NDialog
-      :open="bulkTrashDialogOpen"
-      :title="$t('palette.trashTitle')"
-      :description="$t(selectedThreadIds.length === 1 ? 'palette.trashDescriptionOne' : 'palette.trashDescriptionMany', { count: selectedThreadIds.length })"
-      :show-close="false"
-      :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
-      @update:open="(open: boolean) => { if (!isApplyingBulkAction) bulkTrashDialogOpen = open }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <NDialogTitle class="dialog-title">{{ $t('palette.trashTitle') }}</NDialogTitle>
-          <NDialogDescription>{{ $t(selectedThreadIds.length === 1 ? 'palette.trashDescriptionOne' : 'palette.trashDescriptionMany', { count: selectedThreadIds.length }) }}</NDialogDescription>
-        </header>
-        <p v-if="bulkActionError" class="action-feedback-error" role="alert">{{ bulkActionError }}</p>
-        <div class="dialog-actions">
-          <button class="dialog-cancel" type="button" :disabled="isApplyingBulkAction" @click="bulkTrashDialogOpen = false">{{ $t('palette.cancel') }}</button>
-          <button class="dialog-danger" type="button" :disabled="isApplyingBulkAction" @click="applyBulkAction('trash')">
-            {{ isApplyingBulkAction ? $t('palette.applying') : $t('palette.confirmTrash') }}
-          </button>
-        </div>
-      </template>
-    </NDialog>
-
-    <NDialog
-      :open="Boolean(classificationTarget)"
-      :title="$t('mail.classifyDialogTitle')"
-      :description="classificationTarget ? `${classificationTarget.sender} — ${classificationTarget.address}` : undefined"
-      :show-close="false"
-      :_dialog-content="{ class: 'classification-dialog' }"
-      @update:open="(open: boolean) => { if (!open && !isSavingClassification) classificationTarget = null }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <p class="dialog-kicker">{{ $t(classificationTarget?.folder === 'Screener' ? 'mail.newSender' : 'mail.classification') }}</p>
-          <NDialogTitle class="dialog-title">{{ $t('mail.classifyDialogTitle') }}</NDialogTitle>
-          <NDialogDescription class="sr-only">{{ $t('mail.chooseDestinationDescription') }}</NDialogDescription>
-          <p class="dialog-sender">{{ classificationTarget?.sender }} <span>{{ classificationTarget?.address }}</span></p>
-        </header>
-
-        <fieldset class="classification-scope">
-          <legend>{{ $t('mail.scope') }}</legend>
-          <label v-if="selectedThread?.manualMergeIds.length" class="scope-option">
-            <input v-model="classificationScope" type="radio" value="group">
-            <span><strong>{{ $t('mail.thisConversation') }}</strong><small>{{ $t('mail.currentMessagesOnly') }}</small></span>
-          </label>
-          <label v-if="!selectedThread?.manualMergeIds.length" class="scope-option">
-            <input v-model="classificationScope" type="radio" value="sender">
-            <span><strong>{{ $t('mail.sender') }}</strong><small>{{ $t('mail.senderExistingAndFuture') }}</small></span>
-          </label>
-          <label v-if="!selectedThread?.manualMergeIds.length" class="scope-option">
-            <input v-model="classificationScope" type="radio" value="message">
-            <span><strong>{{ $t('mail.thisMessageOnly') }}</strong><small>{{ $t(classificationTarget?.hasSenderRule ? 'mail.futureFollowRule' : 'mail.othersRemainScreener') }}</small></span>
-          </label>
-          <p v-if="selectedThread?.manualMergeIds.length" class="classification-scope-note">
-            {{ $t('mail.mergedClassificationWarning') }}
-          </p>
-        </fieldset>
-
-        <fieldset class="classification-destinations">
-          <legend>{{ $t('mail.folderDestination') }}</legend>
-          <label v-for="folder in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside' && item.name !== 'Reply Later')" :key="folder.name" class="destination-option" :class="{ 'is-picked': classificationFolder === folder.name }">
-            <input v-model="classificationFolder" type="radio" :value="folder.name">
-            <span><strong>{{ folder.label }}</strong><small>{{ folder.description }}</small></span>
-          </label>
-        </fieldset>
-
-        <p v-if="classificationError" class="dialog-error" role="alert">{{ classificationError }}</p>
-        <footer class="dialog-actions">
-          <NDialogClose as-child>
-            <button class="dialog-cancel" type="button" :disabled="isSavingClassification">{{ $t('mail.cancel') }}</button>
-          </NDialogClose>
-          <button class="dialog-save" type="button" :disabled="isSavingClassification" @click="saveClassification">
-            {{ $t(isSavingClassification ? 'mail.classifying' : classificationScope === 'sender' ? 'mail.classifySender' : classificationScope === 'group' ? 'mail.moveConversation' : 'mail.moveMessage') }}
-          </button>
-        </footer>
-      </template>
-    </NDialog>
-
-    <NDialog
-      :open="replySendConfirmOpen"
-      :title="$t('mail.sendReplyTitle')"
-      :description="$t('mail.verifyRecipient')"
-      :_dialog-content="{ class: 'classification-dialog reply-confirm-dialog' }"
-      @update:open="(open: boolean) => { replySendConfirmOpen = open }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <p class="dialog-kicker">{{ $t('mail.sendCheck') }}</p>
-          <NDialogTitle class="dialog-title">{{ $t('mail.sendReplyTitle') }}</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.replyWillSend', { recipient: replyRecipient }) }}</NDialogDescription>
-        </header>
-        <footer class="dialog-actions">
-          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="replySending">{{ $t('mail.continueWriting') }}</button></NDialogClose>
-          <button class="dialog-save" type="button" :disabled="replySending" @click="sendReply">{{ replySending ? $t('mail.sending') : $t('palette.send') }}</button>
-        </footer>
-      </template>
-    </NDialog>
-
-    <NDialog
-      :open="mergeDialogOpen"
-      :title="$t('mail.mergeTitle')"
-      :description="$t('mail.mergeDescription', { count: selectedThreadIds.length })"
-      :_dialog-content="{ class: 'classification-dialog thread-merge-dialog' }"
-      @update:open="(open: boolean) => { if (!isMergingThreads) mergeDialogOpen = open }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <p class="dialog-kicker">{{ mailboxByName(activeFolder).label }}</p>
-          <NDialogTitle class="dialog-title">{{ $t('mail.mergeTitle') }}</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.mergeDescriptionDetailed', { count: selectedThreadIds.length }) }}</NDialogDescription>
-        </header>
-        <p v-if="threadMergeError" class="dialog-error" role="alert">{{ threadMergeError }}</p>
-        <footer class="dialog-actions">
-          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isMergingThreads">{{ $t('mail.cancel') }}</button></NDialogClose>
-          <button class="dialog-save" type="button" :disabled="isMergingThreads" @click="mergeSelectedThreads">{{ isMergingThreads ? $t('mail.merging') : $t('mail.mergeThreads') }}</button>
-        </footer>
-      </template>
-    </NDialog>
-
-    <NDialog
-      :open="splitDialogOpen"
-      :title="$t('mail.splitTitle')"
-      :description="$t('mail.splitDescription')"
-      :_dialog-content="{ class: 'classification-dialog thread-merge-dialog' }"
-      @update:open="(open: boolean) => { if (!isSplittingThread) splitDialogOpen = open }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <p class="dialog-kicker">{{ $t('mail.mergedConversation') }}</p>
-          <NDialogTitle class="dialog-title">{{ $t('mail.splitTitle') }}</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.splitDescription') }}</NDialogDescription>
-        </header>
-        <p v-if="threadMergeError" class="dialog-error" role="alert">{{ threadMergeError }}</p>
-        <footer class="dialog-actions">
-          <NDialogClose as-child><button class="dialog-cancel" type="button" :disabled="isSplittingThread">{{ $t('mail.cancel') }}</button></NDialogClose>
-          <button class="dialog-save" type="button" :disabled="isSplittingThread" @click="splitSelectedThread">{{ isSplittingThread ? $t('mail.splitting') : $t('mail.splitThreads') }}</button>
-        </footer>
-      </template>
-    </NDialog>
+    <MailViewDialogs
+      :active-folder="activeFolder"
+      :classification="mailClassification"
+      :reply="mailReply"
+      :reply-recipient="replyRecipient"
+      :selected-thread="selectedThread"
+      :selected-thread-count="selectedThreadIds.length"
+      :thread-actions="mailThreadActions"
+    />
 
     <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" :draft-id="composeDraftId" :initial-draft="composeInitialDraft" @sent="onOutgoingMessageSent" @show-drafts="goToDrafts" />
   </main>
@@ -660,6 +507,7 @@ import MailThreadListRow from '~/components/MailThreadListRow.vue'
 import MailFeedEditionRow from '~/components/MailFeedEditionRow.vue'
 import MailThreadStack from '~/components/MailThreadStack.vue'
 import MailThreadMessageNavigation from '~/components/MailThreadMessageNavigation.vue'
+import MailViewDialogs from '~/components/MailViewDialogs.vue'
 import MailFeedIssue from '~/components/MailFeedIssue.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
 import MailScreenerPanel from '~/components/MailScreenerPanel.vue'
@@ -670,6 +518,7 @@ import { useMailReply } from '~/composables/useMailReply'
 import { useMailThreadSelection } from '~/composables/useMailThreadSelection'
 import { useMailThreadCollections } from '~/composables/useMailThreadCollections'
 import { useMailThreadSubject } from '~/composables/useMailThreadSubject'
+import { useMailThreadContent } from '~/composables/useMailThreadContent'
 import { useMailThreadActions } from '~/composables/useMailThreadActions'
 import { useMailClassification } from '~/composables/useMailClassification'
 import { useMailParticipants } from '~/composables/useMailParticipants'
@@ -880,6 +729,13 @@ const workspaceTags = computed(() => workspaceTagState.value?.tags ?? [])
 const canManageTags = computed(() => Boolean(workspaceTagState.value?.canManage))
 const canAssignTags = computed(() => Boolean(workspaceTagState.value?.canAssign))
 
+const mailThreadContent = useMailThreadContent(inboxMessages, selectedId, refreshInboxMessages)
+const {
+  isLoadingSelectedThread: isThreadContentLoading,
+  loadThreadContent,
+  refreshMessages,
+} = mailThreadContent
+
 async function refreshTagAssignments() {
   const threadId = selectedId.value
   if (threadId) threadContentLoadingId.value = threadId
@@ -892,46 +748,6 @@ async function refreshTagAssignments() {
       threadContentLoadingId.value = ''
     }
   }
-}
-
-const threadContentLoadingId = ref('')
-const threadContentRequests = new Map<string, Promise<void>>()
-const isThreadContentLoading = computed(() => Boolean(selectedId.value) && threadContentLoadingId.value === selectedId.value)
-
-async function loadThreadContent(threadId: string) {
-  const messages = (inboxMessages.value ?? []).filter(message => message.threadId === threadId)
-  if (!messages.length || messages.every(message => message.body !== undefined)) return
-
-  const pendingRequest = threadContentRequests.get(threadId)
-  if (pendingRequest) return pendingRequest
-
-  threadContentLoadingId.value = threadId
-  const request = (async () => {
-    try {
-      const details = await $fetch<InboxMessage[]>('/api/messages', {
-        query: { includeBody: 'true', threadId },
-      })
-      const detailsById = new Map(details.map(message => [message.id, message]))
-      inboxMessages.value = (inboxMessages.value ?? []).map((message) => {
-        const detail = detailsById.get(message.id)
-        return detail
-          ? { ...message, body: detail.body ?? '', htmlBody: detail.htmlBody ?? '' }
-          : message
-      })
-    } catch {
-      // The reader shows a localized retry hint when the content is still missing.
-    } finally {
-      if (threadContentLoadingId.value === threadId) threadContentLoadingId.value = ''
-      threadContentRequests.delete(threadId)
-    }
-  })()
-  threadContentRequests.set(threadId, request)
-  return request
-}
-
-async function refreshMessages() {
-  await refreshInboxMessages()
-  if (selectedId.value) await loadThreadContent(selectedId.value)
 }
 
 const mailClassification = useMailClassification({
