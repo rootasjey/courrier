@@ -177,19 +177,13 @@
             <h2 id="new-messages-heading">{{ $t('mail.newMessages') }}</h2>
           </header>
           <div class="thread-list" role="list">
-            <div v-for="thread in newThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
-              <span class="unread-indicator" :class="{ 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :aria-label="$t(thread.unreadCount === 1 ? 'mail.unreadOne' : 'mail.unreadMany', { count: thread.unreadCount })">
-                <svg v-if="keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
-              </span>
-              <button class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
-                <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
-                  <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-                  <MailSenderAvatar v-else :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
-                  <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
-                </span>
-              </button>
-              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :tags="thread.tags" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
-            </div>
+            <MailThreadListRow
+              v-for="thread in newThreads"
+              :key="thread.id"
+              v-bind="threadListRowProps(thread, 'inbox')"
+              @select="handleThreadAvatarClick(thread.id, $event)"
+              @open="handleThreadRowClick(thread, $event)"
+            />
           </div>
         </section>
 
@@ -198,17 +192,13 @@
             <h2 id="seen-messages-heading">{{ $t('mail.previouslySeen') }}</h2>
           </header>
           <div class="thread-list" role="list">
-            <div v-for="thread in previouslySeenThreads" :key="thread.id" class="thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
-              <span v-if="keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
-              <button class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
-                <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
-                  <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-                  <MailSenderAvatar v-else :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
-                  <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
-                </span>
-              </button>
-              <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :tags="thread.tags" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
-            </div>
+            <MailThreadListRow
+              v-for="thread in previouslySeenThreads"
+              :key="thread.id"
+              v-bind="threadListRowProps(thread, 'inbox')"
+              @select="handleThreadAvatarClick(thread.id, $event)"
+              @open="handleThreadRowClick(thread, $event)"
+            />
           </div>
         </section>
       </template>
@@ -257,21 +247,14 @@
       </div>
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
-        <div v-for="thread in visibleThreads" :key="thread.id" class="other-thread-row thread-selection-row" :class="{ 'is-thread-selected': selectedThreadIds.includes(thread.id), 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :data-thread-selection-id="thread.id" :aria-current="keyboardSelectionThreadId === thread.id ? 'true' : undefined" role="listitem">
-          <span v-if="thread.unreadCount" class="unread-indicator" :class="{ 'is-selection-cursor': keyboardSelectionThreadId === thread.id }" :aria-label="$t(thread.unreadCount === 1 ? 'mail.unreadOne' : 'mail.unreadMany', { count: thread.unreadCount })">
-            <svg v-if="keyboardSelectionThreadId === thread.id" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
-          </span>
-          <span v-else-if="keyboardSelectionThreadId === thread.id" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
-          <button v-if="canSelectThreads" class="thread-avatar-trigger" :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(thread.id), 'is-merged': thread.manualMergeIds.length }" type="button" :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(thread.id) ? 'mail.deselectThread' : 'mail.selectThread', { subject: thread.latest.subject }) + (thread.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')" :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(thread.id) : undefined" @click="handleThreadAvatarClick(thread.id, $event)">
-            <span class="thread-avatar-wrap" :class="{ 'is-merged': thread.manualMergeIds.length }">
-              <span v-if="threadSelectionMode && selectedThreadIds.includes(thread.id)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-              <MailSenderAvatar v-else :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
-              <span v-if="thread.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
-            </span>
-          </button>
-          <MailboxThreadSummary :subject="thread.subject" :sender="thread.latest.sender" :preview="thread.latest.preview" :timestamp="thread.latest.timestamp" :display-date="relativeMailDate(thread.latest.timestamp)" :absolute-date="absoluteMailDate(thread.latest.timestamp)" :participants="otherThreadParticipants(thread)" :attachment-count="threadAttachmentCount(thread)" :message-count="thread.messages.length" :tags="thread.tags" :new-message-label="['Set Aside', 'Reply Later'].includes(activeFolder) && thread.unreadCount && thread.messages.length > 1 ? $t('mail.newMessageInThread') : ''" @open="handleThreadRowClick(thread, $event)" />
-          <button v-if="activeFolder === 'Trash'" class="screener-restore trash-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreTrashedMessage(thread.latest)">{{ $t('mail.restore') }}</button>
-        </div>
+        <MailThreadListRow
+          v-for="thread in visibleThreads"
+          :key="thread.id"
+          v-bind="threadListRowProps(thread, 'other-folder')"
+          @select="handleThreadAvatarClick(thread.id, $event)"
+          @open="handleThreadRowClick(thread, $event)"
+          @restore="restoreTrashedMessage(thread.latest)"
+        />
       </div>
 
       <div v-else class="empty-list">
@@ -758,6 +741,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
+import MailThreadListRow from '~/components/MailThreadListRow.vue'
 import MailThreadStack from '~/components/MailThreadStack.vue'
 import MailFeedIssue from '~/components/MailFeedIssue.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
@@ -1270,6 +1254,30 @@ const {
   senderAvatarFor,
   threadAvatarFor,
 } = mailParticipants
+
+function threadListRowProps(thread: MessageThread, variant: 'inbox' | 'other-folder') {
+  const isDeferredFolder = ['Set Aside', 'Reply Later'].includes(activeFolder.value)
+
+  return {
+    thread,
+    variant,
+    selection: {
+      canSelect: canSelectThreads.value,
+      active: threadSelectionMode.value,
+      selected: selectedThreadIds.value.includes(thread.id),
+      keyboardCursor: keyboardSelectionThreadId.value === thread.id,
+    },
+    participants: otherThreadParticipants(thread),
+    newMessageLabel: isDeferredFolder && thread.unreadCount && thread.messages.length > 1
+      ? $t('mail.newMessageInThread')
+      : '',
+    showRestore: variant === 'other-folder' && activeFolder.value === 'Trash',
+    restoreDisabled: isSavingScreenerAction.value,
+    avatarFor: threadAvatarFor,
+    relativeDate: relativeMailDate,
+    absoluteDate: absoluteMailDate,
+  }
+}
 
 const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
 const mailThreadActions = useMailThreadActions({
