@@ -835,6 +835,7 @@ import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
 import { useMailViewSearch, type SearchHit } from '~/composables/useMailViewSearch'
 import { useMailScreener } from '~/composables/useMailScreener'
 import { useMailReply } from '~/composables/useMailReply'
+import { useMailThreadSelection } from '~/composables/useMailThreadSelection'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -993,8 +994,6 @@ const classificationTarget = ref<InboxMessage | null>(null)
 const classificationScope = ref<'sender' | 'message' | 'group'>('sender')
 const classificationFolder = ref<MailboxFolder>('Imbox')
 const screenerActionError = ref('')
-const threadSelectionMode = ref(false)
-const selectedThreadIds = ref<string[]>([])
 const isEditingThreadSubject = ref(false)
 const threadSubjectDraft = ref('')
 const threadSubjectSaveError = ref('')
@@ -1006,8 +1005,6 @@ const subjectContextMenu = ref({ open: false, left: 0, top: 0 })
 const isSetAsideStackExpanded = ref(false)
 const isReplyLaterStackExpanded = ref(false)
 const viewportHeight = ref(800)
-const keyboardSelectionThreadId = ref('')
-const selectionAnchorThreadId = ref('')
 const mergeDialogOpen = ref(false)
 const splitDialogOpen = ref(false)
 const isMergingThreads = ref(false)
@@ -1224,25 +1221,6 @@ watch(mailStateRefreshRevision, () => {
   void refreshMessages()
 })
 
-watch([activeFolder, isGlobalSearch], () => {
-  threadSelectionMode.value = false
-  selectedThreadIds.value = []
-  keyboardSelectionThreadId.value = ''
-  selectionAnchorThreadId.value = ''
-  threadMergeFeedback.value = ''
-  threadMergeError.value = ''
-})
-
-watch([activeFolder, selectedThreadIds, selectedId], () => {
-  paletteContext.value = {
-    source: activeFolder.value,
-    threadIds: selectedThreadIds.value.length
-      ? [...selectedThreadIds.value]
-      : selectedId.value ? [selectedId.value] : [],
-    screenerPendingCount: paletteContext.value.screenerPendingCount,
-  }
-}, { immediate: true, deep: true })
-
 watch(composeRequest, (request) => {
   if (request === lastComposeRequest) return
   lastComposeRequest = request
@@ -1391,17 +1369,6 @@ const canSelectThreads = computed(() => !isGlobalSearch.value
 const canNavigateThreads = computed(() => !isGlobalSearch.value
   && activeFolder.value !== 'Screener'
   && visibleThreads.value.length > 0)
-const selectedThreads = computed(() => selectableThreads.value.filter(thread => selectedThreadIds.value.includes(thread.id)))
-const selectedThreadMessageIds = computed(() => [...new Set(selectedThreads.value.flatMap(thread => thread.messages.map(message => message.id)))])
-const selectedThreadTags = computed(() => {
-  if (!selectedThreads.value.length) return []
-  const commonIds = new Set(selectedThreads.value[0]!.tags.map(tag => tag.id))
-  for (const thread of selectedThreads.value.slice(1)) {
-    for (const id of [...commonIds]) if (!thread.tags.some(tag => tag.id === id)) commonIds.delete(id)
-  }
-  return selectedThreads.value[0]!.tags.filter(tag => commonIds.has(tag.id))
-})
-
 const globalSearchThreads = computed<SearchThread[]>(() => {
   const messages = inboxMessages.value ?? []
   const messagesById = new Map(messages.map(message => [message.id, message]))
@@ -1442,6 +1409,46 @@ const previouslySeenThreads = computed(() => visibleThreads.value.filter(thread 
 const selectableThreads = computed(() => activeFolder.value === 'Imbox'
   ? [...newThreads.value, ...previouslySeenThreads.value]
   : visibleThreads.value)
+
+const mailThreadSelection = useMailThreadSelection({
+  threads: selectableThreads,
+  onSelectionChange: () => { threadMergeError.value = '' },
+})
+const {
+  selecting: threadSelectionMode,
+  selectedIds: selectedThreadIds,
+  keyboardCursorId: keyboardSelectionThreadId,
+  start: startThreadSelection,
+  toggle: toggleThreadSelection,
+  clear: clearThreadSelection,
+  moveCursor: moveSelectionCursor,
+} = mailThreadSelection
+const selectedThreads = computed(() => selectableThreads.value.filter(thread => selectedThreadIds.value.includes(thread.id)))
+const selectedThreadMessageIds = computed(() => [...new Set(selectedThreads.value.flatMap(thread => thread.messages.map(message => message.id)))])
+const selectedThreadTags = computed(() => {
+  if (!selectedThreads.value.length) return []
+  const commonIds = new Set(selectedThreads.value[0]!.tags.map(tag => tag.id))
+  for (const thread of selectedThreads.value.slice(1)) {
+    for (const id of [...commonIds]) if (!thread.tags.some(tag => tag.id === id)) commonIds.delete(id)
+  }
+  return selectedThreads.value[0]!.tags.filter(tag => commonIds.has(tag.id))
+})
+
+watch([activeFolder, isGlobalSearch], () => {
+  clearThreadSelection()
+  threadMergeFeedback.value = ''
+  threadMergeError.value = ''
+})
+
+watch([activeFolder, selectedThreadIds, selectedId], () => {
+  paletteContext.value = {
+    source: activeFolder.value,
+    threadIds: selectedThreadIds.value.length
+      ? [...selectedThreadIds.value]
+      : selectedId.value ? [selectedId.value] : [],
+    screenerPendingCount: paletteContext.value.screenerPendingCount,
+  }
+}, { immediate: true, deep: true })
 
 watch(() => allScreenerSenders.value.length, (count) => {
   paletteContext.value = { ...paletteContext.value, screenerPendingCount: count }
@@ -2057,45 +2064,6 @@ function handleThreadAvatarClick(threadId: string, event: MouseEvent) {
   toggleThreadSelection(threadId, event)
 }
 
-function startThreadSelection(threadId: string) {
-  threadMergeError.value = ''
-  threadSelectionMode.value = true
-  selectedThreadIds.value = [threadId]
-  selectionAnchorThreadId.value = threadId
-  keyboardSelectionThreadId.value = threadId
-}
-
-function toggleThreadSelection(threadId: string, event?: MouseEvent) {
-  threadMergeError.value = ''
-  keyboardSelectionThreadId.value = threadId
-  const orderedIds = selectableThreads.value.map(thread => thread.id)
-  const anchorIndex = orderedIds.indexOf(selectionAnchorThreadId.value)
-  const targetIndex = orderedIds.indexOf(threadId)
-  if (event?.shiftKey && anchorIndex >= 0 && targetIndex >= 0) {
-    const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex]
-    selectedThreadIds.value = [...new Set([...selectedThreadIds.value, ...orderedIds.slice(start, end + 1)])]
-    return
-  }
-  if (selectedThreadIds.value.includes(threadId)) {
-    const remainingIds = selectedThreadIds.value.filter(id => id !== threadId)
-    if (!remainingIds.length) {
-      clearThreadSelection()
-      return
-    }
-    selectedThreadIds.value = remainingIds
-  } else {
-    selectedThreadIds.value = [...selectedThreadIds.value, threadId]
-  }
-  selectionAnchorThreadId.value = threadId
-}
-
-function clearThreadSelection() {
-  selectedThreadIds.value = []
-  threadSelectionMode.value = false
-  keyboardSelectionThreadId.value = ''
-  selectionAnchorThreadId.value = ''
-}
-
 async function applyBulkAction(
   action: 'mark-seen' | 'mark-unseen' | 'reply-later' | 'set-aside' | 'move' | 'trash',
   options: { enabled?: boolean, folder?: MailboxFolder } = {},
@@ -2193,23 +2161,6 @@ async function moveOpenThread(destination: { value: MailboxFolder, label: string
   }
 }
 
-function moveSelectionCursor(direction: -1 | 1) {
-  const threads = selectableThreads.value
-  if (!threads.length) return
-  const currentIndex = threads.findIndex(thread => thread.id === keyboardSelectionThreadId.value)
-  const nextIndex = currentIndex < 0
-    ? (direction === 1 ? 0 : threads.length - 1)
-    : Math.max(0, Math.min(threads.length - 1, currentIndex + direction))
-  const thread = threads[nextIndex]!
-  keyboardSelectionThreadId.value = thread.id
-  void nextTick(() => {
-    const row = [...document.querySelectorAll<HTMLElement>('.thread-selection-row')]
-      .find(element => element.dataset.threadSelectionId === thread.id)
-    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    row?.querySelector<HTMLButtonElement>('.thread-row')?.focus({ preventScroll: true })
-  })
-}
-
 async function mergeSelectedThreads() {
   if (selectedThreadIds.value.length < 2 || isMergingThreads.value) return
   isMergingThreads.value = true
@@ -2220,10 +2171,7 @@ async function mergeSelectedThreads() {
       body: { threadIds: selectedThreadIds.value },
     })
     mergeDialogOpen.value = false
-    threadSelectionMode.value = false
-    selectedThreadIds.value = []
-    keyboardSelectionThreadId.value = ''
-    selectionAnchorThreadId.value = ''
+    clearThreadSelection()
     await refreshMessages()
     threadMergeFeedback.value = $t('mail.mergeDone', { count: result.mergedThreads })
   } catch (error) {
