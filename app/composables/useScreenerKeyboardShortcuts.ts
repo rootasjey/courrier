@@ -1,5 +1,6 @@
 import { nextTick, type ComputedRef, type Ref } from 'vue'
 import type { MailboxKey } from '~/utils/mailbox-routing'
+import type { ScreenerDestination } from '~/types/mail-screener'
 
 type ScreenerSender<Message> = {
   address: string
@@ -9,7 +10,7 @@ type ScreenerSender<Message> = {
 type ScreenerKeyboardShortcutOptions<Message> = {
   activeFolder: ComputedRef<MailboxKey>
   allScreenerSenders: ComputedRef<ScreenerSender<Message>[]>
-  applyScreenerChoice: (message: Message, folder: MailboxKey, scope: 'sender' | 'message') => unknown
+  applyScreenerChoice: (message: Message, folder: ScreenerDestination, scope: 'sender' | 'message') => unknown
   blockScreenerSender: (message: Message) => unknown
   hasOpenKeyboardSurface: () => boolean
   navigateToFolder: (folder: MailboxKey) => unknown

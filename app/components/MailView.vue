@@ -161,83 +161,15 @@
         </button>
       </section>
 
-      <div v-else-if="activeFolder === 'Screener'" class="thread-list screener-list" role="list" :aria-label="$t('mail.screenerSenders')">
-        <div class="screener-list-tools">
-          <div class="screener-view-switch" role="group" :aria-label="$t('mail.screenerMessages')">
-            <button type="button" :aria-pressed="screenerView === 'pending'" @click="screenerView = 'pending'">{{ $t('mail.screenerPending') }} <span>{{ allScreenerSenders.length }}</span></button>
-            <button type="button" :aria-pressed="screenerView === 'history'" @click="screenerView = 'history'">{{ $t('mail.screenerHistory') }} <span>{{ screenerHistorySenders.length }}</span></button>
-          </div>
-          <button v-if="screenerView === 'pending' && allScreenerSenders.length" class="screener-clear-all" type="button" :disabled="isClearingScreener" @click="requestClearScreener">
-            {{ isClearingScreener ? $t('mail.screenerClearPending') : $t('mail.screenerClearAll') }}
-          </button>
-        </div>
-        <template v-if="screenerView === 'pending'">
-          <p v-if="!screenerSenders.length" class="screener-empty">{{ $t('mail.screenerEmptyPending') }}</p>
-          <article v-for="sender in screenerSenders" :key="sender.address" class="screener-row" :class="{ 'is-keyboard-selected': selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US') }" :aria-current="selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US') ? 'true' : undefined" role="listitem">
-            <svg v-if="selectedScreenerAddress === sender.address.trim().toLocaleLowerCase('en-US')" class="screener-current-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
-            <div class="screener-actions">
-              <button class="screener-choice screener-yes transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="$t('mail.authorizeAddress', { address: sender.address })" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, 'Imbox', 'sender')">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm0 0 4-8c2.2 0 3.1 1.7 2.5 3.6L12.5 10h6a3 3 0 0 1 2.9 3.8l-1.7 6A3 3 0 0 1 16.8 22H7" /></svg><strong>{{ $t('mail.allow') }}</strong>
-              </button>
-              <button class="screener-choice screener-no transition duration-150 ease-out hover:scale-105 active:scale-99" type="button" :aria-label="$t('mail.blockAddress', { address: sender.address })" :disabled="isSavingScreenerAction" @click="blockScreenerSender(sender.latest)">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14V3H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3Zm0 0 4 8c2.2 0 3.1-1.7 2.5-3.6L12.5 14h6a3 3 0 0 0 2.9-3.8l-1.7-6A3 3 0 0 0 16.8 2H7" /></svg><strong>{{ $t('mail.block') }}</strong>
-              </button>
-              <div class="screener-options-wrap">
-                <button class="screener-options-trigger" type="button" :aria-label="$t('mail.screenerOptions', { address: sender.address })" :aria-expanded="openScreenerOptionsFor === sender.address" @click="toggleScreenerOptions(sender.address, sender.latest)">
-                  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4 4.5-4" /></svg>
-                </button>
-                <Transition name="screener-popover">
-                  <div v-if="openScreenerOptionsFor === sender.address" class="screener-popover" role="dialog" :aria-label="$t('mail.classifyAddress', { address: sender.address })">
-                  <strong>{{ $t('mail.allowAndClassify') }}</strong>
-                  <div class="screener-destinations" role="group" :aria-label="$t('mail.destination')">
-                    <button v-for="destination in folders.filter(item => item.name !== 'Screener' && item.name !== 'Trash' && item.name !== 'Set Aside' && item.name !== 'Reply Later')" :key="destination.name" type="button" :aria-pressed="screenerDestination === destination.name" :title="$t('mail.destinationShortcut', { destination: destination.label, shortcut: destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P' })" @click="screenerDestination = destination.name">
-                      <svg v-if="destination.name === 'Imbox'" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></svg>
-                      <svg v-else-if="destination.name === 'The Feed'" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5c3.3-.9 6.3-.4 9 1.5v13c-2.7-1.9-5.7-2.4-9-1.5v-13Zm18 0c-3.3-.9-6.3-.4-9 1.5v13c2.7-1.9 5.7-2.4 9-1.5v-13Z" /></svg>
-                      <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21V3Zm3 5h6m-6 4h6m-6 4h4" /></svg>
-                      <span>{{ destination.label }}</span>
-                      <kbd>{{ destination.name === 'Imbox' ? 'I' : destination.name === 'The Feed' ? 'F' : 'P' }}</kbd>
-                    </button>
-                  </div>
-                  <div class="screener-scope" role="group" :aria-label="$t('mail.applyTo')">
-                    <button class="screener-scope-label" type="button" :aria-pressed="screenerScope === 'sender'" @click="screenerScope = 'sender'">{{ $t('mail.sender') }}</button>
-                    <button class="screener-scope-toggle" type="button" role="switch" :aria-checked="screenerScope === 'message'" :aria-label="$t('mail.switchScope')" title="G" @click="screenerScope = screenerScope === 'sender' ? 'message' : 'sender'">
-                      <span />
-                    </button>
-                    <button class="screener-scope-label screener-scope-message" type="button" :aria-pressed="screenerScope === 'message'" @click="screenerScope = 'message'">{{ $t('mail.thisMessage') }} <kbd>G</kbd></button>
-                  </div>
-                  <button class="screener-apply" type="button" :disabled="isSavingScreenerAction" @click="applyScreenerChoice(sender.latest, screenerDestination, screenerScope)"><span>{{ $t('mail.apply') }}</span><kbd>Y</kbd></button>
-                  </div>
-                </Transition>
-              </div>
-            </div>
-            <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
-              <MailSenderAvatar :initials="sender.latest.initials" :color="sender.latest.color" v-bind="threadAvatarFor(sender.latest)" />
-              <span class="thread-content">
-                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time :datetime="sender.latest.timestamp" :title="absoluteMailDate(sender.latest.timestamp)">{{ relativeMailDate(sender.latest.timestamp) }}</time></span>
-                <span class="thread-subject">{{ sender.latest.subject }}</span>
-                <span class="thread-preview">{{ sender.latest.preview }}</span>
-              </span>
-              <span v-if="sender.count > 1" class="sender-message-count">{{ sender.count }}</span>
-            </button>
-          </article>
-        </template>
-        <template v-else>
-          <p v-if="!visibleScreenerHistory.length" class="screener-empty">{{ $t('mail.screenerEmptyHistory') }}</p>
-          <article v-for="sender in visibleScreenerHistory" :key="`${sender.address}-${sender.state}`" class="screener-row screener-history-row" role="listitem">
-            <span class="screener-history-state" :class="`is-${sender.state}`">{{ $t(sender.state === 'blocked' ? 'mail.blocked' : 'mail.dismissed') }}</span>
-            <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
-              <MailSenderAvatar :initials="sender.latest.initials" :color="sender.latest.color" v-bind="threadAvatarFor(sender.latest)" />
-              <span class="thread-content">
-                <span class="thread-topline screener-sender-line"><span class="screener-sender-ident"><strong>{{ sender.latest.sender }}</strong><span class="thread-address">{{ sender.address }}</span></span><time :datetime="sender.latest.timestamp" :title="absoluteMailDate(sender.latest.timestamp)">{{ relativeMailDate(sender.latest.timestamp) }}</time></span>
-                <span class="thread-subject">{{ sender.latest.subject }}</span>
-                <span class="thread-preview">{{ sender.latest.preview }}</span>
-              </span>
-              <span v-if="sender.count > 1" class="sender-message-count">{{ sender.count }}</span>
-            </button>
-            <button class="screener-restore" type="button" :disabled="isSavingScreenerAction" @click="restoreScreenerSender(sender.latest, sender.state)">{{ $t(sender.state === 'blocked' ? 'mail.restoreSender' : 'mail.restoreSenderPending') }}</button>
-          </article>
-        </template>
-      </div>
+      <MailScreenerPanel
+        v-else-if="activeFolder === 'Screener'"
+        :model="mailScreener"
+        :folders="mailboxes"
+        :absolute-mail-date="absoluteMailDate"
+        :relative-mail-date="relativeMailDate"
+        :thread-avatar-for="threadAvatarFor"
+        :open-message="openMessage"
+      />
 
       <template v-else-if="activeFolder === 'Imbox' && visibleThreads.length">
         <section v-if="newThreads.length" class="message-group message-group-new" aria-labelledby="new-messages-heading">
@@ -890,63 +822,6 @@
       </template>
     </NDialog>
 
-    <NDialog
-      :open="screenerShortcutHelpOpen"
-      :title="$t('mail.screenerShortcutTitle')"
-      :description="$t('mail.screenerShortcutDescription')"
-      :_dialog-content="{ class: 'classification-dialog screener-shortcut-dialog-content' }"
-      @update:open="(open: boolean) => { screenerShortcutHelpOpen = open }"
-    >
-      <template #content>
-        <div class="screener-shortcut-dialog">
-          <header class="dialog-header">
-            <p class="dialog-kicker">{{ $t('mail.quickNavigation') }}</p>
-            <NDialogTitle class="dialog-title">{{ $t('mail.screenerShortcutTitle') }}</NDialogTitle>
-            <NDialogDescription class="sr-only">{{ $t('mail.screenerShortcutDescription') }}</NDialogDescription>
-          </header>
-          <dl>
-            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>{{ $t('mail.browseSenders') }}</dd></div>
-            <div><dt><kbd>N</kbd></dt><dd>{{ $t('mail.blockSelectedAddress') }}</dd></div>
-            <div><dt><kbd>Y</kbd></dt><dd>{{ $t('mail.openClassificationOptions') }}</dd></div>
-            <div><dt><kbd>T</kbd></dt><dd>{{ $t('mail.trashSelectedMessage') }}</dd></div>
-            <div><dt><kbd>C</kbd></dt><dd>{{ $t('mail.dismissAllPending') }}</dd></div>
-            <div><dt><kbd>⌘/Ctrl</kbd> <kbd>Enter</kbd></dt><dd>{{ $t('mail.confirmClearAllShortcut') }}</dd></div>
-            <div class="shortcut-dialog-divider"><dt><kbd>I</kbd> <kbd>F</kbd> <kbd>P</kbd></dt><dd>{{ $t('mail.chooseMailbox') }}</dd></div>
-            <div><dt><kbd>G</kbd></dt><dd>{{ $t('mail.toggleSenderMessage') }}</dd></div>
-            <div><dt><kbd>Enter</kbd> <kbd>Space</kbd> <kbd>Y</kbd></dt><dd>{{ $t('mail.applyClassification') }}</dd></div>
-          </dl>
-          <p class="screener-shortcut-footnote"><kbd>Esc</kbd> {{ $t('mail.escapeClosesHelp') }}</p>
-        </div>
-      </template>
-    </NDialog>
-
-    <NDialog
-      :open="screenerClearDialogOpen"
-      :title="$t('mail.screenerClearTitle')"
-      :description="$t('mail.screenerClearDescription')"
-      :show-close="false"
-      :_dialog-content="{ class: 'classification-dialog screener-confirm-dialog' }"
-      @update:open="(open: boolean) => { screenerClearDialogOpen = open }"
-    >
-      <template #content>
-        <header class="dialog-header">
-          <p class="dialog-kicker">Screener</p>
-          <NDialogTitle class="dialog-title">{{ $t('mail.screenerClearAllTitle') }}</NDialogTitle>
-          <NDialogDescription class="screener-confirm-copy">{{ $t('mail.screenerClearAllDescription') }}</NDialogDescription>
-        </header>
-        <footer class="dialog-actions">
-          <NDialogClose as-child>
-            <button class="dialog-cancel" type="button" :disabled="isClearingScreener">{{ $t('mail.cancel') }}</button>
-          </NDialogClose>
-          <NTooltip :content="$t('mail.confirmClearAllTooltip')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
-            <button class="dialog-danger screener-confirm-action" type="button" aria-keyshortcuts="Control+Enter Meta+Enter" :disabled="isClearingScreener" @click="clearAllScreener">
-              {{ isClearingScreener ? $t('mail.clearing') : $t('mail.clearAll') }}
-            </button>
-          </NTooltip>
-        </footer>
-      </template>
-    </NDialog>
-
     <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" :draft-id="composeDraftId" :initial-draft="composeInitialDraft" @sent="onOutgoingMessageSent" @show-drafts="goToDrafts" />
   </main>
 </template>
@@ -955,8 +830,10 @@
 import { defineAsyncComponent } from 'vue'
 import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
+import MailScreenerPanel from '~/components/MailScreenerPanel.vue'
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
 import { useMailViewSearch, type SearchHit } from '~/composables/useMailViewSearch'
+import { useMailScreener } from '~/composables/useMailScreener'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -1114,13 +991,6 @@ const openedFromList = ref(false)
 const classificationTarget = ref<InboxMessage | null>(null)
 const classificationScope = ref<'sender' | 'message' | 'group'>('sender')
 const classificationFolder = ref<MailboxFolder>('Imbox')
-const screenerView = ref<'pending' | 'history'>('pending')
-const selectedScreenerAddress = ref('')
-const openScreenerOptionsFor = ref('')
-const screenerClearDialogOpen = ref(false)
-const screenerShortcutHelpOpen = ref(false)
-const screenerDestination = ref<MailboxFolder>('Imbox')
-const screenerScope = ref<'sender' | 'message'>('sender')
 const screenerActionError = ref('')
 const threadSelectionMode = ref(false)
 const selectedThreadIds = ref<string[]>([])
@@ -1156,7 +1026,6 @@ const mailStateRefreshRevision = useState('courrier-mail-state-refresh-revision'
 const bulkActionFeedback = ref('')
 const bulkActionError = ref('')
 const isApplyingBulkAction = ref(false)
-const isClearingScreener = ref(false)
 const isSavingScreenerAction = ref(false)
 const isSavingSetAside = ref(false)
 const isSavingReplyLater = ref(false)
@@ -1329,6 +1198,38 @@ async function refreshMessages() {
   await refreshInboxMessages()
   if (selectedId.value) await loadThreadContent(selectedId.value)
 }
+
+const mailScreener = useMailScreener({
+  messages: inboxMessages,
+  search,
+  activeFolder,
+  isSaving: isSavingScreenerAction,
+  actionError: screenerActionError,
+  refreshMessages,
+  showClassificationFeedback,
+  clearClassificationTarget: () => { classificationTarget.value = null },
+})
+const {
+  view: screenerView,
+  selectedAddress: selectedScreenerAddress,
+  openOptionsFor: openScreenerOptionsFor,
+  clearDialogOpen: screenerClearDialogOpen,
+  shortcutHelpOpen: screenerShortcutHelpOpen,
+  destination: screenerDestination,
+  scope: screenerScope,
+  isClearing: isClearingScreener,
+  allSenders: allScreenerSenders,
+  historySenders: screenerHistorySenders,
+  senders: screenerSenders,
+  visibleHistory: visibleScreenerHistory,
+  toggleOptions: toggleScreenerOptions,
+  requestClear: requestClearScreener,
+  applyChoice: applyScreenerChoice,
+  blockSender: blockScreenerSender,
+  trashMessage: trashScreenerMessage,
+  clearAll: clearAllScreener,
+  restoreSender: restoreScreenerSender,
+} = mailScreener
 
 watch(mailStateRefreshRevision, () => {
   void refreshMessages()
@@ -1553,62 +1454,9 @@ const selectableThreads = computed(() => activeFolder.value === 'Imbox'
   ? [...newThreads.value, ...previouslySeenThreads.value]
   : visibleThreads.value)
 
-const allScreenerSenders = computed(() => {
-  const senders = new Map<string, { address: string, latest: InboxMessage, count: number, state: 'pending' }>()
-
-  for (const message of (inboxMessages.value ?? []).filter(message => message.folder === 'Screener' && message.screenerState === 'pending')) {
-    const address = message.address.trim().toLocaleLowerCase('en-US')
-    const existing = senders.get(address)
-    if (existing) existing.count += 1
-    else senders.set(address, { address: message.address, latest: message, count: 1, state: 'pending' })
-  }
-
-  return [...senders.values()]
-})
-
 watch(() => allScreenerSenders.value.length, (count) => {
   paletteContext.value = { ...paletteContext.value, screenerPendingCount: count }
 }, { immediate: true })
-
-const screenerHistorySenders = computed(() => {
-  const senders = new Map<string, { address: string, latest: InboxMessage, count: number, state: 'cleared' | 'blocked' }>()
-
-  for (const message of (inboxMessages.value ?? []).filter(message => message.folder === 'Screener' && message.screenerState !== 'pending')) {
-    const address = message.address.trim().toLocaleLowerCase('en-US')
-    const existing = senders.get(address)
-    if (existing) {
-      existing.count += 1
-      if (message.screenerState === 'blocked') existing.state = 'blocked'
-    } else {
-      senders.set(address, {
-        address: message.address,
-        latest: message,
-        count: 1,
-        state: message.screenerState === 'blocked' ? 'blocked' : 'cleared',
-      })
-    }
-  }
-
-  return [...senders.values()]
-})
-
-const screenerSenders = computed(() => {
-  const query = search.value.trim().toLocaleLowerCase('fr')
-  if (!query) return allScreenerSenders.value
-
-  return allScreenerSenders.value.filter(({ address, latest }) =>
-    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
-  )
-})
-
-const visibleScreenerHistory = computed(() => {
-  const query = search.value.trim().toLocaleLowerCase('fr')
-  if (!query) return screenerHistorySenders.value
-
-  return screenerHistorySenders.value.filter(({ address, latest }) =>
-    `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
-  )
-})
 
 const participantAvatarAddresses = computed(() => {
   const currentAddress = accountSession.value?.user.email.trim().toLocaleLowerCase('en-US')
@@ -1668,13 +1516,6 @@ function threadAvatarFor(message: InboxMessage) {
     : message.address.trim().toLocaleLowerCase('en-US')
   return address ? participantAvatars.value[address] ?? {} : {}
 }
-
-watch(screenerSenders, (senders) => {
-  if (!senders.some(sender => sender.address.trim().toLocaleLowerCase('en-US') === selectedScreenerAddress.value)) {
-    selectedScreenerAddress.value = ''
-    openScreenerOptionsFor.value = ''
-  }
-})
 
 const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
 const selectedThreadParticipants = computed(() => selectedThread.value ? threadParticipants(selectedThread.value) : [])
@@ -2617,84 +2458,6 @@ function doneScreener() {
   void router.push(mailboxPath(from ?? 'Imbox'))
 }
 
-function toggleScreenerOptions(address: string, message: InboxMessage) {
-  if (openScreenerOptionsFor.value === address) {
-    openScreenerOptionsFor.value = ''
-    return
-  }
-
-  screenerDestination.value = 'Imbox'
-  screenerScope.value = 'sender'
-  openScreenerOptionsFor.value = address
-}
-
-function requestClearScreener() {
-  if (activeFolder.value === 'Screener' && screenerView.value === 'pending' && allScreenerSenders.value.length && !isClearingScreener.value) {
-    screenerClearDialogOpen.value = true
-  }
-}
-
-async function applyScreenerChoice(message: InboxMessage, folder: MailboxFolder, scope: 'sender' | 'message') {
-  if (isSavingScreenerAction.value) return
-  isSavingScreenerAction.value = true
-  screenerActionError.value = ''
-  openScreenerOptionsFor.value = ''
-
-  try {
-    if (scope === 'sender') {
-      const result = await $fetch<{ folder: MailboxFolder, affectedMessages: number, undoId: string }>(`/api/messages/${encodeURIComponent(message.id)}/sender-rule`, {
-        method: 'PUT',
-        body: { folder },
-      })
-      showClassificationFeedback($t(result.affectedMessages === 1 ? 'mail.classificationDoneOne' : 'mail.classificationDoneMany', { count: result.affectedMessages, folder: mailboxByName(result.folder).label }), result.undoId)
-    } else {
-      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/folder`, {
-        method: 'PATCH',
-        body: { folder },
-      })
-      showClassificationFeedback($t('mail.messageClassified'))
-    }
-    classificationTarget.value = null
-    await refreshMessages()
-  } catch {
-    screenerActionError.value = $t('mail.classificationError')
-  } finally {
-    isSavingScreenerAction.value = false
-  }
-}
-
-async function blockScreenerSender(message: InboxMessage) {
-  if (isSavingScreenerAction.value) return
-  isSavingScreenerAction.value = true
-  screenerActionError.value = ''
-  try {
-    const result = await $fetch<{ preservedMessages: number }>(`/api/messages/${encodeURIComponent(message.id)}/block-sender`, {
-      method: 'POST',
-    })
-    showClassificationFeedback($t(result.preservedMessages === 1 ? 'mail.blockedOne' : 'mail.blockedMany', { count: result.preservedMessages }))
-    await refreshMessages()
-  } catch {
-    screenerActionError.value = $t('mail.screenerBlockError')
-  } finally {
-    isSavingScreenerAction.value = false
-  }
-}
-
-async function trashScreenerMessage(message: InboxMessage) {
-  if (isSavingScreenerAction.value) return
-  isSavingScreenerAction.value = true
-  screenerActionError.value = ''
-  try {
-    await $fetch(`/api/messages/${encodeURIComponent(message.id)}/trash`, { method: 'POST' })
-    showClassificationFeedback($t('mail.screenerMessageTrashed'))
-    await refreshMessages()
-  } catch {
-    screenerActionError.value = $t('mail.screenerTrashError')
-  } finally {
-    isSavingScreenerAction.value = false
-  }
-}
-
 async function restoreTrashedMessage(message: InboxMessage) {
   if (isSavingScreenerAction.value) return
   const wasReadingFromTrash = activeFolder.value === 'Trash' && isReadingMessage.value
@@ -2707,42 +2470,6 @@ async function restoreTrashedMessage(message: InboxMessage) {
     if (wasReadingFromTrash) void router.push(mailboxPath('Trash'))
   } catch {
     screenerActionError.value = $t('mail.screenerRestoreError')
-  } finally {
-    isSavingScreenerAction.value = false
-  }
-}
-
-async function clearAllScreener() {
-  if (isClearingScreener.value || !allScreenerSenders.value.length) return
-  screenerClearDialogOpen.value = false
-  isClearingScreener.value = true
-  screenerActionError.value = ''
-  try {
-    const result = await $fetch<{ clearedMessages: number }>('/api/screener/clear', { method: 'POST' })
-    showClassificationFeedback($t(result.clearedMessages === 1 ? 'mail.screenerClearedOne' : 'mail.screenerClearedMany', { count: result.clearedMessages }))
-    await refreshMessages()
-  } catch {
-    screenerActionError.value = $t('mail.screenerClearError')
-  } finally {
-    isClearingScreener.value = false
-  }
-}
-
-async function restoreScreenerSender(message: InboxMessage, state: 'cleared' | 'blocked') {
-  if (isSavingScreenerAction.value) return
-  isSavingScreenerAction.value = true
-  screenerActionError.value = ''
-  try {
-    if (state === 'blocked') {
-      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/unblock-sender`, { method: 'POST' })
-      showClassificationFeedback($t('mail.senderAllowed'))
-    } else {
-      await $fetch(`/api/messages/${encodeURIComponent(message.id)}/restore-screener`, { method: 'POST' })
-      showClassificationFeedback($t('mail.messagesRestoredToScreener'))
-    }
-    await refreshMessages()
-  } catch {
-    screenerActionError.value = $t('mail.screenerUpdateError')
   } finally {
     isSavingScreenerAction.value = false
   }
