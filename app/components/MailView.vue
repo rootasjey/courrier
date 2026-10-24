@@ -837,6 +837,7 @@ import { useMailScreener } from '~/composables/useMailScreener'
 import { useMailReply } from '~/composables/useMailReply'
 import { useMailThreadSelection } from '~/composables/useMailThreadSelection'
 import { useMailThreadCollections } from '~/composables/useMailThreadCollections'
+import { useMailThreadSubject } from '~/composables/useMailThreadSubject'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -995,14 +996,6 @@ const classificationTarget = ref<InboxMessage | null>(null)
 const classificationScope = ref<'sender' | 'message' | 'group'>('sender')
 const classificationFolder = ref<MailboxFolder>('Imbox')
 const screenerActionError = ref('')
-const isEditingThreadSubject = ref(false)
-const threadSubjectDraft = ref('')
-const threadSubjectSaveError = ref('')
-const isSavingThreadSubject = ref(false)
-const threadSubjectInput = ref<HTMLInputElement | null>(null)
-const threadSubjectHeading = ref<HTMLElement | null>(null)
-const subjectSelection = ref({ visible: false, left: 0, top: 0 })
-const subjectContextMenu = ref({ open: false, left: 0, top: 0 })
 const isSetAsideStackExpanded = ref(false)
 const isReplyLaterStackExpanded = ref(false)
 const viewportHeight = ref(800)
@@ -1439,6 +1432,27 @@ const selectedThread = computed(() => folderThreads.value.find(thread => thread.
 const selectedThreadParticipants = computed(() => selectedThread.value ? threadParticipants(selectedThread.value) : [])
 const selectedMessage = computed(() => selectedThread.value?.latest)
 const chronologicalMessages = computed(() => [...(selectedThread.value?.messages ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
+const threadSubjectEditor = useMailThreadSubject({
+  selectedThread,
+  chronologicalMessages,
+  refreshMessages,
+})
+const {
+  isEditing: isEditingThreadSubject,
+  draft: threadSubjectDraft,
+  saveError: threadSubjectSaveError,
+  isSaving: isSavingThreadSubject,
+  input: threadSubjectInput,
+  heading: threadSubjectHeading,
+  selection: subjectSelection,
+  contextMenu: subjectContextMenu,
+  resetEditor: resetThreadSubjectEditor,
+  beginEdit: beginThreadSubjectEdit,
+  updateSelection: updateSubjectSelection,
+  openContextMenu: openSubjectContextMenu,
+  cancelEdit: cancelThreadSubjectEdit,
+  save: saveThreadSubject,
+} = threadSubjectEditor
 const {
   activeThreadMessage,
   activeThreadMessageId,
@@ -1504,8 +1518,7 @@ const {
 } = mailReply
 
 watch(selectedId, (threadId) => {
-  isEditingThreadSubject.value = false
-  threadSubjectSaveError.value = ''
+  resetThreadSubjectEditor()
   const thread = selectedThread.value
   if (!threadId) {
     activeThreadMessageId.value = ''
@@ -1805,18 +1818,12 @@ onMounted(() => {
   window.addEventListener('keydown', handleThreadKeydown)
   window.addEventListener('pointerdown', handleScreenerOutsideClick)
   window.addEventListener('pointerdown', handleStackOutsideClick)
-  window.addEventListener('pointerdown', closeSubjectContextMenu)
-  window.addEventListener('keydown', closeSubjectContextMenuOnEscape)
-  document.addEventListener('selectionchange', updateSubjectSelection)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateStackPreviewLimit)
   window.removeEventListener('keydown', handleThreadKeydown)
   window.removeEventListener('pointerdown', handleScreenerOutsideClick)
   window.removeEventListener('pointerdown', handleStackOutsideClick)
-  window.removeEventListener('pointerdown', closeSubjectContextMenu)
-  window.removeEventListener('keydown', closeSubjectContextMenuOnEscape)
-  document.removeEventListener('selectionchange', updateSubjectSelection)
 })
 
 async function importFixture() {
@@ -1874,91 +1881,6 @@ function openMessage(message: InboxMessage, mailbox: Folder = message.folder, re
       messageReadError.value = $t('mail.messageReadPartialError')
     }
   })
-}
-
-function beginThreadSubjectEdit() {
-  if (!selectedThread.value) return
-  subjectSelection.value.visible = false
-  subjectContextMenu.value.open = false
-  threadSubjectDraft.value = selectedThread.value.messages.find(message => message.threadSubject)?.threadSubject
-    || chronologicalMessages.value[0]?.subject
-    || selectedThread.value.subject
-  threadSubjectSaveError.value = ''
-  isEditingThreadSubject.value = true
-  void nextTick(() => threadSubjectInput.value?.focus())
-}
-
-function updateSubjectSelection() {
-  const heading = threadSubjectHeading.value
-  const selection = window.getSelection()
-  if (!heading || !selection || selection.isCollapsed || !selection.toString().trim()
-    || !heading.contains(selection.anchorNode) || !heading.contains(selection.focusNode)) {
-    subjectSelection.value.visible = false
-    return
-  }
-
-  const rect = selection.getRangeAt(0).getBoundingClientRect()
-  subjectSelection.value = {
-    visible: rect.width > 0 && rect.height > 0,
-    left: Math.max(12, Math.min(window.innerWidth - 46, rect.right - 12)),
-    top: Math.max(12, rect.top - 44),
-  }
-}
-
-function openSubjectContextMenu(event: MouseEvent) {
-  // Ctrl-right-click deliberately keeps the browser's own context menu available.
-  if (event.ctrlKey) return
-  event.preventDefault()
-  subjectSelection.value.visible = false
-  subjectContextMenu.value = {
-    open: true,
-    left: Math.max(12, Math.min(window.innerWidth - 228, event.clientX)),
-    top: Math.max(12, Math.min(window.innerHeight - 54, event.clientY)),
-  }
-}
-
-function closeSubjectContextMenu(event: PointerEvent) {
-  if (!(event.target instanceof Element) || !event.target.closest('.thread-subject-context-menu')) {
-    subjectContextMenu.value.open = false
-  }
-}
-
-function closeSubjectContextMenuOnEscape(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || !subjectContextMenu.value.open) return
-  event.preventDefault()
-  subjectContextMenu.value.open = false
-}
-
-function cancelThreadSubjectEdit() {
-  if (isSavingThreadSubject.value) return
-  isEditingThreadSubject.value = false
-  threadSubjectSaveError.value = ''
-}
-
-async function saveThreadSubject() {
-  const thread = selectedThread.value
-  if (!thread || isSavingThreadSubject.value) return
-
-  const subject = threadSubjectDraft.value.trim()
-  if (subject.length > 200) {
-    threadSubjectSaveError.value = $t('rename.tooLong')
-    return
-  }
-
-  isSavingThreadSubject.value = true
-  threadSubjectSaveError.value = ''
-  try {
-    await $fetch(`/api/threads/${encodeURIComponent(thread.id)}/subject`, {
-      method: 'PATCH',
-      body: { subject: subject || null },
-    })
-    await refreshMessages()
-    isEditingThreadSubject.value = false
-  } catch (error) {
-    threadSubjectSaveError.value = error instanceof Error ? error.message : $t('rename.error')
-  } finally {
-    isSavingThreadSubject.value = false
-  }
 }
 
 function handleThreadRowClick(thread: MessageThread, event?: MouseEvent) {
