@@ -840,6 +840,7 @@ import { useMailThreadCollections } from '~/composables/useMailThreadCollections
 import { useMailThreadSubject } from '~/composables/useMailThreadSubject'
 import { useMailThreadActions } from '~/composables/useMailThreadActions'
 import { useMailClassification } from '~/composables/useMailClassification'
+import { useMailParticipants } from '~/composables/useMailParticipants'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -891,61 +892,11 @@ type MessageThread = {
 
 type WorkspaceTag = { id: string, name: string, color: string }
 
-type ThreadParticipant = {
-  address: string
-  name: string
-  initials: string
-  color: 'terracotta' | 'blue' | 'green' | 'gold'
-  avatarUrl?: string | null
-  logoUrl?: string | null
-}
-
 type SearchThread = MessageThread & {
   snippet: string
 }
 
-function recipientAddresses(value: string) {
-  const matches = value.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/gi) || []
-  return [...new Set(matches.map(address => address.trim().toLocaleLowerCase('en-US')))]
-}
-
 const accountSession = useState<{ user: { email: string } } | null>('courrier-account-session', () => null)
-
-function threadParticipants(thread: MessageThread): ThreadParticipant[] {
-  const currentAddress = accountSession.value?.user.email.trim().toLocaleLowerCase('en-US')
-  const participants = new Map<string, Omit<ThreadParticipant, 'initials'>>()
-  const colors: ThreadParticipant['color'][] = ['terracotta', 'blue', 'green', 'gold']
-  const stableColor = (address: string, preferred?: string): ThreadParticipant['color'] => {
-    if (preferred && colors.includes(preferred as ThreadParticipant['color'])) return preferred as ThreadParticipant['color']
-    const hash = [...address].reduce((value, char) => (value * 31 + char.charCodeAt(0)) | 0, 7)
-    return colors[Math.abs(hash) % colors.length]!
-  }
-
-  for (const message of thread.messages) {
-    const senderAddress = message.address.trim().toLocaleLowerCase('en-US')
-    if (!message.isOutgoing && senderAddress && senderAddress !== currentAddress && !participants.has(senderAddress)) {
-      participants.set(senderAddress, { address: senderAddress, name: message.sender || senderAddress, color: stableColor(senderAddress, message.color) })
-    }
-
-    for (const address of recipientAddresses(message.recipient)) {
-      if (address === currentAddress || participants.has(address)) continue
-      const knownSender = thread.messages.find(candidate => candidate.address.trim().toLocaleLowerCase('en-US') === address)
-      participants.set(address, { address, name: knownSender?.sender || address, color: stableColor(address, knownSender?.color) })
-    }
-  }
-
-  return [...participants.values()].map((participant) => {
-    const words = participant.name.split(/\s+/).filter(Boolean)
-    const initials = words.length > 1
-      ? `${words[0]?.[0] || ''}${words.at(-1)?.[0] || ''}`
-      : (words[0] || participant.address).slice(0, 2)
-    return {
-      ...participant,
-      initials: initials.toLocaleUpperCase('fr'),
-      ...participantAvatars.value[participant.address],
-    }
-  })
-}
 
 function threadAttachmentCount(thread: MessageThread) {
   return thread.messages.reduce((total, message) => total + message.attachments.length, 0)
@@ -953,11 +904,6 @@ function threadAttachmentCount(thread: MessageThread) {
 
 function uniqueTags(tags: WorkspaceTag[]) {
   return [...new Map(tags.map(tag => [tag.id, tag])).values()]
-}
-
-function otherThreadParticipants(thread: MessageThread) {
-  const latestSender = thread.latest.address.trim().toLocaleLowerCase('en-US')
-  return threadParticipants(thread).filter(participant => participant.address !== latestSender)
 }
 
 const folders = mailboxes
@@ -1261,7 +1207,6 @@ const {
   selectedTagId,
 })
 
-const participantAvatars = ref<Record<string, { avatarUrl: string | null, logoUrl: string | null }>>({})
 const stackPreviewLimit = computed(() => Math.max(1, Math.min(5, Math.floor((viewportHeight.value - 148) / 70) + 1)))
 const setAsideStackPreview = computed(() => setAsideThreads.value.slice(0, stackPreviewLimit.value))
 const setAsideStackExpandedHeight = computed(() =>
@@ -1368,8 +1313,7 @@ watch(() => allScreenerSenders.value.length, (count) => {
   paletteContext.value = { ...paletteContext.value, screenerPendingCount: count }
 }, { immediate: true })
 
-const participantAvatarAddresses = computed(() => {
-  const currentAddress = accountSession.value?.user.email.trim().toLocaleLowerCase('en-US')
+const messagesForAvatarLookup = computed(() => {
   const displayedThreads = isGlobalSearch.value
     ? globalSearchThreads.value
     : visibleThreads.value
@@ -1382,50 +1326,19 @@ const participantAvatarAddresses = computed(() => {
     displayedMessages.push(...setAsideThreads.value.flatMap(thread => thread.messages))
     displayedMessages.push(...replyLaterThreads.value.flatMap(thread => thread.messages))
   }
-
-  const addresses = displayedMessages.flatMap((message) => {
-    const senderAddress = message.address.trim().toLocaleLowerCase('en-US')
-    return [
-      ...(!message.isOutgoing && senderAddress !== currentAddress ? [senderAddress] : []),
-      ...recipientAddresses(message.recipient).filter(address => address !== currentAddress),
-    ]
-  })
-  return [...new Set(addresses.filter(Boolean))].sort()
+  return displayedMessages
 })
-let participantAvatarRequestId = 0
-
-watch(participantAvatarAddresses, async (addresses) => {
-  const requestId = ++participantAvatarRequestId
-  if (!addresses.length) {
-    participantAvatars.value = {}
-    return
-  }
-
-  try {
-    const chunks: string[][] = []
-    for (let index = 0; index < addresses.length; index += 30) chunks.push(addresses.slice(index, index + 30))
-    const responses = await Promise.all(chunks.map(chunk => $fetch<{ avatars: Record<string, { avatarUrl: string | null, logoUrl: string | null }> }>('/api/contacts/avatars', {
-      query: { addresses: chunk.join(',') },
-    })))
-    if (requestId === participantAvatarRequestId) {
-      participantAvatars.value = Object.assign({}, ...responses.map(response => response.avatars))
-    }
-  } catch {
-    // Avatars remain initials if contact lookup is temporarily unavailable.
-  }
-}, { immediate: true })
-
-function senderAvatarFor(message: InboxMessage) {
-  if (message.isOutgoing) return {}
-  return participantAvatars.value[message.address.trim().toLocaleLowerCase('en-US')] ?? {}
-}
-
-function threadAvatarFor(message: InboxMessage) {
-  const address = message.isOutgoing
-    ? recipientAddresses(message.recipient)[0]
-    : message.address.trim().toLocaleLowerCase('en-US')
-  return address ? participantAvatars.value[address] ?? {} : {}
-}
+const mailParticipants = useMailParticipants({
+  messagesForAvatarLookup,
+  accountEmail: computed(() => accountSession.value?.user.email ?? ''),
+})
+const {
+  recipientAddresses,
+  threadParticipants,
+  otherThreadParticipants,
+  senderAvatarFor,
+  threadAvatarFor,
+} = mailParticipants
 
 const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
 const mailThreadActions = useMailThreadActions({
