@@ -445,6 +445,7 @@ import { useMailThreadContent } from '~/composables/useMailThreadContent'
 import { useMailThreadActions } from '~/composables/useMailThreadActions'
 import { useMailClassification } from '~/composables/useMailClassification'
 import { useMailParticipants } from '~/composables/useMailParticipants'
+import { useMailKeyboardShortcuts } from '~/composables/useMailKeyboardShortcuts'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -1178,14 +1179,12 @@ const handleScreenerKeyboardShortcut = useScreenerKeyboardShortcuts({
   trashScreenerMessage,
 })
 
-function handleThreadKeydown(event: KeyboardEvent) {
-  if (event.defaultPrevented) return
-
+function handlePriorityKeyboardShortcut(event: KeyboardEvent) {
   if (event.key === 'Escape' && threadActionDock.value?.isTagPickerOpen()) {
     event.preventDefault()
     event.stopPropagation()
     void threadActionDock.value.closeTagPicker()
-    return
+    return true
   }
 
   if (
@@ -1200,101 +1199,118 @@ function handleThreadKeydown(event: KeyboardEvent) {
     event.preventDefault()
     event.stopPropagation()
     void clearAllScreener()
-    return
+    return true
   }
 
   if (event.key === 'Escape' && isEditingThreadSubject.value) {
     event.preventDefault()
     event.stopPropagation()
     cancelThreadSubjectEdit()
-    return
+    return true
   }
 
-  const target = event.target
   if (event.key === 'Escape' && activeFolder.value === 'Screener' && openScreenerOptionsFor.value) {
     event.preventDefault()
     openScreenerOptionsFor.value = ''
-    return
+    return true
   }
-  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return
-  // Let an open overlay handle Escape before page shortcuts clear selections or navigate away.
-  if (target instanceof Element && target.closest('[role="dialog"], [role="menu"], [role="listbox"], [aria-haspopup="dialog"][aria-expanded="true"]')) return
-  if (threadMoveMenuOpen.value) return
-  if (event.altKey || event.ctrlKey || event.metaKey) return
 
-  if (handleScreenerKeyboardShortcut(event)) return
+  return false
+}
 
+function shouldIgnorePageShortcut(event: KeyboardEvent) {
+  const target = event.target
+  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return true
+  if (target instanceof Element && target.closest('[role="dialog"], [role="menu"], [role="listbox"], [aria-haspopup="dialog"][aria-expanded="true"]')) return true
+  return threadMoveMenuOpen.value || event.altKey || event.ctrlKey || event.metaKey
+}
+
+function handleScreenerAndStackShortcut(event: KeyboardEvent) {
   if (event.key === 'Escape' && activeFolder.value === 'Screener' && !isReadingMessage.value && !isGlobalSearch.value) {
-    if (hasOpenKeyboardSurface()) return
+    if (hasOpenKeyboardSurface()) return true
     event.preventDefault()
     navigateToFolder('Imbox')
-    return
+    return true
   }
 
   if (event.key === 'Escape' && (isSetAsideStackExpanded.value || isReplyLaterStackExpanded.value)) {
     event.preventDefault()
     isSetAsideStackExpanded.value = false
     isReplyLaterStackExpanded.value = false
-    return
+    return true
   }
 
-  if (threadSelectionMode.value) {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      clearThreadSelection()
-      return
-    }
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      moveSelectionCursor(event.key === 'ArrowDown' ? 1 : -1)
-      return
-    }
-    if (event.key === ' ' && keyboardSelectionThreadId.value) {
-      event.preventDefault()
-      toggleThreadSelection(keyboardSelectionThreadId.value)
-      return
-    }
-    if (event.key.toLocaleLowerCase('en-US') === 'u' && canSelectThreads.value && !isApplyingBulkAction.value) {
-      event.preventDefault()
-      void applyBulkAction('mark-unseen')
-      return
-    }
+  return false
+}
+
+function handleThreadSelectionShortcut(event: KeyboardEvent) {
+  if (!threadSelectionMode.value) return false
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    clearThreadSelection()
+    return true
+  }
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    moveSelectionCursor(event.key === 'ArrowDown' ? 1 : -1)
+    return true
+  }
+  if (event.key === ' ' && keyboardSelectionThreadId.value) {
+    event.preventDefault()
+    toggleThreadSelection(keyboardSelectionThreadId.value)
+    return true
+  }
+  if (event.key.toLocaleLowerCase('en-US') === 'u' && canSelectThreads.value && !isApplyingBulkAction.value) {
+    event.preventDefault()
+    void applyBulkAction('mark-unseen')
+    return true
   }
 
+  return false
+}
+
+function handleThreadListShortcut(event: KeyboardEvent) {
+  const target = event.target
   const isThreadListTarget = target instanceof Element && Boolean(target.closest('.thread-list'))
   const isPageTarget = target === document.body || target === document.documentElement
-  if (!isReadingMessage.value && activeFolder.value !== 'The Feed' && canNavigateThreads.value && (isThreadListTarget || isPageTarget)) {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      moveSelectionCursor(event.key === 'ArrowDown' ? 1 : -1)
-      return
-    }
+  if (isReadingMessage.value || activeFolder.value === 'The Feed' || !canNavigateThreads.value || (!isThreadListTarget && !isPageTarget)) return false
 
-    const keyboardThread = selectableThreads.value.find(thread => thread.id === keyboardSelectionThreadId.value)
-    if (event.key.toLocaleLowerCase('en-US') === 'u' && keyboardThread && canSelectThreads.value && !isApplyingBulkAction.value) {
-      event.preventDefault()
-      void applyBulkAction('mark-unseen', {}, [keyboardThread.id], true)
-      return
-    }
-    if (event.key === 'Enter' && keyboardThread) {
-      event.preventDefault()
-      openMessage(keyboardThread.latest)
-      return
-    }
-
-    if (event.key === ' ' && keyboardThread && canSelectThreads.value) {
-      event.preventDefault()
-      startThreadSelection(keyboardThread.id)
-      return
-    }
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    moveSelectionCursor(event.key === 'ArrowDown' ? 1 : -1)
+    return true
   }
 
-  if (event.key === 'Escape' && activeFolder.value === 'Set Aside' && !isReadingMessage.value && !isGlobalSearch.value) {
+  const keyboardThread = selectableThreads.value.find(thread => thread.id === keyboardSelectionThreadId.value)
+  if (event.key.toLocaleLowerCase('en-US') === 'u' && keyboardThread && canSelectThreads.value && !isApplyingBulkAction.value) {
+    event.preventDefault()
+    void applyBulkAction('mark-unseen', {}, [keyboardThread.id], true)
+    return true
+  }
+  if (event.key === 'Enter' && keyboardThread) {
+    event.preventDefault()
+    openMessage(keyboardThread.latest)
+    return true
+  }
+  if (event.key === ' ' && keyboardThread && canSelectThreads.value) {
+    event.preventDefault()
+    startThreadSelection(keyboardThread.id)
+    return true
+  }
+
+  return false
+}
+
+function handleSpecialFolderShortcut(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || isReadingMessage.value || isGlobalSearch.value) return false
+
+  if (activeFolder.value === 'Set Aside') {
     event.preventDefault()
     navigateToFolder('Imbox')
-    return
+    return true
   }
-  if (event.key === 'Escape' && activeFolder.value === 'Reply Later' && !isReadingMessage.value && !isGlobalSearch.value) {
+  if (activeFolder.value === 'Reply Later') {
     event.preventDefault()
     const previousPath = window.history.state?.back
     if (typeof previousPath === 'string' && previousPath.startsWith('/mail/') && previousPath !== route.path) {
@@ -1302,63 +1318,101 @@ function handleThreadKeydown(event: KeyboardEvent) {
     } else {
       navigateToFolder('Imbox')
     }
-    return
+    return true
   }
-  if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return
+
+  return false
+}
+
+function handleThreadReaderShortcut(event: KeyboardEvent) {
+  if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return false
 
   const key = event.key.toLocaleLowerCase('en-US')
   if (isFeedReader.value && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
     const target = event.target
     const isInteractiveTarget = target instanceof Element
       && Boolean(target.closest('a, button, input, textarea, select, [contenteditable="true"]'))
-    if (event.altKey || event.metaKey || event.ctrlKey || isInteractiveTarget) return
+    if (isInteractiveTarget) return true
 
     event.preventDefault()
     if (event.key === 'ArrowLeft') navigateFeedEdition(-1)
     else if (event.key === 'ArrowRight') navigateFeedEdition(1)
     else if (event.key === 'Home' && feedEditions.value[0]) openMessage(feedEditions.value[0], 'The Feed', true)
     else if (event.key === 'End' && feedEditions.value.at(-1)) openMessage(feedEditions.value.at(-1)!, 'The Feed', true)
-    return
+    return true
   }
   if (key === 'b' && canAssignTags.value) {
     event.preventDefault()
     void threadActionDock.value?.openTagPicker()
-  } else if (key === 'u' && activeFolder.value !== 'Trash' && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
+    return true
+  }
+  if (key === 'u' && activeFolder.value !== 'Trash' && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
     event.preventDefault()
     void markOpenThreadUnseen()
-  } else if (key === 'v' && ['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value) && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
+    return true
+  }
+  if (key === 'v' && ['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value) && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
     event.preventDefault()
     threadMoveMenuOpen.value = true
     void nextTick(() => document.querySelector<HTMLInputElement>('.thread-action-move input')?.focus())
-  } else if (event.key === 'Escape') {
+    return true
+  }
+  if (event.key === 'Escape') {
     event.preventDefault()
     if (replyComposerOpen.value) replyComposerOpen.value = false
     else closeMessage()
-  } else if (event.key.toLocaleLowerCase('en-US') === 'r') {
+    return true
+  }
+  if (key === 'r') {
     event.preventDefault()
     void openReplyComposer()
-  } else if (event.key.toLocaleLowerCase('en-US') === 'a' && ['Imbox', 'Set Aside'].includes(activeFolder.value) && !isSavingSetAside.value && !splitDialogOpen.value) {
+    return true
+  }
+  if (key === 'a' && ['Imbox', 'Set Aside'].includes(activeFolder.value) && !isSavingSetAside.value && !splitDialogOpen.value) {
     event.preventDefault()
     void setAsideThread(activeFolder.value !== 'Set Aside')
-  } else if (event.key.toLocaleLowerCase('en-US') === 'l' && !['Screener', 'Trash', 'Set Aside'].includes(activeFolder.value) && !isSavingReplyLater.value && !splitDialogOpen.value) {
+    return true
+  }
+  if (key === 'l' && !['Screener', 'Trash', 'Set Aside'].includes(activeFolder.value) && !isSavingReplyLater.value && !splitDialogOpen.value) {
     event.preventDefault()
     void setReplyLater(activeFolder.value !== 'Reply Later')
-  } else if (event.key === 'ArrowLeft') {
+    return true
+  }
+  if (event.key === 'ArrowLeft') {
     event.preventDefault()
     navigateThreadMessage(-1)
-  } else if (event.key === 'ArrowRight') {
+    return true
+  }
+  if (event.key === 'ArrowRight') {
     event.preventDefault()
     navigateThreadMessage(1)
-  } else if (event.key === 'Home') {
+    return true
+  }
+  if (event.key === 'Home') {
     event.preventDefault()
     const oldestMessage = chronologicalMessages.value[0]
     if (oldestMessage) selectThreadMessage(oldestMessage.id)
-  } else if (event.key === 'End') {
+    return true
+  }
+  if (event.key === 'End') {
     event.preventDefault()
     const newestMessage = chronologicalMessages.value.at(-1)
     if (newestMessage) selectThreadMessage(newestMessage.id)
+    return true
   }
+
+  return false
 }
+
+useMailKeyboardShortcuts([
+  handlePriorityKeyboardShortcut,
+  event => shouldIgnorePageShortcut(event) || handleScreenerKeyboardShortcut(event),
+  handleScreenerAndStackShortcut,
+  handleThreadSelectionShortcut,
+  handleThreadListShortcut,
+  handleSpecialFolderShortcut,
+  handleThreadReaderShortcut,
+])
 
 function hasOpenKeyboardSurface() {
   const surfaces = document.querySelectorAll<HTMLElement>(
@@ -1404,13 +1458,11 @@ function updateStackPreviewLimit() {
 onMounted(() => {
   updateStackPreviewLimit()
   window.addEventListener('resize', updateStackPreviewLimit, { passive: true })
-  window.addEventListener('keydown', handleThreadKeydown)
   window.addEventListener('pointerdown', handleScreenerOutsideClick)
   window.addEventListener('pointerdown', handleStackOutsideClick)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateStackPreviewLimit)
-  window.removeEventListener('keydown', handleThreadKeydown)
   window.removeEventListener('pointerdown', handleScreenerOutsideClick)
   window.removeEventListener('pointerdown', handleStackOutsideClick)
 })
