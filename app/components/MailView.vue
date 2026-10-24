@@ -284,67 +284,32 @@
         <span v-if="fixtureError" class="fixture-error" role="alert">{{ fixtureError }}</span>
       </div>
 
-      <section v-if="showSetAsideStack" class="mail-stack set-aside-stack" data-stack-kind="set-aside" :class="{ 'is-expanded': isSetAsideStackExpanded, 'is-paired': showReplyLaterStack }" :style="{ '--set-aside-expanded-height': setAsideStackExpandedHeight }" :aria-label="$t('mail.setAsideStackLabel')">
-        <div class="set-aside-stack-stage">
-          <div id="set-aside-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="$t(isSetAsideStackExpanded ? 'mail.setAsideStackExpanded' : 'mail.setAsideStackCollapsed')">
-            <div class="set-aside-stack-cards" :class="{ 'is-expanded': isSetAsideStackExpanded }">
-              <button
-                v-for="(thread, index) in setAsideStackPreview"
-                :key="thread.id"
-                class="set-aside-stack-card"
-                type="button"
-                :class="{ 'is-front-card': index === 0 }"
-                :aria-label="!isSetAsideStackExpanded && index === 0 ? $t('mail.expandSetAsideStack') : undefined"
-                :aria-hidden="!isSetAsideStackExpanded && index > 0 ? 'true' : undefined"
-                :tabindex="!isSetAsideStackExpanded && index > 0 ? -1 : undefined"
-                :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: setAsideStackPreview.length - index + 1 }"
-                @click="openOrFollowStackCard(isSetAsideStackExpanded, 'set-aside', thread)"
-              >
-                <MailSenderAvatar class="set-aside-stack-avatar" :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
-                <span class="set-aside-stack-copy">
-                  <strong>{{ thread.subject }}</strong>
-                  <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
-                </span>
-                <time :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
-                <span v-if="!isSetAsideStackExpanded && index === 0" class="set-aside-stack-count">{{ setAsideThreads.length }}</span>
-              </button>
-            </div>
-            <NuxtLink class="set-aside-stack-all" :class="{ 'is-visible': isSetAsideStackExpanded }" :aria-hidden="!isSetAsideStackExpanded ? 'true' : undefined" :tabindex="isSetAsideStackExpanded ? undefined : -1" :to="mailboxPath('Set Aside')">{{ $t('mail.viewSetAside') }} <span aria-hidden="true">→</span></NuxtLink>
-          </div>
-        </div>
-        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ $t(isSetAsideStackExpanded ? 'mail.setAsideStackExpanded' : 'mail.setAsideStackCollapsed') }}.</span>
-      </section>
-
-      <section v-if="showReplyLaterStack" class="mail-stack set-aside-stack reply-later-stack" data-stack-kind="reply-later" :class="{ 'is-expanded': isReplyLaterStackExpanded, 'is-paired': showSetAsideStack }" :style="{ '--set-aside-expanded-height': replyLaterStackExpandedHeight }" :aria-label="$t('mail.replyLaterStackLabel')">
-        <div class="set-aside-stack-stage">
-          <div id="reply-later-stack-expanded" class="set-aside-stack-expanded" role="group" :aria-label="$t(isReplyLaterStackExpanded ? 'mail.replyLaterStackExpanded' : 'mail.replyLaterStackCollapsed')">
-            <div class="set-aside-stack-cards" :class="{ 'is-expanded': isReplyLaterStackExpanded }">
-              <button
-                v-for="(thread, index) in replyLaterStackPreview"
-                :key="thread.id"
-                class="set-aside-stack-card reply-later-stack-card"
-                type="button"
-                :class="{ 'is-front-card': index === 0 }"
-                :aria-label="!isReplyLaterStackExpanded && index === 0 ? $t('mail.expandReplyLaterStack') : undefined"
-                :aria-hidden="!isReplyLaterStackExpanded && index > 0 ? 'true' : undefined"
-                :tabindex="!isReplyLaterStackExpanded && index > 0 ? -1 : undefined"
-                :style="{ '--stack-index': index, '--stack-rotation': `${index % 2 ? 0.15 : -0.1}deg`, '--stack-offset': `${index % 2 ? 3 : -2}px`, zIndex: replyLaterStackPreview.length - index + 1 }"
-                @click="openOrFollowStackCard(isReplyLaterStackExpanded, 'reply-later', thread)"
-              >
-                <MailSenderAvatar class="set-aside-stack-avatar" :initials="thread.latest.initials" :color="thread.latest.color" v-bind="threadAvatarFor(thread.latest)" />
-                <span class="set-aside-stack-copy">
-                  <strong>{{ thread.subject }}</strong>
-                  <span>{{ thread.latest.sender }} · {{ thread.latest.preview }}</span>
-                </span>
-                <time :datetime="thread.latest.timestamp" :title="absoluteMailDate(thread.latest.timestamp)">{{ relativeMailDate(thread.latest.timestamp) }}</time>
-                <span v-if="!isReplyLaterStackExpanded && index === 0" class="set-aside-stack-count reply-later-stack-count">{{ replyLaterThreads.length }}</span>
-              </button>
-            </div>
-            <NuxtLink class="set-aside-stack-all reply-later-stack-all" :class="{ 'is-visible': isReplyLaterStackExpanded }" :aria-hidden="!isReplyLaterStackExpanded ? 'true' : undefined" :tabindex="isReplyLaterStackExpanded ? undefined : -1" :to="mailboxPath('Reply Later')">{{ $t('mail.viewReplyLater') }} <span aria-hidden="true">→</span></NuxtLink>
-          </div>
-        </div>
-        <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ $t(isReplyLaterStackExpanded ? 'mail.replyLaterStackExpanded' : 'mail.replyLaterStackCollapsed') }}.</span>
-      </section>
+      <MailThreadStack
+        v-if="showSetAsideStack"
+        kind="set-aside"
+        :preview-threads="setAsideStackPreview"
+        :total-count="setAsideThreads.length"
+        :expanded="isSetAsideStackExpanded"
+        :paired="showReplyLaterStack"
+        :expanded-height="setAsideStackExpandedHeight"
+        :avatar-for="threadAvatarFor"
+        :relative-date="relativeMailDate"
+        :absolute-date="absoluteMailDate"
+        @select="openOrFollowStackCard(isSetAsideStackExpanded, 'set-aside', $event)"
+      />
+      <MailThreadStack
+        v-if="showReplyLaterStack"
+        kind="reply-later"
+        :preview-threads="replyLaterStackPreview"
+        :total-count="replyLaterThreads.length"
+        :expanded="isReplyLaterStackExpanded"
+        :paired="showSetAsideStack"
+        :expanded-height="replyLaterStackExpandedHeight"
+        :avatar-for="threadAvatarFor"
+        :relative-date="relativeMailDate"
+        :absolute-date="absoluteMailDate"
+        @select="openOrFollowStackCard(isReplyLaterStackExpanded, 'reply-later', $event)"
+      />
     </section>
 
     <section v-else-if="selectedMessage" class="reading-column" :aria-label="$t('mail.selectedMessage')">
@@ -829,6 +794,7 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
+import MailThreadStack from '~/components/MailThreadStack.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
 import MailScreenerPanel from '~/components/MailScreenerPanel.vue'
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
