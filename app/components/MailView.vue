@@ -204,46 +204,23 @@
       </template>
 
       <div v-else-if="activeFolder === 'The Feed' && visibleFeedEditions.length" class="thread-list other-folder-list feed-edition-list" role="list">
-        <div
+        <MailFeedEditionRow
           v-for="message in visibleFeedEditions"
           :key="message.id"
-          class="other-thread-row thread-selection-row feed-edition-row"
-          :class="{ 'is-thread-selected': selectedThreadIds.includes(message.threadId), 'is-selection-cursor': keyboardSelectionThreadId === message.threadId }"
-          :data-thread-selection-id="message.threadId"
-          :aria-current="keyboardSelectionThreadId === message.threadId ? 'true' : undefined"
-          role="listitem"
+          :message="message"
+          :selection="{
+            canSelect: canSelectThreads,
+            active: threadSelectionMode,
+            selected: selectedThreadIds.includes(message.threadId),
+            keyboardCursor: keyboardSelectionThreadId === message.threadId,
+          }"
+          :avatar-for="threadAvatarFor"
+          :relative-date="relativeMailDate"
+          :absolute-date="absoluteMailDate"
+          @select="handleThreadAvatarClick(message.threadId, $event)"
+          @open="handleFeedEditionOpen(message, $event)"
         >
-          <span v-if="!message.isRead" class="unread-indicator" :aria-label="$t('mail.unreadOne', { count: 1 })" />
-          <span v-else-if="keyboardSelectionThreadId === message.threadId" class="thread-selection-cursor" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg></span>
-          <button
-            v-if="canSelectThreads"
-            class="thread-avatar-trigger"
-            :class="{ 'is-selected': threadSelectionMode && selectedThreadIds.includes(message.threadId), 'is-merged': message.manualMergeIds.length }"
-            type="button"
-            :aria-label="$t(threadSelectionMode && selectedThreadIds.includes(message.threadId) ? 'mail.deselectThread' : 'mail.selectThread', { subject: message.subject }) + (message.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')"
-            :aria-pressed="threadSelectionMode ? selectedThreadIds.includes(message.threadId) : undefined"
-            @click="handleThreadAvatarClick(message.threadId, $event)"
-          >
-            <span class="thread-avatar-wrap" :class="{ 'is-merged': message.manualMergeIds.length }">
-              <span v-if="threadSelectionMode && selectedThreadIds.includes(message.threadId)" class="avatar-selection-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
-              <MailSenderAvatar v-else :initials="message.initials" :color="message.color" v-bind="threadAvatarFor(message)" />
-              <span v-if="message.manualMergeIds.length" class="merged-avatar-mark" aria-hidden="true" />
-            </span>
-          </button>
-          <MailboxThreadSummary
-            :subject="message.subject"
-            :sender="message.sender"
-            :preview="message.preview"
-            :timestamp="message.timestamp"
-            :display-date="relativeMailDate(message.timestamp)"
-            :absolute-date="absoluteMailDate(message.timestamp)"
-            :participants="[]"
-            :attachment-count="message.attachments.length"
-            :message-count="1"
-            :tags="message.tags"
-            @open="handleFeedEditionOpen(message, $event)"
-          />
-        </div>
+        </MailFeedEditionRow>
       </div>
 
       <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
@@ -742,6 +719,7 @@
 import { defineAsyncComponent } from 'vue'
 import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
 import MailThreadListRow from '~/components/MailThreadListRow.vue'
+import MailFeedEditionRow from '~/components/MailFeedEditionRow.vue'
 import MailThreadStack from '~/components/MailThreadStack.vue'
 import MailFeedIssue from '~/components/MailFeedIssue.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
