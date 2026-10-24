@@ -338,80 +338,18 @@
         />
 
         <div v-else class="thread-carousel">
-          <div v-if="chronologicalMessages.length > 1" class="thread-carousel-header">
-            <div class="thread-carousel-status">
-              <span class="thread-carousel-position" aria-live="polite">{{ $t('mail.messagePosition', { current: activeThreadMessageIndex + 1, total: chronologicalMessages.length }) }}</span>
-              <NTooltip :content="$t(isReadingAll ? 'mail.readOneAtATime' : 'mail.readWholeConversation')">
-                <button
-                  class="thread-read-all"
-                  type="button"
-                  :aria-label="$t(isReadingAll ? 'mail.readOneAtATime' : 'mail.readWholeConversation')"
-                  :aria-pressed="isReadingAll"
-                  @click="toggleReadAll"
-                >
-                  <svg v-if="!isReadingAll" viewBox="0 0 20 20" aria-hidden="true">
-                    <path d="M6 3.5h8.5A1.5 1.5 0 0 1 16 5v10.5M4.5 6H13a1.5 1.5 0 0 1 1.5 1.5V17H6a1.5 1.5 0 0 1-1.5-1.5z" />
-                    <path d="M7 9h5.5M7 12h5.5" />
-                  </svg>
-                  <svg v-else viewBox="0 0 20 20" aria-hidden="true">
-                    <rect x="3.5" y="4" width="13" height="12" rx="1.5" />
-                    <path d="M6.5 8h7M6.5 11h7" />
-                  </svg>
-                </button>
-              </NTooltip>
-            </div>
-          </div>
-
-          <div
-            v-if="chronologicalMessages.length > 1"
-            class="thread-carousel-navigation"
-            :style="{ '--thread-navigation-width': Math.min(chronologicalMessages.length * 240 + 96, 1050) + 'px' }"
-            :aria-label="$t('mail.conversationNavigation')"
-          >
-            <button
-              class="thread-carousel-arrow"
-              type="button"
-              :aria-label="$t('mail.previousMessage')"
-              :disabled="activeThreadMessageIndex <= 0"
-              @click="navigateThreadMessage(-1)"
-            >‹</button>
-            <div
-              class="thread-message-rail-viewport"
-              :class="{ 'can-scroll-start': railCanScrollStart, 'can-scroll-end': railCanScrollEnd }"
-            >
-              <span v-if="railCanScrollStart" class="thread-message-rail-fade thread-message-rail-fade-start" aria-hidden="true" />
-              <div ref="threadMessageRail" class="thread-message-rail" role="group" :aria-label="$t('mail.conversationMessages')" @scroll="updateThreadRailOverflow">
-                <button
-                  v-for="(message, index) in chronologicalMessages"
-                  :id="'thread-message-tab-' + message.id"
-                  :key="message.id"
-                  class="thread-message-tab"
-                  :class="message.id === activeThreadMessage?.id ? 'is-active' : undefined"
-                  type="button"
-                  :aria-pressed="message.id === activeThreadMessage?.id"
-                  @click="selectThreadMessage(message.id)"
-                >
-                  <span class="thread-tab-heading">
-                    <MailSenderAvatar class="thread-tab-avatar" :initials="message.initials" :color="message.color" v-bind="senderAvatarFor(message)" />
-                    <span class="thread-tab-sender">{{ message.sender }}</span>
-                    <NTooltip :content="absoluteMailDate(message.timestamp)">
-                      <time :datetime="message.timestamp">{{ relativeMailDate(message.timestamp) }}</time>
-                    </NTooltip>
-                  </span>
-                  <span class="thread-tab-preview">{{ message.preview || $t('mail.emptyMessageBody') }}</span>
-                  <span class="sr-only">{{ $t('mail.messagePosition', { current: index + 1, total: chronologicalMessages.length }) }}</span>
-                </button>
-              </div>
-              <span v-if="railCanScrollEnd" class="thread-message-rail-fade thread-message-rail-fade-end" aria-hidden="true" />
-            </div>
-            <button
-              class="thread-carousel-arrow"
-              type="button"
-              :aria-label="$t('mail.nextMessage')"
-              :disabled="activeThreadMessageIndex >= chronologicalMessages.length - 1"
-              @click="navigateThreadMessage(1)"
-            >›</button>
-          </div>
+          <MailThreadMessageNavigation
+            :messages="chronologicalMessages"
+            :active-message-id="activeThreadMessageId"
+            :active-index="activeThreadMessageIndex"
+            :reading-all="isReadingAll"
+            :avatar-for="senderAvatarFor"
+            :relative-date="relativeMailDate"
+            :absolute-date="absoluteMailDate"
+            @navigate="navigateThreadMessage"
+            @select="selectThreadMessage"
+            @toggle-read-all="toggleReadAll"
+          />
 
           <div v-if="!isReadingAll" class="thread-carousel-stage" aria-live="polite">
             <Transition :name="threadSlideDirection > 0 ? 'message-slide-next' : 'message-slide-prev'" mode="out-in">
@@ -721,6 +659,7 @@ import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
 import MailThreadListRow from '~/components/MailThreadListRow.vue'
 import MailFeedEditionRow from '~/components/MailFeedEditionRow.vue'
 import MailThreadStack from '~/components/MailThreadStack.vue'
+import MailThreadMessageNavigation from '~/components/MailThreadMessageNavigation.vue'
 import MailFeedIssue from '~/components/MailFeedIssue.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
 import MailScreenerPanel from '~/components/MailScreenerPanel.vue'
@@ -1334,23 +1273,17 @@ const {
   isReadingAll,
   navigateFeedEdition,
   navigateThreadMessage,
-  railCanScrollEnd,
-  railCanScrollStart,
   rememberFeedTouch,
   replyRecipient,
   resetThreadPresentation,
-  revealThreadTab,
   selectThreadMessage,
-  threadMessageRail,
   threadSlideDirection,
   toggleReadAll,
-  updateThreadRailOverflow,
 } = useMailThreadNavigation({
   activeFolder,
   chronologicalMessages,
   feedEditions,
   isGlobalSearch,
-  isReadingMessage,
   openMessage,
   selectedId,
   selectedMessage,
@@ -1431,7 +1364,6 @@ watch(activeThreadMessageId, async (messageId) => {
     void saveReplyDraft()
   }
   await nextTick()
-  revealThreadTab(messageId)
   if (isFeedReader.value) window.scrollTo({ top: 0, behavior: 'instant' })
   if (isReadingAll.value) {
     document.getElementById(`thread-full-message-${messageId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })

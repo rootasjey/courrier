@@ -1,4 +1,4 @@
-import { computed, nextTick, onUnmounted, ref, watch, type ComputedRef } from 'vue'
+import { computed, ref, type ComputedRef } from 'vue'
 import type { MailboxKey } from '~/utils/mailbox-routing'
 
 type NavigableMessage = {
@@ -15,7 +15,6 @@ type MailThreadNavigationOptions<Message extends NavigableMessage> = {
   chronologicalMessages: ComputedRef<Message[]>
   feedEditions: ComputedRef<Message[]>
   isGlobalSearch: ComputedRef<boolean>
-  isReadingMessage: ComputedRef<boolean>
   openMessage: (message: Message, mailbox?: MailboxKey, replaceHistory?: boolean) => void
   selectedId: ComputedRef<string>
   selectedMessage: ComputedRef<Message | undefined>
@@ -26,7 +25,6 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
   chronologicalMessages,
   feedEditions,
   isGlobalSearch,
-  isReadingMessage,
   openMessage,
   selectedId,
   selectedMessage,
@@ -36,9 +34,6 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
   const activeThreadMessageId = ref('')
   const threadSlideDirection = ref(1)
   const isReadingAll = ref(false)
-  const threadMessageRail = ref<HTMLDivElement | null>(null)
-  const railCanScrollStart = ref(false)
-  const railCanScrollEnd = ref(false)
   const activeThreadMessage = computed(() => chronologicalMessages.value.find(message => message.id === activeThreadMessageId.value) ?? selectedMessage.value)
   const activeThreadMessageIndex = computed(() => chronologicalMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id))
   const feedEditionIndex = computed(() => {
@@ -64,35 +59,6 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
   const replyRecipient = computed(() => activeThreadMessage.value?.isOutgoing
     ? activeThreadMessage.value.recipient
     : activeThreadMessage.value?.address || '')
-
-  function updateThreadRailOverflow() {
-    const rail = threadMessageRail.value
-    if (!rail) {
-      railCanScrollStart.value = false
-      railCanScrollEnd.value = false
-      return
-    }
-
-    const hasOverflow = rail.scrollWidth > rail.clientWidth + 2
-    railCanScrollStart.value = hasOverflow && activeThreadMessageIndex.value > 0
-    railCanScrollEnd.value = hasOverflow && activeThreadMessageIndex.value < chronologicalMessages.value.length - 1
-  }
-
-  function revealThreadTab(messageId: string) {
-    const rail = threadMessageRail.value
-    const tab = document.getElementById(`thread-message-tab-${messageId}`)
-    if (!rail || !tab) return
-
-    const railRect = rail.getBoundingClientRect()
-    const tabRect = tab.getBoundingClientRect()
-    const nextScrollLeft = tabRect.left < railRect.left
-      ? rail.scrollLeft + tabRect.left - railRect.left
-      : tabRect.right > railRect.right
-        ? rail.scrollLeft + tabRect.right - railRect.right
-        : rail.scrollLeft
-    rail.scrollTo({ left: nextScrollLeft, behavior: 'instant' })
-    updateThreadRailOverflow()
-  }
 
   function resetThreadPresentation(activeMessageId: string) {
     activeThreadMessageId.value = activeMessageId
@@ -150,32 +116,6 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
     isReadingAll.value = !isReadingAll.value
   }
 
-  let threadRailResizeObserver: ResizeObserver | undefined
-  watch(threadMessageRail, async (rail) => {
-    threadRailResizeObserver?.disconnect()
-    if (rail && typeof ResizeObserver !== 'undefined') {
-      threadRailResizeObserver = new ResizeObserver(updateThreadRailOverflow)
-      threadRailResizeObserver.observe(rail)
-    }
-    await nextTick()
-    if (rail && activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
-    updateThreadRailOverflow()
-  }, { flush: 'post' })
-
-  watch(isReadingMessage, async (isOpen) => {
-    if (!isOpen) return
-    await nextTick()
-    if (activeThreadMessage.value) revealThreadTab(activeThreadMessage.value.id)
-    updateThreadRailOverflow()
-  }, { flush: 'post' })
-
-  watch(() => chronologicalMessages.value.length, async () => {
-    await nextTick()
-    updateThreadRailOverflow()
-  }, { flush: 'post' })
-
-  onUnmounted(() => threadRailResizeObserver?.disconnect())
-
   return {
     activeThreadMessage,
     activeThreadMessageId,
@@ -189,16 +129,11 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
     isReadingAll,
     navigateFeedEdition,
     navigateThreadMessage,
-    railCanScrollEnd,
-    railCanScrollStart,
     rememberFeedTouch,
     replyRecipient,
     resetThreadPresentation,
-    revealThreadTab,
     selectThreadMessage,
-    threadMessageRail,
     threadSlideDirection,
     toggleReadAll,
-    updateThreadRailOverflow,
   }
 }
