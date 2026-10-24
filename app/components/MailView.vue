@@ -836,6 +836,7 @@ import { useMailViewSearch, type SearchHit } from '~/composables/useMailViewSear
 import { useMailScreener } from '~/composables/useMailScreener'
 import { useMailReply } from '~/composables/useMailReply'
 import { useMailThreadSelection } from '~/composables/useMailThreadSelection'
+import { useMailThreadCollections } from '~/composables/useMailThreadCollections'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -1241,15 +1242,6 @@ watch(composeDraftRequest, (draft) => {
   composeDraftRequest.value = null
 }, { immediate: true })
 
-const folderMessages = computed(() => {
-  return (inboxMessages.value ?? []).filter((message) => {
-    if (activeFolder.value === 'Set Aside') return message.folder === 'Imbox' && message.isSetAside
-    if (activeFolder.value === 'Reply Later') return message.isReplyLater
-    if (activeFolder.value === 'Imbox') return message.folder === 'Imbox' && !message.isSetAside && !message.isReplyLater
-    return message.folder === activeFolder.value && !message.isReplyLater
-  })
-})
-
 const bulkMoveDestinations = computed<MailboxFolder[]>(() => {
   const destinations: MailboxFolder[] = ['Imbox', 'The Feed', 'Paper Trail']
   return activeFolder.value === 'Reply Later' || activeFolder.value === 'Set Aside'
@@ -1262,70 +1254,22 @@ const bulkMoveOptions = computed(() => bulkMoveDestinations.value.map(folder => 
   label: mailboxByName(folder).label,
 })))
 
-const folderThreads = computed<MessageThread[]>(() => {
-  const threads = new Map<string, InboxMessage[]>()
-  for (const message of folderMessages.value) {
-    const messages = threads.get(message.threadId) ?? []
-    messages.push(message)
-    threads.set(message.threadId, messages)
-  }
-
-  return [...threads.entries()].map(([id, messages]) => {
-    messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    return {
-      id,
-      messages,
-      latest: messages[0]!,
-      subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
-      unreadCount: messages.filter(message => !message.isRead).length,
-      manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
-      tags: uniqueTags(messages.flatMap(message => message.tags)),
-    }
-  })
-})
-
-const visibleThreads = computed(() => {
-  const query = search.value.trim().toLocaleLowerCase('fr')
-  const threads = ['Set Aside', 'Reply Later'].includes(activeFolder.value)
-    ? [...folderThreads.value].sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
-    : folderThreads.value
-  const taggedThreads = selectedTagId.value ? threads.filter(thread => thread.tags.some(tag => tag.id === selectedTagId.value)) : threads
-  if (!query) return taggedThreads
-
-  return taggedThreads.filter(thread => thread.subject.toLocaleLowerCase('fr').includes(query) || thread.messages.some(message =>
-    `${message.sender} ${message.subject} ${message.preview}`.toLocaleLowerCase('fr').includes(query),
-  ))
+const {
+  folderMessages,
+  folderThreads,
+  visibleThreads,
+  feedEditions,
+  visibleFeedEditions,
+  setAsideThreads,
+  replyLaterThreads,
+} = useMailThreadCollections({
+  messages: inboxMessages,
+  activeFolder,
+  search,
+  selectedTagId,
 })
 
 const participantAvatars = ref<Record<string, { avatarUrl: string | null, logoUrl: string | null }>>({})
-const feedEditions = computed(() => folderMessages.value
-  .filter(message => message.folder === 'The Feed')
-  .sort((a, b) => b.timestamp.localeCompare(a.timestamp)))
-const visibleFeedEditions = computed(() => selectedTagId.value
-  ? feedEditions.value.filter(message => message.tags.some(tag => tag.id === selectedTagId.value))
-  : feedEditions.value)
-const setAsideThreads = computed<MessageThread[]>(() => {
-  const threads = new Map<string, InboxMessage[]>()
-  for (const message of inboxMessages.value ?? []) {
-    if (message.folder !== 'Imbox' || !message.isSetAside) continue
-    const messages = threads.get(message.threadId) ?? []
-    messages.push(message)
-    threads.set(message.threadId, messages)
-  }
-
-  return [...threads.entries()].map(([id, messages]) => {
-    messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    return {
-      id,
-      messages,
-      latest: messages[0]!,
-      subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
-      unreadCount: messages.filter(message => !message.isRead).length,
-      manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
-      tags: uniqueTags(messages.flatMap(message => message.tags)),
-    }
-}).filter(thread => !selectedTagId.value || thread.tags.some(tag => tag.id === selectedTagId.value)).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
-})
 const stackPreviewLimit = computed(() => Math.max(1, Math.min(5, Math.floor((viewportHeight.value - 148) / 70) + 1)))
 const setAsideStackPreview = computed(() => setAsideThreads.value.slice(0, stackPreviewLimit.value))
 const setAsideStackExpandedHeight = computed(() =>
@@ -1334,28 +1278,6 @@ const showSetAsideStack = computed(() => activeFolder.value === 'Imbox'
   && !isGlobalSearch.value
   && !threadSelectionMode.value
   && setAsideThreads.value.length > 0)
-const replyLaterThreads = computed<MessageThread[]>(() => {
-  const threads = new Map<string, InboxMessage[]>()
-  for (const message of inboxMessages.value ?? []) {
-    if (!message.isReplyLater) continue
-    const messages = threads.get(message.threadId) ?? []
-    messages.push(message)
-    threads.set(message.threadId, messages)
-  }
-
-  return [...threads.entries()].map(([id, messages]) => {
-    messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    return {
-      id,
-      messages,
-      latest: messages[0]!,
-      subject: messages.find(message => message.threadSubject)?.threadSubject || messages[0]!.subject,
-      unreadCount: messages.filter(message => !message.isRead).length,
-      manualMergeIds: [...new Set(messages.flatMap(message => message.manualMergeIds))],
-      tags: uniqueTags(messages.flatMap(message => message.tags)),
-    }
-  }).filter(thread => !selectedTagId.value || thread.tags.some(tag => tag.id === selectedTagId.value)).sort((a, b) => b.latest.timestamp.localeCompare(a.latest.timestamp))
-})
 const replyLaterStackPreview = computed(() => replyLaterThreads.value.slice(0, stackPreviewLimit.value))
 const replyLaterStackExpandedHeight = computed(() => `${76 + replyLaterStackPreview.value.length * 70}px`)
 const showReplyLaterStack = computed(() => activeFolder.value === 'Imbox'
