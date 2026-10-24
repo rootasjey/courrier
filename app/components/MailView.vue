@@ -363,55 +363,19 @@
             {{ isSplittingThread ? $t('mail.splitting') : $t('mail.splitThreads') }}
           </button>
         </div>
-        <div v-if="isFeedReader && activeThreadMessage" class="feed-reader-content">
-          <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ feedEditionAnnouncement }}</span>
-
-          <header class="feed-issue-sender">
-            <div class="message-meta">
-              <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-avatar" :to="senderPath(activeThreadMessage.address)" :aria-label="$t('mail.openSenderPage', { sender: activeThreadMessage.sender })">
-                <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
-              </NuxtLink>
-              <span v-else class="sender-profile-avatar" aria-hidden="true">
-                <MailSenderAvatar class="meta-avatar" :initials="activeThreadMessage.initials" :color="activeThreadMessage.color" v-bind="senderAvatarFor(activeThreadMessage)" />
-              </span>
-              <span class="meta-copy">
-                <NuxtLink v-if="!activeThreadMessage.isOutgoing" class="sender-profile-name" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.sender }}</NuxtLink>
-                <span v-else class="sender-profile-name">{{ activeThreadMessage.sender }}</span>
-                <span v-if="activeThreadMessage.isOutgoing" class="sender-recipient-links">
-                  {{ $t('mail.recipient') }}
-                  <template v-if="recipientAddresses(activeThreadMessage.recipient).length">
-                    <NuxtLink v-for="email in recipientAddresses(activeThreadMessage.recipient)" :key="email" class="sender-profile-link" :to="senderPath(email)">{{ email }}</NuxtLink>
-                  </template>
-                  <span v-else>{{ activeThreadMessage.recipient }}</span>
-                </span>
-                <NuxtLink v-else class="sender-profile-link" :to="senderPath(activeThreadMessage.address)">{{ activeThreadMessage.address }}</NuxtLink>
-              </span>
-            </div>
-          </header>
-          <div class="feed-issue-body" @touchstart.passive="rememberFeedTouch" @touchend.passive="finishFeedTouch" @touchcancel.passive="feedTouchOrigin = null">
-            <div class="feed-issue-text">
-              <p v-if="activeThreadMessage.body === undefined && isThreadContentLoading" role="status">{{ $t('mail.loading') }}</p>
-              <p v-else-if="activeThreadMessage.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
-              <template v-else>
-                <p v-for="(paragraph, paragraphIndex) in activeThreadMessage.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p>
-                <p v-if="!activeThreadMessage.body.trim()" class="feed-empty-body">{{ $t('mail.emptyMessageBody') }}</p>
-              </template>
-            </div>
-            <div v-if="activeThreadMessage.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
-              <span class="attachment-heading">{{ $t(activeThreadMessage.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: activeThreadMessage.attachments.length }) }}</span>
-              <a v-for="attachment in activeThreadMessage.attachments" :key="attachment.id" class="attachment-item" :href="'/api/attachments/' + attachment.id" :download="attachment.filename" :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })">
-                <span aria-hidden="true">↳</span>
-                <strong>{{ attachment.filename }}</strong>
-                <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
-              </a>
-            </div>
-          </div>
-          <div class="feed-issue-date">
-            <NTooltip :content="absoluteMailDate(activeThreadMessage.timestamp)">
-              <time :datetime="activeThreadMessage.timestamp">{{ relativeMailDate(activeThreadMessage.timestamp) }}</time>
-            </NTooltip>
-          </div>
-        </div>
+        <MailFeedIssue
+          v-if="isFeedReader && activeThreadMessage"
+          :message="activeThreadMessage"
+          :is-loading="isThreadContentLoading"
+          :announcement="feedEditionAnnouncement"
+          :avatar="senderAvatarFor(activeThreadMessage)"
+          :recipient-addresses="recipientAddresses"
+          :absolute-date="absoluteMailDate"
+          :relative-date="relativeMailDate"
+          @touch-start="rememberFeedTouch"
+          @touch-end="finishFeedTouch"
+          @touch-cancel="feedTouchOrigin = null"
+        />
 
         <div v-else class="thread-carousel">
           <div v-if="chronologicalMessages.length > 1" class="thread-carousel-header">
@@ -795,6 +759,7 @@
 import { defineAsyncComponent } from 'vue'
 import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
 import MailThreadStack from '~/components/MailThreadStack.vue'
+import MailFeedIssue from '~/components/MailFeedIssue.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
 import MailScreenerPanel from '~/components/MailScreenerPanel.vue'
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
