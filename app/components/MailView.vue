@@ -834,6 +834,7 @@ import MailScreenerPanel from '~/components/MailScreenerPanel.vue'
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
 import { useMailViewSearch, type SearchHit } from '~/composables/useMailViewSearch'
 import { useMailScreener } from '~/composables/useMailScreener'
+import { useMailReply } from '~/composables/useMailReply'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -1037,22 +1038,10 @@ const classificationFeedback = useState('courrier-classification-feedback', () =
 const classificationActionError = useState('courrier-classification-action-error', () => '')
 const messageReadError = ref('')
 const isRefreshingInbox = ref(false)
-const replyComposerOpen = ref(false)
 const composeOpen = ref(false)
 const composeDraftId = ref<string | null>(null)
 const composeInitialDraft = ref<{ to: string, subject: string, body: string } | null>(null)
 const composeDraftRequest = useState<{ to: string, subject: string, body: string } | null>('courrier-compose-draft-request', () => null)
-const replySendConfirmOpen = ref(false)
-const replyBody = ref('')
-const replyError = ref('')
-const replyLoading = ref(false)
-const replyDraftTargetId = ref('')
-const replyDraftStatus = ref<'draft' | 'sending'>('draft')
-const replySaving = ref(false)
-const replySending = ref(false)
-const replySaved = ref(false)
-let replySaveTimer: ReturnType<typeof setTimeout> | undefined
-let replySaveRevision = 0
 const isDevelopment = import.meta.dev
 const composeRequest = useState('courrier-compose-request', () => 0)
 const paletteContext = useState<{ source: MailboxKey, threadIds: string[], screenerPendingCount: number }>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [], screenerPendingCount: 0 }))
@@ -1556,13 +1545,34 @@ const {
   selectedMessage,
 })
 
-watch(replyBody, () => {
-  if (!replyComposerOpen.value || replyLoading.value || replyDraftStatus.value === 'sending') return
-  replySaveRevision += 1
-  if (replySaveTimer) clearTimeout(replySaveTimer)
-  replySaved.value = false
-  replySaveTimer = setTimeout(() => { void saveReplyDraft() }, 650)
+const mailReply = useMailReply({
+  activeMessage: activeThreadMessage,
+  translate: key => $t(key),
+  afterSend: async (sent) => {
+    await refreshMessages()
+    if (activeFolder.value === 'Reply Later') {
+      await router.push(mailboxPath(sent.folder as Folder))
+    } else {
+      await router.replace({ path: route.path, query: { ...route.query, message: sent.id } })
+    }
+  },
 })
+const {
+  composerOpen: replyComposerOpen,
+  sendConfirmOpen: replySendConfirmOpen,
+  body: replyBody,
+  error: replyError,
+  loading: replyLoading,
+  draftTargetId: replyDraftTargetId,
+  draftStatus: replyDraftStatus,
+  saving: replySaving,
+  sending: replySending,
+  saved: replySaved,
+  openComposer: openReplyComposer,
+  saveDraft: saveReplyDraft,
+  requestSend: requestReplySend,
+  send: sendReply,
+} = mailReply
 
 watch(selectedId, (threadId) => {
   isEditingThreadSubject.value = false
@@ -1604,104 +1614,6 @@ watch(() => route.query.message, (messageParam) => {
     void router.replace({ path: route.path, query: { ...route.query, message: message.id } })
   }
 })
-
-async function openReplyComposer() {
-  const message = activeThreadMessage.value
-  if (!message || replyLoading.value) return
-  replyError.value = ''
-  replySaved.value = false
-  replyBody.value = ''
-  replyDraftStatus.value = 'draft'
-  replyDraftTargetId.value = message.id
-  replyComposerOpen.value = true
-  replyLoading.value = true
-  try {
-    const draft = await $fetch<{ id: string, to: string, subject: string, textBody: string, status: 'draft' | 'sending' } | null>(`/api/messages/${encodeURIComponent(message.id)}/draft`)
-    replyBody.value = draft?.textBody ?? ''
-    replyDraftStatus.value = draft?.status ?? 'draft'
-    replySaved.value = Boolean(draft)
-  } catch {
-    replyError.value = $t('mail.replyLoadError')
-  } finally {
-    replyLoading.value = false
-  }
-}
-
-async function saveReplyDraft() {
-  const messageId = replyDraftTargetId.value
-  if (!messageId || replyDraftStatus.value === 'sending' || replySaving.value) return
-  if (replySaveTimer) {
-    clearTimeout(replySaveTimer)
-    replySaveTimer = undefined
-  }
-
-  replySaving.value = true
-  replyError.value = ''
-  const revision = replySaveRevision
-  const textBody = replyBody.value
-  try {
-    const draft = await $fetch<{ status: 'draft' | 'sending' }>(`/api/messages/${encodeURIComponent(messageId)}/draft`, {
-      method: 'PUT',
-      body: { textBody },
-    })
-    replyDraftStatus.value = draft.status
-    replySaved.value = true
-  } catch {
-    replySaved.value = false
-    replyError.value = $t('mail.replySaveError')
-  } finally {
-    replySaving.value = false
-    if (revision !== replySaveRevision && replyDraftStatus.value !== 'sending') void saveReplyDraft()
-  }
-}
-
-async function requestReplySend() {
-  if (!replyBody.value.trim() || replySending.value) return
-  if (replySaveTimer) {
-    clearTimeout(replySaveTimer)
-    replySaveTimer = undefined
-  }
-  await saveReplyDraft()
-  while (replySaving.value) await new Promise(resolve => setTimeout(resolve, 25))
-  if (!replySaved.value || replyError.value) return
-  replySendConfirmOpen.value = true
-}
-
-async function sendReply() {
-  const messageId = replyDraftTargetId.value
-  if (!messageId || replySending.value) return
-  replySending.value = true
-  replyError.value = ''
-  let sent: { id: string, folder: MailboxFolder } | undefined
-  try {
-    sent = await $fetch<{ id: string, folder: MailboxFolder }>(`/api/messages/${encodeURIComponent(messageId)}/send`, { method: 'POST' })
-    replySendConfirmOpen.value = false
-    replyComposerOpen.value = false
-  } catch (error) {
-    replySendConfirmOpen.value = false
-    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
-    replyError.value = data && typeof data === 'object' && 'statusMessage' in data
-      ? String(data.statusMessage)
-      : $t('mail.replySendError')
-    if (replyError.value.includes('état est incertain') || replyError.value.includes('accepté par Cloudflare')) {
-      replyDraftStatus.value = 'sending'
-    }
-  } finally {
-    replySending.value = false
-  }
-  if (!sent) return
-
-  try {
-    await refreshMessages()
-    if (activeFolder.value === 'Reply Later') {
-      await router.push(mailboxPath(sent.folder))
-    } else {
-      await router.replace({ path: route.path, query: { ...route.query, message: sent.id } })
-    }
-  } catch {
-    replyError.value = $t('mail.replySentReloadError')
-  }
-}
 
 watch(activeThreadMessageId, async (messageId) => {
   if (replyComposerOpen.value && replyDraftTargetId.value && replyDraftTargetId.value !== messageId) {
