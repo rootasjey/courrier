@@ -1,7 +1,7 @@
 import { ref, type ComputedRef, type Ref } from 'vue'
+import type { MailboxFolder } from '~/types/mail'
 import { mailboxByName, type MailboxKey } from '~/utils/mailbox-routing'
 
-type MailboxFolder = Exclude<MailboxKey, 'Screener' | 'Trash' | 'Set Aside' | 'Reply Later'>
 type BulkAction = 'mark-seen' | 'mark-unseen' | 'reply-later' | 'set-aside' | 'move' | 'trash'
 type ActionMessage = { id: string, isRead: boolean }
 type ActionThread = { id: string, messages: ActionMessage[] }

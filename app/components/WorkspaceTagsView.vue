@@ -98,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-type WorkspaceTag = { id: string, name: string, color: string }
+import type { WorkspaceTag } from '~/types/mail'
 const { $t } = useI18n()
 const router = useRouter()
 const tagColors = ['teal', 'blue', 'green', 'amber', 'rose', 'violet']

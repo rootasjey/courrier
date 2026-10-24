@@ -1,7 +1,7 @@
 import { ref } from 'vue'
+import type { MailboxFolder } from '~/types/mail'
 import { mailboxByName, type MailboxKey } from '~/utils/mailbox-routing'
 
-type MailboxFolder = Exclude<MailboxKey, 'Screener' | 'Trash' | 'Set Aside' | 'Reply Later'>
 type ClassificationScope = 'sender' | 'message' | 'group'
 type ClassificationMessage = {
   id: string

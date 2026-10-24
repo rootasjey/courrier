@@ -1,7 +1,6 @@
 import { computed, onBeforeUnmount, ref, watch, type ComputedRef } from 'vue'
+import type { StoredFolder } from '~/types/mail'
 import type { MailboxKey } from '~/utils/mailbox-routing'
-
-type StoredFolder = Exclude<MailboxKey, 'Set Aside' | 'Reply Later'>
 
 export type SearchHit = {
   id: string

@@ -161,10 +161,9 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import type { MailboxFolder, StoredFolder } from '~/types/mail'
 import { mailboxByName, mailboxPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
-type MailboxFolder = 'Imbox' | 'The Feed' | 'Paper Trail'
-type MessageFolder = MailboxFolder | 'Screener' | 'Trash'
 type SenderMessage = {
   id: string
   threadId: string
@@ -176,7 +175,7 @@ type SenderMessage = {
   preview: string
   date: string
   timestamp: string
-  folder: MessageFolder
+  folder: StoredFolder
   mailboxDomain: string
   screenerState: 'pending' | 'cleared' | 'blocked'
   hasSenderRule: boolean

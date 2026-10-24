@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-type WorkspaceTag = { id: string, name: string, color: string }
+import type { WorkspaceTag } from '~/types/mail'
 
 const props = defineProps<{
   tags: WorkspaceTag[]

@@ -85,10 +85,8 @@
 
 <script setup lang="ts">
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
+import type { MailboxFolder, WorkspaceTag } from '~/types/mail'
 import type { MailboxKey } from '~/utils/mailbox-routing'
-
-type WorkspaceTag = { id: string, name: string, color: string }
-type MailboxFolder = Exclude<MailboxKey, 'Screener' | 'Trash' | 'Set Aside' | 'Reply Later'>
 
 type ThreadActionDockState = {
   folder: MailboxKey

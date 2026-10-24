@@ -447,13 +447,12 @@ import { useMailClassification } from '~/composables/useMailClassification'
 import { useMailParticipants } from '~/composables/useMailParticipants'
 import { useMailKeyboardShortcuts } from '~/composables/useMailKeyboardShortcuts'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
+import type { MailboxFolder, StoredFolder, WorkspaceTag } from '~/types/mail'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 const OutgoingComposer = defineAsyncComponent(() => import('~/components/OutgoingComposer.vue'))
 
 type Folder = MailboxKey
-type StoredFolder = Exclude<Folder, 'Set Aside' | 'Reply Later'>
-type MailboxFolder = Exclude<Folder, 'Screener' | 'Trash' | 'Set Aside' | 'Reply Later'>
 
 type InboxMessage = {
   id: string
@@ -494,8 +493,6 @@ type MessageThread = {
   manualMergeIds: string[]
   tags: WorkspaceTag[]
 }
-
-type WorkspaceTag = { id: string, name: string, color: string }
 
 type SearchThread = MessageThread & {
   snippet: string
