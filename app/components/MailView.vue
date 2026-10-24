@@ -838,6 +838,7 @@ import { useMailReply } from '~/composables/useMailReply'
 import { useMailThreadSelection } from '~/composables/useMailThreadSelection'
 import { useMailThreadCollections } from '~/composables/useMailThreadCollections'
 import { useMailThreadSubject } from '~/composables/useMailThreadSubject'
+import { useMailThreadActions } from '~/composables/useMailThreadActions'
 import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -999,25 +1000,10 @@ const screenerActionError = ref('')
 const isSetAsideStackExpanded = ref(false)
 const isReplyLaterStackExpanded = ref(false)
 const viewportHeight = ref(800)
-const mergeDialogOpen = ref(false)
-const splitDialogOpen = ref(false)
-const isMergingThreads = ref(false)
-const isSplittingThread = ref(false)
 const threadMergeFeedback = ref('')
 const threadMergeError = ref('')
-const threadTrashDialogOpen = ref(false)
-const bulkTrashDialogOpen = ref(false)
-const isTrashingThread = ref(false)
-const isMarkingThreadUnseen = ref(false)
-const isMovingOpenThread = ref(false)
-const threadMoveMenuOpen = ref(false)
-const threadActionFeedback = ref('')
-const threadActionError = ref('')
 const activityRefreshRevision = useState('courrier-activity-refresh-revision', () => 0)
 const mailStateRefreshRevision = useState('courrier-mail-state-refresh-revision', () => 0)
-const bulkActionFeedback = ref('')
-const bulkActionError = ref('')
-const isApplyingBulkAction = ref(false)
 const isSavingScreenerAction = ref(false)
 const isSavingSetAside = ref(false)
 const isSavingReplyLater = ref(false)
@@ -1429,6 +1415,45 @@ function threadAvatarFor(message: InboxMessage) {
 }
 
 const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
+const mailThreadActions = useMailThreadActions({
+  activeFolder,
+  selectedThread,
+  selectedThreadIds,
+  clearThreadSelection,
+  keyboardCursorId: keyboardSelectionThreadId,
+  refreshMessages,
+  activityRefreshRevision,
+  closeMessage,
+  setMessageRead,
+  navigateToMailbox: folder => router.push(mailboxPath(folder)),
+  mergeFeedback: threadMergeFeedback,
+  mergeError: threadMergeError,
+})
+const {
+  mergeDialogOpen,
+  splitDialogOpen,
+  isMergingThreads,
+  isSplittingThread,
+  threadTrashDialogOpen,
+  bulkTrashDialogOpen,
+  isTrashingThread,
+  isMarkingThreadUnseen,
+  isMovingOpenThread,
+  threadMoveMenuOpen,
+  threadActionFeedback,
+  threadActionError,
+  bulkActionFeedback,
+  bulkActionError,
+  isApplyingBulkAction,
+  applyBulkAction,
+  trashOpenThread,
+  moveSelectedThreads,
+  moveOpenThread,
+  mergeSelectedThreads,
+  splitSelectedThread,
+  markOpenThreadUnseen,
+  setThreadMoveMenuOpen,
+} = mailThreadActions
 const selectedThreadParticipants = computed(() => selectedThread.value ? threadParticipants(selectedThread.value) : [])
 const selectedMessage = computed(() => selectedThread.value?.latest)
 const chronologicalMessages = computed(() => [...(selectedThread.value?.messages ?? [])].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
@@ -1908,188 +1933,10 @@ function handleThreadAvatarClick(threadId: string, event: MouseEvent) {
   toggleThreadSelection(threadId, event)
 }
 
-async function applyBulkAction(
-  action: 'mark-seen' | 'mark-unseen' | 'reply-later' | 'set-aside' | 'move' | 'trash',
-  options: { enabled?: boolean, folder?: MailboxFolder } = {},
-  targetThreadIds = selectedThreadIds.value,
-  preserveKeyboardCursor = false,
-) {
-  if (!targetThreadIds.length || isApplyingBulkAction.value) return
-  isApplyingBulkAction.value = true
-  bulkActionError.value = ''
-  bulkActionFeedback.value = ''
-  try {
-    const result = await $fetch<{ affectedThreads: number, activityCount?: number }>('/api/threads/bulk-action', {
-      method: 'PATCH',
-      body: { threadIds: targetThreadIds, source: activeFolder.value, action, ...options },
-    })
-    if (action === 'trash') bulkTrashDialogOpen.value = false
-    await refreshMessages()
-    clearThreadSelection()
-    if (preserveKeyboardCursor) keyboardSelectionThreadId.value = targetThreadIds[0] ?? ''
-    const count = result.affectedThreads
-    const plural = count === 1 ? 'One' : 'Many'
-    if (result.activityCount) activityRefreshRevision.value += 1
-    if (action !== 'mark-unseen') {
-      const key = action === 'mark-seen' ? `bulk.markSeenDone${plural}`
-        : action === 'reply-later' ? options.enabled ? `bulk.replyLaterDone${plural}` : `bulk.replyLaterRemoved${plural}`
-          : action === 'set-aside' ? options.enabled ? `bulk.setAsideDone${plural}` : `bulk.setAsideRemoved${plural}`
-            : action === 'move' ? `bulk.moveDone${plural}` : `bulk.trashDone${plural}`
-      bulkActionFeedback.value = $t(key, { count, folder: mailboxByName(options.folder ?? 'Imbox').label })
-    }
-  } catch (error) {
-    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
-    bulkActionError.value = data && typeof data === 'object' && 'statusMessage' in data
-      ? String(data.statusMessage)
-      : $t('bulk.error')
-  } finally {
-    isApplyingBulkAction.value = false
-  }
-}
-
-async function trashOpenThread() {
-  const thread = selectedThread.value
-  const source = activeFolder.value
-  if (!thread || !['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(source) || isTrashingThread.value) return
-
-  isTrashingThread.value = true
-  bulkActionError.value = ''
-  try {
-    await $fetch('/api/threads/bulk-action', {
-      method: 'PATCH',
-      body: { threadIds: [thread.id], source, action: 'trash' },
-    })
-    threadTrashDialogOpen.value = false
-    bulkActionFeedback.value = $t('messageActions.trashDone')
-    await refreshMessages().catch(() => {})
-    void router.push(mailboxPath(source))
-  } catch {
-    bulkActionError.value = $t('palette.actionError')
-  } finally {
-    isTrashingThread.value = false
-  }
-}
-
-function moveSelectedThreads(destination: { value: MailboxFolder; label: string } | null | undefined) {
-  if (!destination) return
-  void applyBulkAction('move', { folder: destination.value })
-}
-
-function setThreadMoveMenuOpen(open: boolean) {
-  threadMoveMenuOpen.value = open
-}
-
-async function moveOpenThread(destination: { value: MailboxFolder, label: string } | null | undefined) {
-  const thread = selectedThread.value
-  const source = activeFolder.value
-  if (!destination || !thread || !['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(source) || isMovingOpenThread.value) return
-
-  const threadId = thread.id
-  isMovingOpenThread.value = true
-  threadActionError.value = ''
-  threadActionFeedback.value = ''
-  try {
-    await $fetch('/api/threads/bulk-action', {
-      method: 'PATCH',
-      body: { threadIds: [threadId], source, action: 'move', folder: destination.value },
-    })
-    await refreshMessages()
-    await router.push(mailboxPath(destination.value))
-  } catch (error) {
-    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
-    threadActionError.value = data && typeof data === 'object' && 'statusMessage' in data
-      ? String(data.statusMessage)
-      : $t('messageActions.moveError')
-  } finally {
-    isMovingOpenThread.value = false
-  }
-}
-
-async function mergeSelectedThreads() {
-  if (selectedThreadIds.value.length < 2 || isMergingThreads.value) return
-  isMergingThreads.value = true
-  threadMergeError.value = ''
-  try {
-    const result = await $fetch<{ mergedThreads: number }>('/api/thread-merges', {
-      method: 'POST',
-      body: { threadIds: selectedThreadIds.value },
-    })
-    mergeDialogOpen.value = false
-    clearThreadSelection()
-    await refreshMessages()
-    threadMergeFeedback.value = $t('mail.mergeDone', { count: result.mergedThreads })
-  } catch (error) {
-    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
-    threadMergeError.value = data && typeof data === 'object' && 'statusMessage' in data
-      ? String(data.statusMessage)
-      : $t('mail.mergeError')
-  } finally {
-    isMergingThreads.value = false
-  }
-}
-
-async function splitSelectedThread() {
-  const threadId = selectedThread.value?.id
-  if (!threadId || isSplittingThread.value) return
-  isSplittingThread.value = true
-  threadMergeError.value = ''
-  try {
-    const result = await $fetch<{ originalThreads: number }>('/api/thread-merges/split', {
-      method: 'POST',
-      body: { threadId },
-    })
-    splitDialogOpen.value = false
-    await refreshMessages()
-    closeMessage()
-    threadMergeFeedback.value = $t('mail.splitDone', { count: result.originalThreads })
-  } catch (error) {
-    const data = error && typeof error === 'object' && 'data' in error ? error.data : null
-    threadMergeError.value = data && typeof data === 'object' && 'statusMessage' in data
-      ? String(data.statusMessage)
-      : $t('mail.splitError')
-  } finally {
-    isSplittingThread.value = false
-  }
-}
-
-function setMessageRead(message: InboxMessage, isRead: boolean) {
+function setMessageRead(message: Pick<InboxMessage, 'id' | 'isRead'>, isRead: boolean) {
   message.isRead = isRead
   // useFetch keeps a shallow array in this page, so replace it to refresh computed thread counts.
   inboxMessages.value = [...(inboxMessages.value ?? [])]
-}
-
-async function markOpenThreadUnseen() {
-  const messages = selectedThread.value?.messages ?? []
-  if (!messages.length || isMarkingThreadUnseen.value) return
-
-  isMarkingThreadUnseen.value = true
-  threadActionError.value = ''
-  threadActionFeedback.value = ''
-  const unreadMessages = messages.filter(message => message.isRead)
-  if (!unreadMessages.length) {
-    threadActionFeedback.value = $t('messageActions.alreadyUnseen')
-    isMarkingThreadUnseen.value = false
-    return
-  }
-
-  unreadMessages.forEach((message) => {
-    setMessageRead(message, false)
-  })
-  try {
-    const result = await $fetch<{ activityId?: string, alreadyUnseen?: boolean }>(
-      `/api/threads/${encodeURIComponent(selectedThread.value!.id)}/mark-unseen`,
-      { method: 'POST' },
-    )
-    if (result.activityId) activityRefreshRevision.value += 1
-    closeMessage()
-  } catch {
-    unreadMessages.forEach((message) => {
-      setMessageRead(message, true)
-    })
-    threadActionError.value = $t('messageActions.markUnseenError')
-    await refreshMessages().catch(() => {})
-  }
-  isMarkingThreadUnseen.value = false
 }
 
 function navigateToFolder(folder: Folder) {
