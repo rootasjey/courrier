@@ -957,6 +957,7 @@ import MailThreadMessageCard from '~/components/MailThreadMessageCard.vue'
 import MailboxThreadSummary from '~/components/MailboxThreadSummary.vue'
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
 import { useMailViewSearch, type SearchHit } from '~/composables/useMailViewSearch'
+import { useScreenerKeyboardShortcuts } from '~/composables/useScreenerKeyboardShortcuts'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 const OutgoingComposer = defineAsyncComponent(() => import('~/components/OutgoingComposer.vue'))
@@ -1874,6 +1875,25 @@ watch(activeThreadMessageId, async (messageId) => {
   }
 })
 
+const handleScreenerKeyboardShortcut = useScreenerKeyboardShortcuts({
+  activeFolder,
+  allScreenerSenders,
+  applyScreenerChoice,
+  blockScreenerSender,
+  hasOpenKeyboardSurface,
+  navigateToFolder,
+  openScreenerOptionsFor,
+  screenerClearDialogOpen,
+  screenerDestination,
+  screenerScope,
+  screenerSenders,
+  screenerShortcutHelpOpen,
+  screenerView,
+  selectedScreenerAddress,
+  toggleScreenerOptions,
+  trashScreenerMessage,
+})
+
 function handleThreadKeydown(event: KeyboardEvent) {
   if (event.defaultPrevented) return
 
@@ -1918,89 +1938,7 @@ function handleThreadKeydown(event: KeyboardEvent) {
   if (threadMoveMenuOpen.value) return
   if (event.altKey || event.ctrlKey || event.metaKey) return
 
-  if (activeFolder.value === 'Screener' && screenerView.value === 'pending') {
-    if (screenerShortcutHelpOpen.value) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        screenerShortcutHelpOpen.value = false
-      }
-      return
-    }
-
-    if (screenerClearDialogOpen.value) {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        screenerClearDialogOpen.value = false
-      }
-      return
-    }
-
-    const senders = screenerSenders.value
-    const selectedAddress = selectedScreenerAddress.value
-    const selected = senders.find(sender => sender.address.trim().toLocaleLowerCase('en-US') === selectedAddress)
-    const key = event.key.toLocaleLowerCase('en-US')
-
-    if (event.key === '?') {
-      event.preventDefault()
-      screenerShortcutHelpOpen.value = true
-      return
-    }
-
-    if (event.key === 'Escape') {
-      if (hasOpenKeyboardSurface()) return
-      event.preventDefault()
-      navigateToFolder('Imbox')
-      return
-    }
-
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      if (!senders.length) return
-      event.preventDefault()
-      const currentIndex = senders.findIndex(sender => sender.address.trim().toLocaleLowerCase('en-US') === selectedAddress)
-      const nextIndex = currentIndex < 0
-        ? (event.key === 'ArrowDown' ? 0 : senders.length - 1)
-        : Math.max(0, Math.min(senders.length - 1, currentIndex + (event.key === 'ArrowDown' ? 1 : -1)))
-      selectedScreenerAddress.value = senders[nextIndex]!.address.trim().toLocaleLowerCase('en-US')
-      openScreenerOptionsFor.value = ''
-      void nextTick(() => document.querySelector<HTMLElement>('.screener-row.is-keyboard-selected')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
-      return
-    }
-
-    if (key === 'c' && allScreenerSenders.value.length) {
-      event.preventDefault()
-      screenerClearDialogOpen.value = true
-      return
-    }
-
-    if (!selected) return
-
-    if (openScreenerOptionsFor.value === selected.address && ['i', 'f', 'p', 'g', 'y', 'enter', ' '].includes(key)) {
-      event.preventDefault()
-      if (key === 'i') screenerDestination.value = 'Imbox'
-      else if (key === 'f') screenerDestination.value = 'The Feed'
-      else if (key === 'p') screenerDestination.value = 'Paper Trail'
-      else if (key === 'g') screenerScope.value = screenerScope.value === 'sender' ? 'message' : 'sender'
-      else void applyScreenerChoice(selected.latest, screenerDestination.value, screenerScope.value)
-      return
-    }
-
-    if (key === 'n') {
-      event.preventDefault()
-      openScreenerOptionsFor.value = ''
-      void blockScreenerSender(selected.latest)
-    } else if (key === 'y') {
-      event.preventDefault()
-      toggleScreenerOptions(selected.address, selected.latest)
-      if (openScreenerOptionsFor.value === selected.address) {
-        void nextTick(() => document.querySelector<HTMLButtonElement>('.screener-destinations button[aria-pressed="true"]')?.focus())
-      }
-    } else if (key === 't') {
-      event.preventDefault()
-      openScreenerOptionsFor.value = ''
-      void trashScreenerMessage(selected.latest)
-    }
-    return
-  }
+  if (handleScreenerKeyboardShortcut(event)) return
 
   if (event.key === 'Escape' && activeFolder.value === 'Screener' && !isReadingMessage.value && !isGlobalSearch.value) {
     if (hasOpenKeyboardSurface()) return
