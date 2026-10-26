@@ -184,6 +184,7 @@
         <section v-if="newThreads.length" class="message-group message-group-new" aria-labelledby="new-messages-heading">
           <header class="group-heading">
             <h2 id="new-messages-heading">{{ $t('mail.newMessages') }}</h2>
+            <span class="group-heading-count">{{ newThreads.length }}</span>
           </header>
           <div class="thread-list thread-card-grid" role="list">
             <MailThreadListRow
@@ -199,6 +200,7 @@
         <section v-if="previouslySeenThreads.length" class="message-group message-group-seen" aria-labelledby="seen-messages-heading">
           <header class="group-heading">
             <h2 id="seen-messages-heading">{{ $t('mail.previouslySeen') }}</h2>
+            <span class="group-heading-count">{{ previouslySeenThreads.length }}</span>
           </header>
           <div class="thread-list thread-card-grid" role="list">
             <MailThreadListRow
@@ -281,7 +283,7 @@
       />
     </section>
 
-    <section v-else-if="selectedMessage" class="reading-column" :class="{ 'is-thread-reader': !isFeedReader }" :aria-label="$t('mail.selectedMessage')">
+    <section v-else-if="selectedMessage" class="reading-column" :class="{ 'is-thread-reader': !isFeedReader, 'is-feed-thread-reader': isFeedReader }" :aria-label="$t('mail.selectedMessage')">
       <div class="thread-subject-header">
         <div v-if="!isFeedReader" class="thread-reader-topline">
           <button class="thread-back-link" type="button" @click="closeMessage">
@@ -331,7 +333,7 @@
         <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">{{ $t('mail.retryMarkRead') }}</button>
       </div>
 
-      <article class="message-paper" :class="{ 'feed-reader-paper': isFeedReader, 'inbox-reader-paper': isInboxReader }" :aria-label="isFeedReader && activeThreadMessage ? $t('mail.messageFrom', { sender: activeThreadMessage.sender }) : undefined">
+      <article class="message-paper" :class="{ 'feed-reader-paper': isFeedReader, 'inbox-reader-paper': isInboxReader || activeFolder === 'Paper Trail' }" :aria-label="isFeedReader && activeThreadMessage ? $t('mail.messageFrom', { sender: activeThreadMessage.sender }) : undefined">
         <div v-if="!isFeedReader && selectedThread?.manualMergeIds.length" class="merged-thread-control">
           <span>{{ $t('mail.mergedConversationNote') }}</span>
           <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
@@ -341,6 +343,7 @@
         <MailFeedIssue
           v-if="isFeedReader && activeThreadMessage"
           :message="activeThreadMessage"
+          :thread-id="selectedThread?.id || activeThreadMessage.id"
           :is-loading="isThreadContentLoading"
           :announcement="feedEditionAnnouncement"
           :avatar="senderAvatarFor(activeThreadMessage)"
@@ -372,7 +375,8 @@
               v-if="activeThreadMessage"
               :key="activeThreadMessage.id"
               :message="activeThreadMessage"
-              :is-inbox-reader="isInboxReader"
+              :thread-id="selectedThread?.id || activeThreadMessage.threadId"
+              :is-inbox-reader="isInboxReader || activeFolder === 'Paper Trail'"
               :is-loading="isThreadContentLoading"
               :show-back-button="false"
               :folder-label="mailboxByName(activeFolder).label"
@@ -390,7 +394,8 @@
               :key="message.id"
               variant="full"
               :message="message"
-              :is-inbox-reader="isInboxReader"
+              :thread-id="selectedThread?.id || message.threadId"
+              :is-inbox-reader="isInboxReader || activeFolder === 'Paper Trail'"
               :is-loading="isThreadContentLoading"
               :is-selected="message.id === activeThreadMessage?.id"
               :show-back-button="false"

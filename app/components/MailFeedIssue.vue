@@ -35,11 +35,10 @@
       </div>
       <div v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
         <span class="attachment-heading">{{ $t(message.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: message.attachments.length }) }}</span>
-        <a v-for="attachment in message.attachments" :key="attachment.id" class="attachment-item" :href="'/api/attachments/' + attachment.id" :download="attachment.filename" :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })">
-          <span aria-hidden="true">↳</span>
-          <strong>{{ attachment.filename }}</strong>
-          <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
-        </a>
+        <a v-if="threadId" class="attachment-download-zip" :href="`/api/threads/${encodeURIComponent(threadId)}/attachments.zip`">{{ $t('mail.downloadThreadAttachmentsZip') }}</a>
+        <div class="thread-attachment-grid">
+          <MailAttachmentCard v-for="attachment in message.attachments" :key="attachment.id" :attachment="attachment" :thread-id="threadId" :size-label="formatSize(attachment.sizeBytes)" />
+        </div>
       </div>
     </div>
     <div class="feed-issue-date">
@@ -67,6 +66,7 @@ type FeedMessage = {
 
 defineProps<{
   message: FeedMessage
+  threadId: string
   isLoading: boolean
   announcement: string
   avatar: { avatarUrl?: string | null, logoUrl?: string | null }
@@ -82,4 +82,13 @@ defineEmits<{
 }>()
 
 const { $t } = useI18n()
+
+function formatSize(bytes: number) {
+  const isEnglish = useI18nLocale().locale.value?.startsWith('en')
+  return bytes >= 1024 * 1024
+    ? `${(bytes / (1024 * 1024)).toFixed(1)} ${isEnglish ? 'MB' : 'Mo'}`
+    : `${Math.max(1, Math.round(bytes / 1024))} ${isEnglish ? 'KB' : 'Ko'}`
+}
+
+import MailAttachmentCard from '~/components/MailAttachmentCard.vue'
 </script>

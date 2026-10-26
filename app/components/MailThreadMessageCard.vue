@@ -53,29 +53,17 @@
         <div class="attachment-heading">
           <h2>{{ $t('mail.attachments') }}</h2>
           <span class="attachment-heading-count">{{ message.attachments.length }}</span>
+          <a v-if="threadId" class="attachment-download-zip" :href="`/api/threads/${encodeURIComponent(threadId)}/attachments.zip`">{{ $t('mail.downloadThreadAttachmentsZip') }}</a>
         </div>
         <span class="attachment-total-size">{{ $t('mail.attachmentTotalSize', { size: formatAttachmentSize(totalAttachmentBytes) }) }}</span>
         <div class="thread-attachment-grid">
-        <a
+        <MailAttachmentCard
           v-for="attachment in message.attachments"
           :key="attachment.id"
-          class="thread-attachment-card"
-          :href="`/api/attachments/${attachment.id}`"
-          :download="attachment.filename"
-          :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
-        >
-          <span class="thread-attachment-art">
-            <span v-if="isImageAttachment(attachment)" class="thread-attachment-photo">
-              <img :src="`/api/attachments/${encodeURIComponent(attachment.id)}?inline=1`" :alt="$t('mail.attachmentPreview', { filename: attachment.filename })" loading="lazy">
-            </span>
-            <span v-else class="image-file-icon" aria-hidden="true">{{ attachmentExtension(attachment.filename) }}</span>
-            <span class="thread-attachment-download" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3" /></svg></span>
-          </span>
-          <span class="thread-attachment-card-copy">
-            <strong>{{ attachment.filename }}</strong>
-            <small>{{ formatAttachmentKind(attachment) }} <i>·</i> {{ formatAttachmentSize(attachment.sizeBytes) }}</small>
-          </span>
-        </a>
+          :attachment="attachment"
+          :thread-id="threadId"
+          :size-label="formatAttachmentSize(attachment.sizeBytes)"
+        />
         </div>
       </section>
     </div>
@@ -120,6 +108,7 @@ const props = withDefaults(defineProps<{
   isSelected?: boolean
   showBackButton?: boolean
   folderLabel?: string
+  threadId?: string
   avatar?: { avatarUrl?: string | null, logoUrl?: string | null }
   participants?: Participant[]
   showParticipants?: boolean
@@ -130,6 +119,7 @@ const props = withDefaults(defineProps<{
   isSelected: false,
   showBackButton: false,
   folderLabel: '',
+  threadId: '',
   avatar: () => ({}),
   participants: () => [],
   showParticipants: false,
@@ -139,19 +129,6 @@ const totalAttachmentBytes = computed(() => props.message.attachments.reduce((to
 
 const { $t } = useI18n()
 const { locale } = useI18nLocale()
-
-function isImageAttachment(attachment: ReaderMessage['attachments'][number]) {
-  return ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(attachment.mimeType?.toLowerCase() ?? '')
-}
-
-function attachmentExtension(filename: string) {
-  return filename.split('.').at(-1)?.slice(0, 5).toUpperCase() || 'FILE'
-}
-
-function formatAttachmentKind(attachment: ReaderMessage['attachments'][number]) {
-  const kind = attachment.mimeType?.split('/').at(-1)?.toUpperCase()
-  return kind || attachmentExtension(attachment.filename)
-}
 
 function formatAttachmentSize(bytes: number) {
   const megabyte = 1024 * 1024
@@ -163,6 +140,8 @@ function formatAttachmentSize(bytes: number) {
 
   return `${Math.max(1, Math.round(bytes / 1024))} ${isEnglish ? 'KB' : 'Ko'}`
 }
+
+import MailAttachmentCard from '~/components/MailAttachmentCard.vue'
 
 function recipientAddresses(value: string) {
   const matches = value.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/gi) || []

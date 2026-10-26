@@ -128,17 +128,17 @@
 
 .thread-selection-row.thread-card-lavender {
   --card-back: var(--card-back-peach);
-  border-top: 3px solid var(--card-back);
+  border-bottom: 3px solid var(--card-back);
   box-shadow: var(--card-shadow);
 }
 
 .thread-selection-row.thread-card-lavender:nth-child(3n + 2) { --card-back: var(--card-back-lilac); }
 .thread-selection-row.thread-card-lavender:nth-child(3n) { --card-back: var(--card-back-sand); }
-.thread-selection-row.thread-card-lavender:has(.unread-indicator) { border-top-color: var(--accent); }
+.thread-selection-row.thread-card-lavender:has(.unread-indicator) { border-bottom-color: var(--accent); }
 
 .thread-selection-row.thread-card-lavender:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-  border-top-color: var(--accent);
+  border-bottom-color: var(--accent);
   background: color-mix(in srgb, var(--accent-wash) 22%, var(--mail-card-surface));
   box-shadow: var(--card-shadow-hover);
   transform: translateY(-2px);
@@ -157,6 +157,13 @@
   box-shadow: 0 0 0 4px var(--paper), 0 0 0 7px var(--card-back), var(--card-shadow-hover);
   transform: translateY(-3px);
 }
+
+.is-feed-thread-reader .thread-subject-header { width: min(100%, 790px); margin: 12px auto 24px; padding-inline: 0; text-align: left; }
+.is-feed-thread-reader .thread-subject-header .message-subject { width: 100%; max-width: 22ch; margin: 0 0 23px; font-size: clamp(29px, 3.6vw, 44px); font-weight: 710; letter-spacing: -.055em; line-height: 1.08; text-align: left; }
+.is-feed-thread-reader .message-paper.feed-reader-paper { width: min(100%, 790px); margin-bottom: 34px; }
+.is-feed-thread-reader .feed-issue-body { padding: 21px 0 18px; border: 0; border-radius: 0; background: transparent; }
+.is-feed-thread-reader .feed-issue-sender { padding-inline: 0; }
+.is-feed-thread-reader .feed-issue-text { max-width: none; margin-inline: 0; }
 
 .thread-selection-row.thread-card-lavender.is-thread-selected,
 .thread-selection-row.thread-card-lavender.is-selection-cursor,
@@ -352,22 +359,45 @@
 .attachment-heading-count { display: inline-grid; min-width: 20px; height: 20px; place-items: center; border-radius: 6px; background: var(--surface-soft); color: var(--muted); font-size: 10px; }
 .attachment-total-size { display: block; margin-top: -10px; color: var(--quiet); font-size: 10px; }
 .thread-attachment-grid { display: flex; align-items: start; flex-wrap: wrap; gap: 16px; }
-.thread-attachment-card { display: grid; width: 170px; min-width: 0; gap: 8px; color: var(--ink); text-decoration: none; }
+.thread-attachment-card { position: relative; display: grid; width: 170px; min-width: 0; gap: 8px; color: var(--ink); text-decoration: none; }
 .thread-attachment-art { position: relative; display: grid; width: 100%; aspect-ratio: 1; place-items: center; overflow: hidden; border-radius: 23px; background: #fff; box-shadow: 0 5px 13px rgb(26 32 29 / 10%); }
 .thread-attachment-photo { position: absolute; inset: 8px; overflow: hidden; border-radius: 15px; background: var(--surface-soft); }
 .thread-attachment-photo img { width: 100%; height: 100%; object-fit: cover; }
-.thread-attachment-download { position: absolute; right: 9px; bottom: 9px; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgb(255 255 255 / 65%); border-radius: 10px; background: rgb(255 254 250 / 92%); color: #192321; box-shadow: 0 3px 10px rgb(0 0 0 / 10%); }
+.thread-attachment-download { position: absolute; right: 9px; bottom: 9px; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid rgb(255 255 255 / 65%); border-radius: 10px; background: rgb(255 254 250 / 92%); color: #192321; box-shadow: 0 3px 10px rgb(0 0 0 / 10%); opacity: 0; visibility: hidden; transition: opacity 120ms ease, visibility 120ms ease; }
+.thread-attachment-art:hover .thread-attachment-download, .thread-attachment-art:focus-visible .thread-attachment-download { opacity: 1; visibility: visible; }
 .thread-attachment-download svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .thread-attachment-card-copy { display: grid; min-width: 0; gap: 2px; }
+.thread-attachment-card-copy:hover { color: var(--accent); }
 .thread-attachment-card-copy strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .thread-attachment-card-copy small { color: var(--muted); font-size: 9px; }
 .thread-attachment-card-copy i { padding-inline: 3px; color: var(--quiet); font-style: normal; }
+.thread-attachment-menu-trigger { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid rgb(255 255 255 / 70%); border-radius: 50%; background: rgb(255 254 250 / 94%); color: #292334; box-shadow: 0 2px 8px rgb(0 0 0 / 9%); opacity: 0; visibility: hidden; cursor: pointer; }
+.thread-attachment-card:hover .thread-attachment-menu-trigger, .thread-attachment-card:focus-within .thread-attachment-menu-trigger { opacity: 1; visibility: visible; }
+.thread-attachment-menu-trigger svg { width: 17px; height: 17px; fill: currentColor; }
+.thread-attachment-menu { position: absolute; z-index: 5; top: 44px; right: 8px; display: grid; min-width: 150px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--sheet); box-shadow: 0 8px 24px rgb(29 23 39 / 18%); }
+.thread-attachment-menu a { padding: 8px 9px; border-radius: 6px; color: var(--ink); font-size: 11px; text-decoration: none; }
+.thread-attachment-menu a:hover, .thread-attachment-menu a:focus-visible { background: var(--accent-wash); color: var(--accent); }
+.attachment-heading { display: flex; align-items: center; gap: 7px; }
+.attachment-download-zip { margin-left: auto; color: var(--accent); font-size: 10px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.attachment-download-zip:hover { color: var(--accent-hover); }
+
+.message-action-more { position: relative; }
+.message-action-more-trigger { width: 42px; padding: 0; }
+.message-action-more-menu { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5; display: grid; min-width: 175px; padding: 5px; border: 1px solid var(--line); border-radius: 11px; background: var(--sheet); box-shadow: 0 8px 24px rgb(29 23 39 / 18%); }
+.message-action-more-menu button { padding: 9px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.message-action-more-menu button:hover:not(:disabled), .message-action-more-menu button:focus-visible { background: var(--accent-wash); color: var(--accent); }
+.message-action-more-menu button:disabled { opacity: .6; }
+
+@media (hover: none) {
+  .thread-attachment-menu-trigger { opacity: 1; visibility: visible; }
+}
 
 @media (max-width: 900px) {
   .thread-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 }
 
 @media (max-width: 760px) {
+  .thread-attachment-menu-trigger { opacity: 1; visibility: visible; }
   .mailbox-view.is-inbox-view .inbox-heading,
   .mailbox-view.is-paper-view .inbox-heading { align-items: start; }
   .mailbox-view .palette-launch { min-height: 39px; gap: 0; padding: 0 10px; font-size: 0; }

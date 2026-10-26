@@ -24,6 +24,15 @@
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3.5 17.5 10 11 16.5v-4c-4.4 0-7 1.2-8.5 4 .2-5.1 2.8-8 8.5-8v-5Z" /></svg>
             <span class="message-action-label">{{ $t('messageActions.forward') }}</span>
           </button>
+          <div class="message-action-more">
+            <button class="message-action-button message-action-more-trigger" type="button" aria-haspopup="menu" :aria-expanded="moreMenuOpen" :aria-label="$t('mail.messageActions')" @click="moreMenuOpen = !moreMenuOpen">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1"/><circle cx="10" cy="10" r="1"/><circle cx="16" cy="10" r="1"/></svg>
+            </button>
+            <div v-if="moreMenuOpen" class="message-action-more-menu" role="menu">
+              <button role="menuitem" type="button" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="actions.markOpenThreadUnseen(); moreMenuOpen = false">{{ $t('messageActions.markUnseen') }}</button>
+              <button v-if="state.showTrash" role="menuitem" type="button" :disabled="state.isTrashingThread" @click="actions.openTrashDialog(); moreMenuOpen = false">{{ $t('palette.trashTitle') }}</button>
+            </div>
+          </div>
           <NCombobox
             v-if="state.move.visible"
             class="thread-action-move"
@@ -85,6 +94,7 @@
 
 <script setup lang="ts">
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
+import { ref } from 'vue'
 import type { MailboxFolder, WorkspaceTag } from '~/types/mail'
 import type { MailboxKey } from '~/utils/mailbox-routing'
 
@@ -125,6 +135,7 @@ const { state, actions } = defineProps<{
 }>()
 
 const { $t } = useI18n()
+const moreMenuOpen = ref(false)
 const tagPicker = ref<{
   openPicker: () => Promise<void>
   closePicker: () => Promise<void>

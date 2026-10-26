@@ -6,21 +6,7 @@
         <time class="thread-date" :datetime="timestamp">{{ displayDate }}</time>
       </NTooltip>
     </div>
-    <NTooltip v-if="preview" :_tooltipContent="tooltipContentOptions" :una="{ tooltipContent: 'thread-preview-tooltip z-[120]' }">
-      <button
-        ref="subjectElement"
-        class="mailbox-thread-subject"
-        type="button"
-        @pointerenter="anchorTooltipToPointer"
-        @focus="anchorTooltipToSubject"
-        @click="$emit('open', $event)"
-      >{{ subject }}</button>
-      <template #content>
-        <span>{{ preview }}</span>
-        <NTooltipArrow :width="12" :height="6" :rounded="true" />
-      </template>
-    </NTooltip>
-    <button v-else class="mailbox-thread-subject" type="button" @click="$emit('open', $event)">{{ subject }}</button>
+    <button class="mailbox-thread-subject" type="button" @click="$emit('open', $event)">{{ subject }}</button>
     <p v-if="cardStyle && cardPreview" class="thread-card-preview">{{ cardPreview }}</p>
     <div class="thread-secondary">
       <span v-if="newMessageLabel" class="set-aside-new-message">{{ newMessageLabel }}</span>
@@ -47,12 +33,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import ThreadParticipantsStack from '~/components/ThreadParticipantsStack.vue'
 
-const subjectElement = ref<HTMLButtonElement>()
-const pointerPosition = ref<{ x: number, y: number }>()
-const pointerAnchored = ref(false)
 const props = defineProps<{
   subject: string
   sender: string
@@ -69,38 +51,6 @@ const props = defineProps<{
 }>()
 
 const cardPreview = computed(() => props.preview.replace(/^\[MESSAGE FICTIF — DONNÉES LOCALES DE DÉMO\]\s*/u, ''))
-
-const tooltipReference = computed(() => {
-  const position = pointerPosition.value
-  if (!pointerAnchored.value || !position)
-    return subjectElement.value
-
-  return {
-    contextElement: subjectElement.value,
-    getBoundingClientRect: () => new DOMRect(position.x, position.y, 0, 0),
-  }
-})
-
-const tooltipContentOptions = computed(() => ({
-  reference: tooltipReference.value,
-  side: 'top' as const,
-  align: 'start' as const,
-  sideOffset: 10,
-  alignOffset: 10,
-  collisionPadding: 12,
-}))
-
-function anchorTooltipToPointer(event: PointerEvent) {
-  if (event.pointerType !== 'mouse' && event.pointerType !== 'pen')
-    return
-
-  pointerPosition.value = { x: event.clientX, y: event.clientY }
-  pointerAnchored.value = true
-}
-
-function anchorTooltipToSubject() {
-  pointerAnchored.value = false
-}
 
 defineEmits<{ open: [event: MouseEvent] }>()
 </script>

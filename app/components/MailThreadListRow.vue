@@ -11,6 +11,7 @@
       },
     ]"
     :data-thread-selection-id="thread.id"
+    @click="openCardFromBackground"
     :aria-current="selection.keyboardCursor ? 'true' : undefined"
     role="listitem"
   >
@@ -114,12 +115,18 @@ const props = defineProps<{
   absoluteDate: (timestamp: string) => string
 }>()
 
-defineEmits<{
+const { $t } = useI18n()
+const attachmentCount = computed(() => props.thread.messages.reduce((count, message) => count + message.attachments.length, 0))
+
+function openCardFromBackground(event: MouseEvent) {
+  const target = event.target
+  if (target instanceof Element && target.closest('button, a, [role="button"], [role="menuitem"]')) return
+  emit('open', event)
+}
+
+const emit = defineEmits<{
   select: [event: MouseEvent]
   open: [event: MouseEvent]
   restore: []
 }>()
-
-const { $t } = useI18n()
-const attachmentCount = computed(() => props.thread.messages.reduce((count, message) => count + message.attachments.length, 0))
 </script>

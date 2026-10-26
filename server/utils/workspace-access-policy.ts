@@ -71,6 +71,7 @@ export function permissionFor(path: string, method: string): WorkspaceMailPermis
       || /^\/api\/contacts\/[0-9a-f-]{36}\/avatar$/i.test(path)
       || path === '/api/activity'
       || /^\/api\/messages\/[^/]+\/draft$/.test(path)
+      || /^\/api\/threads\/[^/]+\/attachments\.zip$/.test(path)
       || /^\/api\/(?:attachments\/[^/]+|outgoing-drafts\/[^/]+(?:\/attachments\/[^/]+\/content)?)$/.test(path)) {
       return 'mail.read'
     }
