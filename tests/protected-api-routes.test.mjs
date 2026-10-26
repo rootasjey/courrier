@@ -11,6 +11,8 @@ test('protectedApiRoutes excludes deliberate public routes and samples dynamic r
     const files = [
       'auth/login.post.ts',
       'auth/password-reset.post.ts',
+      'dev/ingest.post.ts',
+      'dev/reindex-attachments.post.ts',
       'invitations/[token].get.ts',
       'invitations/[token]/accept.post.ts',
       'messages/[id].get.ts',

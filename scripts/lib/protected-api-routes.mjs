@@ -7,6 +7,7 @@ const DELIBERATELY_PUBLIC = new Set([
   'POST /api/auth/password-reset',
   'POST /api/auth/password-reset/confirm',
   'POST /api/dev/ingest',
+  'POST /api/dev/reindex-attachments',
 ])
 
 export async function protectedApiRoutes(apiRoot) {
