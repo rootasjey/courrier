@@ -1,7 +1,7 @@
 /* Inbox and Paper card compositions, based on the accepted HTML board. */
 .mailbox-view.is-inbox-view,
 .mailbox-view.is-paper-view {
-  width: min(100%, 1360px);
+  width: min(100%, 1000px);
   margin-inline: auto;
 }
 
@@ -120,7 +120,7 @@
   padding: 20px 18px 18px;
   border: 1px solid var(--line);
   border-radius: 17px;
-  background: var(--sheet);
+  background: var(--mail-card-surface);
   color: var(--ink);
   isolation: isolate;
   transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
@@ -139,7 +139,7 @@
 .thread-selection-row.thread-card-lavender:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   border-top-color: var(--accent);
-  background: color-mix(in srgb, var(--accent-wash) 22%, var(--sheet));
+  background: color-mix(in srgb, var(--accent-wash) 22%, var(--mail-card-surface));
   box-shadow: var(--card-shadow-hover);
   transform: translateY(-2px);
 }

@@ -36,6 +36,7 @@
   --card-back-peach: #f7d8cb;
   --card-back-lilac: #e7def7;
   --card-back-sand: #f3e5b9;
+  --mail-card-surface: #fffefa;
   --card-shadow: 0 10px 24px rgb(48 40 58 / 9%);
   --card-shadow-hover: 0 15px 28px rgb(48 40 58 / 14%);
   --una-selection: var(--una-primary);

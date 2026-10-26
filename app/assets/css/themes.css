@@ -92,6 +92,7 @@
   --card-back-peach: #4a3538;
   --card-back-lilac: #3b344a;
   --card-back-sand: #4b422c;
+  --mail-card-surface: var(--sheet);
   --card-shadow: 0 10px 24px rgb(0 0 0 / 26%);
   --card-shadow-hover: 0 15px 28px rgb(0 0 0 / 36%);
 }
