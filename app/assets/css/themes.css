@@ -87,6 +87,13 @@
   --una-primary: 79% 0.09 293;
   --una-primary-active: 85% 0.08 293;
   --una-ring: 82% 0.09 293;
+  --button: #eee7d8;
+  --button-ink: #201d27;
+  --card-back-peach: #4a3538;
+  --card-back-lilac: #3b344a;
+  --card-back-sand: #4b422c;
+  --card-shadow: 0 10px 24px rgb(0 0 0 / 26%);
+  --card-shadow-hover: 0 15px 28px rgb(0 0 0 / 36%);
 }
 :root[data-theme="dark"][data-theme-variant="forest"] {
   --canvas: #171e1b;

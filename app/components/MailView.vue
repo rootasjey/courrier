@@ -2,7 +2,7 @@
   <main class="mail-page">
     <section v-if="!isReadingMessage" class="mailbox-view" :class="[{ 'has-mail-stacks': showSetAsideStack || showReplyLaterStack }, { 'is-inbox-view': activeFolder === 'Imbox', 'is-paper-view': activeFolder === 'Paper Trail' }]" :aria-label="$t('mail.inboxLabel')">
       <header class="inbox-heading">
-      <div v-if="!isGlobalSearch" class="heading-actions">
+        <div v-if="!isGlobalSearch" class="heading-actions">
           <template v-if="activeFolder === 'Screener'">
             <div class="screener-header-actions">
               <button class="screener-help-trigger" type="button" :aria-label="$t('mail.screenerShortcuts')" :title="$t('mail.screenerShortcutTitle')" @click="screenerShortcutHelpOpen = true">?</button>
@@ -11,6 +11,11 @@
             <span aria-hidden="true" />
           </template>
           <template v-else>
+            <button class="palette-launch" type="button" :aria-label="$t('palette.input')" @click="commandPaletteOpen = true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5" /><path d="m16 16 4.2 4.2" /></svg>
+              <span>{{ $t('mail.search') }}</span>
+              <kbd>⌘ K</kbd>
+            </button>
             <button
               v-if="allScreenerSenders.length"
               class="screener-callout"
@@ -22,13 +27,17 @@
               <span class="screener-callout-label" aria-hidden="true">{{ $t(allScreenerSenders.length === 1 ? 'mail.reviewSenderOne' : 'mail.reviewSenderMany', { count: allScreenerSenders.length }) }}</span>
               <span class="screener-callout-count" aria-hidden="true">{{ allScreenerSenders.length }}</span>
             </button>
-            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" :title="$t('mail.newMessage')" @click="openNewComposer">
+            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" :aria-label="$t('mail.newMessage')" @click="openNewComposer">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span>{{ $t('mail.write') }}</span>
             </button>
           </template>
         </div>
-        <h1>{{ isGlobalSearch ? $t('mail.search') : mailboxByName(activeFolder).label }}</h1>
+        <h1>
+          {{ isGlobalSearch ? $t('mail.search') : mailboxByName(activeFolder).label }}
+          <span v-if="!isGlobalSearch && ['Imbox', 'Paper Trail'].includes(activeFolder)" class="heading-count">{{ visibleThreads.length }}</span>
+        </h1>
+        <p v-if="activeFolder === 'Imbox' && !isGlobalSearch" class="list-kicker">{{ $t('mail.recentlyReceived') }}</p>
         <p v-if="activeFolder === 'Screener'" class="screener-intro">{{ $t('mail.screenerIntro') }}</p>
       </header>
 
@@ -274,6 +283,12 @@
 
     <section v-else-if="selectedMessage" class="reading-column" :class="{ 'is-thread-reader': !isFeedReader }" :aria-label="$t('mail.selectedMessage')">
       <div class="thread-subject-header">
+        <div v-if="!isFeedReader" class="thread-reader-topline">
+          <button class="thread-back-link" type="button" @click="closeMessage">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
+            <span>{{ activeFolder === 'Imbox' ? $t('mail.backToInbox') : $t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) }}</span>
+          </button>
+        </div>
         <div v-if="isEditingThreadSubject" class="thread-subject-editor">
           <form @submit.prevent="saveThreadSubject">
             <input
@@ -359,7 +374,7 @@
               :message="activeThreadMessage"
               :is-inbox-reader="isInboxReader"
               :is-loading="isThreadContentLoading"
-              :show-back-button="isInboxReader"
+              :show-back-button="false"
               :folder-label="mailboxByName(activeFolder).label"
               :avatar="senderAvatarFor(activeThreadMessage)"
               :participants="selectedThreadParticipants"
@@ -378,7 +393,7 @@
               :is-inbox-reader="isInboxReader"
               :is-loading="isThreadContentLoading"
               :is-selected="message.id === activeThreadMessage?.id"
-              :show-back-button="isInboxReader && index === 0"
+              :show-back-button="false"
               :folder-label="mailboxByName(activeFolder).label"
               :avatar="senderAvatarFor(message)"
               :participants="selectedThreadParticipants"
@@ -513,6 +528,7 @@ const { $t } = useI18n()
 const { locale } = useI18nLocale()
 const route = useRoute()
 const router = useRouter()
+const commandPaletteOpen = useState<boolean>('courrier-command-palette-open', () => false)
 const activeFolder = computed(() => mailboxFromPath(route.path))
 const selectedTagId = computed(() => typeof route.query.tag === 'string' ? route.query.tag : '')
 const searchExceedsLimit = computed(() => search.value.trim().length > 200)

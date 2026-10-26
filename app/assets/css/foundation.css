@@ -31,6 +31,13 @@
   --una-primary: 43% 0.13 293;
   --una-primary-active: 37% 0.13 293;
   --una-ring: 52% 0.13 293;
+  --button: #30283a;
+  --button-ink: #ffffff;
+  --card-back-peach: #f7d8cb;
+  --card-back-lilac: #e7def7;
+  --card-back-sand: #f3e5b9;
+  --card-shadow: 0 10px 24px rgb(48 40 58 / 9%);
+  --card-shadow-hover: 0 15px 28px rgb(48 40 58 / 14%);
   --una-selection: var(--una-primary);
   --una-selection-foreground: 1 0 0;
   --un-ring-color: color-mix(in srgb, var(--accent) 50%, transparent);

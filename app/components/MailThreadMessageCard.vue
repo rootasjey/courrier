@@ -49,21 +49,35 @@
       <p v-else-if="message.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
       <div v-else-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
       <template v-else-if="message.body !== undefined"><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-      <div v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
-        <span class="attachment-heading">{{ $t(message.attachments.length === 1 ? 'mail.attachmentCountOne' : 'mail.attachmentCountMany', { count: message.attachments.length }) }}</span>
+      <section v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
+        <div class="attachment-heading">
+          <h2>{{ $t('mail.attachments') }}</h2>
+          <span class="attachment-heading-count">{{ message.attachments.length }}</span>
+        </div>
+        <span class="attachment-total-size">{{ $t('mail.attachmentTotalSize', { size: formatAttachmentSize(totalAttachmentBytes) }) }}</span>
+        <div class="thread-attachment-grid">
         <a
           v-for="attachment in message.attachments"
           :key="attachment.id"
-          class="attachment-item"
+          class="thread-attachment-card"
           :href="`/api/attachments/${attachment.id}`"
           :download="attachment.filename"
           :aria-label="$t('mail.downloadAttachment', { filename: attachment.filename })"
         >
-          <span aria-hidden="true">↳</span>
-          <strong>{{ attachment.filename }}</strong>
-          <span>{{ Math.max(1, Math.round(attachment.sizeBytes / 1024)) }} Ko</span>
+          <span class="thread-attachment-art">
+            <span v-if="isImageAttachment(attachment)" class="thread-attachment-photo">
+              <img :src="`/api/attachments/${encodeURIComponent(attachment.id)}?inline=1`" :alt="$t('mail.attachmentPreview', { filename: attachment.filename })" loading="lazy">
+            </span>
+            <span v-else class="image-file-icon" aria-hidden="true">{{ attachmentExtension(attachment.filename) }}</span>
+            <span class="thread-attachment-download" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3" /></svg></span>
+          </span>
+          <span class="thread-attachment-card-copy">
+            <strong>{{ attachment.filename }}</strong>
+            <small>{{ formatAttachmentKind(attachment) }} <i>·</i> {{ formatAttachmentSize(attachment.sizeBytes) }}</small>
+          </span>
         </a>
-      </div>
+        </div>
+      </section>
     </div>
 
     <div v-if="isInboxReader" class="inbox-message-footer">
@@ -91,12 +105,14 @@ type ReaderMessage = {
   recipient: string
   body?: string
   htmlBody?: string
-  attachments: { id: string, filename: string, sizeBytes: number }[]
+  attachments: { id: string, filename: string, mimeType?: string, sizeBytes: number }[]
 }
 
 type Participant = { address: string, name: string, initials: string, color: 'terracotta' | 'blue' | 'green' | 'gold', avatarUrl?: string | null, logoUrl?: string | null }
 
-withDefaults(defineProps<{
+defineEmits<{ close: [] }>()
+
+const props = withDefaults(defineProps<{
   message: ReaderMessage
   variant?: 'active' | 'full'
   isInboxReader?: boolean
@@ -119,10 +135,34 @@ withDefaults(defineProps<{
   showParticipants: false,
 })
 
-defineEmits<{ close: [] }>()
+const totalAttachmentBytes = computed(() => props.message.attachments.reduce((total, attachment) => total + attachment.sizeBytes, 0))
 
 const { $t } = useI18n()
 const { locale } = useI18nLocale()
+
+function isImageAttachment(attachment: ReaderMessage['attachments'][number]) {
+  return ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(attachment.mimeType?.toLowerCase() ?? '')
+}
+
+function attachmentExtension(filename: string) {
+  return filename.split('.').at(-1)?.slice(0, 5).toUpperCase() || 'FILE'
+}
+
+function formatAttachmentKind(attachment: ReaderMessage['attachments'][number]) {
+  const kind = attachment.mimeType?.split('/').at(-1)?.toUpperCase()
+  return kind || attachmentExtension(attachment.filename)
+}
+
+function formatAttachmentSize(bytes: number) {
+  const megabyte = 1024 * 1024
+  const isEnglish = locale.value?.startsWith('en')
+  if (bytes >= megabyte) {
+    const value = new Intl.NumberFormat(locale.value || 'fr', { maximumFractionDigits: 1 }).format(bytes / megabyte)
+    return `${value} ${isEnglish ? 'MB' : 'Mo'}`
+  }
+
+  return `${Math.max(1, Math.round(bytes / 1024))} ${isEnglish ? 'KB' : 'Ko'}`
+}
 
 function recipientAddresses(value: string) {
   const matches = value.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/gi) || []

@@ -67,7 +67,7 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
 
 .group-heading { gap: 13px; margin: 14px 0 5px; }
 .group-heading h2 { color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: 0; }
-.thread-list { border-top: 1px solid var(--line); }
+.thread-list { border-top: 0; }
 .thread-selection-row { min-height: 76px; padding-inline: 4px; border-radius: 9px; }
 .thread-selection-row:not(.is-thread-selected):hover,
 .thread-selection-row.is-selection-cursor:not(.is-thread-selected) { background: color-mix(in srgb, var(--accent-wash) 68%, transparent); }
