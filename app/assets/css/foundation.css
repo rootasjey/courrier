@@ -9,28 +9,28 @@
 
 :root {
   color-scheme: light;
-  --canvas: #f5f4ef;
-  --paper: #fffefa;
-  --sheet: #fffefa;
-  --ink: #28332f;
-  --muted: #5f6d67;
-  --quiet: #66736d;
-  --line: #e1e5dd;
-  --accent: #3c6b64;
-  --accent-hover: #315850;
+  --canvas: #faf8ff;
+  --paper: #fffefe;
+  --sheet: #ffffff;
+  --ink: #302a3b;
+  --muted: #655d70;
+  --quiet: #766e81;
+  --line: #e4deef;
+  --accent: #55409e;
+  --accent-hover: #463486;
   --accent-ink: #ffffff;
-  --accent-wash: #eaf1ed;
-  --sage: #dcebe4;
-  --sage-ink: #31574d;
+  --accent-wash: #e8e1f7;
+  --sage: #e8e1f7;
+  --sage-ink: #55409e;
   --error: #a74740;
-  --surface-soft: #f7f7f2;
-  --message-body: #3e4a45;
+  --surface-soft: #f4f0fb;
+  --message-body: #474052;
   --reply-later: #66779a;
-  /* Keep UnaUI/UnoCSS focus and selection accents aligned with Courrier's ink-teal. */
-  --una-primary-hex: #3c6b64;
-  --una-primary: 46% 0.08 178;
-  --una-primary-active: 40% 0.08 178;
-  --una-ring: 57% 0.09 178;
+  /* Keep UnaUI/UnoCSS focus and selection accents aligned with Courrier's lavender. */
+  --una-primary-hex: #55409e;
+  --una-primary: 43% 0.13 293;
+  --una-primary-active: 37% 0.13 293;
+  --una-ring: 52% 0.13 293;
   --una-selection: var(--una-primary);
   --una-selection-foreground: 1 0 0;
   --un-ring-color: color-mix(in srgb, var(--accent) 50%, transparent);

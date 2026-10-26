@@ -1,5 +1,11 @@
 <template>
-  <div class="mailbox-thread-summary">
+  <div class="mailbox-thread-summary" :class="{ 'is-card-summary': cardStyle, [`is-card-summary-${cardStyle}`]: cardStyle }">
+    <div v-if="cardStyle" class="thread-card-heading">
+      <strong class="thread-card-sender">{{ sender }}</strong>
+      <NTooltip :content="absoluteDate" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+        <time class="thread-date" :datetime="timestamp">{{ displayDate }}</time>
+      </NTooltip>
+    </div>
     <NTooltip v-if="preview" :_tooltipContent="tooltipContentOptions" :una="{ tooltipContent: 'thread-preview-tooltip z-[120]' }">
       <button
         ref="subjectElement"
@@ -15,10 +21,11 @@
       </template>
     </NTooltip>
     <button v-else class="mailbox-thread-subject" type="button" @click="$emit('open', $event)">{{ subject }}</button>
+    <p v-if="cardStyle && cardPreview" class="thread-card-preview">{{ cardPreview }}</p>
     <div class="thread-secondary">
       <span v-if="newMessageLabel" class="set-aside-new-message">{{ newMessageLabel }}</span>
       <span v-for="tag in tags" :key="tag.id" class="workspace-tag-chip" :class="`tag-color-${tag.color}`">{{ tag.name }}</span>
-      <span class="thread-sender-badge">{{ sender }}</span>
+      <span v-if="!cardStyle" class="thread-sender-badge">{{ sender }}</span>
       <ThreadParticipantsStack v-if="participants.length" inline :participants="participants" />
       <NTooltip v-if="attachmentCount" :content="$t('mail.attachmentCount', { count: attachmentCount })" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
         <span class="thread-attachment-count" :aria-label="$t('mail.attachmentCount', { count: attachmentCount })">
@@ -32,7 +39,7 @@
           <span>{{ messageCount }}</span>
         </span>
       </NTooltip>
-      <NTooltip :content="absoluteDate" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+      <NTooltip v-if="!cardStyle" :content="absoluteDate" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
         <time class="thread-date" :datetime="timestamp">{{ displayDate }}</time>
       </NTooltip>
     </div>
@@ -46,6 +53,22 @@ import ThreadParticipantsStack from '~/components/ThreadParticipantsStack.vue'
 const subjectElement = ref<HTMLButtonElement>()
 const pointerPosition = ref<{ x: number, y: number }>()
 const pointerAnchored = ref(false)
+const props = defineProps<{
+  subject: string
+  sender: string
+  preview: string
+  timestamp: string
+  displayDate: string
+  absoluteDate: string
+  participants: { address: string, name: string, initials: string, color: 'terracotta' | 'blue' | 'green' | 'gold', avatarUrl?: string | null, logoUrl?: string | null }[]
+  attachmentCount: number
+  messageCount: number
+  newMessageLabel?: string
+  tags?: { id: string, name: string, color: string }[]
+  cardStyle?: 'lavender' | 'relief'
+}>()
+
+const cardPreview = computed(() => props.preview.replace(/^\[MESSAGE FICTIF — DONNÉES LOCALES DE DÉMO\]\s*/u, ''))
 
 const tooltipReference = computed(() => {
   const position = pointerPosition.value
@@ -78,20 +101,6 @@ function anchorTooltipToPointer(event: PointerEvent) {
 function anchorTooltipToSubject() {
   pointerAnchored.value = false
 }
-
-defineProps<{
-  subject: string
-  sender: string
-  preview: string
-  timestamp: string
-  displayDate: string
-  absoluteDate: string
-  participants: { address: string, name: string, initials: string, color: 'terracotta' | 'blue' | 'green' | 'gold', avatarUrl?: string | null, logoUrl?: string | null }[]
-  attachmentCount: number
-  messageCount: number
-  newMessageLabel?: string
-  tags?: { id: string, name: string, color: string }[]
-}>()
 
 defineEmits<{ open: [event: MouseEvent] }>()
 </script>

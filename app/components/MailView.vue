@@ -1,6 +1,6 @@
 <template>
   <main class="mail-page">
-    <section v-if="!isReadingMessage" class="mailbox-view" :class="{ 'has-mail-stacks': showSetAsideStack || showReplyLaterStack }" :aria-label="$t('mail.inboxLabel')">
+    <section v-if="!isReadingMessage" class="mailbox-view" :class="[{ 'has-mail-stacks': showSetAsideStack || showReplyLaterStack }, { 'is-inbox-view': activeFolder === 'Imbox', 'is-paper-view': activeFolder === 'Paper Trail' }]" :aria-label="$t('mail.inboxLabel')">
       <header class="inbox-heading">
       <div v-if="!isGlobalSearch" class="heading-actions">
           <template v-if="activeFolder === 'Screener'">
@@ -176,7 +176,7 @@
           <header class="group-heading">
             <h2 id="new-messages-heading">{{ $t('mail.newMessages') }}</h2>
           </header>
-          <div class="thread-list" role="list">
+          <div class="thread-list thread-card-grid" role="list">
             <MailThreadListRow
               v-for="thread in newThreads"
               :key="thread.id"
@@ -191,7 +191,7 @@
           <header class="group-heading">
             <h2 id="seen-messages-heading">{{ $t('mail.previouslySeen') }}</h2>
           </header>
-          <div class="thread-list" role="list">
+          <div class="thread-list thread-card-grid" role="list">
             <MailThreadListRow
               v-for="thread in previouslySeenThreads"
               :key="thread.id"
@@ -223,11 +223,11 @@
         </MailFeedEditionRow>
       </div>
 
-      <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" role="list">
+      <div v-else-if="activeFolder !== 'Screener' && visibleThreads.length" class="thread-list other-folder-list" :class="{ 'thread-card-grid': activeFolder === 'Paper Trail' }" role="list">
         <MailThreadListRow
           v-for="thread in visibleThreads"
           :key="thread.id"
-          v-bind="threadListRowProps(thread, 'other-folder')"
+          v-bind="threadListRowProps(thread, activeFolder === 'Paper Trail' ? 'paper' : 'other-folder')"
           @select="handleThreadAvatarClick(thread.id, $event)"
           @open="handleThreadRowClick(thread, $event)"
           @restore="restoreTrashedMessage(thread.latest)"
@@ -272,7 +272,7 @@
       />
     </section>
 
-    <section v-else-if="selectedMessage" class="reading-column" :aria-label="$t('mail.selectedMessage')">
+    <section v-else-if="selectedMessage" class="reading-column" :class="{ 'is-thread-reader': !isFeedReader }" :aria-label="$t('mail.selectedMessage')">
       <div class="thread-subject-header">
         <div v-if="isEditingThreadSubject" class="thread-subject-editor">
           <form @submit.prevent="saveThreadSubject">
@@ -909,7 +909,7 @@ const {
   threadAvatarFor,
 } = mailParticipants
 
-function threadListRowProps(thread: MessageThread, variant: 'inbox' | 'other-folder') {
+function threadListRowProps(thread: MessageThread, variant: 'inbox' | 'paper' | 'other-folder') {
   const isDeferredFolder = ['Set Aside', 'Reply Later'].includes(activeFolder.value)
 
   return {

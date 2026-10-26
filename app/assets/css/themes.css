@@ -42,51 +42,51 @@
   --una-ring: 52% 0.06 76;
 }
 :root[data-theme="light"][data-theme-variant="lavender"] {
-  --canvas: #f3f2f7;
-  --paper: #fcfbff;
+  --canvas: #faf8ff;
+  --paper: #fffefe;
   --sheet: #ffffff;
-  --ink: #33313f;
-  --muted: #605e6d;
-  --quiet: #716f7b;
-  --line: #e1dfeb;
-  --accent: #696184;
-  --accent-hover: #575172;
+  --ink: #302a3b;
+  --muted: #655d70;
+  --quiet: #766e81;
+  --line: #e4deef;
+  --accent: #55409e;
+  --accent-hover: #463486;
   --accent-ink: #ffffff;
-  --accent-wash: #eeebf6;
-  --sage: #ece9f2;
-  --sage-ink: #5d547a;
-  --surface-soft: #f7f6fa;
-  --message-body: #494755;
-  --reply-later: #766e9d;
-  --una-primary-hex: #696184;
-  --una-primary: 46% 0.05 290;
-  --una-primary-active: 40% 0.05 290;
-  --una-ring: 52% 0.06 290;
+  --accent-wash: #e8e1f7;
+  --sage: #e8e1f7;
+  --sage-ink: #55409e;
+  --surface-soft: #f4f0fb;
+  --message-body: #474052;
+  --reply-later: #7662b6;
+  --una-primary-hex: #55409e;
+  --una-primary: 43% 0.13 293;
+  --una-primary-active: 37% 0.13 293;
+  --una-ring: 52% 0.13 293;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #242522;
-  --paper: #2d2e2a;
-  --sheet: #343531;
-  --ink: #f2f2ed;
-  --muted: #c7c8c0;
-  --quiet: #aeb0a8;
-  --line: #484a44;
-  --accent: #a3bdb2;
-  --accent-hover: #bad0c7;
-  --accent-ink: #19251f;
-  --accent-wash: #35423b;
-  --sage: #34473d;
-  --sage-ink: #d7e9df;
+  --canvas: #201d27;
+  --paper: #2a2733;
+  --sheet: #302c3b;
+  --ink: #f4efff;
+  --muted: #d0c8df;
+  --quiet: #b3a9c7;
+  --line: #484153;
+  --accent: #c4afff;
+  --accent-hover: #d4c4ff;
+  --accent-ink: #2c2144;
+  --accent-wash: #403750;
+  --sage: #3d334d;
+  --sage-ink: #e2d7ff;
   --error: #f0a19a;
-  --surface-soft: #383a35;
-  --message-body: #dedfd8;
+  --surface-soft: #36313f;
+  --message-body: #e2dbea;
   --reply-later: #b6c2dc;
-  --una-primary-hex: #a3bdb2;
-  --una-primary: 77% 0.05 171;
-  --una-primary-active: 83% 0.05 171;
-  --una-ring: 78% 0.06 171;
+  --una-primary-hex: #c4afff;
+  --una-primary: 79% 0.09 293;
+  --una-primary-active: 85% 0.08 293;
+  --una-ring: 82% 0.09 293;
 }
 :root[data-theme="dark"][data-theme-variant="forest"] {
   --canvas: #171e1b;
@@ -133,26 +133,26 @@
   --una-ring: 85% 0.06 91;
 }
 :root[data-theme="dark"][data-theme-variant="lavender"] {
-  --canvas: #232229;
-  --paper: #2d2c34;
-  --sheet: #35343d;
-  --ink: #f1eff8;
-  --muted: #cbc7d3;
-  --quiet: #aca8b5;
-  --line: #494750;
-  --accent: #b9b0dc;
-  --accent-hover: #cbc3e8;
-  --accent-ink: #2a2637;
-  --accent-wash: #423e53;
-  --sage: #3c3a49;
-  --sage-ink: #ddd8ef;
-  --surface-soft: #393841;
-  --message-body: #dfdce8;
+  --canvas: #201d27;
+  --paper: #2a2733;
+  --sheet: #302c3b;
+  --ink: #f4efff;
+  --muted: #d0c8df;
+  --quiet: #b3a9c7;
+  --line: #484153;
+  --accent: #c4afff;
+  --accent-hover: #d4c4ff;
+  --accent-ink: #2c2144;
+  --accent-wash: #403750;
+  --sage: #3d334d;
+  --sage-ink: #e2d7ff;
+  --surface-soft: #36313f;
+  --message-body: #e2dbea;
   --reply-later: #c4b9e7;
-  --una-primary-hex: #b9b0dc;
-  --una-primary: 77% 0.06 290;
-  --una-primary-active: 83% 0.06 290;
-  --una-ring: 79% 0.07 290;
+  --una-primary-hex: #c4afff;
+  --una-primary: 79% 0.09 293;
+  --una-primary-active: 85% 0.08 293;
+  --una-ring: 82% 0.09 293;
 }
 :root[data-theme="dark"] .profile-button { background: var(--accent-wash); color: var(--accent); }
 :root[data-theme="dark"] .compose-button:not(:disabled), :root[data-theme="dark"] .screener-apply { color: var(--accent-ink); }

@@ -1,0 +1,288 @@
+/* Inbox and Paper use the card layouts explored in the design board. */
+.thread-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  align-items: stretch;
+  gap: 22px;
+}
+
+.thread-card-grid > .thread-selection-row {
+  min-width: 0;
+}
+
+.thread-selection-row.thread-card-lavender,
+.thread-selection-row.thread-card-relief {
+  position: relative;
+  display: block;
+  min-height: 0;
+  padding: 17px 20px 18px;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, var(--line));
+  border-radius: 23px;
+  background: color-mix(in srgb, var(--accent-wash) 45%, var(--sheet));
+  isolation: isolate;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.thread-selection-row.thread-card-lavender:hover,
+.thread-selection-row.thread-card-relief:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  box-shadow: 0 9px 24px color-mix(in srgb, var(--accent) 12%, transparent);
+  transform: translateY(-2px);
+}
+
+.thread-selection-row.thread-card-relief {
+  background: var(--sheet);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--accent-wash) 82%, var(--line)), 0 12px 25px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.thread-selection-row.thread-card-relief:hover {
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--accent-wash) 82%, var(--line)), 0 16px 30px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.thread-selection-row.thread-card-relief::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px -3px -4px 3px;
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--line));
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent-wash) 74%, var(--sheet));
+  content: "";
+}
+
+.thread-selection-row.thread-card-lavender.is-thread-selected,
+.thread-selection-row.thread-card-lavender.is-selection-cursor,
+.thread-selection-row.thread-card-relief.is-thread-selected,
+.thread-selection-row.thread-card-relief.is-selection-cursor {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  background: color-mix(in srgb, var(--accent-wash) 72%, var(--sheet));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent), 0 8px 22px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.thread-selection-row.thread-card-relief.is-thread-selected::before,
+.thread-selection-row.thread-card-relief.is-selection-cursor::before {
+  background: color-mix(in srgb, var(--accent-wash) 85%, var(--sheet));
+}
+
+.thread-card-grid .unread-indicator,
+.thread-card-grid .thread-selection-cursor {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  right: 18px;
+  left: auto;
+  display: grid;
+  width: 11px;
+  height: 11px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--sheet);
+}
+
+.thread-card-grid .unread-indicator svg,
+.thread-card-grid .thread-selection-cursor svg {
+  display: none;
+}
+
+.thread-card-grid .thread-avatar-trigger {
+  position: absolute;
+  z-index: 1;
+  top: 14px;
+  left: 15px;
+  width: 43px;
+  height: 43px;
+  margin: 0;
+}
+
+.thread-card-grid .thread-avatar-wrap,
+.thread-card-grid .avatar-selection-check {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+}
+
+.thread-card-grid .thread-avatar-wrap .sender-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 12px;
+}
+
+.thread-card-grid .mailbox-thread-summary.is-card-summary {
+  display: flex;
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.thread-card-heading {
+  display: flex;
+  min-width: 0;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px 0 56px;
+}
+
+.thread-card-sender {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-card-heading .thread-date {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--quiet);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.thread-card-grid .mailbox-thread-subject {
+  display: -webkit-box;
+  min-height: 2.4em;
+  margin-top: 10px;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 730;
+  letter-spacing: -0.45px;
+  line-height: 1.24;
+  text-overflow: ellipsis;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.thread-card-preview {
+  display: -webkit-box;
+  min-height: 2.8em;
+  margin: 12px 0 16px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.thread-card-grid .thread-secondary {
+  min-height: 30px;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.thread-card-grid .thread-secondary .workspace-tag-chip,
+.thread-card-grid .thread-attachment-count,
+.thread-card-grid .thread-message-count {
+  min-height: 27px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.thread-card-grid .thread-attachment-count,
+.thread-card-grid .thread-message-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.thread-card-grid .thread-participants-inline {
+  height: 25px !important;
+  margin-right: 2px;
+}
+
+.thread-card-grid .thread-participants-inline .thread-participant-avatar {
+  width: 23px;
+  height: 23px;
+  flex-basis: 23px;
+  border-color: var(--sheet);
+  font-size: 8px;
+}
+
+.thread-card-grid .set-aside-new-message {
+  max-width: 100%;
+}
+
+.is-thread-reader .thread-subject-header {
+  width: min(100%, 900px);
+  margin: 10px auto 20px;
+  padding-inline: clamp(16px, 4vw, 42px);
+  text-align: left;
+}
+
+.is-thread-reader .thread-subject-header .message-subject-heading {
+  display: block;
+}
+
+.is-thread-reader .thread-subject-header .message-subject {
+  text-align: left;
+}
+
+.is-thread-reader .thread-subject-header .thread-subject-editor {
+  width: 100%;
+}
+
+.is-thread-reader .thread-subject-header .thread-subject-input {
+  text-align: left;
+}
+
+.is-thread-reader .message-paper.inbox-reader-paper {
+  width: min(100%, 900px);
+}
+
+@media (max-width: 760px) {
+  .thread-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+  }
+
+  .thread-selection-row.thread-card-lavender,
+  .thread-selection-row.thread-card-relief {
+    padding: 15px 15px 16px;
+    border-radius: 19px;
+  }
+
+  .thread-card-grid .thread-avatar-trigger {
+    top: 12px;
+    left: 11px;
+  }
+
+  .thread-card-heading {
+    min-height: 44px;
+    gap: 6px;
+    padding-left: 49px;
+  }
+
+  .thread-card-sender { font-size: 12px; }
+  .thread-card-heading .thread-date { font-size: 10px; }
+  .thread-card-grid .mailbox-thread-subject { margin-top: 9px; font-size: 16px; }
+  .thread-card-preview { margin: 9px 0 13px; font-size: 12px; }
+}
+
+@media (max-width: 560px) {
+  .thread-card-grid { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .thread-selection-row.thread-card-lavender,
+  .thread-selection-row.thread-card-relief { padding: 16px 17px 17px; border-radius: 20px; }
+  .thread-card-grid .thread-avatar-trigger { top: 13px; left: 13px; }
+  .thread-card-heading { min-height: 45px; padding-left: 54px; }
+  .thread-card-sender { font-size: 14px; }
+  .thread-card-heading .thread-date { font-size: 11px; }
+  .thread-card-grid .mailbox-thread-subject { font-size: 18px; }
+  .thread-card-preview { font-size: 14px; }
+  .is-thread-reader .thread-subject-header { margin: 14px auto 16px; padding-inline: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thread-selection-row.thread-card-lavender,
+  .thread-selection-row.thread-card-relief { transition: none; }
+}

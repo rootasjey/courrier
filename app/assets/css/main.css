@@ -7,5 +7,6 @@
 @import './responsive-motion.css';
 @import './account.css';
 @import './mailbox-shell.css';
+@import '~/assets/css/mail-cards.css';
 @import './activity.css';
 @import './files-and-tags.css';

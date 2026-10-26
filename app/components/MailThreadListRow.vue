@@ -2,7 +2,9 @@
   <div
     class="thread-selection-row"
     :class="[
-      variant === 'other-folder' ? 'other-thread-row' : undefined,
+      variant === 'other-folder' || variant === 'paper' ? 'other-thread-row' : undefined,
+      variant === 'inbox' ? 'thread-card-lavender' : undefined,
+      variant === 'paper' ? 'thread-card-relief' : undefined,
       {
         'is-thread-selected': selection.selected,
         'is-selection-cursor': selection.keyboardCursor,
@@ -48,6 +50,7 @@
       :timestamp="thread.latest.timestamp"
       :display-date="relativeDate(thread.latest.timestamp)"
       :absolute-date="absoluteDate(thread.latest.timestamp)"
+      :card-style="variant === 'inbox' ? 'lavender' : variant === 'paper' ? 'relief' : undefined"
       :participants="participants"
       :attachment-count="attachmentCount"
       :message-count="thread.messages.length"
@@ -95,7 +98,7 @@ type Participant = {
 
 const props = defineProps<{
   thread: MailThread
-  variant: 'inbox' | 'other-folder'
+  variant: 'inbox' | 'paper' | 'other-folder'
   selection: {
     canSelect: boolean
     active: boolean
