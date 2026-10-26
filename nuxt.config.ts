@@ -49,6 +49,10 @@ export default defineNuxtConfig({
     ],
     defaultLocale: "fr",
     translationDir: "locales",
+    // Cloudflare Workers cannot read the generated public tree from disk.
+    // Keep Edge assets compact and bound the per-worker route/locale cache.
+    translationPayloads: { mode: 'source' },
+    cacheMaxSize: 32,
     apiBaseUrl: `_locales/${i18nBuildId}`,
     dateBuild: i18nBuildId,
     routesLocaleLinks: {
