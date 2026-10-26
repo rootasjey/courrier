@@ -93,7 +93,7 @@
 .mailbox-view .screener-callout {
   min-height: 42px;
   border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--accent-wash);
   color: var(--accent);
 }
@@ -134,7 +134,7 @@
 
 .thread-selection-row.thread-card-lavender:nth-child(3n + 2) { --card-back: var(--card-back-lilac); }
 .thread-selection-row.thread-card-lavender:nth-child(3n) { --card-back: var(--card-back-sand); }
-.thread-selection-row.thread-card-lavender:has(.unread-indicator) { border-bottom-color: var(--accent); }
+.thread-selection-row.thread-card-lavender:has(.unread-indicator) { border-bottom-color: var(--accent-wash); }
 
 .thread-selection-row.thread-card-lavender:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
@@ -192,6 +192,12 @@
 
 .thread-card-grid .unread-indicator svg,
 .thread-card-grid .thread-selection-cursor svg { display: none; }
+
+.thread-card-grid .unread-indicator:not(.is-selection-cursor) {
+  top: 32px;
+  right: auto;
+  left: 49px;
+}
 
 .thread-card-grid .thread-avatar-trigger {
   position: relative;
