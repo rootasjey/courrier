@@ -98,6 +98,8 @@
   color: var(--accent);
 }
 
+.mailbox-view.is-inbox-view .message-group-seen { margin-top: 42px; }
+
 .thread-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -132,9 +134,14 @@
   box-shadow: var(--card-shadow);
 }
 
+.thread-selection-row.thread-card-lavender.is-unread-thread { background: var(--mail-card-surface); }
+.thread-selection-row.thread-card-lavender:not(.is-unread-thread) {
+  background: color-mix(in srgb, var(--mail-card-surface) 55%, var(--accent-wash));
+}
+
 .thread-selection-row.thread-card-lavender:nth-child(3n + 2) { --card-back: var(--card-back-lilac); }
 .thread-selection-row.thread-card-lavender:nth-child(3n) { --card-back: var(--card-back-sand); }
-.thread-selection-row.thread-card-lavender:has(.unread-indicator) { border-bottom-color: var(--accent-wash); }
+.thread-selection-row.thread-card-lavender.is-unread-thread { border-bottom-color: var(--accent-wash); }
 
 .thread-selection-row.thread-card-lavender:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
@@ -403,6 +410,7 @@
 }
 
 @media (max-width: 760px) {
+  .mailbox-view.is-inbox-view .message-group-seen { margin-top: 36px; }
   .thread-attachment-menu-trigger { opacity: 1; visibility: visible; }
   .mailbox-view.is-inbox-view .inbox-heading,
   .mailbox-view.is-paper-view .inbox-heading { align-items: start; }

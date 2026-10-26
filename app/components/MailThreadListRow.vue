@@ -5,6 +5,7 @@
       variant === 'other-folder' || variant === 'paper' ? 'other-thread-row' : undefined,
       variant === 'inbox' ? 'thread-card-lavender' : undefined,
       variant === 'paper' ? 'thread-card-relief' : undefined,
+      { 'is-unread-thread': variant === 'inbox' && thread.unreadCount > 0 },
       {
         'is-thread-selected': selection.selected,
         'is-selection-cursor': selection.keyboardCursor,
@@ -15,15 +16,18 @@
     :aria-current="selection.keyboardCursor ? 'true' : undefined"
     role="listitem"
   >
+    <span v-if="variant === 'inbox' && thread.unreadCount" class="sr-only">
+      {{ $t(thread.unreadCount === 1 ? 'mail.unreadOne' : 'mail.unreadMany', { count: thread.unreadCount }) }}
+    </span>
     <span
-      v-if="thread.unreadCount"
+      v-else-if="thread.unreadCount"
       class="unread-indicator"
       :class="{ 'is-selection-cursor': selection.keyboardCursor }"
       :aria-label="$t(thread.unreadCount === 1 ? 'mail.unreadOne' : 'mail.unreadMany', { count: thread.unreadCount })"
     >
       <svg v-if="selection.keyboardCursor" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
     </span>
-    <span v-else-if="selection.keyboardCursor" class="thread-selection-cursor" aria-hidden="true">
+    <span v-else-if="selection.keyboardCursor && variant !== 'inbox'" class="thread-selection-cursor" aria-hidden="true">
       <svg viewBox="0 0 16 16"><path d="M2.5 8h10m-4-4 4 4-4 4" /></svg>
     </span>
     <button
