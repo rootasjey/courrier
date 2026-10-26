@@ -107,6 +107,8 @@ kbd { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; backg
 .brand-menu-trigger:hover, .brand-menu-trigger[aria-expanded="true"] { background: var(--surface-soft); }
 .brand-menu-trigger[aria-expanded="true"] .brand-chevron { transform: rotate(180deg); }
 .topbar-popover-surface { z-index: 110; border: 1px solid var(--line); border-radius: 15px; background: var(--sheet); color: var(--ink); box-shadow: 0 14px 36px rgb(33 43 38 / 14%); transform-origin: var(--radix-popover-content-transform-origin, top left); animation-duration: 160ms; }
+/* Una's popover tokens follow the OS theme; topbar surfaces must follow Courrier's selected theme. */
+.popover-content.topbar-popover-surface { background-color: var(--sheet); color: var(--ink); }
 .brand-menu-panel { width: min(324px, calc(100vw - 28px)); padding: 10px; }
 .brand-menu-content { width: 100%; }
 .menu-heading { margin: 8px 10px 7px; color: var(--quiet); font-size: 11px; font-weight: 650; }
