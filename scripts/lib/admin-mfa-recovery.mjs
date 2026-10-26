@@ -14,7 +14,7 @@ export const RECOVERY_ENVIRONMENTS = {
     workerName: 'courrier',
     databaseName: 'courrier-db',
     databaseId: '3dc4507e-78f0-4e8a-b2f4-51ddc75b6aa8',
-    publicOrigin: 'https://courrier.jerem-dev.workers.dev',
+    publicOrigin: 'https://courrier.day',
   },
 }
 
