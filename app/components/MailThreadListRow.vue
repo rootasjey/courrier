@@ -1,7 +1,7 @@
 <template>
   <div
     class="thread-selection-row"
-    :style="cardTagStyle"
+    :style="[cardTagStyle, variant === 'inbox' ? { '--inbox-card-enter-delay': `${Math.min(staggerIndex ?? 0, 7) * 45}ms` } : undefined]"
     :class="[
       variant === 'other-folder' || variant === 'paper' ? 'other-thread-row' : undefined,
       variant === 'inbox' ? 'thread-card-lavender' : undefined,
@@ -116,6 +116,7 @@ const props = defineProps<{
   newMessageLabel: string
   showRestore?: boolean
   restoreDisabled?: boolean
+  staggerIndex?: number
   avatarFor: (message: ThreadMessage) => { avatarUrl?: string | null, logoUrl?: string | null }
   relativeDate: (timestamp: string) => string
   absoluteDate: (timestamp: string) => string

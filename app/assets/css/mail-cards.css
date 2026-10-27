@@ -131,6 +131,13 @@
 .thread-selection-row.thread-card-lavender {
   border-bottom: 3px solid var(--line);
   box-shadow: var(--card-shadow);
+  animation: inbox-thread-card-enter 380ms cubic-bezier(.2, .75, .25, 1) both;
+  animation-delay: var(--inbox-card-enter-delay, 0ms);
+}
+
+@keyframes inbox-thread-card-enter {
+  from { opacity: 0; translate: 0 10px; }
+  to { opacity: 1; translate: 0 0; }
 }
 
 .thread-selection-row.thread-card-lavender.is-unread-thread { background: var(--mail-card-surface); }
@@ -465,4 +472,5 @@
   .thread-selection-row.thread-card-lavender,
   .thread-selection-row.thread-card-relief,
   .mailbox-view .palette-launch { transition: none; }
+  .thread-selection-row.thread-card-lavender { animation: none; }
 }

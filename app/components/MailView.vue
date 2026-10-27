@@ -188,8 +188,9 @@
           </header>
           <div class="thread-list thread-card-grid" role="list">
             <MailThreadListRow
-              v-for="thread in newThreads"
+              v-for="(thread, index) in newThreads"
               :key="thread.id"
+              :stagger-index="index"
               v-bind="threadListRowProps(thread, 'inbox')"
               @select="handleThreadAvatarClick(thread.id, $event)"
               @open="handleThreadRowClick(thread, $event)"
@@ -204,8 +205,9 @@
           </header>
           <div class="thread-list thread-card-grid" role="list">
             <MailThreadListRow
-              v-for="thread in previouslySeenThreads"
+              v-for="(thread, index) in previouslySeenThreads"
               :key="thread.id"
+              :stagger-index="index"
               v-bind="threadListRowProps(thread, 'inbox')"
               @select="handleThreadAvatarClick(thread.id, $event)"
               @open="handleThreadRowClick(thread, $event)"
