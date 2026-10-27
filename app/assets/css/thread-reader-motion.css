@@ -1,12 +1,15 @@
 .animated-message-text.is-paragraphs > [aria-hidden="true"] { display: contents; }
 .is-thread-reader .inbox-message-body .animated-message-text.is-paragraphs p { margin-bottom: 13px; font-size: 13px; line-height: 1.8; }
 .is-thread-reader .inbox-message-body .animated-message-text.is-paragraphs p:last-child { margin-bottom: 0; }
+.animated-height { height: auto; overflow: hidden; }
+.animated-height-content { display: flow-root; }
 
 @media (prefers-reduced-motion: no-preference) {
   .animated-message-character { opacity: 0; animation: message-character-reveal 24ms linear both; }
   .is-animated-subject { animation: message-subject-focus 220ms ease-out both; }
   .is-animated-entry .meta-avatar { transform-origin: center; animation: message-avatar-pop 430ms cubic-bezier(.2, 1.55, .48, 1) both; }
   .message-rich-body.is-animated-copy { animation: message-copy-reveal 180ms ease-out both; }
+  .animated-height.is-transitioning { transition: height 240ms cubic-bezier(.2, .7, .2, 1); }
 }
 
 @keyframes message-character-reveal {
@@ -34,4 +37,5 @@
   .is-animated-subject,
   .is-animated-entry .meta-avatar,
   .message-rich-body.is-animated-copy { animation: none !important; }
+  .animated-height.is-transitioning { transition: none !important; }
 }

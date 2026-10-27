@@ -405,21 +405,23 @@
           />
 
           <div v-if="!isReadingAll" class="thread-carousel-stage" aria-live="polite">
-            <MailThreadMessageCard
-              v-if="activeThreadMessage"
-              :key="activeThreadMessage.id"
-              :message="activeThreadMessage"
-              :thread-id="selectedThread?.id || activeThreadMessage.threadId"
-              :is-inbox-reader="usesInboxReaderLayout"
-              :is-loading="isThreadContentLoading"
-              :show-back-button="false"
-              :folder-label="mailboxByName(activeFolder).label"
-              :avatar="senderAvatarFor(activeThreadMessage)"
-              :participants="selectedThreadParticipants"
-              :show-participants="selectedThreadParticipants.length > 1"
-              :animate-entry="isReadingTogether"
-              @close="closeMessage"
-            />
+            <AnimatedHeight>
+              <MailThreadMessageCard
+                v-if="activeThreadMessage"
+                :key="activeThreadMessage.id"
+                :message="activeThreadMessage"
+                :thread-id="selectedThread?.id || activeThreadMessage.threadId"
+                :is-inbox-reader="usesInboxReaderLayout"
+                :is-loading="isThreadContentLoading"
+                :show-back-button="false"
+                :folder-label="mailboxByName(activeFolder).label"
+                :avatar="senderAvatarFor(activeThreadMessage)"
+                :participants="selectedThreadParticipants"
+                :show-participants="selectedThreadParticipants.length > 1"
+                :animate-entry="isReadingTogether"
+                @close="closeMessage"
+              />
+            </AnimatedHeight>
           </div>
 
           <div v-else class="thread-full-thread">
