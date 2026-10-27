@@ -4,12 +4,18 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .animated-message-character { opacity: 0; animation: message-character-reveal 24ms linear both; }
+  .is-animated-subject { animation: message-subject-focus 220ms ease-out both; }
   .is-animated-entry .meta-avatar { transform-origin: center; animation: message-avatar-pop 430ms cubic-bezier(.2, 1.55, .48, 1) both; }
   .message-rich-body.is-animated-copy { animation: message-copy-reveal 180ms ease-out both; }
 }
 
 @keyframes message-character-reveal {
   to { opacity: 1; }
+}
+
+@keyframes message-subject-focus {
+  from { filter: blur(3px); opacity: .82; }
+  to { filter: blur(0); opacity: 1; }
 }
 
 @keyframes message-avatar-pop {
@@ -25,6 +31,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animated-message-character { opacity: 1; animation: none !important; }
+  .is-animated-subject,
   .is-animated-entry .meta-avatar,
   .message-rich-body.is-animated-copy { animation: none !important; }
 }

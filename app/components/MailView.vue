@@ -337,11 +337,10 @@
         </div>
         <div v-else class="message-subject-heading">
           <h1 ref="threadSubjectHeading" class="message-subject" @mouseup="updateSubjectSelection" @keyup="updateSubjectSelection" @contextmenu="openSubjectContextMenu">
-            <AnimatedMessageText
+            <span
               :key="isReadingTogether ? selectedId : 'thread-subject'"
-              :text="isFeedReader ? activeThreadMessage?.subject || '' : selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject"
-              :animate="isReadingTogether"
-            />
+              :class="{ 'is-animated-subject': isReadingTogether }"
+            >{{ isFeedReader ? activeThreadMessage?.subject || '' : selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}</span>
           </h1>
           <NTooltip v-if="subjectSelection.visible" :content="$t('rename.action')">
             <button class="thread-subject-selection-edit" type="button" :aria-label="$t('rename.action')" :style="{ left: `${subjectSelection.left}px`, top: `${subjectSelection.top}px` }" @mousedown.prevent @click="beginThreadSubjectEdit">
