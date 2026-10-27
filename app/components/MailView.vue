@@ -53,12 +53,13 @@
           <span v-if="selectedItemIds.length > MAX_READ_TOGETHER_ITEMS" id="read-together-limit-note" class="thread-selection-limit-note" role="status" aria-live="polite">
             {{ $t('mail.readTogetherLimit', { limit: MAX_READ_TOGETHER_ITEMS }) }}
           </span>
-          <NTooltip v-if="selectedItemIds.length > 1" :content="$t('mail.readTogether')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+          <NTooltip v-if="selectedItemIds.length > 1" :content="$t('mail.readTogetherShortcut')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
             <button
               type="button"
               class="thread-selection-action"
               :class="{ 'is-limit-reached': selectedItemIds.length > MAX_READ_TOGETHER_ITEMS }"
               :aria-label="$t('mail.readTogether')"
+              aria-keyshortcuts="V"
               :aria-describedby="selectedItemIds.length > MAX_READ_TOGETHER_ITEMS ? 'read-together-limit-note' : undefined"
               :disabled="isApplyingBulkAction || selectedItemIds.length > MAX_READ_TOGETHER_ITEMS"
               @click="startReadTogether"
@@ -336,7 +337,11 @@
         </div>
         <div v-else class="message-subject-heading">
           <h1 ref="threadSubjectHeading" class="message-subject" @mouseup="updateSubjectSelection" @keyup="updateSubjectSelection" @contextmenu="openSubjectContextMenu">
-            {{ isFeedReader ? activeThreadMessage?.subject : selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}
+            <AnimatedMessageText
+              :key="isReadingTogether ? selectedId : 'thread-subject'"
+              :text="isFeedReader ? activeThreadMessage?.subject || '' : selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject"
+              :animate="isReadingTogether"
+            />
           </h1>
           <NTooltip v-if="subjectSelection.visible" :content="$t('rename.action')">
             <button class="thread-subject-selection-edit" type="button" :aria-label="$t('rename.action')" :style="{ left: `${subjectSelection.left}px`, top: `${subjectSelection.top}px` }" @mousedown.prevent @click="beginThreadSubjectEdit">
@@ -401,7 +406,6 @@
           />
 
           <div v-if="!isReadingAll" class="thread-carousel-stage" aria-live="polite">
-            <Transition :name="threadSlideDirection > 0 ? 'message-slide-next' : 'message-slide-prev'" mode="out-in">
             <MailThreadMessageCard
               v-if="activeThreadMessage"
               :key="activeThreadMessage.id"
@@ -414,9 +418,9 @@
               :avatar="senderAvatarFor(activeThreadMessage)"
               :participants="selectedThreadParticipants"
               :show-participants="selectedThreadParticipants.length > 1"
+              :animate-entry="isReadingTogether"
               @close="closeMessage"
             />
-            </Transition>
           </div>
 
           <div v-else class="thread-full-thread">
@@ -1125,7 +1129,6 @@ const {
   replyRecipient,
   resetThreadPresentation,
   selectThreadMessage,
-  threadSlideDirection,
   toggleReadAll,
 } = useMailThreadNavigation({
   activeFolder,
@@ -1253,7 +1256,6 @@ watch(() => route.query.message, (messageParam) => {
   const message = thread.messages.find(item => item.id === requestedMessageId) ?? thread.latest
   if (activeThreadMessageId.value !== message.id) {
     const nextIndex = chronologicalMessages.value.findIndex(item => item.id === message.id)
-    threadSlideDirection.value = nextIndex > activeThreadMessageIndex.value ? 1 : -1
     activeThreadMessageId.value = message.id
   }
 
@@ -1425,6 +1427,18 @@ function handleThreadSelectionShortcut(event: KeyboardEvent) {
     toggleThreadSelection(keyboardSelectionThreadId.value)
     return true
   }
+  if (
+    event.key.toLocaleLowerCase('en-US') === 'v'
+    && activeFolder.value === 'Imbox'
+    && selectedItemIds.value.length > 1
+    && selectedItemIds.value.length <= MAX_READ_TOGETHER_ITEMS
+    && !isApplyingBulkAction.value
+    && !shouldIgnorePageShortcut(event)
+  ) {
+    event.preventDefault()
+    startReadTogether()
+    return true
+  }
   if (event.key.toLocaleLowerCase('en-US') === 'u' && canSelectThreads.value && !isApplyingBulkAction.value) {
     event.preventDefault()
     void applyBulkAction('mark-unseen')
@@ -1523,7 +1537,7 @@ function handleThreadReaderShortcut(event: KeyboardEvent) {
     void markOpenThreadUnseen()
     return true
   }
-  if (key === 'v' && ['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value) && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
+  if (key === 'm' && ['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value) && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
     event.preventDefault()
     void threadActionDock.value?.openMovePicker()
     return true

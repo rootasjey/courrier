@@ -4,7 +4,7 @@
     class="thread-message-card"
     :class="[
       variant === 'full' ? 'thread-full-message' : undefined,
-      { 'is-selected': variant === 'full' && isSelected, 'inbox-message-card': isInboxReader },
+      { 'is-selected': variant === 'full' && isSelected, 'inbox-message-card': isInboxReader, 'is-animated-entry': animateEntry },
     ]"
     :aria-label="$t('mail.messageFrom', { sender: message.sender })"
   >
@@ -51,7 +51,8 @@
     <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
       <p v-if="message.body === undefined && isLoading" role="status">{{ $t('mail.loading') }}</p>
       <p v-else-if="message.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
-      <div v-else-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
+      <div v-else-if="message.isOutgoing && message.htmlBody" class="message-rich-body" :class="{ 'is-animated-copy': animateEntry }" v-html="message.htmlBody" />
+      <AnimatedMessageText v-else-if="message.body !== undefined && animateEntry" :text="message.body" animate paragraphs />
       <template v-else-if="message.body !== undefined"><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
       <ThreadMessageAttachments
         v-if="message.attachments.length"
@@ -98,6 +99,7 @@ const props = withDefaults(defineProps<{
   showBackButton?: boolean
   folderLabel?: string
   threadId?: string
+  animateEntry?: boolean
   avatar?: { avatarUrl?: string | null, logoUrl?: string | null }
   participants?: Participant[]
   showParticipants?: boolean
@@ -109,6 +111,7 @@ const props = withDefaults(defineProps<{
   showBackButton: false,
   folderLabel: '',
   threadId: '',
+  animateEntry: false,
   avatar: () => ({}),
   participants: () => [],
   showParticipants: false,

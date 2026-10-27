@@ -124,11 +124,6 @@
   .thread-selection-row .thread-avatar-wrap { transition: transform 140ms ease; }
   .screener-popover-enter-active, .screener-popover-leave-active { transition: opacity 150ms ease, transform 180ms cubic-bezier(.2, .7, .2, 1); }
   .screener-popover-enter-from, .screener-popover-leave-to { opacity: 0; transform: translateY(-6px) scale(.98); }
-  .message-slide-next-enter-active, .message-slide-next-leave-active, .message-slide-prev-enter-active, .message-slide-prev-leave-active { transition: opacity 150ms ease, transform 200ms ease; }
-  .message-slide-next-enter-from { opacity: 0; transform: translateX(20px); }
-  .message-slide-next-leave-to { opacity: 0; transform: translateX(-20px); }
-  .message-slide-prev-enter-from { opacity: 0; transform: translateX(-20px); }
-  .message-slide-prev-leave-to { opacity: 0; transform: translateX(20px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

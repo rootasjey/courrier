@@ -35,7 +35,6 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
   const route = useRoute()
   const router = useRouter()
   const activeThreadMessageId = ref('')
-  const threadSlideDirection = ref(1)
   const isReadingAll = ref(false)
   const activeThreadMessage = computed(() => chronologicalMessages.value.find(message => message.id === activeThreadMessageId.value) ?? selectedMessage.value)
   const activeThreadMessageIndex = computed(() => chronologicalMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id))
@@ -76,7 +75,6 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
     const nextIndex = chronologicalMessages.value.findIndex(message => message.id === messageId)
     if (nextIndex < 0) return
 
-    threadSlideDirection.value = nextIndex > activeThreadMessageIndex.value ? 1 : -1
     activeThreadMessageId.value = messageId
     void router.replace({ path: route.path, query: { ...route.query, message: messageId } })
   }
@@ -148,7 +146,6 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
     replyRecipient,
     resetThreadPresentation,
     selectThreadMessage,
-    threadSlideDirection,
     toggleReadAll,
   }
 }

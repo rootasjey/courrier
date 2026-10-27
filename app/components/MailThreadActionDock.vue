@@ -51,7 +51,7 @@
               <template #trigger>
                 <span class="i-tabler-folder-symlink" aria-hidden="true" />
                 <span>{{ $t('messageActions.move') }}</span>
-                <kbd>V</kbd>
+                <kbd>M</kbd>
               </template>
             </NCombobox>
             <p v-if="state.move.open" class="thread-action-move-shortcuts">

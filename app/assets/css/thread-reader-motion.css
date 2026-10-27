@@ -1,0 +1,30 @@
+.animated-message-text.is-paragraphs > [aria-hidden="true"] { display: contents; }
+.is-thread-reader .inbox-message-body .animated-message-text.is-paragraphs p { margin-bottom: 13px; font-size: 13px; line-height: 1.8; }
+.is-thread-reader .inbox-message-body .animated-message-text.is-paragraphs p:last-child { margin-bottom: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .animated-message-character { opacity: 0; animation: message-character-reveal 1ms steps(1, end) both; }
+  .is-animated-entry .meta-avatar { transform-origin: center; animation: message-avatar-pop 430ms cubic-bezier(.2, 1.55, .48, 1) both; }
+  .message-rich-body.is-animated-copy { animation: message-copy-reveal 180ms ease-out both; }
+}
+
+@keyframes message-character-reveal {
+  to { opacity: 1; }
+}
+
+@keyframes message-avatar-pop {
+  0% { transform: scale(.78); }
+  68% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes message-copy-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-message-character { opacity: 1; animation: none !important; }
+  .is-animated-entry .meta-avatar,
+  .message-rich-body.is-animated-copy { animation: none !important; }
+}
