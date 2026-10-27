@@ -1,6 +1,5 @@
 .reading-column { padding-bottom: 40px; }
 .thread-action-footer { display: flex; width: min(100%, var(--thread-reader-content-width)); align-items: center; justify-content: flex-start; gap: 18px; margin: 0 auto 36px; }
-.thread-action-footer.has-feed-edition-navigation { width: min(calc(100% - 32px), 920px); }
 .thread-action-footer.has-feed-edition-navigation { flex-direction: column; align-items: flex-start; gap: 10px; }
 .thread-feed-navigation { width: auto; grid-template-columns: 44px auto 44px; gap: 3px; }
 .thread-feed-navigation .feed-edition-button { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
@@ -49,7 +48,6 @@
 @media (max-width: 700px) {
   .reading-column { padding-bottom: 24px; }
   .thread-action-footer { width: min(100%, 790px); flex-direction: row; align-items: center; gap: 8px; margin-bottom: 26px; }
-  .thread-action-footer.has-feed-edition-navigation { width: min(calc(100% - 24px), 920px); }
   .thread-action-footer.has-feed-edition-navigation { flex-direction: column; align-items: flex-start; }
   .thread-feed-navigation { align-self: flex-start; }
   .thread-action-primary-group { width: 100%; gap: 7px; }
