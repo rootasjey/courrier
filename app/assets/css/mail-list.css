@@ -73,8 +73,8 @@
 .thread-selection-row.is-selection-cursor:not(.is-thread-selected):hover { background: color-mix(in srgb, var(--accent) 11%, var(--paper)); }
 .thread-selection-row.is-selection-cursor.is-thread-selected { background: color-mix(in srgb, var(--accent) 16%, var(--paper)); }
 .thread-selection-row.is-selection-cursor.is-thread-selected:hover { background: color-mix(in srgb, var(--accent) 20%, var(--paper)); }
-.thread-list > .thread-selection-row.is-thread-selected:has(+ .thread-selection-row.is-thread-selected) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.thread-list > .thread-selection-row.is-thread-selected + .thread-selection-row.is-thread-selected { border-top-left-radius: 0; border-top-right-radius: 0; }
+.thread-list:not(.thread-card-grid) > .thread-selection-row.is-thread-selected:has(+ .thread-selection-row.is-thread-selected) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.thread-list:not(.thread-card-grid) > .thread-selection-row.is-thread-selected + .thread-selection-row.is-thread-selected { border-top-left-radius: 0; border-top-right-radius: 0; }
 .thread-selection-row .thread-row { min-height: 83px; padding-inline: 0; background: transparent; }
 .thread-selection-row .thread-row:hover { background: transparent; }
 .thread-selection-row .thread-row:focus-visible { outline: none; }

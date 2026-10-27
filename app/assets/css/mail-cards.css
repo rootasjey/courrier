@@ -172,9 +172,7 @@
 .is-feed-thread-reader .feed-issue-text { max-width: none; margin-inline: 0; }
 
 .thread-selection-row.thread-card-lavender.is-thread-selected,
-.thread-selection-row.thread-card-lavender.is-selection-cursor,
-.thread-selection-row.thread-card-relief.is-thread-selected,
-.thread-selection-row.thread-card-relief.is-selection-cursor {
+.thread-selection-row.thread-card-relief.is-thread-selected {
   z-index: 1;
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   background: var(--accent-wash);
