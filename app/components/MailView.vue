@@ -440,7 +440,7 @@
       :thread-actions="mailThreadActions"
     />
 
-    <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" :draft-id="composeDraftId" :initial-draft="composeInitialDraft" @sent="onOutgoingMessageSent" @show-drafts="goToDrafts" />
+    <OutgoingComposer v-if="composeOpen" v-model:open="composeOpen" :draft-id="composeDraftId" :initial-draft="composeInitialDraft" :new-message-request="composeFreshRequest" @sent="onOutgoingMessageSent" @show-drafts="goToDrafts" />
   </main>
 </template>
 
@@ -581,6 +581,7 @@ const isSavingReplyLater = ref(false)
 const messageReadError = ref('')
 const isRefreshingInbox = ref(false)
 const composeOpen = ref(false)
+const composeFreshRequest = ref(0)
 const composeDraftId = ref<string | null>(null)
 const composeInitialDraft = ref<{ to: string, subject: string, body: string } | null>(null)
 const composeDraftRequest = useState<{ to: string, subject: string, body: string } | null>('courrier-compose-draft-request', () => null)
@@ -757,6 +758,11 @@ watch(mailStateRefreshRevision, () => {
 watch(composeRequest, (request) => {
   if (request === lastComposeRequest) return
   lastComposeRequest = request
+  if (composeOpen.value) {
+    composeInitialDraft.value = null
+    composeFreshRequest.value = request
+    return
+  }
   openNewComposer()
 })
 

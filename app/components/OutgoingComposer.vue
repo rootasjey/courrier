@@ -215,7 +215,7 @@ type ComposeAttachment = { id: string, filename: string, mimeType: string, sizeB
 type ComposeDraft = { id: string, to: string, cc?: string, bcc?: string, subject: string, content: Record<string, unknown>, status: 'draft' | 'sending', updatedAt?: string, attachments: ComposeAttachment[] }
 type InitialDraft = { to: string, subject: string, body: string }
 
-const props = defineProps<{ open: boolean, draftId?: string | null, initialDraft?: InitialDraft | null }>()
+const props = defineProps<{ open: boolean, draftId?: string | null, initialDraft?: InitialDraft | null, newMessageRequest?: number }>()
 const emit = defineEmits<{ 'update:open': [value: boolean], sent: [messageId: string], 'show-drafts': [] }>()
 const { $t } = useI18n()
 
@@ -337,6 +337,11 @@ watch(() => [props.open, props.draftId] as const, (values, previous = [false, nu
     saveTimer = undefined
   }
 }, { immediate: true })
+
+watch(() => props.newMessageRequest, (request, previousRequest) => {
+  if (request === undefined || request === previousRequest) return
+  void handleNewMessageRequest()
+})
 
 watch(() => [props.open, mode.value] as const, ([open, currentMode]) => {
   if (!import.meta.client) return
@@ -670,6 +675,23 @@ async function transitionComposerMode(nextMode: 'full' | 'popup' | 'minimized') 
     { transform: `translate(${fromRect.left - toRect.left}px, ${fromRect.top - toRect.top}px) scale(${scaleX}, ${scaleY})`, transformOrigin: 'top left' },
     { transform: 'translate(0, 0) scale(1, 1)', transformOrigin: 'top left' },
   ], { duration: 280, easing: 'cubic-bezier(.2,.75,.25,1)' })
+}
+
+async function handleNewMessageRequest() {
+  if (!props.open || loading.value || sending.value || draftStatus.value === 'sending') return
+
+  if (hasMeaningfulDraftContent.value) {
+    if (!await saveDraft()) return
+    await transitionComposerMode('full')
+    reset()
+    await nextTick()
+    subjectInput.value?.focus()
+    return
+  }
+
+  await transitionComposerMode('full')
+  await nextTick()
+  editor.value?.commands.focus('end')
 }
 
 function minimizeComposer() {
