@@ -69,8 +69,8 @@
           </fieldset>
           <p v-if="errorMessage" class="contact-editor-error" role="alert">{{ errorMessage }}</p>
           <div class="contact-editor-actions">
-            <NuxtLink :to="profilePath">{{ $t('common.cancel') }}</NuxtLink>
-            <button type="submit" :disabled="saving || !displayName.trim() || !primaryAddress.trim()">
+            <NuxtLink class="thread-action-secondary" :to="profilePath">{{ $t('common.cancel') }}</NuxtLink>
+            <button class="thread-action-primary" type="submit" :disabled="saving || !displayName.trim() || !primaryAddress.trim()">
               {{ saving ? $t('contactProfile.savingContact') : $t('contactProfile.save') }}
             </button>
           </div>
@@ -215,7 +215,7 @@ useSeoMeta({ title: computed(() => `${$t(profileData.value?.contact ? 'contactPr
 .contact-editor-field { display: grid; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 650; }
 .contact-editor-field input, .contact-alias-row input, .contact-postal-row input, .contact-postal-row textarea { width: 100%; min-height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; font-size: 14px; font-weight: 450; }
 .contact-postal-row textarea { min-height: 82px; padding-block: 11px; resize: vertical; }
-.contact-editor-field input:focus, .contact-alias-row input:focus, .contact-postal-row input:focus, .contact-postal-row textarea:focus, .contact-editor-actions button:focus-visible, .contact-alias-row button:focus-visible, .contact-postal-row button:focus-visible, .contact-add-address:focus-visible, .contact-editor-actions a:focus-visible, .contact-editor-back:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
+.contact-editor-field input:focus, .contact-alias-row input:focus, .contact-postal-row input:focus, .contact-postal-row textarea:focus, .contact-alias-row button:focus-visible, .contact-postal-row button:focus-visible, .contact-add-address:focus-visible, .contact-editor-back:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 .contact-aliases-fieldset { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .contact-aliases-fieldset legend { padding: 0; color: var(--ink); font-size: 13px; font-weight: 650; }
 .contact-aliases-fieldset > p { margin: -4px 0 2px; color: var(--quiet); font-size: 12px; }
@@ -229,13 +229,10 @@ useSeoMeta({ title: computed(() => `${$t(profileData.value?.contact ? 'contactPr
 .contact-add-address { justify-self: start; color: var(--accent); }
 .contact-add-address:disabled { opacity: .5; cursor: not-allowed; }
 .contact-editor-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-top: 6px; }
-.contact-editor-actions a { display: inline-flex; min-height: 42px; align-items: center; padding: 0 13px; color: var(--muted); font-size: 13px; text-decoration: none; }
-.contact-editor-actions button { min-height: 42px; padding: 0 19px; border: 0; border-radius: 22px; background: var(--accent); color: var(--accent-ink, white); font: inherit; font-size: 13px; font-weight: 680; cursor: pointer; transition: opacity 140ms ease, background-color 140ms ease; }
-.contact-editor-actions button:hover:not(:disabled) { background: var(--accent-hover); }
-.contact-editor-actions button:disabled { opacity: .55; cursor: not-allowed; }
+.contact-editor-actions a { text-decoration: none; }
 .contact-editor-error, .contact-editor-state { color: var(--error); font-size: 13px; }
 .contact-editor-state { display: grid; justify-items: start; gap: 9px; padding: 22px; border: 1px solid var(--line); border-radius: 12px; }
 .contact-editor-state strong { color: var(--ink); }
 @media (max-width: 520px) { .contact-alias-row { align-items: stretch; flex-direction: column; } .contact-alias-row button { align-self: flex-end; } .contact-postal-row { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .contact-editor-actions button { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .contact-editor-actions .thread-action-primary, .contact-editor-actions .thread-action-secondary { transition: none; } }
 </style>
