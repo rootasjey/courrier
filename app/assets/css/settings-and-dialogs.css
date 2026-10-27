@@ -188,14 +188,14 @@
 .command-palette-escape:hover { color: var(--accent); }
 .command-palette-escape kbd { padding: 4px 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); color: inherit; font-size: 10px; font-weight: 620; }
 .command-palette-options { --palette-option-height: 52px; position: relative; max-height: min(66dvh, 560px); overflow-y: auto; overscroll-behavior: contain; padding: 14px 18px 18px; scrollbar-color: var(--line) transparent; scrollbar-width: thin; }
-.command-palette-highlight { position: absolute; top: 0; right: 14px; left: 14px; z-index: 0; height: var(--palette-option-height); transform-origin: top center; border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent); border-radius: 12px; background: var(--accent-wash); pointer-events: none; transition: transform 180ms cubic-bezier(.2, .72, .2, 1), opacity 100ms ease; }
 .command-palette-section { position: relative; z-index: 1; }
 .command-palette-section + .command-palette-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .command-palette-heading { margin: 7px 10px 9px; color: var(--quiet); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
-.command-palette-option { position: relative; display: flex; width: 100%; min-height: 52px; align-items: center; gap: 12px; padding: 7px 11px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.command-palette-option { position: relative; display: flex; width: 100%; min-height: 52px; align-items: center; gap: 12px; padding: 7px 11px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
 .command-palette.is-open .command-palette-option { animation: courrier-palette-option-in 190ms cubic-bezier(.16, 1, .3, 1) both; animation-delay: min(calc(var(--palette-stagger-index, 0) * 22ms), 110ms); }
 @keyframes courrier-palette-option-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-.command-palette-option:hover, .command-palette-option.is-active { background: transparent; }
+.command-palette-option:hover { border-color: color-mix(in srgb, var(--accent) 14%, transparent); background: color-mix(in srgb, var(--accent-wash) 55%, transparent); }
+.command-palette-option.is-active { border-color: color-mix(in srgb, var(--accent) 24%, transparent); background: var(--accent-wash); }
 .command-palette-option:focus-visible { outline-offset: -2px; }
 .command-palette-option.is-recent-option { min-height: 77px; align-items: stretch; padding: 9px 11px; }
 .command-palette-option.is-recent-option:hover, .command-palette-option.is-recent-option.is-active { color: var(--ink); }
@@ -258,7 +258,7 @@
   .command-palette-footer span { gap: 3px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .command-palette-highlight { transition-duration: 0ms; }
+  .command-palette-option { transition-duration: 0ms; }
   .dialog-content.command-palette-dialog.is-size-animated { transition-duration: 100ms; }
   .command-palette.is-open .command-palette-option { animation: none; }
 }

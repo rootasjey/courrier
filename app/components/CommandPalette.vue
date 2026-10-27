@@ -33,7 +33,6 @@
         </div>
 
         <div id="command-palette-options" ref="optionsElement" class="command-palette-options" role="listbox" :aria-label="$t('palette.suggestions')">
-          <div class="command-palette-highlight" :style="activeHighlightStyle" aria-hidden="true" />
           <div v-for="section in commandSections" :key="section.id" class="command-palette-section" role="group" :aria-label="section.label">
             <p class="command-palette-heading">{{ section.label }}</p>
             <button
@@ -212,7 +211,6 @@ const paletteElement = ref<HTMLDivElement | null>(null)
 const optionsElement = ref<HTMLDivElement | null>(null)
 const query = ref('')
 const activeIndex = ref(0)
-const activeHighlight = ref({ top: 0, height: 0, baseHeight: 52, visible: false })
 const searchResults = ref<SearchResult[]>([])
 const searchPending = ref(false)
 const composeRequest = useState('courrier-compose-request', () => 0)
@@ -317,11 +315,6 @@ const commandSections = computed(() => {
     { id: 'recent', label: $t('palette.recentThreads'), items: indexedItems.filter(({ item }) => item.kind === 'recent') },
   ].filter(section => section.items.length)
 })
-const activeHighlightStyle = computed(() => ({
-  transform: `translateY(${activeHighlight.value.top}px) scaleY(${activeHighlight.value.height / activeHighlight.value.baseHeight})`,
-  opacity: activeHighlight.value.visible ? 1 : 0,
-}))
-
 function optionId(index: number) { return `command-palette-option-${index}` }
 function paletteDialogElement() {
   return paletteElement.value?.closest<HTMLElement>('.dialog-content.command-palette-dialog') ?? null
@@ -350,37 +343,22 @@ function observePaletteSize() {
   paletteResizeObserver = new ResizeObserver(syncPaletteDialogHeight)
   paletteResizeObserver.observe(options)
 }
-function updateActiveHighlight(keepVisible = false) {
+function keepActiveOptionVisible() {
   void nextTick(() => {
     const options = optionsElement.value
     const activeOption = document.getElementById(optionId(activeIndex.value))
-    if (!options || !activeOption || !props.open || trashConfirmationOpen.value) {
-      activeHighlight.value = { ...activeHighlight.value, visible: false }
-      return
-    }
-
-    if (keepVisible) {
-      const optionsRect = options.getBoundingClientRect()
-      const optionRect = activeOption.getBoundingClientRect()
-      const viewportTop = optionsRect.top + options.clientTop + 8
-      const viewportBottom = optionsRect.top + options.clientTop + options.clientHeight - 8
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-      if (optionRect.top < viewportTop) {
-        options.scrollTo({ top: Math.max(0, options.scrollTop - (viewportTop - optionRect.top)), behavior: reduceMotion ? 'auto' : 'smooth' })
-      } else if (optionRect.bottom > viewportBottom) {
-        options.scrollTo({ top: options.scrollTop + (optionRect.bottom - viewportBottom), behavior: reduceMotion ? 'auto' : 'smooth' })
-      }
-    }
+    if (!options || !activeOption || !props.open || trashConfirmationOpen.value) return
 
     const optionsRect = options.getBoundingClientRect()
     const optionRect = activeOption.getBoundingClientRect()
-    const baseHeight = Number.parseFloat(getComputedStyle(options).getPropertyValue('--palette-option-height')) || 52
-    activeHighlight.value = {
-      top: optionRect.top - optionsRect.top + options.scrollTop - options.clientTop,
-      height: optionRect.height,
-      baseHeight,
-      visible: true,
+    const viewportTop = optionsRect.top + options.clientTop + 8
+    const viewportBottom = optionsRect.top + options.clientTop + options.clientHeight - 8
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (optionRect.top < viewportTop) {
+      options.scrollTo({ top: Math.max(0, options.scrollTop - (viewportTop - optionRect.top)), behavior: reduceMotion ? 'auto' : 'smooth' })
+    } else if (optionRect.bottom > viewportBottom) {
+      options.scrollTo({ top: options.scrollTop + (optionRect.bottom - viewportBottom), behavior: reduceMotion ? 'auto' : 'smooth' })
     }
   })
 }
@@ -526,7 +504,6 @@ function handlePaletteEscape(event: KeyboardEvent) {
     if (searchTimer) clearTimeout(searchTimer)
     activeIndex.value = 0
     input.value?.focus()
-    updateActiveHighlight()
   } else {
     close()
   }
@@ -554,9 +531,8 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-watch(activeIndex, () => updateActiveHighlight(true), { flush: 'post' })
+watch(activeIndex, keepActiveOptionVisible, { flush: 'post' })
 watch([filteredCommands, searchResults], async () => {
-  updateActiveHighlight()
   await nextTick()
   syncPaletteDialogHeight()
 }, { flush: 'post' })
@@ -584,12 +560,10 @@ watch(() => props.open, async (isOpen) => {
       if (props.open) paletteDialogElement()?.classList.add('is-size-animated')
     })
     input.value?.focus()
-    updateActiveHighlight()
   } else {
     const dialog = paletteDialogElement()
     dialog?.classList.remove('is-size-animated')
     if (dialog) dialog.style.height = ''
-    activeHighlight.value = { ...activeHighlight.value, visible: false }
     if (searchTimer) clearTimeout(searchTimer)
     searchTimer = undefined
     searchRevision += 1
