@@ -3,7 +3,7 @@
 .is-thread-reader .inbox-message-body .animated-message-text.is-paragraphs p:last-child { margin-bottom: 0; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .animated-message-character { opacity: 0; animation: message-character-reveal 1ms steps(1, end) both; }
+  .animated-message-character { opacity: 0; animation: message-character-reveal 24ms linear both; }
   .is-animated-entry .meta-avatar { transform-origin: center; animation: message-avatar-pop 430ms cubic-bezier(.2, 1.55, .48, 1) both; }
   .message-rich-body.is-animated-copy { animation: message-copy-reveal 180ms ease-out both; }
 }

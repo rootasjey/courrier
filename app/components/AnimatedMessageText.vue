@@ -39,6 +39,8 @@ const props = withDefaults(defineProps<{
   maxDuration: 560,
 })
 
+const characterRevealDuration = 24
+
 const plainParagraphs = computed(() => props.text.split('\n\n'))
 
 const paragraphSegments = computed(() => {
@@ -53,7 +55,7 @@ const paragraphSegments = computed(() => {
       return {
         value,
         index: position,
-        delay: total > 1 ? Math.round(position / (total - 1) * props.maxDuration) : 0,
+        delay: total > 1 ? Math.round(position / (total - 1) * Math.max(0, props.maxDuration - characterRevealDuration)) : 0,
       }
     })
     offset += paragraph.length + 2
