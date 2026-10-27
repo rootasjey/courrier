@@ -68,11 +68,16 @@
               <span v-for="option in state.move.options" :key="option.value"><kbd>{{ moveShortcutFor(option.value) }}</kbd> {{ option.label }}</span>
             </p>
 
-            <div v-if="state.tagPicker" class="thread-action-tag-row">
-              <span class="i-tabler-tag" aria-hidden="true" />
-              <span>{{ $t('tags.assign') }}</span>
-              <ThreadTagPicker ref="tagPicker" :tags="state.tagPicker.tags" :assigned="state.tagPicker.assigned" :message-ids="state.tagPicker.messageIds" :can-manage="state.tagPicker.canManage" @changed="actions.refreshTagAssignments" />
-            </div>
+            <ThreadTagPicker
+              v-if="state.tagPicker"
+              ref="tagPicker"
+              wide-trigger
+              :tags="state.tagPicker.tags"
+              :assigned="state.tagPicker.assigned"
+              :message-ids="state.tagPicker.messageIds"
+              :can-manage="state.tagPicker.canManage"
+              @changed="actions.refreshTagAssignments"
+            />
 
             <button v-if="state.folder === 'Trash'" class="thread-action-menu-item" type="button" :disabled="state.isSavingScreenerAction" @click="restoreTrashedMessage">
               <span class="i-tabler-mailbox" aria-hidden="true" />

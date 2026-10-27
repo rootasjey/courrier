@@ -7,8 +7,9 @@
     @update:open="setOpen"
   >
     <template #trigger>
-      <button ref="triggerButton" class="thread-tag-picker-trigger" type="button" :aria-label="$t('tags.assign')" aria-keyshortcuts="B" :aria-expanded="open" :disabled="disabled">
+      <button ref="triggerButton" class="thread-tag-picker-trigger" :class="{ 'is-wide': wideTrigger }" type="button" :aria-label="$t('tags.assign')" aria-keyshortcuts="B" :aria-expanded="open" :disabled="disabled">
         <span class="i-tabler-tag" aria-hidden="true" />
+        <span v-if="wideTrigger">{{ $t('tags.assign') }}</span>
       </button>
     </template>
     <template #default>
@@ -50,6 +51,7 @@ const props = defineProps<{
   messageIds: string[]
   canManage?: boolean
   disabled?: boolean
+  wideTrigger?: boolean
 }>()
 const emit = defineEmits<{ changed: [] }>()
 const { $t } = useI18n()
