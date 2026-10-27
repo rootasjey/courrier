@@ -163,8 +163,6 @@
   --una-ring: 82% 0.09 293;
 }
 :root[data-theme="dark"] .profile-button { background: var(--accent-wash); color: var(--accent); }
-:root[data-theme="dark"] .compose-button:not(:disabled) { color: var(--accent-ink); }
-:root[data-theme="dark"] .compose-button:disabled { background: var(--accent-wash); color: var(--muted); }
 :root[data-theme="dark"] .message-action-reply { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 :root[data-theme="dark"] .message-action-reply:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
 :root[data-theme="dark"] .thread-row:hover { background: var(--accent-wash); }

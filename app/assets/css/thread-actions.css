@@ -7,17 +7,17 @@
 .thread-feed-navigation .feed-edition-button.is-next { justify-self: end; }
 .thread-feed-navigation .feed-edition-position { min-width: 54px; font-size: 12px; }
 .thread-action-primary-group { display: flex; align-items: center; gap: 10px; }
-.app-button, .thread-action-primary, .thread-action-secondary, .thread-action-more-trigger { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; gap: 9px; padding: 0 17px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--ink); font: inherit; font-size: 14px; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease; }
-.app-button--primary, .thread-action-primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
-.app-button--primary:hover:not(:disabled), .thread-action-primary:hover:not(:disabled) { border-color: color-mix(in srgb, var(--ink) 88%, var(--paper)); background: color-mix(in srgb, var(--ink) 88%, var(--paper)); }
-.app-button--secondary:hover:not(:disabled), .thread-action-secondary:hover:not(:disabled), .thread-action-more-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); background: var(--accent-wash); color: var(--accent); }
+.app-button, .thread-action-more-trigger { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; gap: 9px; padding: 0 17px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); color: var(--ink); font: inherit; font-size: 14px; font-weight: 650; white-space: nowrap; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease; }
+.app-button--primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.app-button--primary:hover:not(:disabled) { border-color: color-mix(in srgb, var(--ink) 88%, var(--paper)); background: color-mix(in srgb, var(--ink) 88%, var(--paper)); }
+.app-button--secondary:hover:not(:disabled), .thread-action-more-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); background: var(--accent-wash); color: var(--accent); }
 .app-button--secondary.is-accent { border-color: color-mix(in srgb, var(--accent) 27%, var(--line)); background: var(--accent-wash); color: var(--accent); }
 .app-button--secondary.is-accent:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 44%, var(--line)); background: color-mix(in srgb, var(--accent-wash) 78%, var(--accent)); }
-.app-button:focus-visible, .thread-action-primary:focus-visible, .thread-action-secondary:focus-visible, .thread-action-more-trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 48%, white); outline-offset: 3px; }
-.app-button:active:not(:disabled), .thread-action-primary:active:not(:disabled), .thread-action-secondary:active:not(:disabled), .thread-action-more-trigger:active:not(:disabled) { transform: translateY(1px); }
-.app-button:disabled, .thread-action-primary:disabled, .thread-action-secondary:disabled { cursor: wait; opacity: .62; }
-.app-button svg, .thread-action-primary svg, .thread-action-secondary svg, .thread-action-more-trigger svg { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.app-button kbd, .thread-action-primary kbd { padding: 2px 5px; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); border-radius: 4px; background: transparent; color: inherit; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .76; }
+.app-button:focus-visible, .thread-action-more-trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 48%, white); outline-offset: 3px; }
+.app-button:active:not(:disabled), .thread-action-more-trigger:active:not(:disabled) { transform: translateY(1px); }
+.app-button:disabled { cursor: wait; opacity: .62; }
+.app-button svg, .thread-action-more-trigger svg { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.app-button kbd { padding: 2px 5px; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); border-radius: 4px; background: transparent; color: inherit; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .76; }
 .thread-action-primary-group .app-button { min-height: 46px; }
 .thread-action-more-trigger { width: 46px; min-width: 46px; padding: 0; }
 .thread-actions-popover { width: min(304px, calc(100vw - 28px)); padding: 7px; }

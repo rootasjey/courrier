@@ -29,10 +29,10 @@
               <span class="screener-callout-label" aria-hidden="true">{{ $t(allScreenerSenders.length === 1 ? 'mail.reviewSenderOne' : 'mail.reviewSenderMany', { count: allScreenerSenders.length }) }}</span>
               <span class="screener-callout-count" aria-hidden="true">{{ allScreenerSenders.length }}</span>
             </AppButton>
-            <button v-if="activeFolder !== 'Set Aside'" class="compose-button" type="button" :aria-label="$t('mail.newMessage')" @click="openNewComposer">
+            <AppButton v-if="activeFolder !== 'Set Aside'" class="compose-button" variant="primary" type="button" :aria-label="$t('mail.newMessage')" @click="openNewComposer">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span>{{ $t('mail.write') }}</span>
-            </button>
+            </AppButton>
           </template>
         </div>
         <h1>

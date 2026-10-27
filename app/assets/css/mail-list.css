@@ -32,10 +32,7 @@
 .inbox-heading { position: relative; display: grid; justify-items: center; min-height: 157px; padding: 20px 0 25px; }
 .inbox-heading h1 { margin: 22px 0 0; color: var(--ink); font-size: clamp(40px, 4.2vw, 58px); font-weight: 730; letter-spacing: -2.5px; line-height: 1.06; }
 .heading-actions { position: absolute; top: 5px; right: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.compose-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 18px; border: 0; border-radius: 24px; font-size: 16px; font-weight: 650; }
-.compose-button { margin-left: auto; background: var(--accent); color: white; }
-.compose-button:hover:not(:disabled) { background: var(--accent-hover); }
-.compose-button:disabled { opacity: 1; background: #c5b8ff; color: #fff; }
+.compose-button { min-height: 48px; gap: 9px; padding-inline: 18px; margin-left: auto; font-size: 16px; }
 .compose-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .screener-callout { min-height: 42px; padding-inline: 16px; font-size: 14px; }
 .screener-callout svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

@@ -69,10 +69,10 @@
           </fieldset>
           <p v-if="errorMessage" class="contact-editor-error" role="alert">{{ errorMessage }}</p>
           <div class="contact-editor-actions">
-            <NuxtLink class="thread-action-secondary" :to="profilePath">{{ $t('common.cancel') }}</NuxtLink>
-            <button class="thread-action-primary" type="submit" :disabled="saving || !displayName.trim() || !primaryAddress.trim()">
+            <NuxtLink class="app-button app-button--secondary" :to="profilePath">{{ $t('common.cancel') }}</NuxtLink>
+            <AppButton variant="primary" type="submit" :disabled="saving || !displayName.trim() || !primaryAddress.trim()">
               {{ saving ? $t('contactProfile.savingContact') : $t('contactProfile.save') }}
-            </button>
+            </AppButton>
           </div>
         </form>
       </template>
@@ -234,5 +234,5 @@ useSeoMeta({ title: computed(() => `${$t(profileData.value?.contact ? 'contactPr
 .contact-editor-state { display: grid; justify-items: start; gap: 9px; padding: 22px; border: 1px solid var(--line); border-radius: 12px; }
 .contact-editor-state strong { color: var(--ink); }
 @media (max-width: 520px) { .contact-alias-row { align-items: stretch; flex-direction: column; } .contact-alias-row button { align-self: flex-end; } .contact-postal-row { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .contact-editor-actions .thread-action-primary, .contact-editor-actions .thread-action-secondary { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .contact-editor-actions .app-button { transition: none; } }
 </style>

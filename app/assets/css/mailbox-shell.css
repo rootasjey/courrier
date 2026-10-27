@@ -59,10 +59,7 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
 }
 .heading-actions { position: static; grid-column: 2; grid-row: 1; justify-content: flex-end; gap: 9px; }
 .heading-actions > span[aria-hidden="true"] { display: none; }
-.compose-button, .screener-done { min-height: 42px; border-radius: 999px; font-size: 13px; font-weight: 620; }
-.compose-button { padding-inline: 16px; background: var(--accent); }
-.compose-button:hover:not(:disabled) { background: var(--accent-hover); }
-.compose-button:disabled { background: #a5b4ad; color: #fff; }
+.screener-done { min-height: 42px; border-radius: 999px; font-size: 13px; font-weight: 620; }
 .screener-done { background: var(--sage); color: var(--sage-ink); }
 .screener-done:hover { background: color-mix(in srgb, var(--sage) 82%, var(--accent)); filter: none; }
 .screener-intro { grid-column: 1 / -1; width: min(100%, 58ch); margin: 11px 0 0; color: var(--muted); font-size: 14px; text-align: left; }
@@ -142,7 +139,6 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
 .thread-full-message { min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .thread-full-message.is-selected { padding: 13px; border: 0; border-radius: 11px; background: var(--accent-wash); box-shadow: none; }
 .reply-placeholder, .reply-composer { border-radius: 13px; background: var(--sheet); }
-.compose-button:disabled { background: var(--accent-wash); color: var(--muted); opacity: 1; }
 /* Quiet mailbox metadata and participant contact access. */
 .thread-secondary { display: flex; min-width: 0; align-items: center; gap: 9px; color: var(--muted); }
 .thread-secondary .thread-sender-badge { max-width: min(28ch, 46vw); background: transparent; padding-inline: 0; color: var(--muted); font-size: 12px; font-weight: 560; }
@@ -212,7 +208,7 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
   .inbox-heading { gap: 8px; padding: 11px 0 20px; }
   .inbox-heading h1 { font-size: clamp(28px, 8vw, 34px); letter-spacing: -0.035em; }
   .heading-actions { gap: 6px; }
-  .compose-button, .screener-done { min-height: 38px; padding-inline: 12px; font-size: 12px; }
+  .screener-done { min-height: 38px; padding-inline: 12px; font-size: 12px; }
   .screener-callout { min-height: 38px; min-width: 58px; gap: 5px; padding-inline: 10px; font-size: 12px; }
   .screener-callout-label { display: none; }
   .screener-callout-count { display: inline; font-variant-numeric: tabular-nums; }
