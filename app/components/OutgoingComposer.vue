@@ -856,6 +856,7 @@ onBeforeUnmount(() => {
 .compose-recipient-control { position: relative; min-height: 42px; flex: 1; gap: 6px; padding: 4px 0; }
 .compose-recipient-control input { min-width: 0; flex: 1 1 190px; min-height: 30px; border: 0; outline: 0; appearance: none; background: transparent; color: var(--ink); font: inherit; font-size: 13px; }
 .compose-recipient-control input::placeholder { color: var(--quiet); opacity: .9; }
+.compose-stage .compose-window input:not(.files-search-input):focus-visible { outline: 0; outline-offset: 0; box-shadow: none; }
 .compose-recipient-badge { display: inline-flex; max-width: min(100%, 280px); align-items: center; gap: 2px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 999px; background: color-mix(in srgb, var(--accent-wash) 72%, var(--sheet)); color: var(--ink); font-size: 12px; line-height: 1.35; }
 .compose-recipient-badge-main { display: inline-flex; min-width: 0; align-items: center; gap: 6px; padding: 4px 3px 4px 10px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .compose-recipient-badge-main:focus-visible, .compose-recipient-badge-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
