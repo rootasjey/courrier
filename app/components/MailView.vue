@@ -1069,7 +1069,7 @@ const {
   selectedId,
   selectedMessage,
 })
-const usesInboxReaderLayout = computed(() => isInboxReader.value || ['Paper Trail', 'Set Aside'].includes(activeFolder.value))
+const usesInboxReaderLayout = computed(() => isInboxReader.value || ['Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value))
 
 const mailReply = useMailReply({
   activeMessage: activeThreadMessage,
