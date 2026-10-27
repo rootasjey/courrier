@@ -243,28 +243,6 @@
 .message-reply-later:focus-visible { outline: 2px solid #4e73d8; outline-offset: 2px; }
 .message-reply-later:active:not(:disabled) { transform: translateY(1px); }
 .message-reply-later:disabled { cursor: wait; opacity: .62; }
-.message-action-dock { position: fixed; z-index: 30; right: 24px; bottom: max(18px, env(safe-area-inset-bottom)); left: 24px; display: flex; justify-content: center; pointer-events: none; }
-.message-action-group { display: flex; max-width: 100%; align-items: center; justify-content: center; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 15px; background: color-mix(in srgb, var(--paper) 84%, transparent); box-shadow: 0 10px 30px rgb(24 18 39 / 18%); backdrop-filter: blur(12px); pointer-events: auto; }
-.message-action-dock.has-feed-edition-navigation { display: grid; width: max-content; max-width: calc(100vw - 48px); grid-template-columns: auto minmax(0, max-content); align-items: center; gap: 6px; margin-inline: auto; padding: 6px; border: 1px solid var(--line); border-radius: 17px; background: var(--sheet); box-shadow: 0 8px 22px rgb(37 48 44 / 12%); backdrop-filter: blur(12px); }
-.message-action-dock.has-feed-edition-navigation .feed-edition-navigation-dock { display: flex; width: auto; flex: 0 0 auto; align-items: center; justify-content: center; gap: 2px; padding: 0; border: 0; border-radius: 999px; background: transparent; box-shadow: none; pointer-events: auto; }
-.message-action-dock.has-feed-edition-navigation .message-action-group { padding: 0; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
-.feed-edition-navigation-dock .feed-edition-button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
-.feed-edition-navigation-dock .feed-edition-position { min-width: 60px; font-size: 12px; }
-.message-action-reply, .message-action-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease; }
-.message-action-trash { display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--error); cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease; }
-.message-action-trash:hover:not(:disabled) { border-color: color-mix(in srgb, var(--error) 45%, var(--line)); background: color-mix(in srgb, var(--error) 8%, var(--paper)); }
-.message-action-trash:focus-visible { outline: 3px solid color-mix(in srgb, var(--error) 42%, white); outline-offset: 3px; }
-.message-action-trash:disabled { cursor: wait; opacity: .62; }
-.message-action-trash-icon { display: block; width: 18px; height: 18px; flex: 0 0 18px; }
-.message-action-group .message-action-icon { display: none; width: 18px; height: 18px; flex: 0 0 18px; }
-.message-action-reply { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
-.message-action-reply:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
-.message-action-button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); background: var(--accent-wash); color: var(--accent); }
-.message-action-reply:focus-visible, .message-action-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
-.message-action-reply:disabled, .message-action-button:disabled { cursor: wait; opacity: .62; }
-.message-action-reply:active:not(:disabled), .message-action-button:active:not(:disabled) { transform: translateY(1px); }
-.message-action-group svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.message-action-group kbd, .thread-action-move-trigger kbd { padding: 2px 5px; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); border-radius: 4px; background: transparent; color: inherit; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .76; }
 .message-paper { width: min(100%, 1050px); margin: clamp(48px, 8vh, 96px) auto 32px; }
 .message-subject-heading { position: relative; }
 .message-subject-heading .message-subject { min-width: 0; overflow-wrap: anywhere; }

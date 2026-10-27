@@ -3,7 +3,7 @@
     :open="open"
     :modal="false"
     :_popover-content="{ side: 'top', align: 'start', sideOffset: 9, avoidCollisions: true, 'aria-label': $t('tags.assign') }"
-    :una="{ popoverContent: 'thread-tag-picker topbar-popover-surface' }"
+    :una="{ popoverContent: 'thread-tag-picker topbar-popover-surface z-[140]' }"
     @update:open="setOpen"
   >
     <template #trigger>

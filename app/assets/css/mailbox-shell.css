@@ -235,16 +235,10 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
   .screener-row { gap: 7px; }
   .screener-choice { width: 56px; min-height: 54px; }
   .screener-actions { gap: 10px; }
-  .reading-column { min-height: calc(100vh - 112px); padding-bottom: 82px; }
+  .reading-column { min-height: calc(100vh - 112px); }
   .message-paper { margin: 0 auto 24px; padding: 22px 18px; border-radius: 14px; }
   .message-subject { margin-bottom: 21px; font-size: clamp(27px, 8vw, 34px); }
   .message-paper > p, .message-rich-body { font-size: 14px; line-height: 1.75; }
-  .message-action-dock { right: 8px; left: 8px; }
-  .message-action-group { justify-content: flex-start; gap: 5px; padding: 6px; }
-  .message-action-reply, .message-action-button { min-height: 44px; padding-inline: 10px; font-size: 11px; }
-  .message-action-group .message-action-button { padding: 0; }
-  .message-action-trash { width: 44px; height: 44px; flex-basis: 44px; }
-  .message-action-group kbd, .thread-action-move-trigger kbd { display: none; }
 }
 
 :root[data-theme="dark"] .message-action-reply { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }

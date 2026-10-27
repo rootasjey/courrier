@@ -1,100 +1,121 @@
 <template>
-  <Teleport to="body">
-    <Transition name="message-action-dock" appear>
-      <div class="message-action-dock" :class="{ 'has-feed-edition-navigation': state.feedNavigation }" role="toolbar" :aria-label="$t('mail.messageActions')">
-        <nav v-if="state.feedNavigation" class="feed-edition-navigation feed-edition-navigation-dock" :aria-label="$t('mail.feedNavigation')">
-          <button class="feed-edition-button" type="button" :aria-label="$t('mail.previousEdition')" :disabled="state.feedNavigation.index <= 0" @click="actions.navigateFeedEdition(-1)">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
+  <footer class="thread-action-footer" :class="{ 'has-feed-edition-navigation': state.feedNavigation }" :aria-label="$t('mail.messageActions')">
+    <nav v-if="state.feedNavigation" class="feed-edition-navigation thread-feed-navigation" :aria-label="$t('mail.feedNavigation')">
+      <button class="feed-edition-button" type="button" :aria-label="$t('mail.previousEdition')" :disabled="state.feedNavigation.index <= 0" @click="actions.navigateFeedEdition(-1)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
+      </button>
+      <span class="feed-edition-position" aria-hidden="true">{{ state.feedNavigation.index + 1 }} / {{ state.feedNavigation.count }}</span>
+      <button class="feed-edition-button is-next" type="button" :aria-label="$t('mail.nextEdition')" :disabled="state.feedNavigation.index >= state.feedNavigation.count - 1" @click="actions.navigateFeedEdition(1)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 4.5 5.5 5.5-5.5 5.5" /></svg>
+      </button>
+    </nav>
+
+    <div class="thread-action-primary-group">
+      <button v-if="!state.replyComposerOpen && state.folder !== 'Trash'" class="thread-action-primary" type="button" @click="actions.openReplyComposer">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
+        <span>{{ $t('mail.reply') }}</span><kbd>R</kbd>
+      </button>
+      <button v-if="state.folder !== 'Trash'" class="thread-action-secondary" type="button" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="actions.forwardActiveMessage">
+        <span>{{ $t('messageActions.forward') }}</span>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3.5 17.5 10 11 16.5v-4c-4.4 0-7 1.2-8.5 4 .2-5.1 2.8-8 8.5-8v-5Z" /></svg>
+      </button>
+
+      <NPopover
+        :open="moreMenuOpen"
+        :modal="false"
+        :_popover-content="{ side: 'top', align: 'end', sideOffset: 10, avoidCollisions: true, 'aria-label': $t('mail.moreMessageActions') }"
+        :una="{ popoverContent: 'thread-actions-popover topbar-popover-surface z-[120]' }"
+        @update:open="moreMenuOpen = $event"
+      >
+        <template #trigger>
+          <button class="thread-action-more-trigger" type="button" aria-haspopup="dialog" :aria-expanded="moreMenuOpen" :aria-label="$t('mail.moreMessageActions')">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.2"/><circle cx="10" cy="10" r="1.2"/><circle cx="16" cy="10" r="1.2"/></svg>
           </button>
-          <span class="feed-edition-position" aria-hidden="true">{{ state.feedNavigation.index + 1 }} / {{ state.feedNavigation.count }}</span>
-          <button class="feed-edition-button is-next" type="button" :aria-label="$t('mail.nextEdition')" :disabled="state.feedNavigation.index >= state.feedNavigation.count - 1" @click="actions.navigateFeedEdition(1)">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 4.5 5.5 5.5-5.5 5.5" /></svg>
-          </button>
-        </nav>
-        <div class="message-action-group">
-          <button v-if="!state.replyComposerOpen && state.folder !== 'Trash'" class="message-action-reply" type="button" @click="actions.openReplyComposer">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
-            <span>{{ $t('mail.reply') }}</span><kbd>R</kbd>
-          </button>
-          <button v-if="state.folder !== 'Trash'" class="message-action-button" type="button" :aria-label="$t(state.isMarkingThreadUnseen ? 'messageActions.markingUnseen' : 'messageActions.markUnseen')" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="actions.markOpenThreadUnseen">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 4.5h15v11h-15z" /><path d="m3 5 7 5.5L17 5" /><circle cx="15.5" cy="4" r="2.5" /></svg>
-            <span class="message-action-label">{{ $t(state.isMarkingThreadUnseen ? 'messageActions.markingUnseen' : 'messageActions.markUnseen') }}</span><kbd>U</kbd>
-          </button>
-          <button v-if="state.folder !== 'Trash'" class="message-action-button" type="button" :aria-label="$t('messageActions.forward')" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="actions.forwardActiveMessage">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3.5 17.5 10 11 16.5v-4c-4.4 0-7 1.2-8.5 4 .2-5.1 2.8-8 8.5-8v-5Z" /></svg>
-            <span class="message-action-label">{{ $t('messageActions.forward') }}</span>
-          </button>
-          <div class="message-action-more">
-            <button class="message-action-button message-action-more-trigger" type="button" aria-haspopup="menu" :aria-expanded="moreMenuOpen" :aria-label="$t('mail.messageActions')" @click="moreMenuOpen = !moreMenuOpen">
-              <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1"/><circle cx="10" cy="10" r="1"/><circle cx="16" cy="10" r="1"/></svg>
+        </template>
+        <template #default>
+          <section class="thread-action-menu-content">
+            <h2>{{ $t('mail.moreMessageActions') }}</h2>
+
+            <button v-if="state.folder !== 'Trash'" class="thread-action-menu-item" type="button" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="markUnseen">
+              <span class="i-tabler-mail-down" aria-hidden="true" />
+              <span>{{ $t(state.isMarkingThreadUnseen ? 'messageActions.markingUnseen' : 'messageActions.markUnseen') }}</span>
+              <kbd>U</kbd>
             </button>
-            <div v-if="moreMenuOpen" class="message-action-more-menu" role="menu">
-              <button role="menuitem" type="button" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="actions.markOpenThreadUnseen(); moreMenuOpen = false">{{ $t('messageActions.markUnseen') }}</button>
-              <button v-if="state.showTrash" role="menuitem" type="button" :disabled="state.isTrashingThread" @click="actions.openTrashDialog(); moreMenuOpen = false">{{ $t('palette.trashTitle') }}</button>
+
+            <NCombobox
+              v-if="state.move.visible"
+              class="thread-action-move"
+              :items="state.move.options"
+              by="value"
+              :open="state.move.open"
+              :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread"
+              :_combobox-input="{ placeholder: $t('bulk.findFolder'), autocomplete: 'off', leading: 'i-lucide-search' }"
+              :_combobox-list="{ align: 'start', side: 'top', sideOffset: 8, class: 'thread-action-move-list z-[130]' }"
+              :_combobox-viewport="{ class: 'thread-action-move-viewport' }"
+              :_combobox-trigger="{ class: 'thread-action-move-trigger thread-action-menu-item', trailing: 'i-lucide-chevron-down', ariaLabel: $t('messageActions.moveToFolder') }"
+              :_combobox-item="{ class: 'thread-action-move-item' }"
+              :text-empty="$t('bulk.noFoldersFound')"
+              @update:open="actions.setThreadMoveMenuOpen"
+              @update:model-value="moveOpenThread"
+            >
+              <template #trigger>
+                <span class="i-tabler-folder-symlink" aria-hidden="true" />
+                <span>{{ $t('messageActions.move') }}</span>
+                <kbd>V</kbd>
+              </template>
+            </NCombobox>
+            <p v-if="state.move.open" class="thread-action-move-shortcuts">
+              <span v-for="option in state.move.options" :key="option.value"><kbd>{{ moveShortcutFor(option.value) }}</kbd> {{ option.label }}</span>
+            </p>
+
+            <div v-if="state.tagPicker" class="thread-action-tag-row">
+              <span class="i-tabler-tag" aria-hidden="true" />
+              <span>{{ $t('tags.assign') }}</span>
+              <ThreadTagPicker ref="tagPicker" :tags="state.tagPicker.tags" :assigned="state.tagPicker.assigned" :message-ids="state.tagPicker.messageIds" :can-manage="state.tagPicker.canManage" @changed="actions.refreshTagAssignments" />
             </div>
-          </div>
-          <NCombobox
-            v-if="state.move.visible"
-            class="thread-action-move"
-            :items="state.move.options"
-            by="value"
-            :open="state.move.open"
-            :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread"
-            :_combobox-input="{ placeholder: $t('bulk.findFolder'), autocomplete: 'off', leading: 'i-lucide-search' }"
-            :_combobox-list="{ align: 'start', side: 'top', sideOffset: 8, class: 'thread-action-move-list z-[120]' }"
-            :_combobox-viewport="{ class: 'thread-action-move-viewport' }"
-            :_combobox-trigger="{ class: 'thread-action-move-trigger', trailing: 'i-lucide-chevron-down', ariaLabel: $t('messageActions.moveToFolder') }"
-            :_combobox-item="{ class: 'thread-action-move-item' }"
-            :text-empty="$t('bulk.noFoldersFound')"
-            @update:open="actions.setThreadMoveMenuOpen"
-            @update:model-value="actions.moveOpenThread"
-          >
-            <template #trigger>
-              <svg class="thread-action-move-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h7l2 2h8v10h-17v-12Z" /><path d="M12 11v5m-2-2 2 2 2-2" /></svg>
-              <span class="message-action-label thread-action-move-label">{{ $t('messageActions.move') }}</span><kbd>V</kbd>
+
+            <button v-if="state.folder === 'Trash'" class="thread-action-menu-item" type="button" :disabled="state.isSavingScreenerAction" @click="restoreTrashedMessage">
+              <span class="i-tabler-mailbox" aria-hidden="true" />
+              <span>{{ $t(state.isSavingScreenerAction ? 'mail.restoring' : 'mail.restore') }}</span>
+            </button>
+            <template v-else>
+              <button v-if="state.folder === 'Set Aside'" class="thread-action-menu-item" type="button" :disabled="state.isSavingSetAside" @click="setAsideThread(false)">
+                <span class="i-tabler-mailbox" aria-hidden="true" />
+                <span>{{ $t(state.isSavingSetAside ? 'mail.restoring' : 'mail.restoreToMailbox') }}</span><kbd>A</kbd>
+              </button>
+              <button v-else-if="state.folder === 'Imbox'" class="thread-action-menu-item" type="button" :disabled="state.isSavingSetAside" @click="setAsideThread(true)">
+                <span class="i-tabler-eggs" aria-hidden="true" />
+                <span>{{ $t(state.isSavingSetAside ? 'mail.setAsideSaving' : 'bulk.setAside') }}</span><kbd>A</kbd>
+              </button>
+              <button v-else-if="state.folder !== 'Reply Later'" class="thread-action-menu-item" type="button" @click="openClassification">
+                <span class="i-tabler-mailbox" aria-hidden="true" />
+                <span>{{ $t(state.hasManualMerges ? 'mail.classify' : 'mail.move') }}</span>
+              </button>
+
+              <button v-if="state.folder === 'Reply Later'" class="thread-action-menu-item" type="button" :disabled="state.isSavingReplyLater" @click="setReplyLater(false)">
+                <span class="i-tabler-message-reply" aria-hidden="true" />
+                <span>{{ $t(state.isSavingReplyLater ? 'mail.replyLaterRemoveSaving' : 'mail.removeFromReplyLater') }}</span><kbd>L</kbd>
+              </button>
+              <button v-else-if="state.folder !== 'Set Aside'" class="thread-action-menu-item" type="button" :disabled="state.isSavingReplyLater" @click="setReplyLater(true)">
+                <span class="i-tabler-message-reply" aria-hidden="true" />
+                <span>{{ $t(state.isSavingReplyLater ? 'mail.replyLaterSaving' : 'bulk.replyLater') }}</span><kbd>L</kbd>
+              </button>
             </template>
-          </NCombobox>
-          <ThreadTagPicker v-if="state.tagPicker" ref="tagPicker" :tags="state.tagPicker.tags" :assigned="state.tagPicker.assigned" :message-ids="state.tagPicker.messageIds" :can-manage="state.tagPicker.canManage" @changed="actions.refreshTagAssignments" />
-          <button v-if="state.folder === 'Trash'" class="message-action-button" type="button" :aria-label="$t(state.isSavingScreenerAction ? 'mail.restoring' : 'mail.restore')" :disabled="state.isSavingScreenerAction" @click="actions.restoreTrashedMessage">
-            <span class="message-action-icon i-tabler-mailbox" aria-hidden="true" />
-            <span class="message-action-label">{{ $t(state.isSavingScreenerAction ? 'mail.restoring' : 'mail.restore') }}</span>
-          </button>
-          <template v-else>
-            <button v-if="state.folder === 'Set Aside'" class="message-action-button" type="button" :aria-label="$t(state.isSavingSetAside ? 'mail.restoring' : 'mail.restoreToMailbox')" :disabled="state.isSavingSetAside" @click="actions.setAsideThread(false)">
-              <span class="message-action-icon i-tabler-mailbox" aria-hidden="true" />
-              <span class="message-action-label">{{ $t(state.isSavingSetAside ? 'mail.restoring' : 'mail.restoreToMailbox') }}</span><kbd>A</kbd>
+
+            <button v-if="state.showTrash" class="thread-action-menu-item is-destructive" type="button" :disabled="state.isTrashingThread" @click="openTrashDialog">
+              <span class="i-tabler-trash" aria-hidden="true" />
+              <span>{{ $t('bulk.trash') }}</span><kbd>T</kbd>
             </button>
-            <button v-else-if="state.folder === 'Imbox'" class="message-action-button" type="button" :aria-label="state.isSavingSetAside ? $t('mail.setAsideSaving') : $t('bulk.setAside')" :disabled="state.isSavingSetAside" @click="actions.setAsideThread(true)">
-              <span class="message-action-icon i-tabler-eggs" aria-hidden="true" />
-              <span class="message-action-label">{{ $t(state.isSavingSetAside ? 'mail.setAsideSaving' : 'bulk.setAside') }}</span><kbd>A</kbd>
-            </button>
-            <button v-else-if="state.folder !== 'Reply Later'" class="message-action-button" type="button" :aria-label="$t(state.hasManualMerges ? 'mail.classify' : 'mail.move')" @click="actions.openClassification">
-              <span class="message-action-icon i-tabler-mailbox" aria-hidden="true" />
-              <span class="message-action-label">{{ $t(state.hasManualMerges ? 'mail.classify' : 'mail.move') }}</span>
-            </button>
-            <button v-if="state.folder === 'Reply Later'" class="message-action-button" type="button" :aria-label="$t(state.isSavingReplyLater ? 'mail.replyLaterRemoveSaving' : 'mail.removeFromReplyLater')" :disabled="state.isSavingReplyLater" @click="actions.setReplyLater(false)">
-              <span class="message-action-icon i-tabler-message-reply" aria-hidden="true" />
-              <span class="message-action-label">{{ $t(state.isSavingReplyLater ? 'mail.replyLaterRemoveSaving' : 'mail.removeFromReplyLater') }}</span><kbd>L</kbd>
-            </button>
-            <button v-else-if="state.folder !== 'Set Aside'" class="message-action-button" type="button" :aria-label="$t(state.isSavingReplyLater ? 'mail.replyLaterSaving' : 'bulk.replyLater')" :disabled="state.isSavingReplyLater" @click="actions.setReplyLater(true)">
-              <span class="message-action-icon i-tabler-message-reply" aria-hidden="true" />
-              <span class="message-action-label">{{ $t(state.isSavingReplyLater ? 'mail.replyLaterSaving' : 'bulk.replyLater') }}</span><kbd>L</kbd>
-            </button>
-          </template>
-          <NTooltip v-if="state.showTrash" :content="$t('palette.trashActionDescription')">
-            <button class="message-action-trash" type="button" :aria-label="$t('palette.trashTitle')" :disabled="state.isTrashingThread" @click="actions.openTrashDialog">
-              <span class="message-action-trash-icon i-icon-park-outline-delete-themes" aria-hidden="true" />
-            </button>
-          </NTooltip>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+          </section>
+        </template>
+      </NPopover>
+    </div>
+  </footer>
 </template>
 
 <script setup lang="ts">
 import ThreadTagPicker from '~/components/ThreadTagPicker.vue'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import type { MailboxFolder, WorkspaceTag } from '~/types/mail'
 import type { MailboxKey } from '~/utils/mailbox-routing'
 
@@ -141,9 +162,59 @@ const tagPicker = ref<{
   closePicker: () => Promise<void>
   isPickerOpen: () => boolean
 } | null>(null)
+const moveShortcutKeys: Partial<Record<MailboxFolder, string>> = {
+  Imbox: 'I',
+  'The Feed': 'F',
+  'Paper Trail': 'P',
+}
+
+async function closeMenu(action: () => void | Promise<void>) {
+  moreMenuOpen.value = false
+  await action()
+}
+
+function markUnseen() {
+  return closeMenu(actions.markOpenThreadUnseen)
+}
+
+function moveOpenThread(folder: MailboxFolder) {
+  return closeMenu(() => actions.moveOpenThread(folder))
+}
+
+function restoreTrashedMessage() {
+  return closeMenu(actions.restoreTrashedMessage)
+}
+
+function setAsideThread(isSetAside: boolean) {
+  return closeMenu(() => actions.setAsideThread(isSetAside))
+}
+
+function openClassification() {
+  return closeMenu(actions.openClassification)
+}
+
+function setReplyLater(isReplyLater: boolean) {
+  return closeMenu(() => actions.setReplyLater(isReplyLater))
+}
+
+function openTrashDialog() {
+  return closeMenu(actions.openTrashDialog)
+}
 
 async function openTagPicker() {
   await tagPicker.value?.openPicker()
+}
+
+async function openMovePicker() {
+  moreMenuOpen.value = true
+  await nextTick()
+  actions.setThreadMoveMenuOpen(true)
+  await nextTick()
+  document.querySelector<HTMLInputElement>('.thread-action-move input')?.focus()
+}
+
+function moveShortcutFor(folder: MailboxFolder) {
+  return moveShortcutKeys[folder] ?? ''
 }
 
 async function closeTagPicker() {
@@ -154,5 +225,10 @@ function isTagPickerOpen() {
   return tagPicker.value?.isPickerOpen() ?? false
 }
 
-defineExpose({ openTagPicker, closeTagPicker, isTagPickerOpen })
+function selectMoveFolder(folder: MailboxFolder) {
+  const destination = state.move.options.find(option => option.value === folder)
+  if (destination) return moveOpenThread(destination)
+}
+
+defineExpose({ openTagPicker, closeTagPicker, isTagPickerOpen, openMovePicker, selectMoveFolder, openTrashDialog })
 </script>

@@ -409,6 +409,12 @@
         </div>
       </article>
 
+      <MailThreadActionDock
+        ref="threadActionDock"
+        :state="threadActionDockState"
+        :actions="threadActionDockActions"
+      />
+
       <form v-if="replyComposerOpen" class="reply-composer" @submit.prevent="requestReplySend">
         <div class="reply-composer-to"><span>{{ $t('mail.recipient') }}</span><strong>{{ replyRecipient }}</strong></div>
         <label class="sr-only" for="reply-body">{{ $t('mail.yourReply') }}</label>
@@ -422,11 +428,6 @@
           </button>
         </div>
       </form>
-      <MailThreadActionDock
-        ref="threadActionDock"
-        :state="threadActionDockState"
-        :actions="threadActionDockActions"
-      />
     </section>
 
     <MailViewDialogs
@@ -561,6 +562,9 @@ const threadActionDock = ref<{
   openTagPicker: () => Promise<void>
   closeTagPicker: () => Promise<void>
   isTagPickerOpen: () => boolean
+  openMovePicker: () => Promise<void>
+  selectMoveFolder: (folder: MailboxFolder) => void | Promise<void>
+  openTrashDialog: () => void | Promise<void>
 } | null>(null)
 const openedFromList = ref(false)
 const screenerActionError = ref('')
@@ -1243,6 +1247,56 @@ function shouldIgnorePageShortcut(event: KeyboardEvent) {
   return threadMoveMenuOpen.value || event.altKey || event.ctrlKey || event.metaKey
 }
 
+function handleThreadMoveMenuShortcut(event: KeyboardEvent) {
+  if (!threadMoveMenuOpen.value) return false
+  if (event.altKey || event.ctrlKey || event.metaKey) return false
+
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    setThreadMoveMenuOpen(false)
+    document.querySelector<HTMLButtonElement>('.thread-action-move-trigger')?.focus()
+    return true
+  }
+
+  const folderByShortcut: Record<string, MailboxFolder> = {
+    i: 'Imbox',
+    f: 'The Feed',
+    p: 'Paper Trail',
+  }
+  const folder = folderByShortcut[event.key.toLocaleLowerCase('en-US')]
+  if (!folder || !bulkMoveOptions.value.some(option => option.value === folder)) return false
+
+  event.preventDefault()
+  setThreadMoveMenuOpen(false)
+  void threadActionDock.value?.selectMoveFolder(folder)
+  return true
+}
+
+function handleThreadTrashShortcut(event: KeyboardEvent) {
+  const target = event.target
+  if (
+    !isReadingMessage.value
+    || !selectedThread.value
+    || event.key.toLocaleLowerCase('en-US') !== 't'
+    || event.shiftKey
+    || event.altKey
+    || event.ctrlKey
+    || event.metaKey
+    || activeFolder.value === 'Trash'
+    || !['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value)
+    || isTrashingThread.value
+    || threadTrashDialogOpen.value
+    || threadMoveMenuOpen.value
+  ) return false
+
+  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [role="textbox"]'))) return false
+  if (target instanceof Element && target.closest('.thread-tag-picker, [role="dialog"]:not(.thread-actions-popover)')) return false
+
+  event.preventDefault()
+  void threadActionDock.value?.openTrashDialog()
+  return true
+}
+
 function handleScreenerAndStackShortcut(event: KeyboardEvent) {
   if (event.key === 'Escape' && activeFolder.value === 'Screener' && !isReadingMessage.value && !isGlobalSearch.value) {
     if (hasOpenKeyboardSurface()) return true
@@ -1371,8 +1425,7 @@ function handleThreadReaderShortcut(event: KeyboardEvent) {
   }
   if (key === 'v' && ['Imbox', 'The Feed', 'Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value) && !isMarkingThreadUnseen.value && !isMovingOpenThread.value) {
     event.preventDefault()
-    threadMoveMenuOpen.value = true
-    void nextTick(() => document.querySelector<HTMLInputElement>('.thread-action-move input')?.focus())
+    void threadActionDock.value?.openMovePicker()
     return true
   }
   if (event.key === 'Escape') {
@@ -1424,6 +1477,8 @@ function handleThreadReaderShortcut(event: KeyboardEvent) {
 
 useMailKeyboardShortcuts([
   handlePriorityKeyboardShortcut,
+  handleThreadMoveMenuShortcut,
+  handleThreadTrashShortcut,
   event => shouldIgnorePageShortcut(event) || handleScreenerKeyboardShortcut(event),
   handleScreenerAndStackShortcut,
   handleThreadSelectionShortcut,

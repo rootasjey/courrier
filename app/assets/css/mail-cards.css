@@ -395,12 +395,6 @@
 .attachment-download-zip { margin-left: auto; color: var(--accent); font-size: 10px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .attachment-download-zip:hover { color: var(--accent-hover); }
 
-.message-action-more { position: relative; }
-.message-action-more-trigger { width: 42px; padding: 0; }
-.message-action-more-menu { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5; display: grid; min-width: 175px; padding: 5px; border: 1px solid var(--line); border-radius: 11px; background: var(--sheet); box-shadow: 0 8px 24px rgb(29 23 39 / 18%); }
-.message-action-more-menu button { padding: 9px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
-.message-action-more-menu button:hover:not(:disabled), .message-action-more-menu button:focus-visible { background: var(--accent-wash); color: var(--accent); }
-.message-action-more-menu button:disabled { opacity: .6; }
 
 @media (hover: none) {
   .thread-attachment-menu-trigger { opacity: 1; visibility: visible; }
