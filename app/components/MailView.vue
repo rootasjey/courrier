@@ -333,7 +333,7 @@
         <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">{{ $t('mail.retryMarkRead') }}</button>
       </div>
 
-      <article class="message-paper" :class="{ 'feed-reader-paper': isFeedReader, 'inbox-reader-paper': isInboxReader || activeFolder === 'Paper Trail' }" :aria-label="isFeedReader && activeThreadMessage ? $t('mail.messageFrom', { sender: activeThreadMessage.sender }) : undefined">
+      <article class="message-paper" :class="{ 'feed-reader-paper': isFeedReader, 'inbox-reader-paper': usesInboxReaderLayout }" :aria-label="isFeedReader && activeThreadMessage ? $t('mail.messageFrom', { sender: activeThreadMessage.sender }) : undefined">
         <div v-if="!isFeedReader && selectedThread?.manualMergeIds.length" class="merged-thread-control">
           <span>{{ $t('mail.mergedConversationNote') }}</span>
           <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
@@ -376,7 +376,7 @@
               :key="activeThreadMessage.id"
               :message="activeThreadMessage"
               :thread-id="selectedThread?.id || activeThreadMessage.threadId"
-              :is-inbox-reader="isInboxReader || activeFolder === 'Paper Trail'"
+              :is-inbox-reader="usesInboxReaderLayout"
               :is-loading="isThreadContentLoading"
               :show-back-button="false"
               :folder-label="mailboxByName(activeFolder).label"
@@ -395,7 +395,7 @@
               variant="full"
               :message="message"
               :thread-id="selectedThread?.id || message.threadId"
-              :is-inbox-reader="isInboxReader || activeFolder === 'Paper Trail'"
+              :is-inbox-reader="usesInboxReaderLayout"
               :is-loading="isThreadContentLoading"
               :is-selected="message.id === activeThreadMessage?.id"
               :show-back-button="false"
@@ -1069,6 +1069,7 @@ const {
   selectedId,
   selectedMessage,
 })
+const usesInboxReaderLayout = computed(() => isInboxReader.value || ['Paper Trail', 'Set Aside'].includes(activeFolder.value))
 
 const mailReply = useMailReply({
   activeMessage: activeThreadMessage,
