@@ -27,21 +27,21 @@
             aria-controls="command-palette-options"
             @input="scheduleSearch"
           >
-          <button class="command-palette-close" type="button" :aria-label="$t('palette.close')" @click="close">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+          <button class="command-palette-escape" type="button" :aria-label="$t('palette.close')" @click="close">
+            <kbd>ESC</kbd>
           </button>
         </div>
 
         <div id="command-palette-options" ref="optionsElement" class="command-palette-options" role="listbox" :aria-label="$t('palette.suggestions')">
           <div class="command-palette-highlight" :style="activeHighlightStyle" aria-hidden="true" />
-          <div v-for="section in commandSections" :key="section.id" class="command-palette-section" :class="{ 'is-mailbox-section': section.id === 'mailboxes' }" role="group" :aria-label="section.label">
+          <div v-for="section in commandSections" :key="section.id" class="command-palette-section" role="group" :aria-label="section.label">
             <p class="command-palette-heading">{{ section.label }}</p>
             <button
               v-for="{ item, index } in section.items"
               :id="optionId(index)"
               :key="item.id"
               class="command-palette-option"
-              :class="{ 'is-active': activeIndex === index, 'is-mailbox-option': section.id === 'mailboxes' }"
+              :class="{ 'is-active': activeIndex === index, 'is-recent-option': item.kind === 'recent' }"
               :style="{ '--palette-stagger-index': index }"
               type="button"
               role="option"
@@ -49,14 +49,24 @@
               @mouseenter="activeIndex = index"
               @click="runCommand(item)"
             >
-              <span class="command-option-icon" aria-hidden="true">
-                <span v-if="typeof item.icon === 'string'" class="command-palette-icon" :class="[item.icon, item.kind === 'navigation' ? 'is-navigation' : 'is-action']" />
-                <component :is="item.icon" v-else />
-              </span>
-              <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description && section.id !== 'mailboxes'">{{ item.description }}</small></span>
-              <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
+              <template v-if="item.kind === 'recent'">
+                <span class="command-recent-copy">
+                  <span class="command-recent-sender"><span class="sender-avatar command-result-avatar" :class="`avatar-${senderColor(item.id)}`" aria-hidden="true">{{ senderInitials(item.label) }}</span><strong>{{ item.label }}</strong></span>
+                  <strong class="command-recent-subject">{{ item.subject }}</strong>
+                  <small class="command-recent-snippet">{{ item.description }}</small>
+                </span>
+              </template>
+              <template v-else>
+                <span class="command-option-icon" aria-hidden="true">
+                  <span v-if="typeof item.icon === 'string'" class="command-palette-icon" :class="[item.icon, item.kind === 'navigation' ? 'is-navigation' : 'is-action']" />
+                  <component :is="item.icon" v-else />
+                </span>
+                <span class="command-option-copy"><strong>{{ item.label }}</strong><small v-if="item.description">{{ item.description }}</small></span>
+                <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
+              </template>
             </button>
           </div>
+          <p v-if="!prefix && !query.trim() && !recentThreadItems.length" class="command-palette-empty">{{ $t('palette.noRecentThreads') }}</p>
           <p v-if="!filteredCommands.length && prefix === '/' && (commandContext.threadIds.length || commandContext.source === 'Screener')" class="command-palette-empty">{{ $t('palette.noActions') }}</p>
           <p v-else-if="!filteredCommands.length && prefix === '@'" class="command-palette-empty">{{ $t('palette.noNavigation') }}</p>
           <p v-if="prefix === '/' && !commandContext.threadIds.length && commandContext.source !== 'Screener'" class="command-palette-empty">{{ $t('palette.actionsNeedSelection') }}</p>
@@ -76,33 +86,31 @@
               @mouseenter="activeIndex = filteredCommands.length + index"
               @click="openResult(result)"
             >
-              <span class="command-option-copy command-result-copy">
-                <span class="command-result-title-row">
-                  <strong>
-                    <template v-for="(part, partIndex) in textMatchParts(result.subject || $t('palette.open'))" :key="partIndex">
-                      <mark v-if="part.matched" class="command-result-match">{{ part.text }}</mark>
-                      <template v-else>{{ part.text }}</template>
-                    </template>
-                  </strong>
-                  <NTooltip :content="absoluteMailDate(result.timestamp)" :una="{ tooltipContent: 'compose-tooltip-content z-[140]' }">
-                    <time :datetime="result.timestamp">{{ relativeMailDate(result.timestamp) }}</time>
-                  </NTooltip>
+              <span class="command-recent-copy command-result-copy">
+                <span class="command-recent-sender command-result-title-row">
+                  <span class="command-result-sender-group">
+                    <span class="sender-avatar command-result-avatar" :class="`avatar-${senderColor(result.id)}`" aria-hidden="true">{{ senderInitials(result.sender) }}</span>
+                    <strong class="command-result-sender">
+                      <template v-for="(part, partIndex) in textMatchParts(result.sender)" :key="partIndex">
+                        <mark v-if="part.matched" class="command-result-match">{{ part.text }}</mark>
+                        <template v-else>{{ part.text }}</template>
+                      </template>
+                    </strong>
+                  </span>
+                  <span class="command-result-detail-meta">
+                    <NTooltip :content="absoluteMailDate(result.timestamp)" :una="{ tooltipContent: 'compose-tooltip-content z-[140]' }">
+                      <time :datetime="result.timestamp">{{ relativeMailDate(result.timestamp) }}</time>
+                    </NTooltip>
+                    <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
+                  </span>
                 </span>
-                <span class="command-result-detail-row">
-                  <small class="command-result-description">
-                    <span class="command-result-sender-group">
-                      <span class="sender-avatar command-result-avatar" :class="`avatar-${senderColor(result.id)}`" aria-hidden="true">{{ senderInitials(result.sender) }}</span>
-                      <span class="command-result-sender">
-                        <template v-for="(part, partIndex) in textMatchParts(result.sender)" :key="partIndex">
-                          <mark v-if="part.matched" class="command-result-match">{{ part.text }}</mark>
-                          <template v-else>{{ part.text }}</template>
-                        </template>
-                      </span>
-                    </span>
-                    <span v-if="result.snippet" class="command-result-body-match">{{ $t('palette.bodyMatch') }}</span>
-                  </small>
-                  <span class="command-result-folder">{{ folderLabel(result.folder) }}</span>
-                </span>
+                <strong class="command-recent-subject">
+                  <template v-for="(part, partIndex) in textMatchParts(result.subject || $t('palette.open'))" :key="partIndex">
+                    <mark v-if="part.matched" class="command-result-match">{{ part.text }}</mark>
+                    <template v-else>{{ part.text }}</template>
+                  </template>
+                </strong>
+                <small v-if="result.snippet" class="command-recent-snippet">{{ result.snippet }}</small>
               </span>
             </button>
             <p v-if="searchPending" class="command-palette-empty">{{ $t('palette.searching') }}</p>
@@ -150,9 +158,10 @@ type PaletteItem = {
   description: string
   icon: object | string
   shortcut?: string
-  kind: 'action' | 'navigation'
+  kind: 'action' | 'navigation' | 'recent'
   action: 'compose' | 'navigate' | 'mail' | 'clear-screener'
   to?: string
+  subject?: string
   mailAction?: MailAction
   enabled?: boolean
   destination?: MailboxKey
@@ -208,6 +217,7 @@ const searchResults = ref<SearchResult[]>([])
 const searchPending = ref(false)
 const composeRequest = useState('courrier-compose-request', () => 0)
 const commandContext = useState<CommandContext>('courrier-palette-context', () => ({ source: 'Imbox', threadIds: [], screenerPendingCount: 0 }))
+const { threads: recentThreads } = useRecentMailThreads()
 const screenerClearRequest = useState('courrier-screener-clear-request', () => 0)
 const accountSession = useState<{ isPlatformAdmin: boolean } | null>('courrier-account-session', () => null)
 const paletteFeedback = useState('courrier-palette-feedback', () => '')
@@ -266,31 +276,35 @@ const actionItems = computed<PaletteItem[]>(() => {
   items.push({ id: 'trash', label: $t('bulk.trash'), description: $t('palette.trashActionDescription'), icon: 'i-icon-park-outline-delete-themes', kind: 'action', action: 'mail', mailAction: 'trash' })
   return items
 })
+const recentThreadItems = computed<PaletteItem[]>(() => recentThreads.value.slice(0, 5).map((thread) => ({
+  id: thread.threadId,
+  label: thread.sender,
+  description: thread.snippet.replace(/^\[MESSAGE FICTIF — DONNÉES LOCALES DE DÉMO\]\s*/u, ''),
+  subject: thread.subject,
+  icon: '',
+  kind: 'recent',
+  action: 'navigate',
+  to: threadPath(thread.folder, thread.threadId),
+})))
 
 const prefix = computed(() => query.value.startsWith('/') || query.value.startsWith('@') ? query.value[0] : '')
 const normalizedQuery = computed(() => query.value.trim().replace(/^[/@]\s*/, '').toLocaleLowerCase('fr'))
-const primaryMailboxIds = new Set(['inbox', 'screener', 'feed', 'paper'])
 const filteredCommands = computed(() => {
   const sourceItems = prefix.value === '/'
     ? actionItems.value
     : prefix.value === '@'
       ? navigationItems.value
-      : commandContext.value.source === 'Screener'
-        ? [...actionItems.value, ...navigationItems.value]
-        : [actionItems.value[0]!, ...navigationItems.value]
+      : [...actionItems.value, ...recentThreadItems.value]
   const filtered = sourceItems.filter((item) => {
     if (!normalizedQuery.value) return true
-    return `${item.label} ${item.description}`.toLocaleLowerCase('fr').includes(normalizedQuery.value)
+    return `${item.label} ${item.subject ?? ''} ${item.description}`.toLocaleLowerCase('fr').includes(normalizedQuery.value)
   })
   if (prefix.value) return filtered
-  if (!normalizedQuery.value) {
-    return filtered.filter(item => item.kind === 'action' || primaryMailboxIds.has(item.id))
-  }
+  if (!normalizedQuery.value) return filtered
   return filtered.slice(0, 5)
 })
 const activeOptionId = computed(() => optionId(activeIndex.value))
 const visibleOptionCount = computed(() => filteredCommands.value.length + (!prefix.value && query.value.trim() ? searchResults.value.length : 0))
-const activeMailboxTile = computed(() => !prefix.value && !query.value.trim() && filteredCommands.value[activeIndex.value]?.kind === 'navigation')
 const commandSections = computed(() => {
   const indexedItems = filteredCommands.value.map((item, index) => ({ item, index }))
   if (!indexedItems.length) return []
@@ -299,13 +313,13 @@ const commandSections = computed(() => {
   if (query.value.trim()) return [{ id: 'quick-access', label: $t('palette.quickAccess'), items: indexedItems }]
 
   return [
-    { id: 'actions', label: $t('palette.actions'), items: indexedItems.filter(({ item }) => item.kind === 'action') },
-    { id: 'mailboxes', label: $t('topbar.mailboxes'), items: indexedItems.filter(({ item }) => item.kind === 'navigation') },
+    { id: 'actions', label: $t('palette.quickActions'), items: indexedItems.filter(({ item }) => item.kind === 'action') },
+    { id: 'recent', label: $t('palette.recentThreads'), items: indexedItems.filter(({ item }) => item.kind === 'recent') },
   ].filter(section => section.items.length)
 })
 const activeHighlightStyle = computed(() => ({
   transform: `translateY(${activeHighlight.value.top}px) scaleY(${activeHighlight.value.height / activeHighlight.value.baseHeight})`,
-  opacity: activeHighlight.value.visible && !activeMailboxTile.value ? 1 : 0,
+  opacity: activeHighlight.value.visible ? 1 : 0,
 }))
 
 function optionId(index: number) { return `command-palette-option-${index}` }

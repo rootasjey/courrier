@@ -959,6 +959,19 @@ function threadListRowProps(thread: MessageThread, variant: 'inbox' | 'paper' | 
 }
 
 const selectedThread = computed(() => folderThreads.value.find(thread => thread.id === selectedId.value))
+const { remember: rememberRecentThread } = useRecentMailThreads()
+watch(selectedThread, (thread) => {
+  if (!thread || !selectedId.value || ['Screener', 'Trash'].includes(activeFolder.value)) return
+
+  rememberRecentThread({
+    folder: activeFolder.value,
+    threadId: thread.id,
+    sender: thread.latest.sender,
+    subject: thread.subject,
+    snippet: thread.latest.preview.replace(/^\[MESSAGE FICTIF — DONNÉES LOCALES DE DÉMO\]\s*/u, ''),
+    timestamp: thread.latest.timestamp,
+  })
+}, { immediate: true })
 const mailThreadActions = useMailThreadActions({
   activeFolder,
   selectedThread,
