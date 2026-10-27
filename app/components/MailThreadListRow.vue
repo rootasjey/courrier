@@ -1,10 +1,12 @@
 <template>
   <div
     class="thread-selection-row"
+    :style="cardTagStyle"
     :class="[
       variant === 'other-folder' || variant === 'paper' ? 'other-thread-row' : undefined,
       variant === 'inbox' ? 'thread-card-lavender' : undefined,
       variant === 'paper' ? 'thread-card-relief' : undefined,
+      { 'has-tag-accent': variant === 'inbox' && Boolean(thread.tags[0]) },
       { 'is-unread-thread': variant === 'inbox' && thread.unreadCount > 0 },
       {
         'is-thread-selected': selection.selected,
@@ -121,6 +123,19 @@ const props = defineProps<{
 
 const { $t } = useI18n()
 const attachmentCount = computed(() => props.thread.messages.reduce((count, message) => count + message.attachments.length, 0))
+const tagAccentColors: Record<string, { color: string, wash: string }> = {
+  teal: { color: '#ff933e', wash: '#ffeee2' },
+  blue: { color: '#258bd3', wash: '#e5f2fb' },
+  green: { color: '#4b943e', wash: '#e8f2e5' },
+  amber: { color: '#ffcb56', wash: '#fff4d6' },
+  rose: { color: '#ff6081', wash: '#ffe8ee' },
+  violet: { color: '#705eff', wash: '#eeeafe' },
+}
+const cardTagStyle = computed(() => {
+  if (props.variant !== 'inbox') return undefined
+  const accent = tagAccentColors[props.thread.tags[0]?.color]
+  return accent ? { '--tag-card-color': accent.color, '--tag-card-wash': accent.wash } : undefined
+})
 
 function openCardFromBackground(event: MouseEvent) {
   const target = event.target

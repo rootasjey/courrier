@@ -1116,6 +1116,8 @@
     "all": "All",
     "manage": "Manage tags",
     "pageDescription": "Tags in this workspace are shared with all its members.",
+    "createHeading": "Create a tag",
+    "listHeading": "Available tags",
     "name": "Tag name",
     "namePlaceholder": "New tag",
     "color": "Tag color",
@@ -1132,6 +1134,9 @@
     "saveError": "The tag could not be saved. Check its name and try again.",
     "deleteError": "The tag could not be deleted. Try again.",
     "rename": "Rename {name}",
+    "edit": "Edit {name}",
+    "actionsFor": "Actions for {name}",
+    "saveChanges": "Save changes",
     "saveName": "Save the name of {name}",
     "delete": "Delete {name}",
     "deleteTitle": "Delete this tag?",
@@ -1139,10 +1144,10 @@
     "cancel": "Cancel",
     "deleteConfirm": "Delete",
     "colors": {
-      "teal": "Teal",
+      "teal": "Orange",
       "blue": "Blue",
       "green": "Green",
-      "amber": "Amber",
+      "amber": "Yellow",
       "rose": "Rose",
       "violet": "Violet"
     }

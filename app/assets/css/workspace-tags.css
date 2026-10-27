@@ -1,0 +1,344 @@
+/* This feature stylesheet stays unlayered so its controls can override UnaUI's unlayered reset. */
+.workspace-tags-page {
+  min-height: 100%;
+  padding: 34px clamp(20px, 5vw, 72px) 72px;
+}
+
+.workspace-tags-view {
+  width: min(100%, 900px);
+  margin: 0 auto;
+}
+
+.workspace-tags-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  margin: 8px 0 40px;
+}
+
+.workspace-tags-heading-copy {
+  position: relative;
+}
+
+.workspace-tags-page .workspace-tags-heading h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(36px, 4vw, 46px);
+  font-weight: 740;
+  letter-spacing: -1.8px;
+  line-height: 1.05;
+}
+
+.workspace-tags-heading p {
+  max-width: 480px;
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.workspace-tags-back {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 620;
+  text-decoration: none;
+  transition: color 140ms ease;
+}
+
+.workspace-tags-back:hover { color: var(--accent); }
+.workspace-tags-back:focus-visible { border-radius: 6px; outline: 2px solid var(--accent); outline-offset: 3px; }
+.workspace-tags-back > span { font-size: 17px; }
+
+.workspace-tags-collection-heading,
+.workspace-tags-collection-title {
+  display: flex;
+  align-items: center;
+}
+
+.workspace-tags-collection-heading {
+  justify-content: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.workspace-tags-collection-title { gap: 11px; }
+
+.workspace-tags-page .workspace-tags-collection-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -.6px;
+  line-height: 1.2;
+}
+
+.workspace-tags-list-count {
+  display: inline-grid;
+  min-width: 27px;
+  height: 27px;
+  place-items: center;
+  padding: 0 7px;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.workspace-tag-add-trigger {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  border-radius: 9px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 130ms ease, background-color 130ms ease;
+}
+
+.workspace-tag-add-trigger:hover { border-color: color-mix(in srgb, var(--accent) 44%, var(--line)); background: color-mix(in srgb, var(--accent-wash) 72%, var(--paper)); }
+.workspace-tag-add-trigger:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 2px; }
+.workspace-tag-add-trigger > span { font-size: 16px; }
+
+.workspace-tag-quick-form,
+.workspace-tag-inline-editor {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) auto auto;
+  align-items: end;
+  gap: 14px 20px;
+}
+
+.workspace-tag-quick-form {
+  margin: 0 0 20px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--paper);
+}
+
+.workspace-tag-name-field {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.workspace-tag-name-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.workspace-tag-name-field input::placeholder { color: var(--quiet); opacity: 1; }
+.workspace-tag-name-field input:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 20%, transparent); outline-offset: 1px; }
+
+.workspace-tag-color-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.workspace-tag-color-picker legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.workspace-tag-color-picker legend span { color: var(--quiet); font-weight: 500; }
+.workspace-tag-color-options { display: flex; align-items: center; gap: 9px; }
+
+.workspace-tag-color-option {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.workspace-tag-color-option.is-selected { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--tag-color); }
+.workspace-tag-color-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.workspace-tag-color-dot { display: block; width: 20px; height: 20px; border: 1px solid color-mix(in srgb, var(--tag-color) 22%, transparent); border-radius: 50%; background: var(--tag-color); }
+
+/* Persisted color IDs stay stable; teal is the orange swatch in the refreshed palette. */
+.tag-color-teal { --tag-color: #ff933e; --tag-wash: #ffeee2; --tag-ink: #8c4a13; }
+.tag-color-blue { --tag-color: #258bd3; --tag-wash: #e5f2fb; --tag-ink: #176393; }
+.tag-color-green { --tag-color: #4b943e; --tag-wash: #e8f2e5; --tag-ink: #32632a; }
+.tag-color-amber { --tag-color: #ffcb56; --tag-wash: #fff4d6; --tag-ink: #775915; }
+.tag-color-rose { --tag-color: #ff6081; --tag-wash: #ffe8ee; --tag-ink: #8c2f48; }
+.tag-color-violet { --tag-color: #705eff; --tag-wash: #eeeafe; --tag-ink: #4b3aa8; }
+
+.workspace-tag-quick-actions { display: flex; align-items: center; gap: 8px; }
+.workspace-tag-cancel-button,
+.workspace-tag-create-button {
+  display: inline-flex;
+  min-height: 39px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 630;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 130ms ease, background-color 130ms ease, color 130ms ease;
+}
+
+.workspace-tag-cancel-button:hover { border-color: var(--line); background: var(--surface-soft); color: var(--ink); }
+.workspace-tag-create-button { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.workspace-tag-create-button:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
+.workspace-tag-create-button:disabled { border-color: var(--line); background: var(--surface-soft); color: var(--quiet); cursor: not-allowed; }
+.workspace-tag-cancel-button:focus-visible, .workspace-tag-create-button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 2px; }
+.workspace-tag-create-button > span { font-size: 15px; }
+
+.workspace-tags-error { margin: 0 0 14px; color: var(--error); font-size: 13px; }
+.workspace-tags-loading { margin: 24px 0; color: var(--muted); font-size: 13px; }
+
+.workspace-tags-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 10px;
+  row-gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workspace-tag-entry {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px 3px 12px;
+  border: 1px solid color-mix(in srgb, var(--tag-color) 27%, var(--line));
+  border-radius: 999px;
+  background: var(--tag-wash);
+  color: var(--tag-ink);
+  transition: border-color 130ms ease, background-color 130ms ease;
+}
+
+.workspace-tag-entry:hover { border-color: color-mix(in srgb, var(--tag-color) 52%, var(--line)); background: color-mix(in srgb, var(--tag-wash) 72%, var(--paper)); }
+.workspace-tag-entry.is-editing { width: 100%; min-height: 0; align-items: stretch; padding: 16px; border-radius: 12px; background: var(--paper); }
+
+.workspace-tag-pill {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  color: var(--tag-ink);
+  font-size: 13px;
+  font-weight: 660;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.workspace-tag-pill:focus-visible { border-radius: 5px; outline: 2px solid var(--accent); outline-offset: 2px; }
+.workspace-tag-pill-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--tag-color); }
+
+.workspace-tag-menu-trigger {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: color-mix(in srgb, var(--tag-ink) 72%, var(--tag-wash));
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.workspace-tag-menu-trigger:hover,
+.workspace-tag-menu-trigger[aria-expanded="true"] { background: color-mix(in srgb, var(--tag-color) 12%, var(--paper)); color: var(--tag-ink); }
+.workspace-tag-menu-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.workspace-tag-menu-trigger.is-muted { visibility: hidden; pointer-events: none; }
+
+.popover-content.workspace-tag-actions-popover { box-sizing: border-box; width: 200px; min-width: 200px; max-width: calc(100vw - 20px); padding: 5px; }
+.workspace-tag-actions-menu { display: grid; gap: 2px; }
+.workspace-tag-actions-menu button { display: flex; min-height: 37px; align-items: center; gap: 9px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.workspace-tag-actions-menu button:hover { background: var(--accent-wash); color: var(--accent); }
+.workspace-tag-actions-menu button.is-danger { color: var(--error); }
+.workspace-tag-actions-menu button.is-danger:hover { background: color-mix(in srgb, var(--error) 9%, var(--paper)); }
+.workspace-tag-actions-menu button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.workspace-tag-actions-menu button > span { font-size: 15px; }
+
+.workspace-tag-inline-editor { width: 100%; }
+.workspace-tag-inline-editor > .workspace-tag-color-picker { padding-top: 1px; }
+.workspace-tag-inline-editor .workspace-tag-quick-actions { justify-content: end; }
+
+.workspace-tags-empty-row { display: block; width: 100%; padding: 18px 0; color: var(--muted); font-size: 13px; }
+.workspace-tag-delete-dialog { color: var(--ink); }
+.workspace-tag-row-enter-active, .workspace-tag-row-leave-active { transition: opacity 140ms ease, transform 140ms ease; }
+.workspace-tag-row-move { transition: transform 160ms cubic-bezier(.2, .75, .25, 1); }
+.workspace-tag-row-enter-from { opacity: 0; transform: translateY(4px); }
+.workspace-tag-row-leave-to { opacity: 0; transform: translateY(-3px); }
+
+@media (max-width: 760px) {
+  .workspace-tags-page { padding: 26px 18px 48px; }
+  .workspace-tags-heading { align-items: flex-start; gap: 16px; margin-bottom: 38px; }
+  .workspace-tags-back { min-height: 34px; font-size: 12px; }
+  .workspace-tag-quick-form, .workspace-tag-inline-editor { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .workspace-tag-quick-actions { justify-content: flex-end; }
+}
+
+@media (max-width: 520px) {
+  .workspace-tags-page { padding: 22px 16px 40px; }
+  .workspace-tags-heading { flex-direction: column; margin: 4px 0 34px; }
+  .workspace-tags-page .workspace-tags-heading h1 { font-size: 36px; }
+  .workspace-tags-heading p { margin-top: 7px; font-size: 13px; }
+  .workspace-tags-collection-heading { gap: 10px; }
+  .workspace-tags-page .workspace-tags-collection-heading h2 { font-size: 20px; }
+  .workspace-tag-add-trigger { min-height: 36px; padding: 0 10px; font-size: 12px; }
+  .workspace-tag-quick-form { padding: 14px; }
+  .workspace-tag-color-options { gap: 11px; }
+  .workspace-tag-entry { min-height: 40px; }
+}
+
+@media (max-width: 350px) {
+  .workspace-tags-collection-heading { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tags-back, .workspace-tag-add-trigger, .workspace-tag-create-button,
+  .workspace-tag-cancel-button, .workspace-tag-color-option, .workspace-tag-entry,
+  .workspace-tag-menu-trigger, .workspace-tag-row-enter-active,
+  .workspace-tag-row-leave-active, .workspace-tag-row-move { transition: none; }
+}

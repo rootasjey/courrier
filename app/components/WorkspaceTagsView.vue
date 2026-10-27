@@ -2,78 +2,112 @@
   <main class="mail-page workspace-tags-page">
     <section class="workspace-tags-view" aria-labelledby="workspace-tags-title">
       <header class="workspace-tags-heading">
-        <div>
+        <div class="workspace-tags-heading-copy">
           <h1 id="workspace-tags-title">{{ $t('tags.title') }}</h1>
           <p>{{ $t('tags.pageDescription') }}</p>
         </div>
-        <NuxtLink class="files-back" to="/mail/inbox">
+        <NuxtLink class="workspace-tags-back" to="/mail/inbox">
           <span class="i-tabler-arrow-left" aria-hidden="true" />
           {{ $t('files.backToInbox') }}
         </NuxtLink>
       </header>
 
-      <form v-if="canManage" class="workspace-tags-create" @submit.prevent="createTag">
-        <label class="workspace-tag-name-field" for="new-workspace-tag">
-          <span>{{ $t('tags.name') }}</span>
-          <input id="new-workspace-tag" v-model="newTagName" maxlength="40" :placeholder="$t('tags.namePlaceholder')" autocomplete="off">
-        </label>
-        <fieldset class="workspace-tag-color-field">
-          <legend>{{ $t('tags.color') }}</legend>
-          <NCombobox
-            :una="{ combobox: 'workspace-tag-color-select' }"
-            :items="tagColorOptions"
-            :model-value="selectedTagColorOption"
-            by="value"
-            :_combobox-input="{ placeholder: $t('tags.color'), autocomplete: 'off' }"
-            :_combobox-list="{ align: 'start', side: 'bottom', sideOffset: 7, class: 'workspace-tag-color-list z-[120]' }"
-            :_combobox-viewport="{ class: 'workspace-tag-color-viewport' }"
-            :_combobox-trigger="{ class: 'workspace-tag-color-trigger', trailing: 'i-lucide-chevron-down', ariaLabel: $t('tags.color') }"
-            :_combobox-item="{ class: 'workspace-tag-color-item' }"
-            :text-empty="$t('tags.colorNoMatches')"
-            @update:model-value="selectNewTagColor"
+      <section class="workspace-tags-collection" aria-labelledby="workspace-tags-collection-title">
+        <header class="workspace-tags-collection-heading">
+          <div class="workspace-tags-collection-title">
+            <h2 id="workspace-tags-collection-title">{{ $t('tags.listHeading') }}</h2>
+            <span class="workspace-tags-list-count">{{ tags.length }}</span>
+          </div>
+          <button
+            v-if="canManage && !editingTagId"
+            ref="addTagTrigger"
+            class="workspace-tag-add-trigger"
+            type="button"
+            :aria-expanded="showCreateForm"
+            @click="toggleCreateForm"
           >
-            <template #trigger>
-              <span class="workspace-tag-color-selected">
-                <span class="workspace-tag-color-dot" :class="`tag-color-${newTagColor}`" aria-hidden="true" />
-                <span>{{ selectedTagColorOption?.label }}</span>
-              </span>
-            </template>
-            <template #item="{ item }">
-              <span class="workspace-tag-color-item-copy">
-                <span class="workspace-tag-color-dot" :class="`tag-color-${item.value}`" aria-hidden="true" />
-                <span>{{ item.label }}</span>
-              </span>
-            </template>
-          </NCombobox>
-        </fieldset>
-        <button type="submit" class="workspace-tag-create-button" :disabled="!newTagName.trim() || saving">{{ saving ? $t('tags.saving') : $t('tags.create') }}</button>
-      </form>
-      <p v-if="error" class="workspace-tags-error" role="alert">{{ error }}</p>
+            <span :class="showCreateForm ? 'i-tabler-minus' : 'i-tabler-plus'" aria-hidden="true" />
+            {{ showCreateForm ? $t('tags.cancel') : $t('tags.createHeading') }}
+          </button>
+        </header>
 
-      <NuxtLink class="workspace-tags-all" to="/mail/inbox">{{ $t('tags.all') }} · {{ $t('mail.inboxLabel') }}</NuxtLink>
-      <div v-if="pending && !initialLoadComplete" class="workspace-tags-empty" role="status">{{ $t('common.loading') }}</div>
-      <TransitionGroup v-else name="workspace-tag-row" tag="ul" class="workspace-tags-list" :aria-label="$t('tags.title')">
-        <li v-if="!tags.length" key="empty" class="workspace-tags-empty-row" role="status">
-          <span class="i-tabler-tag" aria-hidden="true" />
-          <p>{{ canManage ? $t('tags.empty') : $t('tags.emptyReadOnly') }}</p>
-        </li>
-        <li v-for="tag in tags" :key="tag.id" :class="{ 'is-manageable': canManage, 'is-editing': editingTagId === tag.id }">
-          <span v-if="editingTagId === tag.id" class="workspace-tags-mark" :class="`tag-color-${tag.color}`"><span class="workspace-tag-dot" aria-hidden="true" /></span>
-          <NuxtLink v-else class="workspace-tags-link" :to="`/mail/inbox?tag=${encodeURIComponent(tag.id)}`">
-            <span class="workspace-tags-mark" :class="`tag-color-${tag.color}`"><span class="workspace-tag-dot" aria-hidden="true" /></span>
-            <span class="workspace-tags-name">{{ tag.name }}</span>
-            <span class="workspace-tags-open i-tabler-chevron-right" aria-hidden="true" />
-          </NuxtLink>
-          <template v-if="canManage">
-            <label class="sr-only" :for="`tag-name-${tag.id}`">{{ $t('tags.rename', { name: tag.name }) }}</label>
-            <input v-if="editingTagId === tag.id" :id="`tag-name-${tag.id}`" v-model="tagDrafts[tag.id]" class="workspace-tags-rename" maxlength="40" @keydown.enter.prevent="saveTag(tag)" @keydown.esc.prevent.stop="cancelTagEdit(tag)">
-            <button v-if="editingTagId === tag.id" class="workspace-tags-action" type="button" :aria-label="$t('tags.saveName', { name: tag.name })" :disabled="saving || !tagDrafts[tag.id]?.trim() || tagDrafts[tag.id]?.trim() === tag.name" @click="saveTag(tag)"><span class="i-tabler-check" aria-hidden="true" /></button>
-            <button v-else class="workspace-tags-action" type="button" :aria-label="$t('tags.rename', { name: tag.name })" @click="beginTagEdit(tag)"><span class="i-tabler-pencil" aria-hidden="true" /></button>
-            <button v-if="editingTagId === tag.id" class="workspace-tags-action is-cancel" type="button" :aria-label="$t('tags.cancel')" @click="cancelTagEdit(tag)"><span class="i-tabler-x" aria-hidden="true" /></button>
-            <button v-else class="workspace-tags-action is-danger" type="button" :aria-label="$t('tags.delete', { name: tag.name })" :disabled="saving" @click="tagDeleteTarget = tag"><span class="i-tabler-trash" aria-hidden="true" /></button>
-          </template>
-        </li>
-      </TransitionGroup>
+        <form v-if="canManage && showCreateForm" class="workspace-tag-quick-form" @submit.prevent="createTag">
+          <div class="workspace-tag-name-field">
+            <input id="new-workspace-tag" ref="newTagNameInput" v-model="newTagName" maxlength="40" :aria-label="$t('tags.name')" :placeholder="$t('tags.namePlaceholder')" autocomplete="off">
+          </div>
+          <WorkspaceTagColorPicker v-model="newTagColor" :label="$t('tags.color')" />
+          <div class="workspace-tag-quick-actions">
+            <button class="workspace-tag-cancel-button" type="button" @click="cancelCreateTag">{{ $t('tags.cancel') }}</button>
+            <button type="submit" class="workspace-tag-create-button" :disabled="!newTagName.trim() || saving">
+              <span class="i-tabler-check" aria-hidden="true" />
+              {{ saving ? $t('tags.saving') : $t('tags.create') }}
+            </button>
+          </div>
+        </form>
+
+        <p v-if="error" class="workspace-tags-error" role="alert">{{ error }}</p>
+        <p v-if="pending && !initialLoadComplete" class="workspace-tags-loading" role="status">{{ $t('common.loading') }}</p>
+        <TransitionGroup v-else name="workspace-tag-row" tag="ul" class="workspace-tags-cloud" :aria-label="$t('tags.title')">
+          <li v-if="!tags.length" key="empty" class="workspace-tags-empty-row" role="status">
+            <span>{{ canManage ? $t('tags.empty') : $t('tags.emptyReadOnly') }}</span>
+          </li>
+          <li
+            v-for="tag in tags"
+            :key="tag.id"
+            class="workspace-tag-entry"
+            :class="[`tag-color-${editingTagId === tag.id ? tagColorDrafts[tag.id] : tag.color}`, { 'is-editing': editingTagId === tag.id }]"
+          >
+            <template v-if="editingTagId === tag.id">
+              <form class="workspace-tag-inline-editor" @submit.prevent="saveTag(tag)" @keydown.esc.stop.prevent="cancelTagEdit(tag)">
+                <label class="workspace-tag-name-field" :for="`tag-name-${tag.id}`">
+                  <span>{{ $t('tags.name') }}</span>
+                  <input :id="`tag-name-${tag.id}`" v-model="tagDrafts[tag.id]" maxlength="40" autocomplete="off">
+                </label>
+                <WorkspaceTagColorPicker v-model="tagColorDrafts[tag.id]" :label="$t('tags.color')" />
+                <div class="workspace-tag-quick-actions">
+                  <button class="workspace-tag-cancel-button" type="button" @click="cancelTagEdit(tag)">{{ $t('tags.cancel') }}</button>
+                  <button class="workspace-tag-create-button" type="submit" :disabled="!hasTagDraftChanges(tag) || saving || !tagDrafts[tag.id]?.trim()">
+                    <span class="i-tabler-check" aria-hidden="true" />
+                    {{ saving ? $t('tags.saving') : $t('tags.saveChanges') }}
+                  </button>
+                </div>
+              </form>
+            </template>
+            <template v-else>
+              <NuxtLink class="workspace-tag-pill" :to="`/mail/inbox?tag=${encodeURIComponent(tag.id)}`">
+                <span class="workspace-tag-pill-dot" aria-hidden="true" />
+                <span>{{ tag.name }}</span>
+              </NuxtLink>
+              <NPopover
+                v-if="canManage"
+                :open="openTagMenuId === tag.id"
+                :modal="false"
+                :_popover-content="{ side: 'bottom', align: 'end', sideOffset: 6, avoidCollisions: true, 'aria-label': $t('tags.actionsFor', { name: tag.name }) }"
+                :una="{ popoverContent: 'workspace-tag-actions-popover topbar-popover-surface z-[120]' }"
+                @update:open="(open: boolean) => setTagMenuOpen(tag.id, open)"
+              >
+                <template #trigger>
+                  <button class="workspace-tag-menu-trigger" :class="{ 'is-muted': showCreateForm }" type="button" :disabled="showCreateForm" :tabindex="showCreateForm ? -1 : undefined" :aria-hidden="showCreateForm || undefined" :aria-label="$t('tags.actionsFor', { name: tag.name })" :aria-expanded="openTagMenuId === tag.id">
+                    <span class="i-tabler-dots" aria-hidden="true" />
+                  </button>
+                </template>
+                <template #default>
+                  <div class="workspace-tag-actions-menu">
+                    <button type="button" @click="editTagFromMenu(tag)">
+                      <span class="i-tabler-pencil" aria-hidden="true" />
+                      {{ $t('tags.edit', { name: tag.name }) }}
+                    </button>
+                    <button class="is-danger" type="button" @click="deleteTagFromMenu(tag)">
+                      <span class="i-tabler-trash" aria-hidden="true" />
+                      {{ $t('tags.delete', { name: tag.name }) }}
+                    </button>
+                  </div>
+                </template>
+              </NPopover>
+            </template>
+          </li>
+        </TransitionGroup>
+      </section>
     </section>
 
     <NDialog
@@ -100,17 +134,18 @@
 <script setup lang="ts">
 import type { WorkspaceTag } from '~/types/mail'
 const { $t } = useI18n()
-const router = useRouter()
-const tagColors = ['teal', 'blue', 'green', 'amber', 'rose', 'violet']
 const newTagName = ref('')
+const newTagNameInput = ref<HTMLInputElement | null>(null)
+const addTagTrigger = ref<HTMLButtonElement | null>(null)
 const newTagColor = ref('teal')
-const tagColorOptions = computed(() => tagColors.map(color => ({ value: color, label: String($t(`tags.colors.${color}`)) })))
-const selectedTagColorOption = computed(() => tagColorOptions.value.find(option => option.value === newTagColor.value))
+const showCreateForm = ref(false)
 const saving = ref(false)
 const error = ref('')
 const editingTagId = ref<string | null>(null)
+const openTagMenuId = ref<string | null>(null)
 const tagDeleteTarget = ref<WorkspaceTag | null>(null)
 const tagDrafts = ref<Record<string, string>>({})
+const tagColorDrafts = ref<Record<string, string>>({})
 const { data: tagState, pending, refresh } = await useFetch<{ canManage: boolean, canAssign: boolean, tags: WorkspaceTag[] }>('/api/tags', {
   default: () => ({ canManage: false, canAssign: false, tags: [] }),
 })
@@ -118,13 +153,68 @@ const tags = computed(() => tagState.value?.tags ?? [])
 const canManage = computed(() => Boolean(tagState.value?.canManage))
 const initialLoadComplete = ref(false)
 
+onMounted(() => window.addEventListener('keydown', handleTagShortcuts, true))
+onUnmounted(() => window.removeEventListener('keydown', handleTagShortcuts, true))
+
 watch(pending, (isPending) => {
   if (!isPending) initialLoadComplete.value = true
 }, { immediate: true })
 
 watch(tags, (items) => {
   tagDrafts.value = Object.fromEntries(items.map(tag => [tag.id, tag.name]))
+  tagColorDrafts.value = Object.fromEntries(items.map(tag => [tag.id, tag.color]))
 }, { immediate: true })
+
+async function toggleCreateForm() {
+  if (showCreateForm.value) {
+    cancelCreateTag()
+    return
+  }
+  showCreateForm.value = true
+  error.value = ''
+  await nextTick()
+  newTagNameInput.value?.focus()
+}
+
+function handleTagShortcuts(event: KeyboardEvent) {
+  if (event.key === 'Escape' && showCreateForm.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    cancelCreateTag()
+    void nextTick(() => addTagTrigger.value?.focus())
+    return
+  }
+
+  if (event.key.toLowerCase() !== 'n' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.repeat || event.isComposing || showCreateForm.value || editingTagId.value || !canManage.value) return
+  const target = event.target
+  if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  void toggleCreateForm()
+}
+
+function cancelCreateTag() {
+  showCreateForm.value = false
+  newTagName.value = ''
+  newTagColor.value = 'teal'
+  error.value = ''
+}
+
+function setTagMenuOpen(tagId: string, open: boolean) {
+  openTagMenuId.value = open ? tagId : null
+}
+
+function editTagFromMenu(tag: WorkspaceTag) {
+  openTagMenuId.value = null
+  showCreateForm.value = false
+  beginTagEdit(tag)
+}
+
+function deleteTagFromMenu(tag: WorkspaceTag) {
+  openTagMenuId.value = null
+  tagDeleteTarget.value = tag
+}
 
 async function createTag() {
   if (!newTagName.value.trim() || saving.value) return
@@ -132,7 +222,9 @@ async function createTag() {
   error.value = ''
   try {
     await $fetch('/api/tags', { method: 'POST', body: { name: newTagName.value, color: newTagColor.value } })
+    showCreateForm.value = false
     newTagName.value = ''
+    newTagColor.value = 'teal'
     await refresh()
   } catch {
     error.value = $t('tags.saveError')
@@ -141,17 +233,14 @@ async function createTag() {
   }
 }
 
-function selectNewTagColor(option: { value: string } | null | undefined) {
-  if (option) newTagColor.value = option.value
-}
-
 async function saveTag(tag: WorkspaceTag) {
   const name = tagDrafts.value[tag.id]?.trim()
-  if (!name || name === tag.name || saving.value) return
+  const color = tagColorDrafts.value[tag.id]
+  if (!name || !hasTagDraftChanges(tag) || saving.value) return
   saving.value = true
   error.value = ''
   try {
-    await $fetch(`/api/tags/${encodeURIComponent(tag.id)}`, { method: 'PATCH', body: { name, color: tag.color } })
+    await $fetch(`/api/tags/${encodeURIComponent(tag.id)}`, { method: 'PATCH', body: { name, color } })
     editingTagId.value = null
     await refresh()
   } catch {
@@ -162,14 +251,21 @@ async function saveTag(tag: WorkspaceTag) {
 }
 
 function beginTagEdit(tag: WorkspaceTag) {
+  openTagMenuId.value = null
   tagDrafts.value[tag.id] = tag.name
+  tagColorDrafts.value[tag.id] = tag.color
   editingTagId.value = tag.id
   void nextTick(() => document.getElementById(`tag-name-${tag.id}`)?.focus())
 }
 
 function cancelTagEdit(tag: WorkspaceTag) {
   tagDrafts.value[tag.id] = tag.name
+  tagColorDrafts.value[tag.id] = tag.color
   editingTagId.value = null
+}
+
+function hasTagDraftChanges(tag: WorkspaceTag) {
+  return tagDrafts.value[tag.id]?.trim() !== tag.name || tagColorDrafts.value[tag.id] !== tag.color
 }
 
 async function deleteTag() {

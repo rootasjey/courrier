@@ -129,8 +129,7 @@
 }
 
 .thread-selection-row.thread-card-lavender {
-  --card-back: var(--card-back-peach);
-  border-bottom: 3px solid var(--card-back);
+  border-bottom: 3px solid var(--line);
   box-shadow: var(--card-shadow);
 }
 
@@ -139,16 +138,23 @@
   background: color-mix(in srgb, var(--mail-card-surface) 55%, var(--accent-wash));
 }
 
-.thread-selection-row.thread-card-lavender:nth-child(3n + 2) { --card-back: var(--card-back-lilac); }
-.thread-selection-row.thread-card-lavender:nth-child(3n) { --card-back: var(--card-back-sand); }
-.thread-selection-row.thread-card-lavender.is-unread-thread { border-bottom-color: var(--accent-wash); }
-
 .thread-selection-row.thread-card-lavender:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   border-bottom-color: var(--accent);
   background: color-mix(in srgb, var(--accent-wash) 22%, var(--mail-card-surface));
   box-shadow: var(--card-shadow-hover);
   transform: translateY(-2px);
+}
+
+.thread-selection-row.thread-card-lavender.has-tag-accent {
+  border-bottom-color: color-mix(in srgb, var(--tag-card-wash) 82%, var(--line));
+}
+
+.thread-selection-row.thread-card-lavender.has-tag-accent:hover,
+.thread-selection-row.thread-card-lavender.has-tag-accent:not(.is-unread-thread):hover {
+  border-color: color-mix(in srgb, var(--tag-card-color) 38%, var(--line));
+  border-bottom-color: var(--tag-card-color);
+  background: color-mix(in srgb, var(--tag-card-wash) 36%, var(--mail-card-surface));
 }
 
 .thread-selection-row.thread-card-relief {
@@ -285,7 +291,6 @@
 
 .thread-card-lavender .thread-secondary .thread-attachment-count,
 .thread-card-lavender .thread-secondary .thread-message-count,
-.thread-card-lavender .thread-secondary .workspace-tag-chip,
 .thread-card-lavender .thread-secondary .set-aside-new-message {
   display: inline-flex;
   min-height: 24px;
@@ -301,9 +306,13 @@
   white-space: nowrap;
 }
 
+.thread-card-lavender .thread-secondary .workspace-tag-chip {
+  background: var(--tag-wash);
+  color: var(--tag-ink);
+}
+
 .thread-card-relief .thread-secondary .thread-attachment-count,
 .thread-card-relief .thread-secondary .thread-message-count,
-.thread-card-relief .thread-secondary .workspace-tag-chip,
 .thread-card-relief .thread-secondary .set-aside-new-message {
   display: inline-flex;
   min-height: 24px;
@@ -317,6 +326,12 @@
   font-size: 9px;
   font-weight: 620;
   white-space: nowrap;
+}
+
+.thread-card-relief .thread-secondary .workspace-tag-chip {
+  border-color: color-mix(in srgb, var(--tag-color) 24%, var(--line));
+  background: color-mix(in srgb, var(--tag-wash) 82%, var(--paper));
+  color: var(--tag-ink);
 }
 
 .thread-card-grid .thread-attachment-count svg,
@@ -394,7 +409,6 @@
 .attachment-heading { display: flex; align-items: center; gap: 7px; }
 .attachment-download-zip { margin-left: auto; color: var(--accent); font-size: 10px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .attachment-download-zip:hover { color: var(--accent-hover); }
-
 
 @media (hover: none) {
   .thread-attachment-menu-trigger { opacity: 1; visibility: visible; }

@@ -1116,6 +1116,8 @@
     "all": "Tous",
     "manage": "Gérer les tags",
     "pageDescription": "Les tags de cet espace sont partagés avec tous ses membres.",
+    "createHeading": "Créer un tag",
+    "listHeading": "Tags disponibles",
     "name": "Nom du tag",
     "namePlaceholder": "Nouveau tag",
     "color": "Couleur du tag",
@@ -1132,6 +1134,9 @@
     "saveError": "Le tag n’a pas pu être enregistré. Vérifie son nom et réessaie.",
     "deleteError": "Le tag n’a pas pu être supprimé. Réessaie.",
     "rename": "Renommer {name}",
+    "edit": "Modifier {name}",
+    "actionsFor": "Actions pour {name}",
+    "saveChanges": "Enregistrer les changements",
     "saveName": "Enregistrer le nom de {name}",
     "delete": "Supprimer {name}",
     "deleteTitle": "Supprimer ce tag ?",
@@ -1139,10 +1144,10 @@
     "cancel": "Annuler",
     "deleteConfirm": "Supprimer",
     "colors": {
-      "teal": "Turquoise",
+      "teal": "Orange",
       "blue": "Bleu",
       "green": "Vert",
-      "amber": "Ambre",
+      "amber": "Jaune",
       "rose": "Rose",
       "violet": "Violet"
     }
