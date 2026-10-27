@@ -1,5 +1,5 @@
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'is-thread-route': isThreadRoute }">
     <AppTopbar v-if="!isPublicAuthRoute"
       :folders="folderOptions"
       :active-folder="activeFolder"
@@ -18,7 +18,7 @@ import '@fontsource-variable/dm-sans/wght.css'
 import '@fontsource-variable/dm-sans/wght-italic.css'
 import AppTopbar from '~/components/AppTopbar.vue'
 import PageLoadingIndicator from '~/components/PageLoadingIndicator.vue'
-import { mailboxFromPath, mailboxPath, mailboxes, type MailboxKey } from '~/utils/mailbox-routing'
+import { mailboxFromPath, mailboxPath, mailboxes, threadIdFromPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +29,7 @@ const pageTransition = computed(() => isPublicAuthRoute.value || route.path.star
   ? false
   : { name: 'page', mode: 'in-out' as const })
 const activeFolder = computed(() => mailboxFromPath(route.path))
+const isThreadRoute = computed(() => Boolean(threadIdFromPath(route.path)))
 type ThemeMode = 'system' | 'light' | 'dark'
 type ThemeName = 'paper' | 'forest' | 'graphite' | 'lavender' | 'ayu' | 'one-dark-pro' | 'synthwave' | 'shades-purple' | 'min'
 type AccountThemePreferences = {

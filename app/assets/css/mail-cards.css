@@ -171,9 +171,9 @@
   transform: translateY(-3px);
 }
 
-.is-feed-thread-reader .thread-subject-header { width: min(100%, 790px); margin: 12px auto 24px; padding-inline: 0; text-align: left; }
+.is-feed-thread-reader .thread-subject-header { width: min(100%, var(--thread-reader-content-width)); margin: 12px auto 24px; padding-inline: 0; text-align: left; }
 .is-feed-thread-reader .thread-subject-header .message-subject { width: 100%; max-width: 22ch; margin: 0 0 23px; font-size: clamp(29px, 3.6vw, 44px); font-weight: 710; letter-spacing: -.055em; line-height: 1.08; text-align: left; }
-.is-feed-thread-reader .message-paper.feed-reader-paper { width: min(100%, 790px); margin-bottom: 34px; }
+.is-feed-thread-reader .message-paper.feed-reader-paper { width: min(100%, var(--thread-reader-content-width)); margin-bottom: 34px; }
 .is-feed-thread-reader .feed-issue-body { padding: 21px 0 18px; border: 0; border-radius: 0; background: transparent; }
 .is-feed-thread-reader .feed-issue-sender { padding-inline: 0; }
 .is-feed-thread-reader .feed-issue-text { max-width: none; margin-inline: 0; }
@@ -342,7 +342,7 @@
 
 /* Thread reader: restore the board's left-aligned reading hierarchy. */
 .is-thread-reader .thread-subject-header {
-  width: min(100%, 790px);
+  width: min(100%, var(--thread-reader-content-width));
   margin: 12px auto 24px;
   padding-inline: 0;
   text-align: left;
@@ -358,9 +358,9 @@
 .is-thread-reader .thread-subject-header .message-subject { width: 100%; max-width: 22ch; justify-self: start; margin: 0 0 23px; font-size: clamp(29px, 3.6vw, 44px); font-weight: 710; letter-spacing: -.055em; line-height: 1.08; text-align: left; }
 .is-thread-reader .thread-subject-header .thread-subject-editor { width: 100%; margin: 0 0 23px; }
 .is-thread-reader .thread-subject-header .thread-subject-input { text-align: left; }
-.is-thread-reader .thread-action-notice { width: min(100%, 790px); margin: -7px auto 14px; text-align: left; }
-.is-thread-reader .message-paper.inbox-reader-paper { width: min(100%, 790px); margin-bottom: 34px; }
-.is-thread-reader .thread-carousel { gap: 10px; width: min(100%, 790px); margin-inline: auto; }
+.is-thread-reader .thread-action-notice { width: min(100%, var(--thread-reader-content-width)); margin: -7px auto 14px; text-align: left; }
+.is-thread-reader .message-paper.inbox-reader-paper { width: min(100%, var(--thread-reader-content-width)); margin-bottom: 34px; }
+.is-thread-reader .thread-carousel { gap: 10px; width: min(100%, var(--thread-reader-content-width)); margin-inline: auto; }
 .is-thread-reader .thread-carousel-header { min-height: 24px; }
 .is-thread-reader .thread-carousel-status { justify-self: end; }
 .is-thread-reader .thread-carousel-position { font-size: 10px; }
