@@ -294,6 +294,8 @@
     "dark": "Dark",
     "mode": "Mode",
     "modeDescription": "Light, dark, or follow your device setting.",
+    "reduceThreadAnimations": "Reduce message animations",
+    "reduceThreadAnimationsDescription": "Turn off subject, message text, avatar, and height-change animations in threads.",
     "themeDescription": "The palette stays the same in both modes, and your choice follows your account across devices.",
     "themeSyncing": "Saving the theme to your account…",
     "themeSynced": "Theme synced with your account.",

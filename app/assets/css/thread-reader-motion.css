@@ -39,3 +39,9 @@
   .message-rich-body.is-animated-copy { animation: none !important; }
   .animated-height.is-transitioning { transition: none !important; }
 }
+
+:root[data-reduce-thread-motion="true"] .animated-message-character { opacity: 1; animation: none !important; }
+:root[data-reduce-thread-motion="true"] .is-animated-subject,
+:root[data-reduce-thread-motion="true"] .is-animated-entry .meta-avatar,
+:root[data-reduce-thread-motion="true"] .message-rich-body.is-animated-copy { animation: none !important; }
+:root[data-reduce-thread-motion="true"] .animated-height.is-transitioning { transition: none !important; }

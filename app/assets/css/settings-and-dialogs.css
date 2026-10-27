@@ -60,6 +60,11 @@
 .settings-appearance-copy h3 { margin: 0 0 4px; color: var(--ink); font-size: 14px; font-weight: 640; }
 .settings-appearance-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .settings-appearance-combobox { width: min(260px, 48%); flex: 0 1 260px; }
+.settings-motion-switch { position: relative; display: inline-flex; width: 44px; height: 26px; flex: 0 0 44px; align-items: center; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); cursor: pointer; transition: background-color 160ms ease, border-color 160ms ease; }
+.settings-motion-switch span { width: 18px; height: 18px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 3px rgb(0 0 0 / 18%); transition: transform 160ms ease; }
+.settings-motion-switch[aria-checked="true"] { border-color: var(--accent); background: var(--accent); }
+.settings-motion-switch[aria-checked="true"] span { transform: translateX(18px); }
+.settings-motion-switch:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 38%, transparent); outline-offset: 3px; }
 .settings-appearance-combobox button.settings-appearance-trigger[aria-haspopup="listbox"] { display: inline-flex; width: 100%; min-height: 42px; justify-content: space-between; gap: 10px; padding: 0 11px; border: 1px solid var(--line); border-radius: 10px; background-color: var(--paper); color: var(--ink); box-shadow: none; font: inherit; font-size: 13px; text-align: left; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
 .settings-appearance-combobox button.settings-appearance-trigger[aria-haspopup="listbox"]:hover { border-color: color-mix(in srgb, var(--accent) 46%, var(--line)); background-color: var(--surface-soft); }
 .settings-appearance-combobox button.settings-appearance-trigger[aria-haspopup="listbox"]:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 2px; }

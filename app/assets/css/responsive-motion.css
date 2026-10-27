@@ -96,6 +96,7 @@
   .settings-content > h1 { margin-bottom: 20px; font-size: 36px; }
   .settings-tabs { margin-bottom: 22px; }
   .settings-appearance-row { align-items: stretch; flex-direction: column; gap: 10px; padding: 14px 0; }
+  .settings-motion-switch { align-self: flex-start; }
   .settings-appearance-combobox { width: 100%; flex-basis: auto; }
   .settings-theme-grid { grid-template-columns: minmax(0, 1fr); }
   .settings-select-row { min-height: 58px; font-size: 13px; }

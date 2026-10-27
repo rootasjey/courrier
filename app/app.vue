@@ -53,6 +53,7 @@ const themeName = useState<ThemeName>('courrier-theme-family', () => {
   const saved = accountSession.value?.user.themeName
   return isThemeName(saved ?? null) ? saved : 'paper'
 })
+const reduceThreadAnimations = useState<boolean>('courrier-reduce-thread-animations', () => false)
 const themeReady = ref(false)
 const systemPrefersDark = ref(false)
 const themeSyncStatus = useState<'idle' | 'saving' | 'saved' | 'error'>('courrier-theme-sync-status', () => 'idle')
@@ -64,7 +65,7 @@ const commandPaletteOpen = useState('courrier-command-palette-open', () => false
 const themeModeStorageKey = 'courrier-color-mode'
 const themeNameStorageKey = 'courrier-theme-family'
 const legacyThemeStorageKey = 'courrier-theme'
-const themeBootstrapScript = '(()=>{try{const r=document.documentElement;let m=r.dataset.themeMode||"system";let n=r.dataset.themeVariant||"paper";if(r.dataset.themeSource!=="account"){const modes=["system","light","dark"];const names=["paper","forest","graphite","lavender","ayu","one-dark-pro","synthwave","shades-purple","min"];const sm=localStorage.getItem("courrier-color-mode");const sn=localStorage.getItem("courrier-theme-family");const old=localStorage.getItem("courrier-theme");if(modes.includes(sm))m=sm;if(names.includes(sn))n=sn;else if(old==="forest"){m="dark";n="forest"}else if(old==="graphite"||old==="dark"){m="dark";n="graphite"}else if(old==="black"){m="dark";n="lavender"}else if(old==="paper"||old==="light"){m="light";n="paper"}else if(old==="system"){m="system";n=matchMedia("(prefers-color-scheme: dark)").matches?"graphite":"paper"}r.dataset.themeMode=m;r.dataset.themeVariant=n}r.dataset.theme=m==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):m}catch{}})()'
+const themeBootstrapScript = '(()=>{try{const r=document.documentElement;let m=r.dataset.themeMode||"system";let n=r.dataset.themeVariant||"paper";if(localStorage.getItem("courrier-reduce-thread-animations")==="true")r.dataset.reduceThreadMotion="true";if(r.dataset.themeSource!=="account"){const modes=["system","light","dark"];const names=["paper","forest","graphite","lavender","ayu","one-dark-pro","synthwave","shades-purple","min"];const sm=localStorage.getItem("courrier-color-mode");const sn=localStorage.getItem("courrier-theme-family");const old=localStorage.getItem("courrier-theme");if(modes.includes(sm))m=sm;if(names.includes(sn))n=sn;else if(old==="forest"){m="dark";n="forest"}else if(old==="graphite"||old==="dark"){m="dark";n="graphite"}else if(old==="black"){m="dark";n="lavender"}else if(old==="paper"||old==="light"){m="light";n="paper"}else if(old==="system"){m="system";n=matchMedia("(prefers-color-scheme: dark)").matches?"graphite":"paper"}r.dataset.themeMode=m;r.dataset.themeVariant=n}r.dataset.theme=m==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):m}catch{}})()'
 
 useHead({
   htmlAttrs: {
@@ -182,6 +183,8 @@ function handleGlobalShortcut(event: KeyboardEvent) {
 }
 
 onBeforeMount(() => {
+  reduceThreadAnimations.value = window.localStorage.getItem('courrier-reduce-thread-animations') === 'true'
+  syncThreadMotionPreference(reduceThreadAnimations.value)
   const systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   systemPrefersDark.value = systemIsDark
   const savedMode = window.localStorage.getItem(themeModeStorageKey)
@@ -213,6 +216,19 @@ onMounted(() => {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateSystemTheme)
   window.addEventListener('keydown', handleGlobalShortcut, true)
 })
+
+watch(reduceThreadAnimations, syncThreadMotionPreference)
+
+function syncThreadMotionPreference(enabled: boolean) {
+  if (!import.meta.client) return
+  if (enabled) {
+    document.documentElement.dataset.reduceThreadMotion = 'true'
+    window.localStorage.setItem('courrier-reduce-thread-animations', 'true')
+  } else {
+    delete document.documentElement.dataset.reduceThreadMotion
+    window.localStorage.removeItem('courrier-reduce-thread-animations')
+  }
+}
 
 onUnmounted(() => {
   if (!import.meta.client) return

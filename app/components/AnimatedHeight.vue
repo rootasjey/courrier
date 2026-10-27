@@ -36,7 +36,8 @@ function animateToHeight(nextHeight: number, previousHeight: number) {
   const element = container.value
   if (!element) return
 
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    || document.documentElement.dataset.reduceThreadMotion === 'true') {
     finishTransition()
     return
   }

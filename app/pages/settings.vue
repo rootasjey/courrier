@@ -50,6 +50,20 @@
                 </template>
               </NCombobox>
             </div>
+            <div class="settings-appearance-row">
+              <div class="settings-appearance-copy">
+                <h3>{{ $t('settings.reduceThreadAnimations') }}</h3>
+                <p>{{ $t('settings.reduceThreadAnimationsDescription') }}</p>
+              </div>
+              <button
+                class="settings-motion-switch"
+                type="button"
+                role="switch"
+                :aria-checked="reduceThreadAnimations"
+                :aria-label="$t('settings.reduceThreadAnimations')"
+                @click="reduceThreadAnimations = !reduceThreadAnimations"
+              ><span /></button>
+            </div>
             <div class="settings-appearance-row settings-theme-heading">
               <div class="settings-appearance-copy">
                 <h3>{{ $t('settings.theme') }}</h3>
@@ -307,6 +321,7 @@ type ThemeMode = 'system' | 'light' | 'dark'
 type ThemeName = 'paper' | 'forest' | 'graphite' | 'lavender' | 'ayu' | 'one-dark-pro' | 'synthwave' | 'shades-purple' | 'min'
 type SettingsTab = 'general' | 'profile' | 'security' | 'data'
 const themeMode = useState<ThemeMode>('courrier-color-mode', () => 'system')
+const reduceThreadAnimations = useState<boolean>('courrier-reduce-thread-animations', () => false)
 const themeName = useState<ThemeName>('courrier-theme-family', () => 'paper')
 const themeSyncStatus = useState<'idle' | 'saving' | 'saved' | 'error'>('courrier-theme-sync-status', () => 'idle')
 const modeMenuOpen = ref(false)

@@ -338,8 +338,8 @@
         <div v-else class="message-subject-heading">
           <h1 ref="threadSubjectHeading" class="message-subject" @mouseup="updateSubjectSelection" @keyup="updateSubjectSelection" @contextmenu="openSubjectContextMenu">
             <span
-              :key="isReadingTogether ? selectedId : 'thread-subject'"
-              :class="{ 'is-animated-subject': isReadingTogether }"
+              :key="animateActiveThreadMessage ? activeThreadMessageId : 'thread-subject'"
+              :class="{ 'is-animated-subject': animateActiveThreadMessage }"
             >{{ isFeedReader ? activeThreadMessage?.subject || '' : selectedThread?.messages.find(message => message.threadSubject)?.threadSubject || chronologicalMessages[0]?.subject || selectedMessage.subject }}</span>
           </h1>
           <NTooltip v-if="subjectSelection.visible" :content="$t('rename.action')">
@@ -418,7 +418,7 @@
                 :avatar="senderAvatarFor(activeThreadMessage)"
                 :participants="selectedThreadParticipants"
                 :show-participants="selectedThreadParticipants.length > 1"
-                :animate-entry="isReadingTogether"
+                :animate-entry="animateActiveThreadMessage"
                 @close="closeMessage"
               />
             </AnimatedHeight>
@@ -1141,6 +1141,7 @@ const {
   selectedId,
   selectedMessage,
 })
+const animateActiveThreadMessage = computed(() => isReadingTogether.value || chronologicalMessages.value.length > 1)
 const usesInboxReaderLayout = computed(() => isInboxReader.value || ['Paper Trail', 'Reply Later', 'Set Aside'].includes(activeFolder.value))
 
 const mailReply = useMailReply({

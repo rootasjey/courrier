@@ -294,6 +294,8 @@
     "dark": "Sombre",
     "mode": "Mode",
     "modeDescription": "Clair, sombre ou selon le réglage de ton appareil.",
+    "reduceThreadAnimations": "Réduire les animations des messages",
+    "reduceThreadAnimationsDescription": "Désactive les animations du sujet, du texte, de l’avatar et des changements de hauteur dans les fils.",
     "themeDescription": "La palette reste la même dans les deux modes ; ton choix suit ton compte sur tes appareils.",
     "themeSyncing": "Enregistrement du thème sur ton compte…",
     "themeSynced": "Thème synchronisé avec ton compte.",
