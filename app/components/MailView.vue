@@ -44,10 +44,28 @@
       </header>
 
       <Transition name="thread-selection-bar" appear>
-        <div v-if="threadSelectionMode && selectedThreadIds.length" class="thread-selection-bar" role="group" :aria-label="$t('bulk.selectionActions')">
+        <div v-if="threadSelectionMode && selectedItemIds.length" class="thread-selection-bar" role="group" :aria-label="$t(activeFolder === 'The Feed' ? 'bulk.selectionActionsFeed' : 'bulk.selectionActions')">
           <span class="thread-selection-count" role="status" aria-live="polite" aria-atomic="true">
-            {{ selectedThreadIds.length }} {{ $t(selectedThreadIds.length === 1 ? 'bulk.selectedOne' : 'bulk.selectedMany') }}
+            {{ selectedItemIds.length }} {{ $t(activeFolder === 'The Feed'
+              ? selectedItemIds.length === 1 ? 'bulk.selectedFeedEditionOne' : 'bulk.selectedFeedEditionMany'
+              : selectedItemIds.length === 1 ? 'bulk.selectedOne' : 'bulk.selectedMany') }}
           </span>
+          <span v-if="selectedItemIds.length > MAX_READ_TOGETHER_ITEMS" id="read-together-limit-note" class="thread-selection-limit-note" role="status" aria-live="polite">
+            {{ $t('mail.readTogetherLimit', { limit: MAX_READ_TOGETHER_ITEMS }) }}
+          </span>
+          <NTooltip v-if="selectedItemIds.length > 1" :content="$t('mail.readTogether')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
+            <button
+              type="button"
+              class="thread-selection-action"
+              :class="{ 'is-limit-reached': selectedItemIds.length > MAX_READ_TOGETHER_ITEMS }"
+              :aria-label="$t('mail.readTogether')"
+              :aria-describedby="selectedItemIds.length > MAX_READ_TOGETHER_ITEMS ? 'read-together-limit-note' : undefined"
+              :disabled="isApplyingBulkAction || selectedItemIds.length > MAX_READ_TOGETHER_ITEMS"
+              @click="startReadTogether"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h6a3 3 0 0 1 3 3v12a3 3 0 0 0-3-3H4z" /><path d="M20 5.5h-4a3 3 0 0 0-3 3v12a3 3 0 0 1 3-3h4z" /><path d="M7 9h3m-3 3h3m7-3h-1m1 3h-1" /></svg>
+            </button>
+          </NTooltip>
           <NTooltip :content="$t('bulk.markSeen')" :una="{ tooltipContent: 'compose-tooltip-content z-[120]' }">
             <button type="button" class="thread-selection-action" :aria-label="$t('bulk.markSeen')" :disabled="isApplyingBulkAction" @click="applyBulkAction('mark-seen')">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 5.5h12a2 2 0 0 1 2 2v2" /><path d="M3.5 7.5 10 12l4-2.8" /><path d="M3.5 9.5v8a2 2 0 0 0 2 2h6" /><path d="m15 16 2.2 2.2L21 14.5" /></svg>
@@ -226,13 +244,13 @@
           :selection="{
             canSelect: canSelectThreads,
             active: threadSelectionMode,
-            selected: selectedThreadIds.includes(message.threadId),
-            keyboardCursor: keyboardSelectionThreadId === message.threadId,
+            selected: selectedItemIds.includes(message.id),
+            keyboardCursor: keyboardSelectionThreadId === message.id,
           }"
           :avatar-for="threadAvatarFor"
           :relative-date="relativeMailDate"
           :absolute-date="absoluteMailDate"
-          @select="handleThreadAvatarClick(message.threadId, $event)"
+          @select="handleThreadAvatarClick(message.id, $event)"
           @open="handleFeedEditionOpen(message, $event)"
         >
         </MailFeedEditionRow>
@@ -289,7 +307,7 @@
 
     <section v-else-if="selectedMessage" class="reading-column" :class="{ 'is-thread-reader': !isFeedReader, 'is-feed-thread-reader': isFeedReader }" :aria-label="$t('mail.selectedMessage')">
       <div class="thread-subject-header">
-        <div v-if="!isFeedReader" class="thread-reader-topline">
+        <div v-if="!isFeedReader || isReadingTogether" class="thread-reader-topline">
           <button class="thread-back-link" type="button" @click="closeMessage">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
             <span>{{ activeFolder === 'Imbox' ? $t('mail.backToInbox') : $t('mail.backToFolder', { folder: mailboxByName(activeFolder).label }) }}</span>
@@ -337,7 +355,14 @@
         <button v-if="selectedThread?.unreadCount" type="button" @click="retryMarkRead">{{ $t('mail.retryMarkRead') }}</button>
       </div>
 
-      <article class="message-paper" :class="{ 'feed-reader-paper': isFeedReader, 'inbox-reader-paper': usesInboxReaderLayout }" :aria-label="isFeedReader && activeThreadMessage ? $t('mail.messageFrom', { sender: activeThreadMessage.sender }) : undefined">
+      <article
+        class="message-paper"
+        :class="{ 'feed-reader-paper': isFeedReader, 'inbox-reader-paper': usesInboxReaderLayout }"
+        :aria-label="isFeedReader && activeThreadMessage ? $t('mail.messageFrom', { sender: activeThreadMessage.sender }) : undefined"
+        @touchstart.passive="isReadingTogether && !isFeedReader ? rememberFeedTouch($event) : undefined"
+        @touchend.passive="isReadingTogether && !isFeedReader ? finishFeedTouch($event) : undefined"
+        @touchcancel="isReadingTogether && !isFeedReader ? feedTouchOrigin = null : undefined"
+      >
         <div v-if="!isFeedReader && selectedThread?.manualMergeIds.length" class="merged-thread-control">
           <span>{{ $t('mail.mergedConversationNote') }}</span>
           <button type="button" class="thread-split-button" :disabled="isSplittingThread" @click="splitDialogOpen = true">
@@ -349,7 +374,9 @@
           :message="activeThreadMessage"
           :thread-id="selectedThread?.id || activeThreadMessage.id"
           :is-loading="isThreadContentLoading"
-          :announcement="feedEditionAnnouncement"
+          :announcement="isReadingTogether
+            ? $t('mail.readTogetherAnnouncement', { subject: activeThreadMessage.subject, current: readTogetherIndex + 1, total: readTogetherMessages.length })
+            : feedEditionAnnouncement"
           :avatar="senderAvatarFor(activeThreadMessage)"
           :recipient-addresses="recipientAddresses"
           :absolute-date="absoluteMailDate"
@@ -476,6 +503,7 @@ import type { MailboxFolder, StoredFolder, WorkspaceTag } from '~/types/mail'
 import { mailboxByName, mailboxFromPath, mailboxPath, mailboxes, senderPath, threadIdFromPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
 const OutgoingComposer = defineAsyncComponent(() => import('~/components/OutgoingComposer.vue'))
+const MAX_READ_TOGETHER_ITEMS = 50
 
 type Folder = MailboxKey
 
@@ -872,20 +900,28 @@ const previouslySeenThreads = computed(() => visibleThreads.value.filter(thread 
 const selectableThreads = computed(() => activeFolder.value === 'Imbox'
   ? [...newThreads.value, ...previouslySeenThreads.value]
   : visibleThreads.value)
+const selectableItems = computed(() => activeFolder.value === 'The Feed'
+  ? visibleFeedEditions.value.map(message => ({ id: message.id, latest: message }))
+  : selectableThreads.value)
 
 const mailThreadSelection = useMailThreadSelection({
-  threads: selectableThreads,
+  threads: selectableItems,
   onSelectionChange: () => { threadMergeError.value = '' },
 })
 const {
   selecting: threadSelectionMode,
-  selectedIds: selectedThreadIds,
+  selectedIds: selectedItemIds,
   keyboardCursorId: keyboardSelectionThreadId,
   start: startThreadSelection,
   toggle: toggleThreadSelection,
   clear: clearThreadSelection,
   moveCursor: moveSelectionCursor,
 } = mailThreadSelection
+const selectedThreadIds = computed(() => activeFolder.value === 'The Feed'
+  ? [...new Set(visibleFeedEditions.value
+      .filter(message => selectedItemIds.value.includes(message.id))
+      .map(message => message.threadId))]
+  : [...selectedItemIds.value])
 const selectedThreads = computed(() => selectableThreads.value.filter(thread => selectedThreadIds.value.includes(thread.id)))
 const selectedThreadMessageIds = computed(() => [...new Set(selectedThreads.value.flatMap(thread => thread.messages.map(message => message.id)))])
 const selectedThreadTags = computed(() => {
@@ -901,6 +937,31 @@ watch([activeFolder, isGlobalSearch], () => {
   clearThreadSelection()
   threadMergeFeedback.value = ''
   threadMergeError.value = ''
+})
+
+const readTogetherMessages = computed(() => {
+  const rawIds = route.query.readTogether
+  const ids = Array.isArray(rawIds)
+    ? rawIds.filter((id): id is string => typeof id === 'string')
+    : typeof rawIds === 'string' ? [rawIds] : []
+  return ids.slice(0, MAX_READ_TOGETHER_ITEMS).flatMap(id => {
+    const message = folderMessages.value.find(item => item.id === id)
+    return message ? [message] : []
+  })
+})
+
+watch([readTogetherMessages, selectedId, () => route.query.message, inboxMessages], () => {
+  if (!route.query.readTogether || !selectedId.value || !inboxMessages.value) return
+
+  const currentMessageId = typeof route.query.message === 'string' ? route.query.message : ''
+  const currentIsInQueue = activeFolder.value === 'The Feed'
+    ? readTogetherMessages.value.some(message => message.id === currentMessageId)
+    : readTogetherMessages.value.some(message => message.threadId === selectedId.value)
+  if (currentIsInQueue) return
+
+  const firstAvailableMessage = readTogetherMessages.value[0]
+  if (firstAvailableMessage) openMessage(firstAvailableMessage, activeFolder.value, true)
+  else closeMessage()
 })
 
 watch([activeFolder, selectedThreadIds, selectedId], () => {
@@ -1055,8 +1116,10 @@ const {
   finishFeedTouch,
   isFeedReader,
   isInboxReader,
+  isReadingTogether,
   isReadingAll,
   navigateFeedEdition,
+  readTogetherIndex,
   navigateThreadMessage,
   rememberFeedTouch,
   replyRecipient,
@@ -1068,6 +1131,7 @@ const {
   activeFolder,
   chronologicalMessages,
   feedEditions,
+  readTogetherMessages,
   isGlobalSearch,
   openMessage,
   selectedId,
@@ -1106,8 +1170,12 @@ const {
 
 const threadActionDockState = computed(() => ({
   folder: activeFolder.value,
-  feedNavigation: isFeedReader.value && activeThreadMessage.value
-    ? { index: feedEditionIndex.value, count: feedEditions.value.length }
+  feedNavigation: (isReadingTogether.value || isFeedReader.value) && activeThreadMessage.value
+    ? {
+        index: isReadingTogether.value ? readTogetherIndex.value : feedEditionIndex.value,
+        count: isReadingTogether.value ? readTogetherMessages.value.length : feedEditions.value.length,
+        isReadTogether: isReadingTogether.value,
+      }
     : null,
   replyComposerOpen: replyComposerOpen.value,
   isMarkingThreadUnseen: isMarkingThreadUnseen.value,
@@ -1425,7 +1493,7 @@ function handleThreadReaderShortcut(event: KeyboardEvent) {
   if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return false
 
   const key = event.key.toLocaleLowerCase('en-US')
-  if (isFeedReader.value && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+  if ((isReadingTogether.value || isFeedReader.value) && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
     const target = event.target
     const isInteractiveTarget = target instanceof Element
       && Boolean(target.closest('a, button, input, textarea, select, [contenteditable="true"]'))
@@ -1434,8 +1502,15 @@ function handleThreadReaderShortcut(event: KeyboardEvent) {
     event.preventDefault()
     if (event.key === 'ArrowLeft') navigateFeedEdition(-1)
     else if (event.key === 'ArrowRight') navigateFeedEdition(1)
-    else if (event.key === 'Home' && feedEditions.value[0]) openMessage(feedEditions.value[0], 'The Feed', true)
-    else if (event.key === 'End' && feedEditions.value.at(-1)) openMessage(feedEditions.value.at(-1)!, 'The Feed', true)
+    else if (isReadingTogether.value && event.key === 'Home' && readTogetherMessages.value[0]) {
+      openMessage(readTogetherMessages.value[0], activeFolder.value, true)
+    } else if (isReadingTogether.value && event.key === 'End' && readTogetherMessages.value.at(-1)) {
+      openMessage(readTogetherMessages.value.at(-1)!, activeFolder.value, true)
+    } else if (!isReadingTogether.value && event.key === 'Home' && feedEditions.value[0]) {
+      openMessage(feedEditions.value[0], 'The Feed', true)
+    } else if (!isReadingTogether.value && event.key === 'End' && feedEditions.value.at(-1)) {
+      openMessage(feedEditions.value.at(-1)!, 'The Feed', true)
+    }
     return true
   }
   if (key === 'b' && canAssignTags.value) {
@@ -1589,13 +1664,17 @@ async function importFixture() {
   }
 }
 
-function openMessage(message: InboxMessage, mailbox: Folder = message.folder, replaceHistory = false) {
+function openMessage(message: InboxMessage, mailbox: Folder = message.folder, replaceHistory = false, readTogetherIds?: string[]) {
   openedFromList.value = true
   messageReadError.value = ''
   resetThreadPresentation(message.id)
   const routeTarget = {
     path: threadPath(mailbox, message.threadId),
-    query: { ...route.query, message: message.id },
+    query: {
+      ...route.query,
+      ...(readTogetherIds ? { readTogether: readTogetherIds } : {}),
+      message: message.id,
+    },
   }
   void (replaceHistory ? router.replace(routeTarget) : router.push(routeTarget))
 
@@ -1622,6 +1701,17 @@ function openMessage(message: InboxMessage, mailbox: Folder = message.folder, re
   })
 }
 
+function startReadTogether() {
+  const selectedMessages = activeFolder.value === 'The Feed'
+    ? visibleFeedEditions.value.filter(message => selectedItemIds.value.includes(message.id))
+    : selectableThreads.value
+        .filter(thread => selectedItemIds.value.includes(thread.id))
+        .map(thread => thread.latest)
+  if (selectedMessages.length < 2 || selectedMessages.length > MAX_READ_TOGETHER_ITEMS) return
+
+  openMessage(selectedMessages[0]!, activeFolder.value, false, selectedMessages.map(message => message.id))
+}
+
 function handleThreadRowClick(thread: MessageThread, event?: MouseEvent) {
   if (threadSelectionMode.value) {
     toggleThreadSelection(thread.id, event)
@@ -1632,7 +1722,7 @@ function handleThreadRowClick(thread: MessageThread, event?: MouseEvent) {
 
 function handleFeedEditionOpen(message: InboxMessage, event?: MouseEvent) {
   if (threadSelectionMode.value) {
-    toggleThreadSelection(message.threadId, event)
+    toggleThreadSelection(message.id, event)
     return
   }
   openMessage(message, 'The Feed')

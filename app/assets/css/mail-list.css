@@ -46,6 +46,7 @@
 .thread-list { width: 100%; }
 .thread-selection-bar { position: fixed; z-index: 100; bottom: max(20px, env(safe-area-inset-bottom)); left: 50%; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 7px; width: max-content; max-width: calc(100vw - 24px); margin: 0; padding: 9px 12px 9px 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); color: var(--muted); font-size: 13px; box-shadow: 0 12px 32px rgb(33 43 38 / 14%); transform: translateX(-50%); }
 .thread-selection-count { flex: 0 0 auto; padding: 0 13px 0 0; border-right: 1px solid var(--line); color: var(--ink); font-size: 12px; font-weight: 650; white-space: nowrap; }
+.thread-selection-limit-note { flex: 1 0 100%; color: var(--error); font-size: 11px; line-height: 1.4; }
 .thread-selection-cancel, .thread-selection-action { min-height: 40px; border: 0; border-radius: 9px; background: var(--surface-soft); color: var(--muted); font: inherit; cursor: pointer; }
 .thread-selection-action { display: inline-grid; width: 40px; flex: 0 0 40px; place-items: center; padding: 0; }
 .thread-selection-bar .thread-tag-picker-trigger { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; padding: 0; border: 0; border-radius: 9px; background: var(--surface-soft); color: var(--muted); cursor: pointer; }
@@ -55,6 +56,7 @@
 .thread-selection-action:hover:not(:disabled), .thread-selection-move-trigger:hover:not(:disabled) { background: var(--accent-wash); color: var(--accent); }
 .thread-selection-trash { color: var(--error); }
 .thread-selection-action:disabled, .thread-selection-move-trigger:disabled, .thread-selection-cancel:disabled { opacity: .55; cursor: wait; }
+.thread-selection-action.is-limit-reached:disabled { cursor: not-allowed; }
 .thread-selection-move { display: inline-flex; flex: 0 0 auto; }
 .thread-selection-move .thread-selection-move-trigger { display: inline-flex; width: 146px; min-width: 0; min-height: 40px; justify-content: flex-start; gap: 9px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--surface-soft); color: var(--muted); box-shadow: none; font: inherit; font-size: 12px; text-align: left; cursor: pointer; transition: background-color 130ms ease, color 130ms ease; }
 .thread-selection-move-trigger > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -323,7 +325,7 @@
 .inbox-message-body > p { max-width: 68ch; margin: 0 0 19px; color: var(--message-body); font-size: 15px; font-weight: 500; line-height: 1.8; overflow-wrap: anywhere; white-space: pre-wrap; }
 .inbox-message-body > p:last-child { margin-bottom: 0; }
 .inbox-message-footer { display: flex; min-width: 0; min-height: 46px; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 2px 0; color: var(--quiet); font-size: 12px; line-height: 1.4; }
-.inbox-message-footer-date { display: inline-flex; min-width: 0; flex: 0 0 auto; margin-left: auto; white-space: nowrap; }
+.inbox-message-divider-date { display: flex; min-width: 0; justify-content: flex-end; margin-top: 4px; color: var(--quiet); font-size: 11px; }
 .inbox-message-date-control, .inbox-message-date-desktop, .inbox-message-date-mobile { display: inline-flex; align-items: center; }
 .inbox-message-date-mobile { display: none; }
 .inbox-message-mobile-date { display: inline-flex; min-height: 44px; align-items: center; padding: 0 2px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; white-space: nowrap; cursor: pointer; }

@@ -9,7 +9,7 @@ type ActionThread = { id: string, messages: ActionMessage[] }
 type MailThreadActionOptions = {
   activeFolder: ComputedRef<MailboxKey>
   selectedThread: ComputedRef<ActionThread | undefined>
-  selectedThreadIds: Ref<string[]>
+  selectedThreadIds: ComputedRef<string[]>
   clearThreadSelection: () => void
   keyboardCursorId: Ref<string>
   refreshMessages: () => Promise<unknown>

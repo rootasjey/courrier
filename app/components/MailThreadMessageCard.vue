@@ -43,6 +43,10 @@
       </NTooltip>
     </div>
 
+    <div v-if="isInboxReader" class="inbox-message-divider-date">
+      <InboxMessageDate :timestamp="message.timestamp" :relative-date="relativeMailDate(message.timestamp)" :absolute-date="absoluteMailDate(message.timestamp)" />
+    </div>
+
     <div v-if="!isInboxReader" class="message-rule" />
     <div class="message-content" :class="{ 'inbox-message-body': isInboxReader }">
       <p v-if="message.body === undefined && isLoading" role="status">{{ $t('mail.loading') }}</p>
@@ -56,11 +60,8 @@
       />
     </div>
 
-    <div v-if="isInboxReader" class="inbox-message-footer">
-      <ThreadParticipantsStack v-if="showParticipants" :participants="participants" mobile-drawer />
-      <span class="inbox-message-footer-date">
-        <InboxMessageDate :timestamp="message.timestamp" :relative-date="relativeMailDate(message.timestamp)" :absolute-date="absoluteMailDate(message.timestamp)" />
-      </span>
+    <div v-if="isInboxReader && showParticipants" class="inbox-message-footer">
+      <ThreadParticipantsStack :participants="participants" mobile-drawer />
     </div>
   </article>
 </template>

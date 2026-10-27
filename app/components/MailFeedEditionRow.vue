@@ -5,7 +5,7 @@
       'is-thread-selected': selection.selected,
       'is-selection-cursor': selection.keyboardCursor,
     }"
-    :data-thread-selection-id="message.threadId"
+    :data-thread-selection-id="message.id"
     :aria-current="selection.keyboardCursor ? 'true' : undefined"
     role="listitem"
   >
@@ -21,7 +21,7 @@
         'is-merged': message.manualMergeIds.length,
       }"
       type="button"
-      :aria-label="$t(selection.active && selection.selected ? 'mail.deselectThread' : 'mail.selectThread', { subject: message.subject }) + (message.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')"
+      :aria-label="$t(selection.active && selection.selected ? 'mail.deselectFeedEdition' : 'mail.selectFeedEdition', { subject: message.subject }) + (message.manualMergeIds.length ? $t('mail.mergedThreadSuffix') : '')"
       :aria-pressed="selection.active ? selection.selected : undefined"
       @click="$emit('select', $event)"
     >

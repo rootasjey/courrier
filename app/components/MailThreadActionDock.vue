@@ -1,11 +1,11 @@
 <template>
   <footer class="thread-action-footer" :class="{ 'has-feed-edition-navigation': state.feedNavigation }" :aria-label="$t('mail.messageActions')">
-    <nav v-if="state.feedNavigation" class="feed-edition-navigation thread-feed-navigation" :aria-label="$t('mail.feedNavigation')">
-      <button class="feed-edition-button" type="button" :aria-label="$t('mail.previousEdition')" :disabled="state.feedNavigation.index <= 0" @click="actions.navigateFeedEdition(-1)">
+    <nav v-if="state.feedNavigation" class="feed-edition-navigation thread-feed-navigation" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.readTogetherNavigation' : 'mail.feedNavigation')">
+      <button class="feed-edition-button" type="button" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.previousReadTogether' : 'mail.previousEdition')" :disabled="state.feedNavigation.index <= 0" @click="actions.navigateFeedEdition(-1)">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
       </button>
-      <span class="feed-edition-position" aria-hidden="true">{{ state.feedNavigation.index + 1 }} / {{ state.feedNavigation.count }}</span>
-      <button class="feed-edition-button is-next" type="button" :aria-label="$t('mail.nextEdition')" :disabled="state.feedNavigation.index >= state.feedNavigation.count - 1" @click="actions.navigateFeedEdition(1)">
+      <span class="feed-edition-position" aria-live="polite">{{ state.feedNavigation.index + 1 }} / {{ state.feedNavigation.count }}</span>
+      <button class="feed-edition-button is-next" type="button" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.nextReadTogether' : 'mail.nextEdition')" :disabled="state.feedNavigation.index >= state.feedNavigation.count - 1" @click="actions.navigateFeedEdition(1)">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 4.5 5.5 5.5-5.5 5.5" /></svg>
       </button>
     </nav>
@@ -126,7 +126,7 @@ import type { MailboxKey } from '~/utils/mailbox-routing'
 
 type ThreadActionDockState = {
   folder: MailboxKey
-  feedNavigation: { index: number, count: number } | null
+  feedNavigation: { index: number, count: number, isReadTogether: boolean } | null
   replyComposerOpen: boolean
   isMarkingThreadUnseen: boolean
   isMovingOpenThread: boolean

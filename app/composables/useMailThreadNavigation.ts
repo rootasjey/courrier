@@ -3,6 +3,7 @@ import type { MailboxKey } from '~/utils/mailbox-routing'
 
 type NavigableMessage = {
   id: string
+  threadId: string
   subject: string
   timestamp: string
   isOutgoing: boolean
@@ -14,6 +15,7 @@ type MailThreadNavigationOptions<Message extends NavigableMessage> = {
   activeFolder: ComputedRef<MailboxKey>
   chronologicalMessages: ComputedRef<Message[]>
   feedEditions: ComputedRef<Message[]>
+  readTogetherMessages: ComputedRef<Message[]>
   isGlobalSearch: ComputedRef<boolean>
   openMessage: (message: Message, mailbox?: MailboxKey, replaceHistory?: boolean) => void
   selectedId: ComputedRef<string>
@@ -24,6 +26,7 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
   activeFolder,
   chronologicalMessages,
   feedEditions,
+  readTogetherMessages,
   isGlobalSearch,
   openMessage,
   selectedId,
@@ -40,6 +43,10 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
     const messageId = activeThreadMessage.value?.id
     return messageId ? feedEditions.value.findIndex(message => message.id === messageId) : -1
   })
+  const isReadingTogether = computed(() => Boolean(selectedId.value) && readTogetherMessages.value.length > 1)
+  const readTogetherIndex = computed(() => activeFolder.value === 'The Feed'
+    ? readTogetherMessages.value.findIndex(message => message.id === activeThreadMessage.value?.id)
+    : readTogetherMessages.value.findIndex(message => message.threadId === selectedId.value))
   const isFeedReader = computed(() => activeFolder.value === 'The Feed'
     && !isGlobalSearch.value
     && Boolean(selectedId.value)
@@ -80,6 +87,12 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
   }
 
   function navigateFeedEdition(direction: -1 | 1) {
+    if (isReadingTogether.value) {
+      const nextMessage = readTogetherMessages.value[readTogetherIndex.value + direction]
+      if (nextMessage) openMessage(nextMessage, activeFolder.value, true)
+      return
+    }
+
     const nextEdition = feedEditions.value[feedEditionIndex.value + direction]
     if (nextEdition) openMessage(nextEdition, 'The Feed', true)
   }
@@ -126,8 +139,10 @@ export function useMailThreadNavigation<Message extends NavigableMessage>({
     finishFeedTouch,
     isFeedReader,
     isInboxReader,
+    isReadingTogether,
     isReadingAll,
     navigateFeedEdition,
+    readTogetherIndex,
     navigateThreadMessage,
     rememberFeedTouch,
     replyRecipient,
