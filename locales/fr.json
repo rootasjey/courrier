@@ -519,6 +519,18 @@
     "conversationMessages": "Messages de la conversation",
     "messageFrom": "Message de {sender}",
     "attachments": "Pièces jointes",
+    "viewAllAttachments": "Afficher les {count} pièces jointes",
+    "attachmentsCollectionTitle": "Toutes les pièces jointes ({count})",
+    "attachmentsCollectionDescription": "Les fichiers sont regroupés par type. Sélectionne une vignette pour télécharger un fichier.",
+    "downloadThreadAttachmentsZipDescription": "Télécharge les pièces jointes de toute la conversation.",
+    "attachmentTypes": {
+      "images": "Images",
+      "documents": "Documents",
+      "spreadsheets": "Tableurs",
+      "presentations": "Présentations",
+      "archives": "Archives",
+      "other": "Autres fichiers"
+    },
     "attachmentCountOne": "{count} pièce jointe",
     "attachmentCountMany": "{count} pièces jointes",
     "downloadAttachment": "Télécharger {filename}",

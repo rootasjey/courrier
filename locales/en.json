@@ -519,6 +519,18 @@
     "conversationMessages": "Conversation messages",
     "messageFrom": "Message from {sender}",
     "attachments": "Attachments",
+    "viewAllAttachments": "View all {count} attachments",
+    "attachmentsCollectionTitle": "All attachments ({count})",
+    "attachmentsCollectionDescription": "Files are grouped by type. Select a thumbnail to download a file.",
+    "downloadThreadAttachmentsZipDescription": "Downloads attachments from the entire conversation.",
+    "attachmentTypes": {
+      "images": "Images",
+      "documents": "Documents",
+      "spreadsheets": "Spreadsheets",
+      "presentations": "Presentations",
+      "archives": "Archives",
+      "other": "Other files"
+    },
     "attachmentCountOne": "{count} attachment",
     "attachmentCountMany": "{count} attachments",
     "downloadAttachment": "Download {filename}",

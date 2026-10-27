@@ -49,23 +49,11 @@
       <p v-else-if="message.body === undefined" role="alert">{{ $t('mail.loadErrorBody') }}</p>
       <div v-else-if="message.isOutgoing && message.htmlBody" class="message-rich-body" v-html="message.htmlBody" />
       <template v-else-if="message.body !== undefined"><p v-for="(paragraph, paragraphIndex) in message.body.split('\n\n')" :key="paragraphIndex">{{ paragraph }}</p></template>
-      <section v-if="message.attachments.length" class="attachment-list" :aria-label="$t('mail.attachments')">
-        <div class="attachment-heading">
-          <h2>{{ $t('mail.attachments') }}</h2>
-          <span class="attachment-heading-count">{{ message.attachments.length }}</span>
-          <a v-if="threadId" class="attachment-download-zip" :href="`/api/threads/${encodeURIComponent(threadId)}/attachments.zip`">{{ $t('mail.downloadThreadAttachmentsZip') }}</a>
-        </div>
-        <span class="attachment-total-size">{{ $t('mail.attachmentTotalSize', { size: formatAttachmentSize(totalAttachmentBytes) }) }}</span>
-        <div class="thread-attachment-grid">
-        <MailAttachmentCard
-          v-for="attachment in message.attachments"
-          :key="attachment.id"
-          :attachment="attachment"
-          :thread-id="threadId"
-          :size-label="formatAttachmentSize(attachment.sizeBytes)"
-        />
-        </div>
-      </section>
+      <ThreadMessageAttachments
+        v-if="message.attachments.length"
+        :attachments="message.attachments"
+        :thread-id="threadId"
+      />
     </div>
 
     <div v-if="isInboxReader" class="inbox-message-footer">
@@ -125,23 +113,8 @@ const props = withDefaults(defineProps<{
   showParticipants: false,
 })
 
-const totalAttachmentBytes = computed(() => props.message.attachments.reduce((total, attachment) => total + attachment.sizeBytes, 0))
-
 const { $t } = useI18n()
 const { locale } = useI18nLocale()
-
-function formatAttachmentSize(bytes: number) {
-  const megabyte = 1024 * 1024
-  const isEnglish = locale.value?.startsWith('en')
-  if (bytes >= megabyte) {
-    const value = new Intl.NumberFormat(locale.value || 'fr', { maximumFractionDigits: 1 }).format(bytes / megabyte)
-    return `${value} ${isEnglish ? 'MB' : 'Mo'}`
-  }
-
-  return `${Math.max(1, Math.round(bytes / 1024))} ${isEnglish ? 'KB' : 'Ko'}`
-}
-
-import MailAttachmentCard from '~/components/MailAttachmentCard.vue'
 
 function recipientAddresses(value: string) {
   const matches = value.match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/gi) || []
