@@ -63,7 +63,7 @@
 .thread-attachments-download-all > :first-child { font-size: 17px; }
 .thread-attachments-download-scope { color: var(--muted); font-size: 11px; font-weight: 500; }
 
-.thread-attachments-dialog-content { display: grid; align-content: start; gap: 22px; min-height: 0; overflow-y: auto; padding: 20px 24px 25px; overscroll-behavior: contain; }
+.thread-attachments-dialog-content { display: grid; align-content: start; gap: 22px; min-height: 0; max-height: min(56dvh, calc(100dvh - 260px)); overflow-y: auto; padding: 20px 24px 25px; overscroll-behavior: contain; }
 .thread-attachment-group { display: grid; gap: 12px; }
 .thread-attachment-group h3 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink); font-size: 13px; font-weight: 680; }
 .thread-attachment-group h3 span { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding-inline: 5px; border-radius: 7px; background: var(--surface-soft); color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -76,7 +76,7 @@
   .thread-attachments-dialog-title { font-size: 18px; }
   .thread-attachments-download-all { grid-template-columns: 18px minmax(0, 1fr); margin: 12px 16px 0; padding: 11px 12px; }
   .thread-attachments-download-scope { grid-column: 2; }
-  .thread-attachments-dialog-content { gap: 18px; padding: 17px 16px max(20px, env(safe-area-inset-bottom)); }
+  .thread-attachments-dialog-content { max-height: min(54dvh, calc(86dvh - 225px)); gap: 18px; padding: 17px 16px max(20px, env(safe-area-inset-bottom)); }
   .thread-attachment-dialog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
 }
 
