@@ -226,6 +226,7 @@ const attachments = ref<ComposeAttachment[]>([])
 const draftStatus = ref<'draft' | 'sending'>('draft')
 const mode = ref<'full' | 'popup' | 'minimized'>('full')
 const expandedMode = ref<'full' | 'popup'>('full')
+const fullscreenScrollLockClass = 'has-fullscreen-composer'
 const loading = ref(false)
 const loadFailed = ref(false)
 const editorRevision = ref(0)
@@ -336,6 +337,13 @@ watch(() => [props.open, props.draftId] as const, (values, previous = [false, nu
     saveTimer = undefined
   }
 }, { immediate: true })
+
+watch(() => [props.open, mode.value] as const, ([open, currentMode]) => {
+  if (!import.meta.client) return
+  const shouldLockScroll = open && currentMode === 'full'
+  document.documentElement.classList.toggle(fullscreenScrollLockClass, shouldLockScroll)
+  document.body.classList.toggle(fullscreenScrollLockClass, shouldLockScroll)
+}, { immediate: true, flush: 'post' })
 
 watch([to, recipientEntry, cc, bcc, subject], () => scheduleSave())
 
@@ -709,11 +717,15 @@ function formatSize(bytes: number) {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onWindowKeydown, true)
   window.removeEventListener('pointerdown', onDocumentPointerdown, true)
+  document.documentElement.classList.remove(fullscreenScrollLockClass)
+  document.body.classList.remove(fullscreenScrollLockClass)
   if (saveTimer) clearTimeout(saveTimer)
 })
 </script>
 
 <style>
+html.has-fullscreen-composer, body.has-fullscreen-composer { overflow: hidden; }
+html.has-fullscreen-composer { scrollbar-gutter: stable; }
 .compose-stage { position: fixed; z-index: 40; inset: 0; overflow: hidden; color: var(--ink); }
 .compose-tooltip-content { z-index: 100 !important; }
 .compose-stage.is-full { background: transparent; pointer-events: none; }
