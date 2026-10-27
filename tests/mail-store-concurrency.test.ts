@@ -12,13 +12,12 @@ type BoundStatement = {
 
 class ConcurrentD1 {
   private readonly sqlite = new DatabaseSync(':memory:')
-  private initialSelects = 0
-  private releaseInitialSelects!: () => void
-  private readonly initialSelectBarrier = new Promise<void>((resolve) => {
-    this.releaseInitialSelects = resolve
-  })
+  private readonly reportsChanges: boolean
+  private readonly waitForConcurrentSelects: boolean
 
-  constructor() {
+  constructor(reportsChanges = true, waitForConcurrentSelects = true) {
+    this.reportsChanges = reportsChanges
+    this.waitForConcurrentSelects = waitForConcurrentSelects
     this.sqlite.exec(`
       PRAGMA foreign_keys = ON;
       CREATE TABLE workspaces (
@@ -79,8 +78,23 @@ class ConcurrentD1 {
         search_text TEXT NOT NULL DEFAULT '',
         search_status TEXT NOT NULL DEFAULT 'pending'
       );
+      CREATE TABLE legacy_forward_deliveries (
+        message_id TEXT PRIMARY KEY NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        destination TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('processing', 'forwarded', 'failed')),
+        attempt_count INTEGER NOT NULL DEFAULT 1,
+        claimed_at TEXT,
+        forwarded_at TEXT,
+        last_error TEXT,
+        created_at TEXT NOT NULL
+      );
     `)
   }
+  private initialSelects = 0
+  private releaseInitialSelects!: () => void
+  private readonly initialSelectBarrier = new Promise<void>((resolve) => {
+    this.releaseInitialSelects = resolve
+  })
 
   prepare(sql: string) {
     const statement = {
@@ -93,12 +107,16 @@ class ConcurrentD1 {
       async first<T>() {
         if (sql.includes('SELECT id FROM messages WHERE message_id = ?')) {
           thisD1.initialSelects += 1
-          if (thisD1.initialSelects <= 2) {
+          if (thisD1.waitForConcurrentSelects && thisD1.initialSelects <= 2) {
             if (thisD1.initialSelects === 2) thisD1.releaseInitialSelects()
             await thisD1.initialSelectBarrier
           }
         }
         return thisD1.sqlite.prepare(sql).get(...statement.values as never[]) as T | undefined ?? null
+      },
+      async run() {
+        const result = thisD1.sqlite.prepare(sql).run(...statement.values as never[])
+        return { success: true, meta: { changes: Number(result.changes) } }
       },
     }
     const thisD1 = this
@@ -111,7 +129,10 @@ class ConcurrentD1 {
       const results = statements.map((statement) => {
         const bound = statement as unknown as BoundStatement
         const result = this.sqlite.prepare(bound.sql).run(...bound.values as never[])
-        return { success: true, meta: { changes: Number(result.changes) } }
+        return {
+          success: true,
+          meta: this.reportsChanges ? { changes: Number(result.changes) } : {},
+        }
       })
       this.sqlite.exec('COMMIT')
       return results as D1Result[]
@@ -206,6 +227,25 @@ test('deux livraisons simultanées identiques ne stockent et ne relaient qu’un
 
     assert.deepEqual(db.counts(), { messages: 1, attachments: 1 })
     assert.equal(r2.objects.size, 2)
+    assert.deepEqual(forwardedTo, ['hey-test@example.org'])
+  } finally {
+    db.close()
+  }
+})
+
+test('une insertion est relayée même si D1 omet la métadonnée changes du batch', async () => {
+  const db = new ConcurrentD1(false, false)
+  const r2 = new MemoryR2()
+  const forwardedTo: string[] = []
+  const bindings = makeBindings(db, r2)
+
+  try {
+    await handleIncomingEmail(
+      makeMessage(rawEmail('Relais avec métadonnée D1 absente.'), async destination => { forwardedTo.push(destination) }),
+      bindings,
+    )
+
+    assert.deepEqual(db.counts(), { messages: 1, attachments: 1 })
     assert.deepEqual(forwardedTo, ['hey-test@example.org'])
   } finally {
     db.close()

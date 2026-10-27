@@ -1,5 +1,6 @@
 import {
   isBlockedSender,
+  markLegacyForwardDelivery,
   parseIncomingEmail,
   storeIncomingEmail,
   type MailStorageBindings,
@@ -12,6 +13,8 @@ type IncomingEmail = {
   raw: ReadableStream<Uint8Array>
   forward: (destination: string) => Promise<unknown>
   setReject?: (reason: string) => void
+  canBeForwarded?: boolean
+  headers?: Headers
 }
 
 type StoredEmail = Awaited<ReturnType<typeof storeIncomingEmail>>
@@ -54,8 +57,14 @@ export async function handleIncomingEmail(
   store: StoreEmail = storeIncomingEmail,
 ): Promise<void> {
   const destination = legacyDestination(env)
+  const eventMessageId = message.headers?.get('message-id')?.trim() || undefined
   let rawEmail: ArrayBuffer | undefined
   let parsedEmail: ParsedEmail | undefined
+
+  console.info('[courrier] Incoming email event received.', {
+    messageId: eventMessageId,
+    canBeForwarded: message.canBeForwarded,
+  })
 
   // Check the exact visible From address before storing or forwarding anything.
   // Cloudflare's envelope sender can differ from the address shown in the UI.
@@ -93,7 +102,13 @@ export async function handleIncomingEmail(
   let result: StoredEmail
   try {
     rawEmail ??= await new Response(message.raw).arrayBuffer()
-    result = await store(rawEmail, { from: message.from, to: message.to }, env, parsedEmail)
+    result = await store(
+      rawEmail,
+      { from: message.from, to: message.to },
+      env,
+      parsedEmail,
+      destination || undefined,
+    )
   } catch (storageError) {
     if (destination) {
       try {
@@ -111,17 +126,77 @@ export async function handleIncomingEmail(
     throw storageError
   }
 
-  if (result.duplicate) {
-    console.info('[courrier] Duplicate email already stored; skipping legacy forwarding.', result.id)
+  console.info('[courrier] Incoming email stored.', {
+    id: result.id,
+    duplicate: result.duplicate,
+    forwardingAttempt: result.forwardingAttempt,
+    hasForwardingClaim: Boolean(result.forwardingClaimedAt),
+  })
+
+  const forwardingClaimedAt = result.forwardingClaimedAt
+  const shouldForward = result.forwardingAttempt
+    ? result.forwardingAttempt === 'claimed'
+    : !result.duplicate
+
+  if (!shouldForward) {
+    if (result.duplicate) {
+      console.info('[courrier] Duplicate email already stored; forwarding is complete or already in progress.', result.id)
+    } else {
+      console.error('[courrier] Stored email has no forwarding claim; legacy forwarding was skipped.', result.id)
+    }
     return
   }
 
   if (destination) {
+    if (message.canBeForwarded === false) {
+      if (forwardingClaimedAt) {
+        await markLegacyForwardDelivery(
+          env.DB,
+          result.id,
+          forwardingClaimedAt,
+          'failed',
+          'Cloudflare marked this email as not forwardable.',
+        )
+      }
+      console.error('[courrier] Cloudflare marked the stored email as not forwardable.', result.id)
+      return
+    }
+
+    console.info('[courrier] Starting legacy forwarding.', result.id)
     try {
       await message.forward(destination)
     } catch (forwardError) {
+      if (forwardingClaimedAt) {
+        try {
+          await markLegacyForwardDelivery(
+            env.DB,
+            result.id,
+            forwardingClaimedAt,
+            'failed',
+            forwardError instanceof Error ? forwardError.message : String(forwardError),
+          )
+        } catch (statusError) {
+          console.error('[courrier] Could not record the failed legacy forwarding attempt.', { id: result.id, statusError })
+        }
+      }
       // Courrier already has a durable copy, so keep that successful receipt.
       console.error('[courrier] Email is stored in Courrier, but legacy forwarding failed.', forwardError)
+      return
     }
+
+    if (forwardingClaimedAt) {
+      try {
+        const marked = await markLegacyForwardDelivery(env.DB, result.id, forwardingClaimedAt, 'forwarded')
+        if (!marked) {
+          console.error('[courrier] Email was forwarded, but its delivery status could not be marked complete.', result.id)
+          return
+        }
+      } catch (statusError) {
+        // Cloudflare accepted the forward, so do not mark it failed and trigger
+        // an immediate duplicate on the next delivery.
+        console.error('[courrier] Email was forwarded, but its delivery status could not be recorded.', { id: result.id, statusError })
+      }
+    }
+    console.info('[courrier] Legacy forwarding accepted by Cloudflare.', result.id)
   }
 }

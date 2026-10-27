@@ -17,6 +17,13 @@ export type IncomingEnvelope = {
 
 export type ParsedEmail = Awaited<ReturnType<typeof PostalMime.parse>>
 
+export type IncomingEmailStoreResult = {
+  id: string
+  duplicate: boolean
+  forwardingAttempt?: 'claimed' | 'skipped'
+  forwardingClaimedAt?: string
+}
+
 type StoredAttachmentRow = {
   id: string
   messageId: string
@@ -61,6 +68,63 @@ export function incomingSenderAddress(parsed: ParsedEmail, envelope: IncomingEnv
   return (sender?.address || envelope.from).trim().toLocaleLowerCase('en-US')
 }
 
+async function claimLegacyForwardDelivery(
+  db: D1Database,
+  messageId: string,
+  destination: string,
+  claimedAt: string,
+) {
+  const leaseExpiresBefore = new Date(Date.parse(claimedAt) - 10 * 60 * 1000).toISOString()
+  const result = await db.prepare(`
+    UPDATE legacy_forward_deliveries
+    SET destination = ?, status = 'processing', attempt_count = attempt_count + 1,
+      claimed_at = ?, last_error = NULL
+    WHERE message_id = ?
+      AND (
+        status = 'failed'
+        OR (status = 'processing' AND claimed_at < ?)
+      )
+  `).bind(destination, claimedAt, messageId, leaseExpiresBefore).run()
+
+  return result.meta.changes === 1
+}
+
+export async function markLegacyForwardDelivery(
+  db: D1Database,
+  messageId: string,
+  claimedAt: string,
+  status: 'forwarded' | 'failed',
+  error?: string,
+) {
+  const result = await db.prepare(`
+    UPDATE legacy_forward_deliveries
+    SET status = ?, forwarded_at = ?, claimed_at = NULL, last_error = ?
+    WHERE message_id = ? AND status = 'processing' AND claimed_at = ?
+  `).bind(
+    status,
+    status === 'forwarded' ? new Date().toISOString() : null,
+    error?.slice(0, 1000) ?? null,
+    messageId,
+    claimedAt,
+  ).run()
+
+  return result.meta.changes === 1
+}
+
+async function ownsLegacyForwardClaim(
+  db: D1Database,
+  messageId: string,
+  claimedAt: string,
+) {
+  const claim = await db.prepare(`
+    SELECT 1 AS claimed
+    FROM legacy_forward_deliveries
+    WHERE message_id = ? AND status = 'processing' AND claimed_at = ?
+  `).bind(messageId, claimedAt).first<{ claimed: number }>()
+
+  return Boolean(claim)
+}
+
 export async function isBlockedSender(
   parsed: ParsedEmail,
   envelope: IncomingEnvelope,
@@ -83,6 +147,7 @@ export async function storeIncomingEmail(
   envelope: IncomingEnvelope,
   bindings: MailStorageBindings,
   parsedEmail?: ParsedEmail,
+  legacyForwardDestination?: string,
 ) {
   const parsed = parsedEmail ?? await parseIncomingEmail(rawEmail)
   const recipientAddress = envelope.to.trim().toLocaleLowerCase('en-US')
@@ -108,7 +173,22 @@ export async function storeIncomingEmail(
     .first<{ id: string }>()
 
   if (existing) {
-    return { id: existing.id, duplicate: true }
+    if (!legacyForwardDestination) return { id: existing.id, duplicate: true }
+
+    const claimedAt = new Date().toISOString()
+    const claimed = await claimLegacyForwardDelivery(
+      bindings.DB,
+      existing.id,
+      legacyForwardDestination,
+      claimedAt,
+    )
+
+    return {
+      id: existing.id,
+      duplicate: true,
+      forwardingAttempt: claimed ? 'claimed' as const : 'skipped' as const,
+      ...(claimed ? { forwardingClaimedAt: claimedAt } : {}),
+    }
   }
 
   const id = contentHash
@@ -148,7 +228,6 @@ export async function storeIncomingEmail(
   const sentAt = parsed.date && !Number.isNaN(Date.parse(parsed.date))
     ? new Date(parsed.date).toISOString()
     : null
-
   await bindings.MAIL_STORE.put(rawObjectKey, rawEmail, {
     httpMetadata: { contentType: 'message/rfc822' },
     customMetadata: { messageId, envelopeTo: envelope.to },
@@ -199,6 +278,9 @@ export async function storeIncomingEmail(
     })
   }
 
+  // Start the forwarding lease immediately before the D1 batch so attachment
+  // extraction and R2 writes cannot make a fresh claim look stale.
+  const forwardingClaimedAt = legacyForwardDestination ? new Date().toISOString() : null
   const statements = [
     bindings.DB.prepare(`
       INSERT OR IGNORE INTO messages (
@@ -253,6 +335,15 @@ export async function storeIncomingEmail(
       id,
       messageId,
     )),
+    ...(legacyForwardDestination && forwardingClaimedAt ? [bindings.DB.prepare(`
+      INSERT OR IGNORE INTO legacy_forward_deliveries (
+        message_id, destination, status, attempt_count, claimed_at, created_at
+      )
+      SELECT ?, ?, 'processing', 1, ?, ?
+      WHERE EXISTS (
+        SELECT 1 FROM messages WHERE id = ? AND message_id = ?
+      )
+    `).bind(id, legacyForwardDestination, forwardingClaimedAt, forwardingClaimedAt, id, messageId)] : []),
   ]
 
   const results = await bindings.DB.batch(statements)
@@ -274,16 +365,74 @@ export async function storeIncomingEmail(
             console.error('[courrier] Could not remove an R2 object from a duplicate delivery.', { key, error })
           }
         }))
-        return { id: existingMessage.id, duplicate: true }
+        if (!legacyForwardDestination) return { id: existingMessage.id, duplicate: true }
+
+        const claimedAt = new Date().toISOString()
+        const claimed = await claimLegacyForwardDelivery(
+          bindings.DB,
+          existingMessage.id,
+          legacyForwardDestination,
+          claimedAt,
+        )
+
+        return {
+          id: existingMessage.id,
+          duplicate: true,
+          forwardingAttempt: claimed ? 'claimed' as const : 'skipped' as const,
+          ...(claimed ? { forwardingClaimedAt: claimedAt } : {}),
+        }
+      }
+
+      // D1's batch result metadata can omit `changes` even when this batch
+      // inserted the message and its forwarding claim. Match our claim token
+      // before treating the row as a concurrent duplicate.
+      if (
+        legacyForwardDestination
+        && forwardingClaimedAt
+        && await ownsLegacyForwardClaim(bindings.DB, existingMessage.id, forwardingClaimedAt)
+      ) {
+        return {
+          id: existingMessage.id,
+          duplicate: false,
+          forwardingAttempt: 'claimed' as const,
+          forwardingClaimedAt,
+        }
       }
 
       // Another identical delivery inserted the same content after the first
       // lookup. Its classification was written by the winning insert.
-      return { id: existingMessage.id, duplicate: true }
+      if (!legacyForwardDestination) return { id: existingMessage.id, duplicate: true }
+
+      const claimedAt = new Date().toISOString()
+      const claimed = await claimLegacyForwardDelivery(
+        bindings.DB,
+        existingMessage.id,
+        legacyForwardDestination,
+        claimedAt,
+      )
+
+      return {
+        id: existingMessage.id,
+        duplicate: true,
+        forwardingAttempt: claimed ? 'claimed' as const : 'skipped' as const,
+        ...(claimed ? { forwardingClaimedAt: claimedAt } : {}),
+      }
     } else {
       throw new Error('D1 did not store the incoming email and no existing Message-ID was found.')
     }
   }
 
-  return { id, duplicate: false }
+  // This invocation inserted the message and its delivery row in the same
+  // successful D1 batch. Do not gate forwarding on D1's optional changes
+  // metadata, which can differ across result shapes.
+  const forwardingAttempt = legacyForwardDestination && forwardingClaimedAt
+    ? 'claimed' as const
+    : undefined
+
+  return {
+    id,
+    duplicate: false,
+    ...(forwardingAttempt ? { forwardingAttempt } : {}),
+    ...(forwardingAttempt === 'claimed' && forwardingClaimedAt ? { forwardingClaimedAt } : {}),
+  }
 }
