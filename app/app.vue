@@ -7,7 +7,7 @@
       :back-to="backTo"
       @select-folder="selectFolder"
     />
-    <NuxtPage :transition="pageTransition" />
+    <NuxtPage :transition="pageTransition" :page-key="pageKey" />
     <PageLoadingIndicator />
     <CommandPalette v-if="!isPublicAuthRoute" v-model:open="commandPaletteOpen" />
   </div>
@@ -19,6 +19,7 @@ import '@fontsource-variable/dm-sans/wght-italic.css'
 import AppTopbar from '~/components/AppTopbar.vue'
 import PageLoadingIndicator from '~/components/PageLoadingIndicator.vue'
 import { mailboxFromPath, mailboxPath, mailboxes, threadIdFromPath, type MailboxKey } from '~/utils/mailbox-routing'
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,6 +29,12 @@ const isPublicAuthRoute = computed(() => route.path === '/login'
 const pageTransition = computed(() => isPublicAuthRoute.value || route.path.startsWith('/admin')
   ? false
   : { name: 'page', mode: 'in-out' as const })
+const pageKey = (targetRoute: RouteLocationNormalizedLoaded) => {
+  const threadId = threadIdFromPath(targetRoute.path)
+  return threadId && targetRoute.query.readTogether
+    ? `read-together:${mailboxFromPath(targetRoute.path)}`
+    : targetRoute.path
+}
 const activeFolder = computed(() => mailboxFromPath(route.path))
 const isThreadRoute = computed(() => Boolean(threadIdFromPath(route.path)))
 type ThemeMode = 'system' | 'light' | 'dark'
