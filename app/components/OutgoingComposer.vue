@@ -786,7 +786,7 @@ html.has-fullscreen-composer { scrollbar-gutter: stable; }
 .compose-footer-status { display: flex; min-width: 0; flex: 1 1 300px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 14px; margin-right: auto; }
 .compose-save-status { min-width: 142px; color: var(--quiet); font-size: 11px; }
 .compose-tool-button { min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
-.compose-icon-action { display: inline-grid; width: 36px; min-height: 36px; padding: 0; place-items: center; border-radius: 9px; }
+.compose-icon-action { display: inline-grid; width: 46px; height: 46px; min-height: 46px; padding: 0; place-items: center; border-radius: 9px; }
 .compose-icon-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .compose-icon-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .compose-tool-button:hover { border-color: var(--accent); color: var(--accent); }
