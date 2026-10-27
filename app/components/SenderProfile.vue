@@ -141,7 +141,7 @@
                     <span>{{ selectedFolderOption(group)?.label }}</span>
                   </template>
                 </NCombobox>
-                <button type="submit" :disabled="savingDomain === group.id || selectedFolder(group) === group.rule">
+                <button class="sender-rule-submit" type="submit" :disabled="savingDomain === group.id || selectedFolder(group) === group.rule">
                   {{ savingDomain === group.id ? $t('sender.saving') : $t('sender.refileMessages') }}
                 </button>
               </form>
@@ -452,35 +452,34 @@ useSeoMeta({
 </script>
 
 <style scoped>
-.sender-profile-page { min-height: calc(100vh - 76px); padding: 30px clamp(20px, 5vw, 76px) 64px; }
-.sender-profile-shell { width: min(100%, 1120px); margin: 0 auto; }
-.sender-profile-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 30px; color: var(--accent); font-size: 14px; font-weight: 620; text-decoration: none; }
+.sender-profile-page { min-height: calc(100vh - 76px); padding: 26px clamp(20px, 5vw, 76px) 64px; }
+.sender-profile-shell { width: min(100%, 1080px); margin: 0 auto; }
+.sender-profile-back { display: inline-flex; align-items: center; min-height: 38px; margin: 0 0 24px; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none; }
 .sender-profile-back:hover { text-decoration: underline; text-underline-offset: 3px; }
-.sender-profile-heading { display: grid; justify-items: center; gap: 14px; margin: 0 0 40px; text-align: center; }
-.sender-profile-avatar { display: grid; width: 88px; height: 88px; place-items: center; border-radius: 50%; font-size: 25px; font-weight: 700; }
+.sender-profile-heading { display: grid; grid-template-columns: 68px minmax(0, 1fr) auto; align-items: center; gap: 18px; margin: 0 0 32px; padding: 8px 0 25px; border-bottom: 1px solid var(--line); text-align: left; }
+.sender-profile-avatar { display: grid; width: 68px; height: 68px; place-items: center; border-radius: 50%; font-size: 20px; font-weight: 700; }
 .sender-profile-avatar-photo { object-fit: cover; }
 .sender-profile-avatar-logo { object-fit: contain; padding: 6px; background: white; }
 .avatar-terracotta { background: #f2e5dd; color: #714b3e; }
 .avatar-blue { background: #e3eceb; color: #405e62; }
 .avatar-green { background: #deebe4; color: #31574d; }
 .avatar-gold { background: #f1ead8; color: #685a37; }
-.sender-profile-identity { display: grid; justify-items: center; min-width: 0; width: min(100%, 720px); gap: 5px; }
-.sender-profile-heading h1 { margin: 0; color: var(--ink); font-size: clamp(32px, 4.5vw, 48px); font-weight: 740; letter-spacing: -.035em; line-height: 1.08; overflow-wrap: anywhere; }
-.sender-profile-address { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; }
+.sender-profile-identity { display: grid; justify-items: start; min-width: 0; gap: 4px; }
+.sender-profile-heading h1 { margin: 0; color: var(--ink); font-size: clamp(28px, 3.2vw, 38px); font-weight: 720; letter-spacing: -.03em; line-height: 1.12; overflow-wrap: anywhere; }
+.sender-profile-address { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
 .sender-profile-company { margin: 0; color: var(--muted); font-size: 14px; font-weight: 620; }
-.sender-profile-aliases { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 14px; margin-top: 3px; color: var(--quiet); font-size: 12px; }
-.sender-profile-details { display: grid; justify-items: center; gap: 7px; margin-top: 3px; color: var(--muted); font-size: 13px; }
+.sender-profile-aliases { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 6px 14px; margin-top: 3px; color: var(--quiet); font-size: 12px; }
+.sender-profile-details { display: grid; justify-items: start; gap: 7px; margin-top: 3px; color: var(--muted); font-size: 13px; }
 .sender-profile-details a { display: flex; align-items: baseline; gap: 8px; color: inherit; text-decoration: none; }
 .sender-profile-details a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .sender-profile-details > * > span, .sender-profile-details a > span { color: var(--quiet); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
 .sender-profile-postal { gap: 10px; }
 .sender-profile-postal p { margin: 3px 0 0; color: var(--muted); white-space: pre-line; }
-.sender-profile-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 4px; }
+.sender-profile-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: 0; }
 .sender-profile-actions a, .sender-contact-note-heading a { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; font-weight: 620; text-decoration: none; transition: background-color 140ms ease, border-color 140ms ease; }
-.sender-profile-actions a:hover, .sender-contact-note-heading a:hover { border-color: var(--accent); background: var(--accent-wash); }
-.sender-profile-actions a.sender-profile-save-contact { min-height: 42px; padding-inline: 18px; border-color: var(--accent); background: var(--accent); color: var(--accent-ink, #fff); font-size: 14px; font-weight: 680; }
-.sender-profile-actions a.sender-profile-save-contact:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
-:root[data-theme="dark"] .sender-profile-actions a.sender-profile-save-contact { color: var(--accent-ink); }
+.sender-profile-actions a:hover, .sender-contact-note-heading a:hover { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); background: var(--accent-wash); }
+.sender-profile-actions a.sender-profile-save-contact { min-height: 38px; padding-inline: 14px; border-color: var(--line); background: transparent; color: var(--muted); font-size: 13px; font-weight: 620; }
+.sender-profile-actions a.sender-profile-save-contact:hover { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); background: var(--accent-wash); color: var(--ink); }
 .sender-profile-actions a:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 .sender-contact-note { margin: 0 0 26px; padding: 17px 19px; border-radius: 12px; background: var(--surface-soft); }
 .sender-contact-note-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
@@ -488,8 +487,8 @@ useSeoMeta({
 .sender-contact-note-heading a { min-height: 32px; padding: 0 11px; font-size: 12px; }
 .sender-contact-note p { margin: 12px 0 6px; color: var(--ink); font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .sender-contact-note > span { color: var(--quiet); font-size: 11px; }
-.sender-profile-history { border-top: 1px solid var(--line); }
-.sender-profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 19px 0 12px; }
+.sender-profile-history { border-top: 0; }
+.sender-profile-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 0 11px; }
 .sender-profile-section-title { display: flex; min-width: 0; align-items: baseline; gap: 10px; }
 .sender-profile-section-heading h2 { margin: 0; color: var(--ink); font-size: 19px; font-weight: 700; letter-spacing: -.25px; }
 .sender-profile-section-title > span { color: var(--quiet); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -504,10 +503,9 @@ useSeoMeta({
 .sender-history-filter-viewport { max-height: 200px; overflow-y: auto; padding: 5px; }
 .sender-history-filter-item { display: flex; min-height: 38px; align-items: center; gap: 9px; border-radius: 7px; color: var(--ink); font-size: 13px; }
 .sender-history-filter-item[data-highlighted] { background: var(--accent-wash); color: var(--accent); }
-.sender-history-write { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 680; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease; }
+.sender-history-write { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 7px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; font-weight: 620; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
 .sender-history-write svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
-.sender-history-write:hover { border-color: var(--accent-hover); background: var(--accent-hover); transform: translateY(-1px); }
-:root[data-theme="dark"] .sender-history-write { color: var(--accent-ink); }
+.sender-history-write:hover { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); background: var(--accent-wash); }
 .sender-history-list { margin-top: 3px; }
 .sender-history-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 76px; padding: 13px 12px; border-radius: 8px; color: inherit; text-decoration: none; transition: background-color 130ms ease; }
 .sender-history-row + .sender-history-row::before { position: absolute; top: 0; right: 0; left: 0; height: 1px; background: var(--line); content: ''; }
@@ -528,7 +526,7 @@ useSeoMeta({
 .sender-history-empty { margin: 0; padding: 22px 12px; color: var(--muted); font-size: 13px; }
 .sender-rules { margin-top: 27px; }
 .sender-mailbox-group + .sender-mailbox-group { margin-top: 13px; }
-.sender-rule-panel { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 17px 19px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
+.sender-rule-panel { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--sheet); }
 .sender-rule-description { display: grid; min-width: 0; gap: 5px; }
 .sender-rule-domain { overflow: hidden; color: var(--ink); font-size: 14px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
 .sender-rule-status, .sender-blocked-status { color: var(--muted); font-size: 12px; line-height: 1.4; }
@@ -536,7 +534,7 @@ useSeoMeta({
 .sender-blocked-status { color: var(--error); }
 .sender-rule-form { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; }
 .sender-rule-folder { min-width: 132px; }
-.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"] { display: inline-flex; width: 100%; min-height: 38px; align-items: center; justify-content: space-between; gap: 9px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); box-shadow: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
+.sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"] { display: inline-flex; width: 100%; min-width: 0; max-width: 100%; min-height: 38px; align-items: center; justify-content: space-between; gap: 9px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); box-shadow: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease; }
 .sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"]:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 46%, var(--line)); background: var(--sheet); }
 .sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"]:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 2px; }
 .sender-rule-folder button.sender-rule-folder-trigger[aria-haspopup="listbox"] > span:first-child { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -546,10 +544,9 @@ useSeoMeta({
 .sender-rule-folder-viewport { max-height: 190px; overflow-y: auto; padding: 5px; }
 .sender-rule-folder-item { display: flex; min-height: 38px; align-items: center; gap: 9px; border-radius: 7px; color: var(--ink); font-size: 13px; }
 .sender-rule-folder-item[data-highlighted] { background: var(--accent-wash); color: var(--accent); }
-.sender-rule-form button, .sender-profile-state button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 20px; background: var(--accent); color: white; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; transition: background-color 140ms ease, opacity 140ms ease; }
-.sender-rule-form button:hover:not(:disabled), .sender-profile-state button:hover:not(:disabled) { background: var(--accent-hover); }
-.sender-rule-form button:disabled, .sender-profile-state button:disabled { border: 1px solid var(--line); background: var(--accent-wash); color: var(--accent); cursor: not-allowed; }
-:root[data-theme="dark"] .sender-rule-form button:not(:disabled), :root[data-theme="dark"] .sender-profile-state button:not(:disabled) { color: var(--accent-ink); }
+.sender-rule-submit, .sender-profile-state button { min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 620; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
+.sender-rule-submit:hover:not(:disabled), .sender-profile-state button:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 38%, var(--line)); background: var(--accent-wash); color: var(--ink); }
+.sender-rule-submit:disabled, .sender-profile-state button:disabled { border: 1px solid var(--line); background: var(--surface-soft); color: var(--quiet); cursor: not-allowed; }
 .sender-rule-undo { min-height: 32px; margin: 9px 0 0 3px; padding: 0 12px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); color: var(--accent); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .sender-rule-undo:hover:not(:disabled) { background: var(--accent-wash); }
 .sender-rule-undo:disabled { background: var(--surface-soft); color: var(--muted); cursor: wait; }
@@ -562,18 +559,17 @@ useSeoMeta({
 .sender-profile-actions a:focus-visible, .sender-contact-note-heading a:focus-visible, .sender-history-row:focus-visible, .sender-profile-back:focus-visible, .sender-rule-form :focus-visible, .sender-history-controls :focus-visible, .sender-profile-state button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 58%, white); outline-offset: 3px; }
 @media (max-width: 760px) {
   .sender-profile-page { padding-inline: 20px; }
-  .sender-profile-heading { gap: 12px; margin-bottom: 32px; }
-  .sender-profile-avatar { width: 78px; height: 78px; font-size: 22px; }
-  .sender-profile-identity { width: 100%; }
-  .sender-profile-actions { width: 100%; margin-top: 5px; }
+  .sender-profile-heading { grid-template-columns: 58px minmax(0, 1fr); gap: 13px; margin-bottom: 27px; padding-bottom: 20px; }
+  .sender-profile-avatar { width: 58px; height: 58px; font-size: 18px; }
+  .sender-profile-actions { grid-column: 2; justify-content: flex-start; margin-top: 1px; }
   .sender-profile-section-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
   .sender-history-controls { width: 100%; }
   .sender-history-filter { min-width: 0; flex: 1 1 auto; }
   .sender-history-write { flex: 0 0 auto; }
   .sender-rule-panel { align-items: flex-start; flex-direction: column; gap: 13px; padding: 14px; }
-  .sender-rule-form { width: 100%; }
-  .sender-rule-folder { min-width: 0; flex: 1; }
-  .sender-rule-form button { padding-inline: 12px; }
+  .sender-rule-form { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .sender-rule-folder { width: 100%; min-width: 0; }
+  .sender-rule-submit { width: 100%; padding-inline: 12px; }
   .sender-history-row { align-items: flex-start; flex-direction: column; gap: 9px; padding: 13px 10px; }
   .sender-history-meta { width: 100%; min-width: 0; gap: 4px; }
   .sender-history-meta-summary { grid-template-columns: minmax(0, 1fr) auto; }
@@ -583,7 +579,10 @@ useSeoMeta({
   .sender-profile-back { margin-bottom: 22px; }
   .sender-profile-heading h1 { font-size: clamp(29px, 8vw, 38px); }
   .sender-profile-address { font-size: 14px; }
-  .sender-profile-actions a { min-height: 40px; flex: 1 1 145px; padding-inline: 10px; font-size: 12px; white-space: nowrap; }
+  .sender-profile-heading { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; }
+  .sender-profile-avatar { width: 48px; height: 48px; font-size: 16px; }
+  .sender-profile-actions { grid-column: 1 / -1; }
+  .sender-profile-actions a { min-height: 38px; padding-inline: 11px; font-size: 12px; white-space: nowrap; }
   .sender-history-write { padding-inline: 11px; font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
