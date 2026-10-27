@@ -43,7 +43,7 @@
                   </button>
                   <button class="screener-scope-label screener-scope-message" type="button" :aria-pressed="model.scope.value === 'message'" @click="model.scope.value = 'message'">{{ $t('mail.thisMessage') }} <kbd>G</kbd></button>
                 </div>
-                <button class="screener-apply" type="button" :disabled="model.isSaving.value" @click="model.applyChoice(sender.latest, model.destination.value, model.scope.value)"><span>{{ $t('mail.apply') }}</span><kbd>Y</kbd></button>
+                <AppButton class="screener-apply" variant="primary" type="button" :disabled="model.isSaving.value" @click="model.applyChoice(sender.latest, model.destination.value, model.scope.value)"><span>{{ $t('mail.apply') }}</span><kbd>Y</kbd></AppButton>
               </div>
             </Transition>
           </div>

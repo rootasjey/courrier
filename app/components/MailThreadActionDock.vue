@@ -11,14 +11,14 @@
     </nav>
 
     <div class="thread-action-primary-group">
-      <button v-if="!state.replyComposerOpen && state.folder !== 'Trash'" class="thread-action-primary" type="button" @click="actions.openReplyComposer">
+      <AppButton v-if="!state.replyComposerOpen && state.folder !== 'Trash'" variant="primary" type="button" @click="actions.openReplyComposer">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
         <span>{{ $t('mail.reply') }}</span><kbd>R</kbd>
-      </button>
-      <button v-if="state.folder !== 'Trash'" class="thread-action-secondary" type="button" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="actions.forwardActiveMessage">
+      </AppButton>
+      <AppButton v-if="state.folder !== 'Trash'" variant="secondary" type="button" :disabled="state.isMarkingThreadUnseen || state.isMovingOpenThread" @click="actions.forwardActiveMessage">
         <span>{{ $t('messageActions.forward') }}</span>
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3.5 17.5 10 11 16.5v-4c-4.4 0-7 1.2-8.5 4 .2-5.1 2.8-8 8.5-8v-5Z" /></svg>
-      </button>
+      </AppButton>
 
       <NPopover
         :open="moreMenuOpen"

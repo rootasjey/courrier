@@ -92,10 +92,6 @@
 
 .mailbox-view .screener-callout {
   min-height: 42px;
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
-  border-radius: 10px;
-  background: var(--accent-wash);
-  color: var(--accent);
 }
 
 .mailbox-view.is-inbox-view .message-group-seen { margin-top: 42px; }
