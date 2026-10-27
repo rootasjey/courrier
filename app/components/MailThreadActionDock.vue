@@ -1,15 +1,5 @@
 <template>
   <footer class="thread-action-footer" :class="{ 'has-feed-edition-navigation': state.feedNavigation }" :aria-label="$t('mail.messageActions')">
-    <nav v-if="state.feedNavigation" class="feed-edition-navigation thread-feed-navigation" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.readTogetherNavigation' : 'mail.feedNavigation')">
-      <button class="feed-edition-button" type="button" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.previousReadTogether' : 'mail.previousEdition')" :disabled="state.feedNavigation.index <= 0" @click="actions.navigateFeedEdition(-1)">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
-      </button>
-      <span class="feed-edition-position" aria-live="polite">{{ state.feedNavigation.index + 1 }} / {{ state.feedNavigation.count }}</span>
-      <button class="feed-edition-button is-next" type="button" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.nextReadTogether' : 'mail.nextEdition')" :disabled="state.feedNavigation.index >= state.feedNavigation.count - 1" @click="actions.navigateFeedEdition(1)">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 4.5 5.5 5.5-5.5 5.5" /></svg>
-      </button>
-    </nav>
-
     <div class="thread-action-primary-group">
       <AppButton v-if="!state.replyComposerOpen && state.folder !== 'Trash'" variant="primary" type="button" @click="actions.openReplyComposer">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5 3.5 9.5 8 14M4 9.5h7a5.5 5.5 0 0 1 5.5 5.5" /></svg>
@@ -115,6 +105,16 @@
         </template>
       </NPopover>
     </div>
+
+    <nav v-if="state.feedNavigation" class="feed-edition-navigation thread-feed-navigation" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.readTogetherNavigation' : 'mail.feedNavigation')">
+      <button class="feed-edition-button" type="button" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.previousReadTogether' : 'mail.previousEdition')" :disabled="state.feedNavigation.index <= 0" @click="actions.navigateFeedEdition(-1)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12.5 4.5-5.5 5.5 5.5 5.5" /></svg>
+      </button>
+      <span class="feed-edition-position" aria-live="polite">{{ state.feedNavigation.index + 1 }} / {{ state.feedNavigation.count }}</span>
+      <button class="feed-edition-button is-next" type="button" :aria-label="$t(state.feedNavigation.isReadTogether ? 'mail.nextReadTogether' : 'mail.nextEdition')" :disabled="state.feedNavigation.index >= state.feedNavigation.count - 1" @click="actions.navigateFeedEdition(1)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 12.5 10 7.5 15.5" /></svg>
+      </button>
+    </nav>
   </footer>
 </template>
 
