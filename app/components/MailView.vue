@@ -1417,6 +1417,7 @@ function handleSpecialFolderShortcut(event: KeyboardEvent) {
 }
 
 function handleThreadReaderShortcut(event: KeyboardEvent) {
+  if (route.path.startsWith('/mail/senders/')) return false
   if (!isReadingMessage.value || !selectedThread.value || classificationTarget.value || event.shiftKey) return false
 
   const key = event.key.toLocaleLowerCase('en-US')

@@ -38,7 +38,10 @@
             </template>
             <template v-else>
               <NTooltip :content="$t('contactProfile.saveAsContactHint')" :_tooltip-content="{ side: 'bottom', sideOffset: 8, collisionPadding: 12 }" :una="{ tooltipContent: 'compose-tooltip-content z-[130]' }">
-                <NuxtLink class="sender-profile-save-contact" :to="`${contactPath}/edit`">{{ $t('contactProfile.saveAsContact') }}</NuxtLink>
+                <NuxtLink class="sender-profile-save-contact" :to="`${contactPath}/edit`" aria-keyshortcuts="R">
+                  {{ $t('contactProfile.saveAsContact') }}
+                  <kbd aria-hidden="true">R</kbd>
+                </NuxtLink>
               </NTooltip>
             </template>
           </nav>
@@ -160,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import type { MailboxFolder, StoredFolder } from '~/types/mail'
 import { mailboxByName, mailboxPath, threadPath, type MailboxKey } from '~/utils/mailbox-routing'
 
@@ -214,7 +217,25 @@ const returnTo = ref(mailboxPath('Imbox'))
 onMounted(() => {
   const back = router.options.history.state.back
   if (typeof back === 'string' && back.startsWith('/mail/') && !back.startsWith('/mail/senders/')) returnTo.value = back
+  window.addEventListener('keydown', handleSaveContactShortcut)
 })
+onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveContactShortcut))
+
+function handleSaveContactShortcut(event: KeyboardEvent) {
+  if (event.defaultPrevented || event.isComposing || event.repeat) return
+  if (event.key.toLocaleLowerCase('en-US') !== 'r' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+  if (profile.value?.contact) return
+
+  const target = event.target instanceof Element ? event.target : null
+  if (!target || target.closest('input, textarea, select, [role="textbox"], [contenteditable="true"], [contenteditable=""]')) return
+
+  const openSurfaceSelector = '[role="dialog"], [role="menu"], [role="listbox"], [aria-modal="true"], [data-state="open"], [aria-haspopup="dialog"][aria-expanded="true"], [aria-haspopup="menu"][aria-expanded="true"], [aria-haspopup="listbox"][aria-expanded="true"]'
+  if (target.closest(openSurfaceSelector)) return
+  if ([...document.querySelectorAll<HTMLElement>(openSurfaceSelector)].some(surface => surface.getClientRects().length > 0)) return
+
+  event.preventDefault()
+  void router.push(`${contactPath.value}/edit`)
+}
 const returnLabel = computed(() => $t(returnTo.value === mailboxPath('Imbox') ? 'sender.backInbox' : 'sender.backMessage'))
 const rawAddress = Array.isArray(route.params.address) ? route.params.address[0] : route.params.address
 const address = computed(() => {
