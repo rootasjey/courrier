@@ -396,8 +396,6 @@ function close() { emit('update:open', false) }
 async function runCommand(item: PaletteItem) {
   if (item.action === 'compose') {
     close()
-    await router.push(mailboxPath('Imbox'))
-    await nextTick()
     composeRequest.value += 1
     return
   }
