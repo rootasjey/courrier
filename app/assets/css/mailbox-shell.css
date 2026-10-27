@@ -24,7 +24,7 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
   height: 12px;
   pointer-events: none;
 }
-.topbar-content { position: relative; z-index: 1; display: flex; width: min(100%, 1000px); align-items: center; justify-content: space-between; margin-inline: auto; }
+.topbar-content { position: relative; z-index: 1; display: flex; width: min(100%, 900px); align-items: center; justify-content: space-between; margin-inline: auto; }
 .app-shell.is-thread-route .topbar-content { width: min(100%, var(--thread-reader-content-width)); }
 .brand-home { padding-left: 0; }
 .brand-mark { width: 34px; height: 34px; }
@@ -37,7 +37,7 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
 .profile-button { background: var(--sage); color: var(--sage-ink); }
 
 .mail-page { min-height: calc(100vh - 70px); padding: 22px clamp(18px, 5vw, 64px) 72px; background: var(--canvas); }
-.mailbox-view { width: min(100%, 1000px); }
+.mailbox-view { width: min(100%, 900px); }
 .inbox-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -1,7 +1,7 @@
 /* Inbox and Paper card compositions, based on the accepted HTML board. */
 .mailbox-view.is-inbox-view,
 .mailbox-view.is-paper-view {
-  width: min(100%, 1000px);
+  width: min(100%, 900px);
   margin-inline: auto;
 }
 
