@@ -46,12 +46,6 @@
             </button>
           </header>
 
-          <a v-if="threadId" class="thread-attachments-download-all" :href="zipUrl">
-            <span class="i-tabler-download" aria-hidden="true" />
-            <span>{{ $t('mail.downloadThreadAttachmentsZip') }}</span>
-            <span class="thread-attachments-download-scope">{{ $t('mail.downloadThreadAttachmentsZipDescription') }}</span>
-          </a>
-
           <div class="thread-attachments-dialog-content">
             <section v-for="group in attachmentGroups" :key="group.key" class="thread-attachment-group">
               <h3>
@@ -68,6 +62,12 @@
               </div>
             </section>
           </div>
+
+          <a v-if="threadId" class="thread-attachments-download-all" :href="zipUrl">
+            <span class="i-tabler-download" aria-hidden="true" />
+            <span>{{ $t('mail.downloadThreadAttachmentsZip') }}</span>
+            <span class="thread-attachments-download-scope">{{ $t('mail.downloadThreadAttachmentsZipDescription') }}</span>
+          </a>
         </div>
       </template>
     </NDialog>

@@ -48,7 +48,7 @@
   box-shadow: 0 24px 74px color-mix(in srgb, var(--ink) 26%, transparent);
 }
 
-.thread-attachments-dialog-panel { display: grid; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr); }
+.thread-attachments-dialog-panel { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
 .thread-attachments-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 23px 25px 17px; border-bottom: 1px solid var(--line); }
 .thread-attachments-dialog-title { margin: 0; color: var(--ink); font-size: 20px; font-weight: 710; letter-spacing: -.45px; }
 .thread-attachments-dialog-description { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -57,7 +57,7 @@
 .thread-attachments-dialog-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .thread-attachments-dialog-close span { font-size: 18px; }
 
-.thread-attachments-download-all { display: grid; grid-template-columns: 19px minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 8px 10px; margin: 15px 24px 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 11px; background: var(--accent-wash); color: var(--accent); font-size: 12px; font-weight: 680; text-decoration: none; }
+.thread-attachments-download-all { display: grid; grid-template-columns: 19px minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 8px 10px; margin: 0 24px 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius: 11px; background: var(--accent-wash); color: var(--accent); font-size: 12px; font-weight: 680; text-decoration: none; }
 .thread-attachments-download-all:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 11%, var(--paper)); }
 .thread-attachments-download-all:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .thread-attachments-download-all > :first-child { font-size: 17px; }
@@ -74,7 +74,7 @@
   .dialog-content.thread-attachments-dialog { position: fixed !important; inset: auto 0 0 !important; width: 100vw !important; max-width: 100vw !important; max-height: min(86dvh, 760px); transform: none !important; border-right: 0; border-bottom: 0; border-left: 0; border-radius: 19px 19px 0 0; }
   .thread-attachments-dialog-header { padding: 19px 17px 14px; }
   .thread-attachments-dialog-title { font-size: 18px; }
-  .thread-attachments-download-all { grid-template-columns: 18px minmax(0, 1fr); margin: 12px 16px 0; padding: 11px 12px; }
+  .thread-attachments-download-all { grid-template-columns: 18px minmax(0, 1fr); margin: 0 16px max(16px, env(safe-area-inset-bottom)); padding: 11px 12px; }
   .thread-attachments-download-scope { grid-column: 2; }
   .thread-attachments-dialog-content { max-height: min(54dvh, calc(86dvh - 225px)); gap: 18px; padding: 17px 16px max(20px, env(safe-area-inset-bottom)); }
   .thread-attachment-dialog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
