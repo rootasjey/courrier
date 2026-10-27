@@ -29,7 +29,7 @@
 .thread-action-menu-item:disabled { cursor: wait; opacity: .62; }
 .thread-action-menu-item > :first-child { width: 17px; height: 17px; flex: 0 0 17px; font-size: 16px; }
 .thread-action-menu-item > span:nth-child(2) { min-width: 0; flex: 1; }
-.thread-action-menu-item kbd { margin-left: auto; padding: 2px 5px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 4px; color: var(--muted); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.thread-action-menu-item kbd, .thread-actions-popover .thread-tag-picker-trigger.is-wide kbd { margin-left: auto; padding: 2px 5px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 4px; color: var(--muted); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .thread-action-menu-item.is-destructive { color: var(--error); }
 .thread-action-menu-item.is-destructive:hover:not(:disabled), .thread-action-menu-item.is-destructive:focus-visible { background: color-mix(in srgb, var(--error) 9%, var(--sheet)); color: var(--error); }
 .thread-actions-popover .thread-tag-picker-trigger.is-wide { display: flex; width: 100%; height: auto; min-height: 39px; align-items: center; gap: 10px; padding: 7px 9px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-size: 12px; text-align: left; }

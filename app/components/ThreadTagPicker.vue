@@ -10,6 +10,7 @@
       <button ref="triggerButton" class="thread-tag-picker-trigger" :class="{ 'is-wide': wideTrigger }" type="button" :aria-label="$t('tags.assign')" aria-keyshortcuts="B" :aria-expanded="open" :disabled="disabled">
         <span class="i-tabler-tag" aria-hidden="true" />
         <span v-if="wideTrigger">{{ $t('tags.assign') }}</span>
+        <kbd v-if="wideTrigger">B</kbd>
       </button>
     </template>
     <template #default>
