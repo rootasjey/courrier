@@ -4,7 +4,6 @@ import { registerHooks } from 'node:module'
 import { test } from 'node:test'
 
 const authStub = new URL('./fixtures/admin-route-auth.mjs', import.meta.url).href
-const emailMessageStub = new URL('./fixtures/cloudflare-email-message.mjs', import.meta.url).href
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -16,7 +15,6 @@ registerHooks({
       && context.parentURL?.endsWith('/server/api/admin/legacy-forward-deliveries.get.ts')) {
       return { url: authStub, shortCircuit: true }
     }
-    if (specifier === 'cloudflare:email') return { url: emailMessageStub, shortCircuit: true }
     return nextResolve(specifier, context)
   },
 })
@@ -30,44 +28,142 @@ Object.assign(globalThis, {
 
 const listDeliveriesHandler = (await import('../server/api/admin/legacy-forward-deliveries.get.ts')).default
 const replayDeliveryHandler = (await import('../server/api/admin/legacy-forward-deliveries/[id]/replay.post.ts')).default
-const { prepareReplayMime } = await import('../server/utils/replay-mime.ts')
+const { createReplayEmailMessage } = await import('../server/utils/replay-email.ts')
 
 const ADMIN = { id: 'admin-user-id' }
 const TEST_DESTINATION = 'jeremiecorpinot@codingbox.fr'
 const TEST_MESSAGE_ID = 'a'.repeat(64)
 const rawEmail = 'From: test.sender@example.net\r\nSubject: Local retry fixture\r\n\r\nTest body.'
 
-test('prepareReplayMime remplace les en-têtes expéditeur et conserve les octets MIME du corps', () => {
-  const originalBody = new Uint8Array([0x80, 0x00, 0xff, 0x0a])
-  const headers = new TextEncoder().encode([
+test('la reprise structurée conserve le corps et les octets des pièces jointes sans les en-têtes d’origine', async () => {
+  const raw = new TextEncoder().encode([
+    'Received: from example.net by mx.example.net',
+    'DKIM-Signature: v=1; b=invalidated',
+    'Authentication-Results: mx.example.net; dkim=pass',
     'From: Original Sender <original@example.net>',
     'Reply-To: old-reply@example.net',
-    'DKIM-Signature: v=1; b=invalidated',
-    'ARC-Message-Signature: i=1; b=invalidated',
-    'Authentication-Results: mx.example.net; dkim=pass',
     'Subject: Original subject',
+    'Message-ID: <original@example.net>',
+    'In-Reply-To: <parent@example.net>',
+    'References: <root@example.net> <parent@example.net>',
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="mail-boundary"',
     '',
+    '--mail-boundary',
+    'Content-Type: text/plain; charset=utf-8',
+    '',
+    'Please see attached.',
+    '--mail-boundary',
+    'Content-Type: application/octet-stream; name="binary.bin"',
+    'Content-Disposition: attachment; filename="binary.bin"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    'AP8Q',
+    '--mail-boundary--',
     '',
   ].join('\r\n'))
-  const raw = new Uint8Array(headers.length + originalBody.length)
-  raw.set(headers)
-  raw.set(originalBody, headers.length)
 
-  const replay = prepareReplayMime(raw, 'original@example.net', 'courrier-test@verbatims.cc')
-  const text = new TextDecoder().decode(replay.subarray(0, replay.indexOf(0x80)))
+  const replay = await createReplayEmailMessage(raw, 'original@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION)
 
-  assert.match(text, /From: courrier-test@verbatims\.cc/)
-  assert.match(text, /Reply-To: original@example\.net/)
-  assert.match(text, /X-Courrier-Original-From: original@example\.net/)
-  assert.doesNotMatch(text, /old-reply@example\.net|Original Sender|DKIM-Signature|ARC-Message-Signature|Authentication-Results/)
-  assert.deepEqual(replay.subarray(replay.length - originalBody.length), originalBody)
+  assert.deepEqual({
+    from: replay.from,
+    to: replay.to,
+    replyTo: replay.replyTo,
+    subject: replay.subject,
+    text: replay.text,
+    headers: replay.headers,
+  }, {
+    from: 'courrier-test@verbatims.cc',
+    to: TEST_DESTINATION,
+    replyTo: 'original@example.net',
+    subject: 'Original subject',
+    text: 'Please see attached.',
+    headers: {
+      'X-Courrier-Original-From': 'original@example.net',
+      'In-Reply-To': '<parent@example.net>',
+      References: '<root@example.net> <parent@example.net>',
+    },
+  })
+  assert.deepEqual(replay.attachments.map(({ disposition, filename, type, content }) => ({
+    disposition,
+    filename,
+    type,
+    content: [...new Uint8Array(content as ArrayBuffer)],
+  })), [{
+    disposition: 'attachment',
+    filename: 'binary.bin',
+    type: 'application/octet-stream',
+    content: [0, 255, 16],
+  }])
 })
 
-test('prepareReplayMime refuse les adresses Reply-To mal formées et les messages sans From', () => {
-  const raw = new TextEncoder().encode('Subject: No sender\r\n\r\nBody')
-  assert.throws(() => prepareReplayMime(raw, 'invalid\r\nBcc: victim@example.net', 'courrier-test@verbatims.cc'), /Reply-To/)
-  assert.throws(() => prepareReplayMime(raw, 'bad..local@example.net', 'courrier-test@verbatims.cc'), /Reply-To/)
-  assert.throws(() => prepareReplayMime(raw, 'sender@example.net', 'courrier-test@verbatims.cc'), /From header/)
+test('la reprise structurée refuse les adresses Reply-To mal formées et ignore les valeurs d’en-tête dangereuses', async () => {
+  const raw = new TextEncoder().encode('From: sender@example.net\r\nSubject: Test\r\nIn-Reply-To: bad\r\n\tvalue\r\n\r\nBody')
+  await assert.rejects(createReplayEmailMessage(raw, 'invalid\r\nBcc: victim@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION), /Reply-To/)
+  await assert.rejects(createReplayEmailMessage(raw, 'bad..local@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION), /Reply-To/)
+  const replay = await createReplayEmailMessage(raw, 'sender@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION)
+  assert.equal(replay.headers['In-Reply-To'], undefined)
+})
+
+test('la reprise garde les ressources liées au HTML comme pièces jointes inline', async () => {
+  const raw = new TextEncoder().encode([
+    'From: sender@example.net',
+    'Subject: Inline image',
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/related; boundary="related-boundary"',
+    '',
+    '--related-boundary',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    '<p>Logo <img src="cid:logo@example.net"></p>',
+    '--related-boundary',
+    'Content-Type: image/png; name="logo.png"',
+    'Content-ID: <logo@example.net>',
+    'Content-Transfer-Encoding: base64',
+    '',
+    'AP8Q',
+    '--related-boundary--',
+    '',
+  ].join('\r\n'))
+
+  const replay = await createReplayEmailMessage(raw, 'sender@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION)
+  assert.equal(replay.attachments[0]?.disposition, 'inline')
+  assert.equal(replay.attachments[0]?.contentId, 'logo@example.net')
+})
+
+test('la reprise respecte les limites Cloudflare de taille et de pièces jointes', async () => {
+  const tooLarge = new Uint8Array(5 * 1024 * 1024 + 1)
+  await assert.rejects(
+    createReplayEmailMessage(tooLarge, 'sender@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION),
+    /5 MiB replay limit/,
+  )
+
+  const attachmentParts = Array.from({ length: 33 }, (_, index) => [
+    '--attachments-boundary',
+    'Content-Type: application/octet-stream',
+    `Content-Disposition: attachment; filename="file-${index}.bin"`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    'AA==',
+  ].join('\r\n')).join('\r\n')
+  const tooManyAttachments = new TextEncoder().encode([
+    'From: sender@example.net',
+    'Subject: Too many attachments',
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="attachments-boundary"',
+    '',
+    '--attachments-boundary',
+    'Content-Type: text/plain',
+    '',
+    'See the attached files.',
+    attachmentParts,
+    '--attachments-boundary--',
+    '',
+  ].join('\r\n'))
+  await assert.rejects(
+    createReplayEmailMessage(tooManyAttachments, 'sender@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION),
+    /32-attachment limit/,
+  )
 })
 
 class TestD1 {
@@ -187,11 +283,11 @@ class TestD1 {
 
 function bindings(db: TestD1, options: {
   destination?: string
-  send?: (message: { from: string, to: string, raw: ReadableStream<Uint8Array> }) => Promise<void>
+  send?: (message: TestEmailMessage) => Promise<void>
   messageExists?: boolean
   storageError?: Error
 } = {}) {
-  const sent: { from: string, to: string, raw: string }[] = []
+  const sent: TestEmailMessage[] = []
   return {
     sent,
     env: {
@@ -209,13 +305,30 @@ function bindings(db: TestD1, options: {
         },
       },
       EMAIL: {
-        async send(message: { from: string, to: string, raw: ReadableStream<Uint8Array> }) {
-          sent.push({ from: message.from, to: message.to, raw: await new Response(message.raw).text() })
+        async send(message: TestEmailMessage) {
+          sent.push(message)
           await options.send?.(message)
         },
       },
     },
   }
+}
+
+type TestEmailMessage = {
+  from: string
+  to: string
+  replyTo: string
+  subject: string
+  headers: Record<string, string>
+  text?: string
+  html?: string
+  attachments: {
+    disposition: 'attachment' | 'inline'
+    contentId?: string
+    filename: string
+    type: string
+    content: string | ArrayBuffer | ArrayBufferView
+  }[]
 }
 
 function eventFor(db: TestD1, env: ReturnType<typeof bindings>['env'], id = TEST_MESSAGE_ID) {
@@ -256,14 +369,11 @@ test('la reprise renvoie la copie MIME vers la destination configurée et journa
     assert.deepEqual(sent, [{
       from: 'courrier-test@verbatims.cc',
       to: TEST_DESTINATION,
-      raw: [
-        'Subject: Local retry fixture',
-        'From: courrier-test@verbatims.cc',
-        'Reply-To: test.sender@example.net',
-        'X-Courrier-Original-From: test.sender@example.net',
-        '',
-        'Test body.',
-      ].join('\r\n'),
+      replyTo: 'test.sender@example.net',
+      subject: 'Local retry fixture',
+      headers: { 'X-Courrier-Original-From': 'test.sender@example.net' },
+      text: 'Test body.\n',
+      attachments: [],
     }])
     assert.equal(row.status, 'forwarded')
     assert.equal(row.delivery_method, 'email_replay')

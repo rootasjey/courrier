@@ -1,5 +1,5 @@
 import { assertSameOrigin, getAccountDb, requirePlatformAdmin, type AccountDb } from '../../../../utils/account-auth'
-import { prepareReplayMime } from '../../../../utils/replay-mime'
+import { createReplayEmailMessage } from '../../../../utils/replay-email'
 
 const TEST_MAILBOX = 'courrier-test@verbatims.cc'
 const REPLAY_FROM = 'courrier-test@verbatims.cc'
@@ -159,14 +159,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const { EmailMessage } = await import('cloudflare:email')
     const rawMessage = new Uint8Array(await storedMessage.arrayBuffer())
-    const replayMessage = prepareReplayMime(rawMessage, delivery.sender_address, REPLAY_FROM)
-    await bindings.EMAIL.send(new EmailMessage(
+    const replayMessage = await createReplayEmailMessage(
+      rawMessage,
+      delivery.sender_address,
       REPLAY_FROM,
       destination,
-      new Blob([replayMessage]).stream(),
-    ))
+    )
+    await bindings.EMAIL.send(replayMessage)
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     await markReplayResult(db, id, claimToken, delivery.attempt_count + 1, 'failed', detail)
