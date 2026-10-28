@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     LIMIT 1
   `).bind(mailboxDomain).first<{ workspace_id: string }>()
 
-  await db.batch([
+  const results = await db.batch([
     db.prepare(`
       DELETE FROM blocked_senders
       WHERE mailbox_domain = ? AND sender_address = ?
@@ -54,12 +54,9 @@ export default defineEventHandler(async (event) => {
     `).bind(mailboxDomain, senderAddress),
   ])
 
-  const stillBlocked = await db.prepare(`
-    SELECT 1 AS blocked FROM blocked_senders
-    WHERE mailbox_domain = ? AND sender_address = ?
-    LIMIT 1
-  `).bind(mailboxDomain, senderAddress).first<{ blocked: number }>()
+  const deleteResult = results[0] as { meta?: { changes?: number } } | undefined
+  const removed = (deleteResult?.meta?.changes ?? 0) > 0
 
   setResponseHeader(event, 'Cache-Control', 'no-store')
-  return { removed: !stillBlocked }
+  return { removed }
 })
