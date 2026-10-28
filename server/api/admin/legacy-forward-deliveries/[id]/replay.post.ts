@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
     ? bindings.COURRIER_LEGACY_FORWARD_TO.trim()
     : ''
 
-  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+  if (!/^[0-9a-f]{64}$/i.test(id)) {
     throw createError({ statusCode: 400, statusMessage: 'Identifiant de message invalide.' })
   }
   if (!destination || !bindings?.MAIL_STORE || !bindings.EMAIL) {

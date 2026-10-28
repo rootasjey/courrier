@@ -49,7 +49,7 @@ export function isPlatformAdminEndpoint(path: string, method: string) {
   const normalizedMethod = method.toUpperCase()
   if (path === '/api/admin/overview') return normalizedMethod === 'GET'
   if (path === '/api/admin/legacy-forward-deliveries') return normalizedMethod === 'GET'
-  if (/^\/api\/admin\/legacy-forward-deliveries\/[0-9a-f-]{36}\/replay$/i.test(path)) return normalizedMethod === 'POST'
+  if (/^\/api\/admin\/legacy-forward-deliveries\/[0-9a-f]{64}\/replay$/i.test(path)) return normalizedMethod === 'POST'
   if (path === '/api/admin/blocked-senders') return normalizedMethod === 'DELETE'
   if (path === '/api/admin/platform-admins') return ['GET', 'POST'].includes(normalizedMethod)
   if (/^\/api\/admin\/platform-admins\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'

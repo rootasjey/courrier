@@ -130,10 +130,10 @@ export async function handleIncomingEmail(
     id: result.id,
     duplicate: result.duplicate,
     forwardingAttempt: result.forwardingAttempt,
-    hasForwardingClaim: Boolean(result.forwardingClaimedAt),
+    hasForwardingClaim: Boolean(result.forwardingClaimToken),
   })
 
-  const forwardingClaimedAt = result.forwardingClaimedAt
+  const forwardingClaimToken = result.forwardingClaimToken
   const shouldForward = result.forwardingAttempt
     ? result.forwardingAttempt === 'claimed'
     : !result.duplicate
@@ -149,11 +149,11 @@ export async function handleIncomingEmail(
 
   if (destination) {
     if (message.canBeForwarded === false) {
-      if (forwardingClaimedAt) {
+      if (forwardingClaimToken) {
         await markLegacyForwardDelivery(
           env.DB,
           result.id,
-          forwardingClaimedAt,
+          forwardingClaimToken,
           'failed',
           'Cloudflare marked this email as not forwardable.',
         )
@@ -166,12 +166,12 @@ export async function handleIncomingEmail(
     try {
       await message.forward(destination)
     } catch (forwardError) {
-      if (forwardingClaimedAt) {
+      if (forwardingClaimToken) {
         try {
           await markLegacyForwardDelivery(
             env.DB,
             result.id,
-            forwardingClaimedAt,
+            forwardingClaimToken,
             'failed',
             forwardError instanceof Error ? forwardError.message : String(forwardError),
           )
@@ -184,9 +184,9 @@ export async function handleIncomingEmail(
       return
     }
 
-    if (forwardingClaimedAt) {
+    if (forwardingClaimToken) {
       try {
-        const marked = await markLegacyForwardDelivery(env.DB, result.id, forwardingClaimedAt, 'forwarded')
+        const marked = await markLegacyForwardDelivery(env.DB, result.id, forwardingClaimToken, 'forwarded')
         if (!marked) {
           console.error('[courrier] Email was forwarded, but its delivery status could not be marked complete.', result.id)
           return

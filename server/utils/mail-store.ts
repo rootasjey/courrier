@@ -21,7 +21,7 @@ export type IncomingEmailStoreResult = {
   id: string
   duplicate: boolean
   forwardingAttempt?: 'claimed' | 'skipped'
-  forwardingClaimedAt?: string
+  forwardingClaimToken?: string
 }
 
 type StoredAttachmentRow = {
@@ -73,18 +73,19 @@ async function claimLegacyForwardDelivery(
   messageId: string,
   destination: string,
   claimedAt: string,
+  claimToken: string,
 ) {
   const leaseExpiresBefore = new Date(Date.parse(claimedAt) - 10 * 60 * 1000).toISOString()
   const result = await db.prepare(`
     UPDATE legacy_forward_deliveries
     SET destination = ?, status = 'processing', attempt_count = attempt_count + 1,
-      claimed_at = ?, last_error = NULL
+      claimed_at = ?, claim_token = ?, last_error = NULL
     WHERE message_id = ?
       AND (
         status = 'failed'
         OR (status = 'processing' AND claimed_at < ?)
       )
-  `).bind(destination, claimedAt, messageId, leaseExpiresBefore).run()
+  `).bind(destination, claimedAt, claimToken, messageId, leaseExpiresBefore).run()
 
   return result.meta.changes === 1
 }
@@ -92,20 +93,20 @@ async function claimLegacyForwardDelivery(
 export async function markLegacyForwardDelivery(
   db: D1Database,
   messageId: string,
-  claimedAt: string,
+  claimToken: string,
   status: 'forwarded' | 'failed',
   error?: string,
 ) {
   const result = await db.prepare(`
     UPDATE legacy_forward_deliveries
     SET status = ?, forwarded_at = ?, claimed_at = NULL, claim_token = NULL, last_error = ?, delivery_method = 'email_forward'
-    WHERE message_id = ? AND status = 'processing' AND claimed_at = ?
+    WHERE message_id = ? AND status = 'processing' AND claim_token = ?
   `).bind(
     status,
     status === 'forwarded' ? new Date().toISOString() : null,
     error?.slice(0, 1000) ?? null,
     messageId,
-    claimedAt,
+    claimToken,
   ).run()
 
   return result.meta.changes === 1
@@ -114,13 +115,13 @@ export async function markLegacyForwardDelivery(
 async function ownsLegacyForwardClaim(
   db: D1Database,
   messageId: string,
-  claimedAt: string,
+  claimToken: string,
 ) {
   const claim = await db.prepare(`
     SELECT 1 AS claimed
     FROM legacy_forward_deliveries
-    WHERE message_id = ? AND status = 'processing' AND claimed_at = ?
-  `).bind(messageId, claimedAt).first<{ claimed: number }>()
+    WHERE message_id = ? AND status = 'processing' AND claim_token = ?
+  `).bind(messageId, claimToken).first<{ claimed: number }>()
 
   return Boolean(claim)
 }
@@ -176,18 +177,20 @@ export async function storeIncomingEmail(
     if (!legacyForwardDestination) return { id: existing.id, duplicate: true }
 
     const claimedAt = new Date().toISOString()
+    const claimToken = crypto.randomUUID()
     const claimed = await claimLegacyForwardDelivery(
       bindings.DB,
       existing.id,
       legacyForwardDestination,
       claimedAt,
+      claimToken,
     )
 
     return {
       id: existing.id,
       duplicate: true,
       forwardingAttempt: claimed ? 'claimed' as const : 'skipped' as const,
-      ...(claimed ? { forwardingClaimedAt: claimedAt } : {}),
+      ...(claimed ? { forwardingClaimToken: claimToken } : {}),
     }
   }
 
@@ -281,6 +284,7 @@ export async function storeIncomingEmail(
   // Start the forwarding lease immediately before the D1 batch so attachment
   // extraction and R2 writes cannot make a fresh claim look stale.
   const forwardingClaimedAt = legacyForwardDestination ? new Date().toISOString() : null
+  const forwardingClaimToken = legacyForwardDestination ? crypto.randomUUID() : null
   const statements = [
     bindings.DB.prepare(`
       INSERT OR IGNORE INTO messages (
@@ -335,15 +339,15 @@ export async function storeIncomingEmail(
       id,
       messageId,
     )),
-    ...(legacyForwardDestination && forwardingClaimedAt ? [bindings.DB.prepare(`
+    ...(legacyForwardDestination && forwardingClaimedAt && forwardingClaimToken ? [bindings.DB.prepare(`
       INSERT OR IGNORE INTO legacy_forward_deliveries (
-        message_id, destination, status, attempt_count, claimed_at, created_at
+        message_id, destination, status, attempt_count, claimed_at, claim_token, created_at
       )
-      SELECT ?, ?, 'processing', 1, ?, ?
+      SELECT ?, ?, 'processing', 1, ?, ?, ?
       WHERE EXISTS (
         SELECT 1 FROM messages WHERE id = ? AND message_id = ?
       )
-    `).bind(id, legacyForwardDestination, forwardingClaimedAt, forwardingClaimedAt, id, messageId)] : []),
+    `).bind(id, legacyForwardDestination, forwardingClaimedAt, forwardingClaimToken, forwardingClaimedAt, id, messageId)] : []),
   ]
 
   const results = await bindings.DB.batch(statements)
@@ -368,18 +372,20 @@ export async function storeIncomingEmail(
         if (!legacyForwardDestination) return { id: existingMessage.id, duplicate: true }
 
         const claimedAt = new Date().toISOString()
+        const claimToken = crypto.randomUUID()
         const claimed = await claimLegacyForwardDelivery(
           bindings.DB,
           existingMessage.id,
           legacyForwardDestination,
           claimedAt,
+          claimToken,
         )
 
         return {
           id: existingMessage.id,
           duplicate: true,
           forwardingAttempt: claimed ? 'claimed' as const : 'skipped' as const,
-          ...(claimed ? { forwardingClaimedAt: claimedAt } : {}),
+          ...(claimed ? { forwardingClaimToken: claimToken } : {}),
         }
       }
 
@@ -388,14 +394,14 @@ export async function storeIncomingEmail(
       // before treating the row as a concurrent duplicate.
       if (
         legacyForwardDestination
-        && forwardingClaimedAt
-        && await ownsLegacyForwardClaim(bindings.DB, existingMessage.id, forwardingClaimedAt)
+        && forwardingClaimToken
+        && await ownsLegacyForwardClaim(bindings.DB, existingMessage.id, forwardingClaimToken)
       ) {
         return {
           id: existingMessage.id,
           duplicate: false,
           forwardingAttempt: 'claimed' as const,
-          forwardingClaimedAt,
+          forwardingClaimToken,
         }
       }
 
@@ -404,18 +410,20 @@ export async function storeIncomingEmail(
       if (!legacyForwardDestination) return { id: existingMessage.id, duplicate: true }
 
       const claimedAt = new Date().toISOString()
+      const claimToken = crypto.randomUUID()
       const claimed = await claimLegacyForwardDelivery(
         bindings.DB,
         existingMessage.id,
         legacyForwardDestination,
         claimedAt,
+        claimToken,
       )
 
       return {
         id: existingMessage.id,
         duplicate: true,
         forwardingAttempt: claimed ? 'claimed' as const : 'skipped' as const,
-        ...(claimed ? { forwardingClaimedAt: claimedAt } : {}),
+        ...(claimed ? { forwardingClaimToken: claimToken } : {}),
       }
     } else {
       throw new Error('D1 did not store the incoming email and no existing Message-ID was found.')
@@ -425,7 +433,7 @@ export async function storeIncomingEmail(
   // This invocation inserted the message and its delivery row in the same
   // successful D1 batch. Do not gate forwarding on D1's optional changes
   // metadata, which can differ across result shapes.
-  const forwardingAttempt = legacyForwardDestination && forwardingClaimedAt
+  const forwardingAttempt = legacyForwardDestination && forwardingClaimToken
     ? 'claimed' as const
     : undefined
 
@@ -433,6 +441,6 @@ export async function storeIncomingEmail(
     id,
     duplicate: false,
     ...(forwardingAttempt ? { forwardingAttempt } : {}),
-    ...(forwardingAttempt === 'claimed' && forwardingClaimedAt ? { forwardingClaimedAt } : {}),
+    ...(forwardingAttempt === 'claimed' && forwardingClaimToken ? { forwardingClaimToken } : {}),
   }
 }

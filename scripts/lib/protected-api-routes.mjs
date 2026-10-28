@@ -32,12 +32,15 @@ export async function protectedApiRoutes(apiRoot) {
     if (DELIBERATELY_PUBLIC.has(`${method} ${apiPath}`)) return []
     if ((method === 'GET' && /^\/api\/invitations\/:token$/.test(apiPath))
       || (method === 'POST' && /^\/api\/invitations\/:token\/accept$/.test(apiPath))) return []
+    const sampleId = apiPath.startsWith('/api/admin/legacy-forward-deliveries/')
+      ? 'a'.repeat(64)
+      : '00000000-0000-4000-8000-000000000001'
     const samplePath = apiPath
       .replaceAll(':token', 'A'.repeat(43))
       .replaceAll(':attachmentId', 'attachment-test')
       .replaceAll(':credentialId', 'passkey-test')
       .replaceAll(':userId', '00000000-0000-4000-8000-000000000102')
-      .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
+      .replaceAll(':id', sampleId)
     return [{ method, path: samplePath }]
   }).sort((left, right) => `${left.method} ${left.path}`.localeCompare(`${right.method} ${right.path}`))
 }

@@ -33,7 +33,7 @@ const replayDeliveryHandler = (await import('../server/api/admin/legacy-forward-
 
 const ADMIN = { id: 'admin-user-id' }
 const TEST_DESTINATION = 'jeremiecorpinot@codingbox.fr'
-const TEST_MESSAGE_ID = '00000000-0000-4000-8000-000000000001'
+const TEST_MESSAGE_ID = 'a'.repeat(64)
 const rawEmail = 'From: test.sender@example.net\r\nSubject: Local retry fixture\r\n\r\nTest body.'
 
 class TestD1 {
@@ -232,14 +232,15 @@ test('la reprise renvoie la copie MIME vers la destination configurée et journa
 test('un transfert actif, une autre destination ou une autre boîte ne peuvent pas être rejoués', async () => {
   const db = new TestD1()
   db.addDelivery({ claimedAt: new Date().toISOString() })
-  db.addDelivery({ id: '00000000-0000-4000-8000-000000000002', envelopeTo: 'other@verbatims.cc' })
-  db.addDelivery({ id: '00000000-0000-4000-8000-000000000003', destination: 'other@example.net' })
+  db.addDelivery({ id: 'b'.repeat(64), envelopeTo: 'other@verbatims.cc' })
+  db.addDelivery({ id: 'c'.repeat(64), destination: 'other@example.net' })
   const { env, sent } = bindings(db)
 
   try {
-    for (const id of [TEST_MESSAGE_ID, '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000003']) {
+    for (const id of [TEST_MESSAGE_ID, 'b'.repeat(64), 'c'.repeat(64)]) {
       await assert.rejects(replayDeliveryHandler(eventFor(db, env, id) as never), { statusCode: 409 })
     }
+    await assert.rejects(replayDeliveryHandler(eventFor(db, env, '00000000-0000-4000-8000-000000000001') as never), { statusCode: 400 })
     assert.equal(sent.length, 0)
     assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS count FROM platform_audit_log').get()?.count, 0)
   } finally {

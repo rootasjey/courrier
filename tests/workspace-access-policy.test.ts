@@ -36,12 +36,16 @@ function apiRoutes() {
 }
 
 function examplePath(path: string) {
+  const id = path.startsWith('/api/admin/legacy-forward-deliveries/')
+    ? 'a'.repeat(64)
+    : '00000000-0000-4000-8000-000000000001'
+
   return path
     .replaceAll(':token', 'A'.repeat(43))
     .replaceAll(':attachmentId', 'attachment-test')
     .replaceAll(':credentialId', 'passkey-test')
     .replaceAll(':userId', '00000000-0000-4000-8000-000000000001')
-    .replaceAll(':id', '00000000-0000-4000-8000-000000000001')
+    .replaceAll(':id', id)
 }
 
 test('every API route has an explicit account, invitation, admin, or mailbox policy', () => {
@@ -80,8 +84,9 @@ test('platform administration routes fail closed for unlisted paths and methods'
   assert.equal(isPlatformAdminEndpoint('/api/admin/overview', 'POST'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/legacy-forward-deliveries', 'GET'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/legacy-forward-deliveries', 'POST'), false)
-  assert.equal(isPlatformAdminEndpoint('/api/admin/legacy-forward-deliveries/00000000-0000-4000-8000-000000000001/replay', 'POST'), true)
-  assert.equal(isPlatformAdminEndpoint('/api/admin/legacy-forward-deliveries/00000000-0000-4000-8000-000000000001/replay', 'GET'), false)
+  assert.equal(isPlatformAdminEndpoint(`/api/admin/legacy-forward-deliveries/${'a'.repeat(64)}/replay`, 'POST'), true)
+  assert.equal(isPlatformAdminEndpoint(`/api/admin/legacy-forward-deliveries/${'a'.repeat(64)}/replay`, 'GET'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/legacy-forward-deliveries/00000000-0000-4000-8000-000000000001/replay', 'POST'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/blocked-senders', 'DELETE'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/blocked-senders', 'GET'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins', 'GET'), true)
