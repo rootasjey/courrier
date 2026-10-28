@@ -1,4 +1,5 @@
 import { assertSameOrigin, getAccountDb, requirePlatformAdmin, type AccountDb } from '../../../../utils/account-auth'
+import { prepareReplayMime } from '../../../../utils/replay-mime'
 
 const TEST_MAILBOX = 'courrier-test@verbatims.cc'
 const REPLAY_FROM = 'courrier-test@verbatims.cc'
@@ -20,6 +21,7 @@ type ReplayDelivery = {
   raw_object_key: string
   envelope_to: string
   mailbox_domain: string
+  sender_address: string
 }
 
 async function markReplayResult(
@@ -84,7 +86,7 @@ export default defineEventHandler(async (event) => {
 
   const delivery = await db.prepare(`
     SELECT d.message_id AS id, d.destination, d.status, d.claimed_at, d.attempt_count,
-      m.raw_object_key, m.envelope_to, m.mailbox_domain
+      m.raw_object_key, m.envelope_to, m.mailbox_domain, m.sender_address
     FROM legacy_forward_deliveries d
     JOIN messages m ON m.id = d.message_id
     WHERE d.message_id = ?
@@ -104,16 +106,21 @@ export default defineEventHandler(async (event) => {
 
   const claimedAt = new Date().toISOString()
   const claimToken = crypto.randomUUID()
-  await db.prepare(`
+  const claimResult = await db.prepare(`
     UPDATE legacy_forward_deliveries
     SET status = 'processing', attempt_count = attempt_count + 1,
       claimed_at = ?, claim_token = ?, last_error = NULL, delivery_method = 'email_replay'
     WHERE message_id = ? AND lower(destination) = lower(?)
+      AND ((? IS NULL AND claimed_at IS NULL) OR claimed_at = ?)
       AND (
         status = 'failed'
         OR (status = 'processing' AND datetime(claimed_at) < datetime(?, '-${DELIVERY_LEASE_MINUTES} minutes'))
       )
-  `).bind(claimedAt, claimToken, id, destination, claimedAt).run()
+  `).bind(claimedAt, claimToken, id, destination, delivery.claimed_at, delivery.claimed_at, claimedAt).run()
+
+  if (claimResult.meta.changes !== 1) {
+    throw createError({ statusCode: 409, statusMessage: 'Un autre traitement a déjà pris ce transfert en charge.' })
+  }
 
   const currentClaim = await db.prepare(`
     SELECT 1 AS claimed FROM legacy_forward_deliveries
@@ -153,7 +160,13 @@ export default defineEventHandler(async (event) => {
 
   try {
     const { EmailMessage } = await import('cloudflare:email')
-    await bindings.EMAIL.send(new EmailMessage(REPLAY_FROM, destination, storedMessage.body))
+    const rawMessage = new Uint8Array(await storedMessage.arrayBuffer())
+    const replayMessage = prepareReplayMime(rawMessage, delivery.sender_address, REPLAY_FROM)
+    await bindings.EMAIL.send(new EmailMessage(
+      REPLAY_FROM,
+      destination,
+      new Blob([replayMessage]).stream(),
+    ))
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     await markReplayResult(db, id, claimToken, delivery.attempt_count + 1, 'failed', detail)

@@ -30,11 +30,45 @@ Object.assign(globalThis, {
 
 const listDeliveriesHandler = (await import('../server/api/admin/legacy-forward-deliveries.get.ts')).default
 const replayDeliveryHandler = (await import('../server/api/admin/legacy-forward-deliveries/[id]/replay.post.ts')).default
+const { prepareReplayMime } = await import('../server/utils/replay-mime.ts')
 
 const ADMIN = { id: 'admin-user-id' }
 const TEST_DESTINATION = 'jeremiecorpinot@codingbox.fr'
 const TEST_MESSAGE_ID = 'a'.repeat(64)
 const rawEmail = 'From: test.sender@example.net\r\nSubject: Local retry fixture\r\n\r\nTest body.'
+
+test('prepareReplayMime remplace les en-têtes expéditeur et conserve les octets MIME du corps', () => {
+  const originalBody = new Uint8Array([0x80, 0x00, 0xff, 0x0a])
+  const headers = new TextEncoder().encode([
+    'From: Original Sender <original@example.net>',
+    'Reply-To: old-reply@example.net',
+    'DKIM-Signature: v=1; b=invalidated',
+    'ARC-Message-Signature: i=1; b=invalidated',
+    'Authentication-Results: mx.example.net; dkim=pass',
+    'Subject: Original subject',
+    '',
+    '',
+  ].join('\r\n'))
+  const raw = new Uint8Array(headers.length + originalBody.length)
+  raw.set(headers)
+  raw.set(originalBody, headers.length)
+
+  const replay = prepareReplayMime(raw, 'original@example.net', 'courrier-test@verbatims.cc')
+  const text = new TextDecoder().decode(replay.subarray(0, replay.indexOf(0x80)))
+
+  assert.match(text, /From: courrier-test@verbatims\.cc/)
+  assert.match(text, /Reply-To: original@example\.net/)
+  assert.match(text, /X-Courrier-Original-From: original@example\.net/)
+  assert.doesNotMatch(text, /old-reply@example\.net|Original Sender|DKIM-Signature|ARC-Message-Signature|Authentication-Results/)
+  assert.deepEqual(replay.subarray(replay.length - originalBody.length), originalBody)
+})
+
+test('prepareReplayMime refuse les adresses Reply-To mal formées et les messages sans From', () => {
+  const raw = new TextEncoder().encode('Subject: No sender\r\n\r\nBody')
+  assert.throws(() => prepareReplayMime(raw, 'invalid\r\nBcc: victim@example.net', 'courrier-test@verbatims.cc'), /Reply-To/)
+  assert.throws(() => prepareReplayMime(raw, 'bad..local@example.net', 'courrier-test@verbatims.cc'), /Reply-To/)
+  assert.throws(() => prepareReplayMime(raw, 'sender@example.net', 'courrier-test@verbatims.cc'), /From header/)
+})
 
 class TestD1 {
   readonly sqlite = new DatabaseSync(':memory:')
@@ -167,7 +201,11 @@ function bindings(db: TestD1, options: {
         async get() {
           if (options.storageError) throw options.storageError
           if (options.messageExists === false) return null
-          return { body: new Response(rawEmail).body! }
+          return {
+            async arrayBuffer() {
+              return new TextEncoder().encode(rawEmail).buffer
+            },
+          }
         },
       },
       EMAIL: {
@@ -215,7 +253,18 @@ test('la reprise renvoie la copie MIME vers la destination configurée et journa
     const result = await replayDeliveryHandler(eventFor(db, env) as never) as { accepted: boolean, attemptCount: number }
     const row = db.row()
     assert.deepEqual(result, { accepted: true, attemptCount: 2 })
-    assert.deepEqual(sent, [{ from: 'courrier-test@verbatims.cc', to: TEST_DESTINATION, raw: rawEmail }])
+    assert.deepEqual(sent, [{
+      from: 'courrier-test@verbatims.cc',
+      to: TEST_DESTINATION,
+      raw: [
+        'Subject: Local retry fixture',
+        'From: courrier-test@verbatims.cc',
+        'Reply-To: test.sender@example.net',
+        'X-Courrier-Original-From: test.sender@example.net',
+        '',
+        'Test body.',
+      ].join('\r\n'),
+    }])
     assert.equal(row.status, 'forwarded')
     assert.equal(row.delivery_method, 'email_replay')
     assert.equal(row.attempt_count, 2)
@@ -282,9 +331,10 @@ test('deux reprises concurrentes du même transfert ne déclenchent qu’un seul
   try {
     const first = replayDeliveryHandler(eventFor(db, env) as never)
     const second = replayDeliveryHandler(eventFor(db, env) as never)
+    const outcomesPromise = Promise.allSettled([first, second])
     await sendStartedPromise
     releaseSend()
-    const outcomes = await Promise.allSettled([first, second])
+    const outcomes = await outcomesPromise
     assert.equal(outcomes.filter(outcome => outcome.status === 'fulfilled').length, 1)
     assert.equal(outcomes.filter(outcome => outcome.status === 'rejected' && (outcome.reason as { statusCode?: number }).statusCode === 409).length, 1)
     assert.equal(sent.length, 1)
