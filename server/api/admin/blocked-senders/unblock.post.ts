@@ -1,4 +1,4 @@
-import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../utils/account-auth'
 
 type BlockedSenderPayload = { mailboxDomain?: unknown, senderAddress?: unknown }
 
@@ -22,14 +22,10 @@ function parseBlockedSender(payload: BlockedSenderPayload | undefined) {
 }
 
 export default defineEventHandler(async (event) => {
-  console.log('[admin/blocked-senders] start')
   assertSameOrigin(event)
-  console.log('[admin/blocked-senders] origin verified')
   const actor = await requirePlatformAdmin(event)
-  console.log('[admin/blocked-senders] admin verified')
   const db = getAccountDb(event)
   const { mailboxDomain, senderAddress } = parseBlockedSender(await readBody<BlockedSenderPayload>(event))
-  console.log('[admin/blocked-senders] payload validated')
   const targetId = `${mailboxDomain}:${senderAddress}`
   const now = new Date().toISOString()
   const details = JSON.stringify({ mailboxDomain, senderAddress })
@@ -39,9 +35,7 @@ export default defineEventHandler(async (event) => {
     ORDER BY created_at DESC
     LIMIT 1
   `).bind(mailboxDomain).first<{ workspace_id: string }>()
-  console.log('[admin/blocked-senders] workspace loaded')
 
-  console.log('[admin/blocked-senders] batch started')
   const results = await db.batch([
     db.prepare(`
       DELETE FROM blocked_senders
@@ -59,7 +53,6 @@ export default defineEventHandler(async (event) => {
         AND folder = 'Screener' AND screener_state = 'blocked' AND trashed_at IS NULL
     `).bind(mailboxDomain, senderAddress),
   ])
-  console.log('[admin/blocked-senders] batch completed')
 
   const deleteResult = results[0] as { meta?: { changes?: number } } | undefined
   const removed = (deleteResult?.meta?.changes ?? 0) > 0

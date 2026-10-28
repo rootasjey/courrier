@@ -87,8 +87,8 @@ async function unblockSender() {
   error.value = ''
   notice.value = ''
   try {
-    const result = await props.adminFetch<{ removed: boolean }>('/api/admin/blocked-senders', {
-      method: 'DELETE',
+    const result = await props.adminFetch<{ removed: boolean }>('/api/admin/blocked-senders/unblock', {
+      method: 'POST',
       body: { mailboxDomain: sender.mailbox_domain, senderAddress: sender.sender_address },
     })
     if (!result.removed) {
