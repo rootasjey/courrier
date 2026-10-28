@@ -1,7 +1,6 @@
 import { assertSameOrigin, getAccountDb, requirePlatformAdmin, type AccountDb } from '../../../../utils/account-auth'
 import { createReplayEmailMessage } from '../../../../utils/replay-email'
 
-const TEST_MAILBOX = 'courrier-test@verbatims.cc'
 const REPLAY_FROM = 'courrier-test@verbatims.cc'
 const DELIVERY_LEASE_MINUTES = 10
 
@@ -9,7 +8,6 @@ type ReplayBindings = {
   DB?: D1Database
   MAIL_STORE?: R2Bucket
   EMAIL?: SendEmail
-  COURRIER_LEGACY_FORWARD_TO?: string
 }
 
 type ReplayDelivery = {
@@ -20,7 +18,6 @@ type ReplayDelivery = {
   attempt_count: number
   raw_object_key: string
   envelope_to: string
-  mailbox_domain: string
   sender_address: string
 }
 
@@ -73,35 +70,32 @@ export default defineEventHandler(async (event) => {
   const db = getAccountDb(event)
   const bindings = event.context.cloudflare?.env as ReplayBindings | undefined
   const id = getRouterParam(event, 'id')?.trim() || ''
-  const destination = typeof bindings?.COURRIER_LEGACY_FORWARD_TO === 'string'
-    ? bindings.COURRIER_LEGACY_FORWARD_TO.trim()
-    : ''
 
   if (!/^[0-9a-f]{64}$/i.test(id)) {
     throw createError({ statusCode: 400, statusMessage: 'Identifiant de message invalide.' })
   }
-  if (!destination || !bindings?.MAIL_STORE || !bindings.EMAIL) {
+  if (!bindings?.MAIL_STORE || !bindings.EMAIL) {
     throw createError({ statusCode: 503, statusMessage: 'Le service de reprise des transferts est indisponible.' })
   }
 
   const delivery = await db.prepare(`
     SELECT d.message_id AS id, d.destination, d.status, d.claimed_at, d.attempt_count,
-      m.raw_object_key, m.envelope_to, m.mailbox_domain, m.sender_address
+      m.raw_object_key, m.envelope_to, m.sender_address
     FROM legacy_forward_deliveries d
     JOIN messages m ON m.id = d.message_id
     WHERE d.message_id = ?
-      AND lower(d.destination) = lower(?)
-      AND lower(m.envelope_to) = ?
-      AND lower(m.mailbox_domain) = 'verbatims.cc'
       AND (
         d.status = 'failed'
-        OR (d.status = 'processing' AND datetime(d.claimed_at) < datetime('now', '-${DELIVERY_LEASE_MINUTES} minutes'))
+        OR (d.status = 'processing' AND (
+          d.claimed_at IS NULL
+          OR datetime(d.claimed_at) < datetime('now', '-${DELIVERY_LEASE_MINUTES} minutes')
+        ))
       )
     LIMIT 1
-  `).bind(id, destination, TEST_MAILBOX).first<ReplayDelivery>()
+  `).bind(id).first<ReplayDelivery>()
 
   if (!delivery) {
-    throw createError({ statusCode: 409, statusMessage: 'Ce transfert n’est plus à reprendre ou ne concerne pas la boîte de test.' })
+    throw createError({ statusCode: 409, statusMessage: 'Ce transfert n’est plus à reprendre.' })
   }
 
   const claimedAt = new Date().toISOString()
@@ -114,9 +108,12 @@ export default defineEventHandler(async (event) => {
       AND ((? IS NULL AND claimed_at IS NULL) OR claimed_at = ?)
       AND (
         status = 'failed'
-        OR (status = 'processing' AND datetime(claimed_at) < datetime(?, '-${DELIVERY_LEASE_MINUTES} minutes'))
+        OR (status = 'processing' AND (
+          claimed_at IS NULL
+          OR datetime(claimed_at) < datetime(?, '-${DELIVERY_LEASE_MINUTES} minutes')
+        ))
       )
-  `).bind(claimedAt, claimToken, id, destination, delivery.claimed_at, delivery.claimed_at, claimedAt).run()
+  `).bind(claimedAt, claimToken, id, delivery.destination, delivery.claimed_at, delivery.claimed_at, claimedAt).run()
 
   if (claimResult.meta.changes !== 1) {
     throw createError({ statusCode: 409, statusMessage: 'Un autre traitement a déjà pris ce transfert en charge.' })
@@ -137,7 +134,7 @@ export default defineEventHandler(async (event) => {
     VALUES (?, ?, 'platform_admin.legacy_forward_replay_requested', 'legacy_forward_delivery', ?, ?, ?)
   `).bind(
     crypto.randomUUID(), actor.id, id,
-    JSON.stringify({ transport: 'cloudflare_email_binding', destination: 'configured_legacy_forward' }),
+    JSON.stringify({ transport: 'cloudflare_email_binding', destinationSource: 'stored_delivery' }),
     auditAt,
   ).run()
 
@@ -164,7 +161,7 @@ export default defineEventHandler(async (event) => {
       rawMessage,
       delivery.sender_address,
       REPLAY_FROM,
-      destination,
+      delivery.destination,
     )
     await bindings.EMAIL.send(replayMessage)
   } catch (error) {

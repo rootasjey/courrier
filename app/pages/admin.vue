@@ -116,10 +116,14 @@
         />
 
         <AdminForwardRecoverySection
-          :deliveries="overview.forwardDeliveries"
+          :deliveries="forwardDeliveries"
+          :has-more="Boolean(forwardDeliveryCursor)"
+          :loading-more="forwardDeliveryPageLoading"
+          :load-more-error="forwardDeliveryPageError"
           :admin-fetch="adminFetch"
           :format-date="formatDate"
           @refresh="loadOverview"
+          @load-more="loadMoreForwardDeliveries"
         />
 
         <section class="admin-section" aria-labelledby="admin-members-heading">
@@ -442,6 +446,7 @@ import { getAdminAuthorizationRedirect } from '../utils/admin-authorization-redi
 definePageMeta({ pageTransition: false })
 
 type AdminMembership = { id: string, workspace_id: string, workspace_name: string, user_id: string, email: string, display_name: string, user_status: string, role: string, membership_status: string, created_at: string, is_last_active_owner: number }
+type ForwardDelivery = { id: string, status: 'processing' | 'failed', attempt_count: number, claimed_at: string | null, forwarded_at: string | null, last_error: string | null, delivery_method: string, subject: string, sender_address: string, mailbox_address: string, destination: string, received_at: string }
 type AdminOverview = {
   counts: { workspace_count: number, domain_count: number, membership_count: number, pending_invitation_count: number }
   workspaces: { id: string, name: string, status: string, created_at: string, domain_count: number, mailbox_count: number, member_count: number }[]
@@ -451,7 +456,6 @@ type AdminOverview = {
   audit: { id: string, actor_user_id: string | null, actor_email: string | null, action: string, target_type: string, target_id: string | null, workspace_id: string | null, created_at: string }[]
   blockedSenders: { mailbox_domain: string, sender_address: string, created_at: string, created_by_user_id: string | null, blocked_by_email: string | null, workspace_id: string | null, workspace_name: string | null }[]
   blockedSendersTruncated: boolean
-  forwardDeliveries: { id: string, status: 'processing' | 'failed', attempt_count: number, claimed_at: string | null, forwarded_at: string | null, last_error: string | null, delivery_method: string, subject: string, sender_address: string, received_at: string }[]
 }
 type PlatformAdmin = { user_id: string, email: string, display_name: string, user_status: string, created_at: string, created_by_user_id: string | null, created_by_email: string | null }
 type PlatformAdminCandidate = { user_id: string, email: string, display_name: string }
@@ -462,8 +466,8 @@ type MailboxAccess = {
   grants: { workspace_id: string, mailbox_id: string, user_id: string }[]
   truncated: { mailboxes: boolean, members: boolean, grants: boolean }
 }
-type ForwardDeliveryState = { deliveries: AdminOverview['forwardDeliveries'], limit: number }
-type AdminSnapshot = { overview: AdminOverview, mailboxAccess: MailboxAccess, platformAdminState: PlatformAdminState }
+type ForwardDeliveryState = { deliveries: ForwardDelivery[], limit: number, nextCursor: string | null }
+type AdminSnapshot = { overview: AdminOverview, mailboxAccess: MailboxAccess, platformAdminState: PlatformAdminState, forwardDeliveryState: ForwardDeliveryState }
 type AccessGrant = { mailbox_id: string, user_id: string, email: string, display_name: string | null, role: string, mailbox_address: string }
 type AdminAccountSession = {
   user: { id: string, email: string, displayName: string }
@@ -480,6 +484,10 @@ const accountSession = useState<AdminAccountSession | null>('courrier-account-se
 const overview = ref<AdminOverview | null>(null)
 const mailboxAccess = ref<MailboxAccess | null>(null)
 const platformAdminState = ref<PlatformAdminState | null>(null)
+const forwardDeliveries = ref<ForwardDelivery[]>([])
+const forwardDeliveryCursor = ref<string | null>(null)
+const forwardDeliveryPageLoading = ref(false)
+const forwardDeliveryPageError = ref('')
 const loading = ref(true)
 let loadInProgress = false
 const failed = ref(false)
@@ -538,7 +546,10 @@ function isPlatformAdminStateResponse(value: unknown): value is PlatformAdminSta
 }
 
 function isForwardDeliveryStateResponse(value: unknown): value is ForwardDeliveryState {
-  return isRecord(value) && Array.isArray(value.deliveries) && typeof value.limit === 'number'
+  return isRecord(value)
+    && Array.isArray(value.deliveries)
+    && typeof value.limit === 'number'
+    && (value.nextCursor === null || typeof value.nextCursor === 'string')
 }
 
 function getHttpStatus(error: unknown) {
@@ -551,6 +562,10 @@ function clearAdminData() {
   overview.value = null
   mailboxAccess.value = null
   platformAdminState.value = null
+  forwardDeliveries.value = []
+  forwardDeliveryCursor.value = null
+  forwardDeliveryPageLoading.value = false
+  forwardDeliveryPageError.value = ''
   selectedMailboxId.value = ''
   selectedUserId.value = ''
   invitationWorkspaceId.value = ''
@@ -601,6 +616,30 @@ async function adminFetch<T>(request: string, options?: Parameters<typeof $fetch
   }
 }
 
+async function loadMoreForwardDeliveries() {
+  const cursor = forwardDeliveryCursor.value
+  if (!cursor || forwardDeliveryPageLoading.value) return
+
+  forwardDeliveryPageLoading.value = true
+  forwardDeliveryPageError.value = ''
+  try {
+    const request = `/api/admin/legacy-forward-deliveries?cursor=${encodeURIComponent(cursor)}`
+    const nextPage = await adminFetch<ForwardDeliveryState>(request)
+    if (!isForwardDeliveryStateResponse(nextPage)) throw new Error('ADMIN_FORWARD_RECOVERY_RESPONSE_INVALID')
+
+    const seenIds = new Set(forwardDeliveries.value.map(delivery => delivery.id))
+    forwardDeliveries.value = [
+      ...forwardDeliveries.value,
+      ...nextPage.deliveries.filter(delivery => !seenIds.has(delivery.id)),
+    ]
+    forwardDeliveryCursor.value = nextPage.nextCursor
+  } catch {
+    forwardDeliveryPageError.value = $t('admin.forwardRecoveryLoadMoreError')
+  } finally {
+    forwardDeliveryPageLoading.value = false
+  }
+}
+
 const activeWorkspaces = computed(() => overview.value?.workspaces.filter(workspace => workspace.status === 'active') ?? [])
 const activePlatformAdminCount = computed(() => platformAdminState.value?.admins.filter(admin => admin.user_status === 'active').length ?? 0)
 const selectedPlatformAdminCandidate = computed(() => platformAdminState.value?.candidates.find(candidate => candidate.user_id === platformAdminCandidateId.value) ?? null)
@@ -644,8 +683,12 @@ const {
       throw new Error('ADMIN_RESPONSE_INVALID')
     }
 
-    nextOverview.forwardDeliveries = nextForwardDeliveryState.deliveries
-    return { overview: nextOverview, mailboxAccess: nextMailboxAccess, platformAdminState: nextPlatformAdminState }
+    return {
+      overview: nextOverview,
+      mailboxAccess: nextMailboxAccess,
+      platformAdminState: nextPlatformAdminState,
+      forwardDeliveryState: nextForwardDeliveryState,
+    }
   },
   { server: false, deep: false },
 )
@@ -654,6 +697,9 @@ function applyAdminSnapshot(snapshot: AdminSnapshot) {
   overview.value = snapshot.overview
   mailboxAccess.value = snapshot.mailboxAccess
   platformAdminState.value = snapshot.platformAdminState
+  forwardDeliveries.value = snapshot.forwardDeliveryState.deliveries
+  forwardDeliveryCursor.value = snapshot.forwardDeliveryState.nextCursor
+  forwardDeliveryPageError.value = ''
 
   if (!activeWorkspaces.value.some(workspace => workspace.id === invitationWorkspaceId.value)) {
     invitationWorkspaceId.value = activeWorkspaces.value[0]?.id ?? ''

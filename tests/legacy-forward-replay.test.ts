@@ -22,6 +22,7 @@ registerHooks({
 Object.assign(globalThis, {
   defineEventHandler: (handler: (event: unknown) => unknown) => handler,
   getRouterParam: (event: { params?: Record<string, string> }, key: string) => event.params?.[key],
+  getQuery: (event: { query?: Record<string, string> }) => event.query ?? {},
   setResponseHeader: () => undefined,
   createError: (options: { statusCode: number, statusMessage: string }) => Object.assign(new Error(options.statusMessage), options),
 })
@@ -101,6 +102,7 @@ test('la reprise structurée refuse les adresses Reply-To mal formées et ignore
   const raw = new TextEncoder().encode('From: sender@example.net\r\nSubject: Test\r\nIn-Reply-To: bad\r\n\tvalue\r\n\r\nBody')
   await assert.rejects(createReplayEmailMessage(raw, 'invalid\r\nBcc: victim@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION), /Reply-To/)
   await assert.rejects(createReplayEmailMessage(raw, 'bad..local@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION), /Reply-To/)
+  await assert.rejects(createReplayEmailMessage(raw, 'sender@example.net', 'courrier-test@verbatims.cc', 'invalid\r\nBcc: victim@example.net'), /destination/)
   const replay = await createReplayEmailMessage(raw, 'sender@example.net', 'courrier-test@verbatims.cc', TEST_DESTINATION)
   assert.equal(replay.headers['In-Reply-To'], undefined)
 })
@@ -248,9 +250,11 @@ class TestD1 {
   } = {}) {
     const id = options.id ?? TEST_MESSAGE_ID
     const status = options.status ?? 'processing'
-    const claimedAt = options.claimedAt ?? (status === 'processing'
-      ? new Date(Date.now() - 11 * 60_000).toISOString()
-      : null)
+    const claimedAt = Object.hasOwn(options, 'claimedAt')
+      ? options.claimedAt ?? null
+      : status === 'processing'
+        ? new Date(Date.now() - 11 * 60_000).toISOString()
+        : null
     const now = new Date().toISOString()
     this.sqlite.prepare(`
       INSERT INTO messages (id, raw_object_key, envelope_to, mailbox_domain, subject, sender_address, received_at)
@@ -339,7 +343,7 @@ function eventFor(db: TestD1, env: ReturnType<typeof bindings>['env'], id = TEST
   }
 }
 
-test('la liste expose seulement les échecs et traitements périmés de la boîte test et journalise la lecture', async () => {
+test('la liste expose les échecs et traitements périmés de toutes les boîtes et destinations', async () => {
   const db = new TestD1()
   const env = bindings(db).env
   const staleId = db.addDelivery()
@@ -347,20 +351,57 @@ test('la liste expose seulement les échecs et traitements périmés de la boît
   db.addDelivery({ id: '00000000-0000-4000-8000-000000000003', claimedAt: new Date().toISOString() })
   db.addDelivery({ id: '00000000-0000-4000-8000-000000000004', destination: 'other@example.net' })
   db.addDelivery({ id: '00000000-0000-4000-8000-000000000005', envelopeTo: 'other@verbatims.cc' })
+  db.addDelivery({ id: '00000000-0000-4000-8000-000000000006', claimedAt: null, envelopeTo: 'alerts@zimablue.cc', mailboxDomain: 'zimablue.cc' })
 
   try {
     const result = await listDeliveriesHandler({ context: { cloudflare: { env }, platformAdmin: ADMIN } } as never) as { deliveries: { id: string }[] }
-    assert.deepEqual(result.deliveries.map(delivery => delivery.id), [staleId, '00000000-0000-4000-8000-000000000002'])
+    assert.deepEqual(new Set(result.deliveries.map(delivery => delivery.id)), new Set([
+      staleId,
+      '00000000-0000-4000-8000-000000000002',
+      '00000000-0000-4000-8000-000000000004',
+      '00000000-0000-4000-8000-000000000005',
+      '00000000-0000-4000-8000-000000000006',
+    ]))
     assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS count FROM platform_audit_log WHERE action = 'platform_admin.resource_read'").get()?.count, 1)
   } finally {
     db.close()
   }
 })
 
-test('la reprise renvoie la copie MIME vers la destination configurée et journalise les deux étapes', async () => {
+test('la liste pagine les transferts sans en masquer au-delà de la première page', async () => {
   const db = new TestD1()
-  db.addDelivery()
-  const { env, sent } = bindings(db)
+  const env = bindings(db).env
+  const ids = Array.from({ length: 52 }, (_, index) => db.addDelivery({
+    id: String(index + 1).padStart(64, '0'),
+    envelopeTo: index % 2 === 0 ? 'courrier-test@verbatims.cc' : 'alerts@zimablue.cc',
+    mailboxDomain: index % 2 === 0 ? 'verbatims.cc' : 'zimablue.cc',
+    destination: index % 2 === 0 ? TEST_DESTINATION : 'ops@example.org',
+  }))
+
+  try {
+    const first = await listDeliveriesHandler({ query: {}, context: { cloudflare: { env }, platformAdmin: ADMIN } } as never) as {
+      deliveries: { id: string }[]
+      nextCursor: string | null
+    }
+    assert.equal(first.deliveries.length, 50)
+    assert.ok(first.nextCursor)
+
+    const second = await listDeliveriesHandler({ query: { cursor: first.nextCursor }, context: { cloudflare: { env }, platformAdmin: ADMIN } } as never) as {
+      deliveries: { id: string }[]
+      nextCursor: string | null
+    }
+    assert.equal(second.deliveries.length, 2)
+    assert.equal(second.nextCursor, null)
+    assert.deepEqual(new Set([...first.deliveries, ...second.deliveries].map(delivery => delivery.id)), new Set(ids))
+  } finally {
+    db.close()
+  }
+})
+
+test('la reprise renvoie la copie vers la destination enregistrée, quelle que soit la boîte', async () => {
+  const db = new TestD1()
+  db.addDelivery({ destination: 'operations@example.org', envelopeTo: 'alerts@zimablue.cc', mailboxDomain: 'zimablue.cc' })
+  const { env, sent } = bindings(db, { destination: TEST_DESTINATION })
 
   try {
     const result = await replayDeliveryHandler(eventFor(db, env) as never) as { accepted: boolean, attemptCount: number }
@@ -368,7 +409,7 @@ test('la reprise renvoie la copie MIME vers la destination configurée et journa
     assert.deepEqual(result, { accepted: true, attemptCount: 2 })
     assert.deepEqual(sent, [{
       from: 'courrier-test@verbatims.cc',
-      to: TEST_DESTINATION,
+      to: 'operations@example.org',
       replyTo: 'test.sender@example.net',
       subject: 'Local retry fixture',
       headers: { 'X-Courrier-Original-From': 'test.sender@example.net' },
@@ -388,20 +429,31 @@ test('la reprise renvoie la copie MIME vers la destination configurée et journa
   }
 })
 
-test('un transfert actif, une autre destination ou une autre boîte ne peuvent pas être rejoués', async () => {
+test('un transfert encore actif et un identifiant inconnu ne peuvent pas être rejoués', async () => {
   const db = new TestD1()
   db.addDelivery({ claimedAt: new Date().toISOString() })
-  db.addDelivery({ id: 'b'.repeat(64), envelopeTo: 'other@verbatims.cc' })
-  db.addDelivery({ id: 'c'.repeat(64), destination: 'other@example.net' })
   const { env, sent } = bindings(db)
 
   try {
-    for (const id of [TEST_MESSAGE_ID, 'b'.repeat(64), 'c'.repeat(64)]) {
-      await assert.rejects(replayDeliveryHandler(eventFor(db, env, id) as never), { statusCode: 409 })
-    }
+    await assert.rejects(replayDeliveryHandler(eventFor(db, env) as never), { statusCode: 409 })
     await assert.rejects(replayDeliveryHandler(eventFor(db, env, '00000000-0000-4000-8000-000000000001') as never), { statusCode: 400 })
     assert.equal(sent.length, 0)
     assert.equal(db.sqlite.prepare('SELECT COUNT(*) AS count FROM platform_audit_log').get()?.count, 0)
+  } finally {
+    db.close()
+  }
+})
+
+test('un traitement sans bail actif peut être repris quelle que soit sa boîte', async () => {
+  const db = new TestD1()
+  const id = db.addDelivery({ claimedAt: null, envelopeTo: 'alerts@zimablue.cc', mailboxDomain: 'zimablue.cc', destination: 'ops@example.org' })
+  const { env, sent } = bindings(db)
+
+  try {
+    const result = await replayDeliveryHandler(eventFor(db, env, id) as never) as { accepted: boolean }
+    assert.equal(result.accepted, true)
+    assert.equal(sent[0]?.to, 'ops@example.org')
+    assert.equal(db.row(id).status, 'forwarded')
   } finally {
     db.close()
   }

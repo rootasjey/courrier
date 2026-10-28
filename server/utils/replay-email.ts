@@ -29,7 +29,7 @@ export type ReplayEmailMessage = {
   attachments: ReplayAttachment[]
 }
 
-function validateMailboxAddress(address: string) {
+function validateMailboxAddress(address: string, description: string) {
   const localPart = address.split('@', 1)[0] ?? ''
   if (
     address.length > 254
@@ -38,7 +38,7 @@ function validateMailboxAddress(address: string) {
     || localPart.endsWith('.')
     || localPart.includes('..')
   ) {
-    throw new Error('The original sender address cannot be used as Reply-To.')
+    throw new Error(description)
   }
 }
 
@@ -80,7 +80,8 @@ export async function createReplayEmailMessage(
   replayFrom: string,
   destination: string,
 ): Promise<ReplayEmailMessage> {
-  validateMailboxAddress(senderAddress)
+  validateMailboxAddress(senderAddress, 'The original sender address cannot be used as Reply-To.')
+  validateMailboxAddress(destination, 'The stored forwarding destination is not a valid mailbox address.')
   if (rawMessage.byteLength > MAX_REPLAY_BYTES) {
     throw new Error('The stored message exceeds Cloudflare Email Sending’s 5 MiB replay limit.')
   }
