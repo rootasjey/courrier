@@ -86,6 +86,8 @@ class ConcurrentD1 {
         claimed_at TEXT,
         forwarded_at TEXT,
         last_error TEXT,
+        delivery_method TEXT NOT NULL DEFAULT 'email_forward',
+        claim_token TEXT,
         created_at TEXT NOT NULL
       );
     `)

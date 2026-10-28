@@ -115,6 +115,13 @@
           @refresh="loadOverview"
         />
 
+        <AdminForwardRecoverySection
+          :deliveries="overview.forwardDeliveries"
+          :admin-fetch="adminFetch"
+          :format-date="formatDate"
+          @refresh="loadOverview"
+        />
+
         <section class="admin-section" aria-labelledby="admin-members-heading">
           <h2 id="admin-members-heading">{{ $t('admin.memberships') }}</h2>
           <p class="admin-section-description">{{ $t('admin.membershipLifecycleDescription') }}</p>
@@ -428,6 +435,7 @@
 
 <script setup lang="ts">
 import AdminDomainsSection from '~/components/AdminDomainsSection.vue'
+import AdminForwardRecoverySection from '~/components/AdminForwardRecoverySection.vue'
 import { createAdminAuthorizationRecovery } from '../utils/admin-authorization-recovery.mjs'
 import { getAdminAuthorizationRedirect } from '../utils/admin-authorization-redirect.mjs'
 
@@ -443,6 +451,7 @@ type AdminOverview = {
   audit: { id: string, actor_user_id: string | null, actor_email: string | null, action: string, target_type: string, target_id: string | null, workspace_id: string | null, created_at: string }[]
   blockedSenders: { mailbox_domain: string, sender_address: string, created_at: string, created_by_user_id: string | null, blocked_by_email: string | null, workspace_id: string | null, workspace_name: string | null }[]
   blockedSendersTruncated: boolean
+  forwardDeliveries: { id: string, status: 'processing' | 'failed', attempt_count: number, claimed_at: string | null, forwarded_at: string | null, last_error: string | null, delivery_method: string, subject: string, sender_address: string, received_at: string }[]
 }
 type PlatformAdmin = { user_id: string, email: string, display_name: string, user_status: string, created_at: string, created_by_user_id: string | null, created_by_email: string | null }
 type PlatformAdminCandidate = { user_id: string, email: string, display_name: string }
@@ -453,6 +462,7 @@ type MailboxAccess = {
   grants: { workspace_id: string, mailbox_id: string, user_id: string }[]
   truncated: { mailboxes: boolean, members: boolean, grants: boolean }
 }
+type ForwardDeliveryState = { deliveries: AdminOverview['forwardDeliveries'], limit: number }
 type AdminSnapshot = { overview: AdminOverview, mailboxAccess: MailboxAccess, platformAdminState: PlatformAdminState }
 type AccessGrant = { mailbox_id: string, user_id: string, email: string, display_name: string | null, role: string, mailbox_address: string }
 type AdminAccountSession = {
@@ -525,6 +535,10 @@ function isPlatformAdminStateResponse(value: unknown): value is PlatformAdminSta
     && Array.isArray(value.admins)
     && Array.isArray(value.candidates)
     && typeof value.candidatesTruncated === 'boolean'
+}
+
+function isForwardDeliveryStateResponse(value: unknown): value is ForwardDeliveryState {
+  return isRecord(value) && Array.isArray(value.deliveries) && typeof value.limit === 'number'
 }
 
 function getHttpStatus(error: unknown) {
@@ -616,18 +630,21 @@ const {
 } = await useAsyncData<AdminSnapshot>(
   adminSnapshotKey,
   async (_nuxtApp, { signal }) => {
-    const [nextOverview, nextMailboxAccess, nextPlatformAdminState] = await Promise.all([
+    const [nextOverview, nextMailboxAccess, nextPlatformAdminState, nextForwardDeliveryState] = await Promise.all([
       $fetch<AdminOverview>('/api/admin/overview', { signal }),
       $fetch<MailboxAccess>('/api/admin/mailbox-access', { signal }),
       $fetch<PlatformAdminState>('/api/admin/platform-admins', { signal }),
+      $fetch<ForwardDeliveryState>('/api/admin/legacy-forward-deliveries', { signal }),
     ])
 
     if (!isAdminOverviewResponse(nextOverview)
       || !isMailboxAccessResponse(nextMailboxAccess)
-      || !isPlatformAdminStateResponse(nextPlatformAdminState)) {
+      || !isPlatformAdminStateResponse(nextPlatformAdminState)
+      || !isForwardDeliveryStateResponse(nextForwardDeliveryState)) {
       throw new Error('ADMIN_RESPONSE_INVALID')
     }
 
+    nextOverview.forwardDeliveries = nextForwardDeliveryState.deliveries
     return { overview: nextOverview, mailboxAccess: nextMailboxAccess, platformAdminState: nextPlatformAdminState }
   },
   { server: false, deep: false },

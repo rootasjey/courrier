@@ -28,7 +28,7 @@ export async function isAdministrativeActor(
 export async function auditPlatformAdminRead(
   db: AccountDb,
   actor: AccountIdentity,
-  resource: 'overview' | 'mailbox_access' | 'platform_admins',
+  resource: 'overview' | 'mailbox_access' | 'platform_admins' | 'legacy_forward_recovery',
 ) {
   const now = new Date().toISOString()
   await db.prepare(`

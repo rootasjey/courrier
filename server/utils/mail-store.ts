@@ -98,7 +98,7 @@ export async function markLegacyForwardDelivery(
 ) {
   const result = await db.prepare(`
     UPDATE legacy_forward_deliveries
-    SET status = ?, forwarded_at = ?, claimed_at = NULL, last_error = ?
+    SET status = ?, forwarded_at = ?, claimed_at = NULL, claim_token = NULL, last_error = ?, delivery_method = 'email_forward'
     WHERE message_id = ? AND status = 'processing' AND claimed_at = ?
   `).bind(
     status,
