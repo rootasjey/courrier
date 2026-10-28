@@ -11,6 +11,7 @@ test('protectedApiRoutes excludes deliberate public routes and samples dynamic r
     const files = [
       'auth/login.post.ts',
       'auth/password-reset.post.ts',
+      'admin/blocked-senders.delete.ts',
       'dev/ingest.post.ts',
       'dev/reindex-attachments.post.ts',
       'invitations/[token].get.ts',
@@ -27,6 +28,7 @@ test('protectedApiRoutes excludes deliberate public routes and samples dynamic r
     }
 
     assert.deepEqual(await protectedApiRoutes(root), [
+      { method: 'DELETE', path: '/api/admin/blocked-senders' },
       { method: 'GET', path: '/api/messages' },
       { method: 'GET', path: '/api/messages/00000000-0000-4000-8000-000000000001' },
       { method: 'PUT', path: '/api/account/profile/avatar/:path' },

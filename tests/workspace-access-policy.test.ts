@@ -78,6 +78,8 @@ test('account and invitation exceptions are limited to exact methods', () => {
 test('platform administration routes fail closed for unlisted paths and methods', () => {
   assert.equal(isPlatformAdminEndpoint('/api/admin/overview', 'GET'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/overview', 'POST'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/blocked-senders', 'DELETE'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/blocked-senders', 'GET'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins', 'GET'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins', 'POST'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/platform-admins/00000000-0000-4000-8000-000000000001', 'DELETE'), true)

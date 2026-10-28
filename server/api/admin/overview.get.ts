@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const db = getAccountDb(event)
   await auditPlatformAdminRead(db, actor, 'overview')
 
-  const [counts, workspaces, domains, memberships, invitations, audit] = await Promise.all([
+  const [counts, workspaces, domains, memberships, invitations, audit, blockedSenders, blockedSenderCount] = await Promise.all([
     db.prepare(`
       SELECT
         (SELECT COUNT(*) FROM workspaces) AS workspace_count,
@@ -92,6 +92,21 @@ export default defineEventHandler(async (event) => {
       id: string, actor_user_id: string | null, actor_email: string | null, action: string, target_type: string,
       target_id: string | null, workspace_id: string | null, created_at: string,
     }>(),
+    db.prepare(`
+      SELECT bs.mailbox_domain, bs.sender_address, bs.created_at, bs.created_by_user_id,
+        u.email AS blocked_by_email,
+        wd.workspace_id, w.name AS workspace_name
+      FROM blocked_senders bs
+      LEFT JOIN users u ON u.id = bs.created_by_user_id
+      LEFT JOIN workspace_domains wd ON lower(wd.domain) = lower(bs.mailbox_domain)
+      LEFT JOIN workspaces w ON w.id = wd.workspace_id
+      ORDER BY bs.created_at DESC, bs.mailbox_domain COLLATE NOCASE, bs.sender_address COLLATE NOCASE
+      LIMIT 500
+    `).all<{
+      mailbox_domain: string, sender_address: string, created_at: string,
+      workspace_id: string | null, workspace_name: string | null,
+    }>(),
+    db.prepare('SELECT COUNT(*) AS count FROM blocked_senders').first<{ count: number }>(),
   ])
 
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
@@ -102,5 +117,7 @@ export default defineEventHandler(async (event) => {
     memberships: memberships.results,
     invitations: invitations.results,
     audit: audit.results,
+    blockedSenders: blockedSenders.results,
+    blockedSendersTruncated: Number(blockedSenderCount?.count ?? 0) > blockedSenders.results.length,
   }
 })

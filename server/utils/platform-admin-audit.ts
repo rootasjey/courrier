@@ -2,6 +2,25 @@ import type { AccountDb, AccountIdentity } from './account-auth'
 
 const READ_AUDIT_DEDUPE_MINUTES = 15
 
+export async function isAdministrativeActor(
+  db: AccountDb,
+  actorUserId: string,
+  workspaceId: string,
+) {
+  const result = await db.prepare(`
+    SELECT 1 AS allowed
+    WHERE EXISTS (
+      SELECT 1 FROM platform_admins WHERE user_id = ?
+    ) OR EXISTS (
+      SELECT 1 FROM workspace_memberships
+      WHERE user_id = ? AND workspace_id = ? AND status = 'active'
+        AND role IN ('owner', 'admin')
+    )
+  `).bind(actorUserId, actorUserId, workspaceId).first<{ allowed: number }>()
+
+  return Boolean(result)
+}
+
 /**
  * Record that a platform administrator read a sensitive console resource.
  * Repeated refreshes of the same resource are collapsed for a short window.

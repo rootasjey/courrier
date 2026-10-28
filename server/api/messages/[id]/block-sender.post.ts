@@ -1,5 +1,6 @@
 import type { MailStorageBindings } from '../../../utils/mail-store'
 import { getWorkspaceUserFromContext, workspaceDomainScope } from '../../../utils/account-auth'
+import { isAdministrativeActor } from '../../../utils/platform-admin-audit'
 
 type BlockBindings = Pick<MailStorageBindings, 'DB'>
 
@@ -24,21 +25,43 @@ export default defineEventHandler(async (event) => {
   }
 
   const now = new Date().toISOString()
-  await bindings.DB.batch([
-    bindings.DB.prepare(`
-      INSERT INTO blocked_senders (mailbox_domain, sender_address, created_at)
-      SELECT ?, ?, ? FROM workspace_domains
+  const auditAction = await isAdministrativeActor(
+    bindings.DB,
+    user.id,
+    user.activeWorkspaceId,
+  )
+  const statements = [bindings.DB.prepare(`
+      INSERT INTO blocked_senders (mailbox_domain, sender_address, created_at, created_by_user_id)
+      SELECT ?, ?, ?, ? FROM workspace_domains
       WHERE lower(workspace_domains.domain) = lower(?)
         AND ${workspaceDomainScope('workspace_domains.domain', user.id)}
       ON CONFLICT(mailbox_domain, sender_address) DO NOTHING
-    `).bind(message.mailbox_domain, message.sender_address, now, message.mailbox_domain, user.activeWorkspaceId),
-    bindings.DB.prepare(`
+    `).bind(message.mailbox_domain, message.sender_address, now, user.id, message.mailbox_domain, user.activeWorkspaceId)]
+
+  if (auditAction) {
+    statements.push(bindings.DB.prepare(`
+      INSERT INTO platform_audit_log
+        (id, actor_user_id, action, target_type, target_id, workspace_id, details_json, created_at)
+      SELECT ?, ?, 'blocked_sender.block', 'blocked_sender', ?, ?, ?, ?
+      WHERE changes() > 0
+    `).bind(
+      crypto.randomUUID(),
+      user.id,
+      `${message.mailbox_domain}:${message.sender_address}`,
+      user.activeWorkspaceId,
+      JSON.stringify({ mailboxDomain: message.mailbox_domain, senderAddress: message.sender_address }),
+      now,
+    ))
+  }
+
+  statements.push(bindings.DB.prepare(`
       UPDATE messages
       SET screener_state = 'blocked'
       WHERE mailbox_domain = ? AND lower(trim(sender_address)) = ? AND folder = 'Screener' AND trashed_at IS NULL
         AND ${workspaceDomainScope('messages.mailbox_domain', user.id)}
-    `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId),
-  ])
+    `).bind(message.mailbox_domain, message.sender_address, user.activeWorkspaceId))
+
+  await bindings.DB.batch(statements)
 
   const count = await bindings.DB.prepare(`
     SELECT COUNT(*) AS count FROM messages
