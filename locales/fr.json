@@ -1086,6 +1086,23 @@
     "replayCopyAccepted": "Cloudflare a accepté la copie. Vérifie sa réception à la destination indiquée.",
     "forwardRecoveryChanged": "Ce transfert a changé ou a déjà été repris. Actualise la console.",
     "replayCopyError": "La reprise n’a pas pu être confirmée. Vérifie la destination avant de réessayer.",
+    "inboundEmailEvents": "Journal des courriels entrants",
+    "inboundEmailEventsDescription": "Événements des 90 derniers jours : ni le corps ni les pièces jointes ne sont conservés. Si D1 est indisponible, l’événement peut n’apparaître que dans les logs du Worker.",
+    "inboundEmailEventsTruncated": "Affichage limité aux 100 événements les plus récents.",
+    "noInboundEmailEvents": "Aucun événement à signaler.",
+    "eventOutcome": "Résultat",
+    "eventReason": "Motif",
+    "inboundEventTypes": {
+      "rejected": "Rejeté",
+      "degraded": "Non stocké dans Courrier ; relais accepté",
+      "failed": "Échec technique"
+    },
+    "inboundEventReasons": {
+      "sender_blocked": "Expéditeur bloqué par un utilisateur",
+      "mailbox_unconfigured": "Boîte non configurée ou inactive",
+      "mail_storage_unavailable": "Stockage indisponible",
+      "processing_failed": "Échec du traitement dans Courrier"
+    },
     "audit": "Journal d’audit",
     "date": "Date",
     "target": "Cible",

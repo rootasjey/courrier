@@ -1086,6 +1086,23 @@
     "replayCopyAccepted": "Cloudflare accepted the copy. Check the specified destination for delivery.",
     "forwardRecoveryChanged": "This delivery changed or has already been retried. Refresh the console.",
     "replayCopyError": "The retry could not be confirmed. Check the destination before trying again.",
+    "inboundEmailEvents": "Incoming email log",
+    "inboundEmailEventsDescription": "Events from the last 90 days. Message bodies and attachments are not kept. If D1 is unavailable, an event may only appear in Worker logs.",
+    "inboundEmailEventsTruncated": "Showing the 100 most recent events.",
+    "noInboundEmailEvents": "No events to report.",
+    "eventOutcome": "Outcome",
+    "eventReason": "Reason",
+    "inboundEventTypes": {
+      "rejected": "Rejected",
+      "degraded": "Not stored in Courrier; relay accepted",
+      "failed": "Technical failure"
+    },
+    "inboundEventReasons": {
+      "sender_blocked": "Sender blocked by a user",
+      "mailbox_unconfigured": "Mailbox is unconfigured or inactive",
+      "mail_storage_unavailable": "Storage unavailable",
+      "processing_failed": "Courrier processing failed"
+    },
     "audit": "Audit log",
     "date": "Date",
     "target": "Target",

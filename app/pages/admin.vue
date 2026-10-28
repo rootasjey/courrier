@@ -126,6 +126,12 @@
           @load-more="loadMoreForwardDeliveries"
         />
 
+        <AdminInboundEmailEventsSection
+          :events="overview.inboundEmailEvents"
+          :truncated="overview.inboundEmailEventsTruncated"
+          :format-date="formatDate"
+        />
+
         <section class="admin-section" aria-labelledby="admin-members-heading">
           <h2 id="admin-members-heading">{{ $t('admin.memberships') }}</h2>
           <p class="admin-section-description">{{ $t('admin.membershipLifecycleDescription') }}</p>
@@ -456,6 +462,8 @@ type AdminOverview = {
   audit: { id: string, actor_user_id: string | null, actor_email: string | null, action: string, target_type: string, target_id: string | null, workspace_id: string | null, created_at: string }[]
   blockedSenders: { mailbox_domain: string, sender_address: string, created_at: string, created_by_user_id: string | null, blocked_by_email: string | null, workspace_id: string | null, workspace_name: string | null }[]
   blockedSendersTruncated: boolean
+  inboundEmailEvents: { id: string, event_type: 'rejected' | 'degraded' | 'failed', reason_code: 'sender_blocked' | 'mailbox_unconfigured' | 'mail_storage_unavailable' | 'processing_failed', sender_address: string, recipient_address: string, created_at: string }[]
+  inboundEmailEventsTruncated: boolean
 }
 type PlatformAdmin = { user_id: string, email: string, display_name: string, user_status: string, created_at: string, created_by_user_id: string | null, created_by_email: string | null }
 type PlatformAdminCandidate = { user_id: string, email: string, display_name: string }
@@ -527,8 +535,9 @@ function isAdminOverviewResponse(value: unknown): value is AdminOverview {
   if (!isRecord(value) || !isRecord(value.counts)) return false
   const countKeys = ['workspace_count', 'domain_count', 'membership_count', 'pending_invitation_count']
   return countKeys.every(key => typeof value.counts[key] === 'number')
-    && ['workspaces', 'domains', 'memberships', 'invitations', 'audit', 'blockedSenders'].every(key => Array.isArray(value[key]))
+    && ['workspaces', 'domains', 'memberships', 'invitations', 'audit', 'blockedSenders', 'inboundEmailEvents'].every(key => Array.isArray(value[key]))
     && typeof value.blockedSendersTruncated === 'boolean'
+    && typeof value.inboundEmailEventsTruncated === 'boolean'
 }
 
 function isMailboxAccessResponse(value: unknown): value is MailboxAccess {

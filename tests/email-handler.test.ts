@@ -14,9 +14,25 @@ const rawMessage = [
   '',
 ].join('\r\n')
 
-function makeBindings(): MailStorageBindings {
+function makeBindings(events: unknown[][] = [], blocked = false): MailStorageBindings {
   return {
-    DB: { prepare() { throw new Error('DB stub should not be called by these handler tests.') } } as unknown as D1Database,
+    DB: {
+      prepare(query: string) {
+        return {
+          bind(...values: unknown[]) {
+            return {
+              async first() {
+                return query.includes('FROM blocked_senders') && blocked ? { blocked: 1 } : null
+              },
+              async run() {
+                if (query.includes('INSERT INTO inbound_email_events')) events.push(values)
+                return { success: true, meta: { changes: 1 } }
+              },
+            }
+          },
+        }
+      },
+    } as unknown as D1Database,
     MAIL_STORE: { put() { throw new Error('R2 stub should not be called by these handler tests.') } } as unknown as R2Bucket,
     COURRIER_LEGACY_FORWARD_TO: 'hey-test@example.org',
   }
@@ -30,6 +46,26 @@ function makeMessage(forward: (destination: string) => Promise<unknown>) {
     forward,
   }
 }
+
+test('un blocage volontaire est journalisé sans stocker le contenu du message', async () => {
+  const events: unknown[][] = []
+  let rejectReason = ''
+  const message = {
+    ...makeMessage(async () => undefined),
+    headers: new Headers({ 'message-id': '<same-message@example.net>' }),
+    setReject(reason: string) { rejectReason = reason },
+  }
+
+  await handleIncomingEmail(message, makeBindings(events, true))
+
+  assert.equal(rejectReason, 'This sender is blocked by the mailbox owner.')
+  assert.equal(events.length, 1)
+  assert.equal(events[0]?.[1], 'rejected')
+  assert.equal(events[0]?.[2], 'sender_blocked')
+  assert.equal(events[0]?.[3], 'sender@example.net')
+  assert.equal(events[0]?.[4], 'courrier-test@verbatims.cc')
+  assert.equal(events[0]?.length, 6)
+})
 
 test('rejouer le même MIME stocké ne relaie pas une seconde fois', async () => {
   const storedMessageIds = new Set<string>()
@@ -56,26 +92,34 @@ test('rejouer le même MIME stocké ne relaie pas une seconde fois', async () =>
 
 test('si le stockage échoue mais le relais réussit, la réception aboutit', async () => {
   const forwardedTo: string[] = []
+  const events: unknown[][] = []
   await handleIncomingEmail(
     makeMessage(async destination => { forwardedTo.push(destination) }),
-    makeBindings(),
+    makeBindings(events),
     async () => { throw new Error('D1 indisponible') },
   )
 
   assert.deepEqual(forwardedTo, ['hey-test@example.org'])
+  assert.equal(events.length, 1)
+  assert.equal(events[0]?.[1], 'degraded')
+  assert.equal(events[0]?.[2], 'processing_failed')
 })
 
 test('si stockage et relais échouent, le handler remonte l’erreur de stockage', async () => {
   const storageError = new Error('R2 indisponible')
+  const events: unknown[][] = []
 
   await assert.rejects(
     handleIncomingEmail(
       makeMessage(async () => { throw new Error('relais indisponible') }),
-      makeBindings(),
+      makeBindings(events),
       async () => { throw storageError },
     ),
     error => error === storageError,
   )
+  assert.equal(events.length, 1)
+  assert.equal(events[0]?.[1], 'failed')
+  assert.equal(events[0]?.[2], 'processing_failed')
 })
 
 test('si stockage réussit mais que le relais échoue, la réception reste acquise', async () => {

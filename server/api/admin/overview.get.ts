@@ -1,12 +1,16 @@
 import { getAccountDb, requirePlatformAdmin } from '../../utils/account-auth'
+import { INBOUND_EMAIL_EVENT_RETENTION_DAYS } from '../../utils/inbound-email-events'
 import { auditPlatformAdminRead } from '../../utils/platform-admin-audit'
 
 export default defineEventHandler(async (event) => {
   const actor = await requirePlatformAdmin(event)
   const db = getAccountDb(event)
   await auditPlatformAdminRead(db, actor, 'overview')
+  const inboundEventCutoff = new Date(
+    Date.now() - INBOUND_EMAIL_EVENT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString()
 
-  const [counts, workspaces, domains, memberships, invitations, audit, blockedSenders, blockedSenderCount] = await Promise.all([
+  const [counts, workspaces, domains, memberships, invitations, audit, blockedSenders, blockedSenderCount, inboundEmailEvents] = await Promise.all([
     db.prepare(`
       SELECT
         (SELECT COUNT(*) FROM workspaces) AS workspace_count,
@@ -107,6 +111,17 @@ export default defineEventHandler(async (event) => {
       workspace_id: string | null, workspace_name: string | null,
     }>(),
     db.prepare('SELECT COUNT(*) AS count FROM blocked_senders').first<{ count: number }>(),
+    db.prepare(`
+      SELECT id, event_type, reason_code, sender_address, recipient_address, created_at
+      FROM inbound_email_events
+      WHERE created_at >= ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT 101
+    `).bind(inboundEventCutoff).all<{
+      id: string, event_type: 'rejected' | 'degraded' | 'failed',
+      reason_code: 'sender_blocked' | 'mailbox_unconfigured' | 'mail_storage_unavailable' | 'processing_failed',
+      sender_address: string, recipient_address: string, created_at: string,
+    }>(),
   ])
 
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
@@ -119,5 +134,7 @@ export default defineEventHandler(async (event) => {
     audit: audit.results,
     blockedSenders: blockedSenders.results,
     blockedSendersTruncated: Number(blockedSenderCount?.count ?? 0) > blockedSenders.results.length,
+    inboundEmailEvents: inboundEmailEvents.results.slice(0, 100),
+    inboundEmailEventsTruncated: inboundEmailEvents.results.length > 100,
   }
 })

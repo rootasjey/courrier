@@ -1,11 +1,14 @@
 import {
+  IncomingMailboxUnconfiguredError,
   isBlockedSender,
+  incomingSenderAddress,
   markLegacyForwardDelivery,
   parseIncomingEmail,
   storeIncomingEmail,
   type MailStorageBindings,
   type ParsedEmail,
 } from './mail-store.ts'
+import { normalizeInboundEmailAddress, recordInboundEmailEvent, type InboundEmailEventReason, type InboundEmailEventType } from './inbound-email-events.ts'
 
 type IncomingEmail = {
   from: string
@@ -51,20 +54,51 @@ function legacyDestination(env: MailStorageBindings) {
     : ''
 }
 
+function rejectionReason(error: unknown): InboundEmailEventReason {
+  if (error instanceof IncomingMailboxUnconfiguredError) {
+    return 'mailbox_unconfigured'
+  }
+  return 'processing_failed'
+}
+
+async function recordInboundEvent(
+  env: unknown,
+  message: IncomingEmail,
+  eventType: InboundEmailEventType,
+  reasonCode: InboundEmailEventReason,
+  parsedEmail?: ParsedEmail,
+) {
+  const senderAddress = parsedEmail
+    ? incomingSenderAddress(parsedEmail, { from: message.from, to: message.to })
+    : message.from
+  const event = {
+    eventType,
+    reasonCode,
+    senderAddress: normalizeInboundEmailAddress(senderAddress),
+    recipientAddress: normalizeInboundEmailAddress(message.to),
+  }
+
+  try {
+    if (!hasDatabaseBinding(env)) throw new Error('D1 binding unavailable.')
+    await recordInboundEmailEvent(env.DB, event)
+  } catch (error) {
+    console.error('[courrier] Could not persist inbound email event.', {
+      ...event,
+      errorName: error instanceof Error ? error.name : 'UnknownError',
+    })
+  }
+}
+
 export async function handleIncomingEmail(
   message: IncomingEmail,
   env: MailStorageBindings,
   store: StoreEmail = storeIncomingEmail,
 ): Promise<void> {
   const destination = legacyDestination(env)
-  const eventMessageId = message.headers?.get('message-id')?.trim() || undefined
   let rawEmail: ArrayBuffer | undefined
   let parsedEmail: ParsedEmail | undefined
 
-  console.info('[courrier] Incoming email event received.', {
-    messageId: eventMessageId,
-    canBeForwarded: message.canBeForwarded,
-  })
+  console.info('[courrier] Incoming email event received.', { canBeForwarded: message.canBeForwarded })
 
   // Check the exact visible From address before storing or forwarding anything.
   // Cloudflare's envelope sender can differ from the address shown in the UI.
@@ -76,9 +110,18 @@ export async function handleIncomingEmail(
       // Let the normal storage/fallback path handle malformed MIME below.
     }
 
-    if (parsedEmail && await isBlockedSender(parsedEmail, { from: message.from, to: message.to }, env)) {
+    let senderIsBlocked = false
+    try {
+      senderIsBlocked = Boolean(parsedEmail && await isBlockedSender(parsedEmail, { from: message.from, to: message.to }, env))
+    } catch (error) {
+      await recordInboundEvent(env, message, 'failed', 'processing_failed', parsedEmail)
+      throw error
+    }
+
+    if (senderIsBlocked && parsedEmail) {
+      await recordInboundEvent(env, message, 'rejected', 'sender_blocked', parsedEmail)
       message.setReject('This sender is blocked by the mailbox owner.')
-      console.info('[courrier] Rejected a message from a blocked sender.')
+      console.info('[courrier] Inbound email rejected.', { reasonCode: 'sender_blocked' })
       return
     }
   }
@@ -89,12 +132,15 @@ export async function handleIncomingEmail(
     if (destination) {
       try {
         await message.forward(destination)
+        await recordInboundEvent(env, message, 'degraded', 'mail_storage_unavailable', parsedEmail)
         console.error('[courrier] Mail storage bindings are unavailable; delivered to the legacy destination.')
         return
       } catch (forwardError) {
         console.error('[courrier] Mail storage bindings and legacy forwarding both failed.', forwardError)
       }
     }
+
+    await recordInboundEvent(env, message, 'failed', 'mail_storage_unavailable', parsedEmail)
 
     throw error
   }
@@ -110,18 +156,24 @@ export async function handleIncomingEmail(
       destination || undefined,
     )
   } catch (storageError) {
+    const reasonCode = rejectionReason(storageError)
     if (destination) {
       try {
         await message.forward(destination)
+        await recordInboundEvent(env, message, 'degraded', reasonCode, parsedEmail)
         console.error('[courrier] Email storage failed; delivered to the legacy destination.', storageError)
         return
       } catch (forwardError) {
+        await recordInboundEvent(env, message, 'failed', reasonCode, parsedEmail)
         console.error('[courrier] Email storage and legacy forwarding both failed.', {
           storageError,
           forwardError,
         })
+        throw storageError
       }
     }
+
+    await recordInboundEvent(env, message, 'failed', reasonCode, parsedEmail)
 
     throw storageError
   }

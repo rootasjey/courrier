@@ -17,6 +17,13 @@ export type IncomingEnvelope = {
 
 export type ParsedEmail = Awaited<ReturnType<typeof PostalMime.parse>>
 
+export class IncomingMailboxUnconfiguredError extends Error {
+  constructor() {
+    super('The incoming envelope recipient is not an active configured Courrier mailbox.')
+    this.name = 'IncomingMailboxUnconfiguredError'
+  }
+}
+
 export type IncomingEmailStoreResult = {
   id: string
   duplicate: boolean
@@ -163,7 +170,7 @@ export async function storeIncomingEmail(
     LIMIT 1
   `).bind(recipientAddress).first<{ id: string, workspace_id: string, domain: string }>()
   if (!mailbox) {
-    throw new Error('The incoming envelope recipient is not an active configured Courrier mailbox.')
+    throw new IncomingMailboxUnconfiguredError()
   }
 
   const contentHash = await sha256(rawEmail)
