@@ -60,7 +60,19 @@
       </article>
     </template>
     <template v-else>
-      <p v-if="!model.visibleHistory.value.length" class="screener-empty">{{ $t('mail.screenerEmptyHistory') }}</p>
+      <label class="screener-history-search">
+        <span class="sr-only">{{ $t('mail.searchScreenerHistory') }}</span>
+        <input
+          v-model="model.historySearch.value"
+          type="search"
+          :placeholder="$t('mail.searchScreenerHistory')"
+          autocomplete="off"
+          spellcheck="false"
+        >
+      </label>
+      <p v-if="!model.visibleHistory.value.length" class="screener-empty">
+        {{ model.historySearch.value.trim() ? $t('mail.screenerHistoryNoResults', { query: model.historySearch.value.trim() }) : $t('mail.screenerEmptyHistory') }}
+      </p>
       <article v-for="sender in model.visibleHistory.value" :key="`${sender.address}-${sender.state}`" class="screener-row screener-history-row" role="listitem">
         <span class="screener-history-state" :class="`is-${sender.state}`">{{ $t(sender.state === 'blocked' ? 'mail.blocked' : 'mail.dismissed') }}</span>
         <button class="thread-row screener-message" type="button" :aria-label="$t('mail.readLatest', { address: sender.address })" @click="openMessage(sender.latest)">
@@ -148,3 +160,26 @@ defineProps<{
   openMessage: (message: Message) => void
 }>()
 </script>
+
+<style scoped>
+.screener-history-search {
+  display: block;
+  margin: 8px 0 12px;
+}
+
+.screener-history-search input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.screener-history-search input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+</style>

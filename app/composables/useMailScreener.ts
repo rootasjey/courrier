@@ -25,6 +25,7 @@ export function useMailScreener<Message extends ScreenerMessage>({
 }: MailScreenerOptions<Message>): MailScreenerState<Message> {
   const { $t } = useI18n()
   const view = ref<'pending' | 'history'>('pending')
+  const historySearch = ref('')
   const selectedAddress = ref('')
   const openOptionsFor = ref('')
   const clearDialogOpen = ref(false)
@@ -78,11 +79,13 @@ export function useMailScreener<Message extends ScreenerMessage>({
   })
 
   const visibleHistory = computed(() => {
-    const query = search.value.trim().toLocaleLowerCase('fr')
-    if (!query) return historySenders.value
+    const queries = [search.value, historySearch.value]
+      .map(value => value.trim().toLocaleLowerCase('fr'))
+      .filter(Boolean)
+    if (!queries.length) return historySenders.value
 
     return historySenders.value.filter(({ address, latest }) =>
-      `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query),
+      queries.every(query => `${address} ${latest.sender} ${latest.subject} ${latest.preview}`.toLocaleLowerCase('fr').includes(query)),
     )
   })
 
@@ -209,6 +212,7 @@ export function useMailScreener<Message extends ScreenerMessage>({
 
   return {
     view,
+    historySearch,
     selectedAddress,
     openOptionsFor,
     clearDialogOpen,
