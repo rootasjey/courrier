@@ -1,7 +1,7 @@
-import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../utils/account-auth'
-import type { MailStorageBindings } from '../../../utils/mail-store'
-import { collectMailboxPurgeData, permanentlyDeleteMailboxData } from '../../../utils/mailbox-deletion'
-import { checkCloudflareMailboxRouting, setCloudflareMailboxRule } from '../../../utils/cloudflare-email-routing'
+import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../../utils/account-auth'
+import type { MailStorageBindings } from '../../../../utils/mail-store'
+import { collectMailboxPurgeData, permanentlyDeleteMailboxData } from '../../../../utils/mailbox-deletion'
+import { checkCloudflareMailboxRouting, setCloudflareMailboxRule } from '../../../../utils/cloudflare-email-routing'
 
 type MailboxRow = {
   id: string
@@ -16,11 +16,8 @@ type MutationResult = { meta?: { changes?: number } }
 const DELETE_LEASE_MS = 15 * 60 * 1000
 
 export default defineEventHandler(async (event) => {
-  console.info('[courrier] Mailbox deletion request started.')
   assertSameOrigin(event)
-  console.info('[courrier] Mailbox deletion request origin validated.')
   const actor = await requirePlatformAdmin(event)
-  console.info('[courrier] Mailbox deletion actor authorized.')
   const db = getAccountDb(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings & {
     COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN?: string
@@ -32,7 +29,6 @@ export default defineEventHandler(async (event) => {
 
   const mailboxId = getRouterParam(event, 'id')?.trim() ?? ''
   const body = await readBody<{ confirmationAddress?: unknown }>(event)
-  console.info('[courrier] Mailbox deletion confirmation parsed.')
   if (!mailboxId || mailboxId.length > 256 || /[\u0000-\u001f\u007f/\\]/u.test(mailboxId)) {
     throw createError({ statusCode: 400, statusMessage: 'Identifiant de boîte invalide.' })
   }
@@ -47,7 +43,6 @@ export default defineEventHandler(async (event) => {
     WHERE mb.id = ?
     LIMIT 1
   `).bind(mailboxId).first<MailboxRow>()
-  console.info('[courrier] Mailbox deletion target lookup completed.', { found: Boolean(mailbox) })
   if (!mailbox) throw createError({ statusCode: 404, statusMessage: 'Boîte introuvable.' })
   if (!mailbox.archived_at) {
     throw createError({ statusCode: 409, statusMessage: 'Archive d’abord la boîte avant de la supprimer définitivement.' })
@@ -66,7 +61,6 @@ export default defineEventHandler(async (event) => {
     WHERE id = ? AND archived_at IS NOT NULL
       AND (deletion_claimed_at IS NULL OR deletion_claimed_at < ?)
   `).bind(now, now, mailbox.id, leaseCutoff).run() as MutationResult
-  console.info('[courrier] Mailbox deletion claim attempted.', { claimed: Number(claim.meta?.changes ?? 0) === 1 })
   if (Number(claim.meta?.changes ?? 0) !== 1) {
     throw createError({ statusCode: 409, statusMessage: 'Une suppression de cette boîte est déjà en cours. Réessaie après quelques minutes.' })
   }
@@ -79,9 +73,7 @@ export default defineEventHandler(async (event) => {
     `).bind(mailbox.id).run().catch(() => undefined)
   }
 
-  let deletionStage = 'routing'
   try {
-    console.info('[courrier] Mailbox deletion reached stage.', { stage: deletionStage })
     if (bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN) {
       await setCloudflareMailboxRule({
         domain: mailbox.domain,
@@ -104,8 +96,6 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    deletionStage = 'collect-purge-data'
-    console.info('[courrier] Mailbox deletion reached stage.', { stage: deletionStage })
     const target = {
       id: mailbox.id,
       workspaceId: mailbox.workspace_id,
@@ -118,8 +108,6 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 409, statusMessage: 'Attends la fin des transferts et envois en cours avant de supprimer la boîte.' })
     }
 
-    deletionStage = 'delete-storage-objects'
-    console.info('[courrier] Mailbox deletion reached stage.', { stage: deletionStage, objectCount: purgeData.objectKeys.length })
     const hasArchivedMailbox = `EXISTS (
       SELECT 1 FROM mailboxes
       WHERE id = ? AND workspace_id = ?
@@ -135,7 +123,6 @@ export default defineEventHandler(async (event) => {
       archivedGuardSql: hasArchivedMailbox,
     })
 
-    deletionStage = 'complete'
     if (!deleted) {
       await resetDeletionClaim(false)
       throw createError({ statusCode: 409, statusMessage: 'La boîte a changé pendant sa suppression. Actualise la console et vérifie son état.' })
@@ -144,7 +131,6 @@ export default defineEventHandler(async (event) => {
     setResponseHeader(event, 'Cache-Control', 'no-store')
     return { mailboxId: mailbox.id, deleted: true, messagesDeleted: purgeData.messages.length, storedObjectsDeleted: purgeData.objectKeys.length }
   } catch (error) {
-    console.error('[courrier] Mailbox deletion failed.', { stage: deletionStage, errorName: error instanceof Error ? error.name : 'unknown' })
     if (!(error && typeof error === 'object' && 'statusCode' in error)) await resetDeletionClaim(false)
     throw error
   }

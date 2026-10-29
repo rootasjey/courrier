@@ -293,8 +293,8 @@ async function deleteMailbox(mailbox: ManagedMailbox) {
   mailboxActionError.value = ''
   mailboxActionNotice.value = ''
   try {
-    await props.adminFetch(`/api/admin/mailboxes/${encodeURIComponent(mailbox.id)}`, {
-      method: 'DELETE',
+    await props.adminFetch(`/api/admin/mailboxes/${encodeURIComponent(mailbox.id)}/delete`, {
+      method: 'POST',
       body: { confirmationAddress: deleteConfirmationAddress.value },
     })
     confirmDeleteMailboxId.value = ''
