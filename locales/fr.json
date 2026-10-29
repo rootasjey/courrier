@@ -1005,7 +1005,7 @@
     "checkingMailDns": "Contrôle…",
     "hideMailDns": "Masquer le diagnostic DNS",
     "mailDnsTitle": "Configuration e-mail de {domain}",
-    "mailDnsDescription": "État des enregistrements DNS publics relevés à l’instant.",
+    "mailDnsDescription": "État des DNS publics et des règles Email Routing relevé à l’instant.",
     "mailDnsInbound": "Réception — MX",
     "mailDnsRouting": "Règle Email Routing",
     "mailDnsRoutingAuth": "Authentification des transferts",
@@ -1040,6 +1040,16 @@
       "other_target": "Règle dirigée ailleurs",
       "missing": "Aucune règle explicite",
       "unavailable": "Vérification indisponible"
+    },
+    "mailDnsRoutingSummary": {
+      "configured": "Règle active vers Courrier",
+      "disabled": "Règle désactivée",
+      "other_target": "Règle dirigée ailleurs",
+      "missing": "Aucune règle explicite",
+      "unavailable": "Vérification indisponible",
+      "mixed": "Configuration partielle",
+      "conflict": "Règle désactivée ou dirigée ailleurs",
+      "no_mailboxes": "Aucune boîte active à vérifier"
     },
     "createMailbox": "Créer une boîte",
     "createMailboxDescription": "Crée une adresse de réception sur un domaine vérifié et choisis les membres actifs de l’espace qui pourront y accéder. Le routage des e-mails et la configuration des expéditeurs sortants restent séparés.",

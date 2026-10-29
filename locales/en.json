@@ -1005,7 +1005,7 @@
     "checkingMailDns": "Checking…",
     "hideMailDns": "Hide DNS check",
     "mailDnsTitle": "Email setup for {domain}",
-    "mailDnsDescription": "Current state of the public DNS records.",
+    "mailDnsDescription": "Current state of public DNS and Email Routing rules.",
     "mailDnsInbound": "Inbound mail — MX",
     "mailDnsRouting": "Email Routing rule",
     "mailDnsRoutingAuth": "Forwarding authentication",
@@ -1040,6 +1040,16 @@
       "other_target": "Rule points elsewhere",
       "missing": "No explicit rule",
       "unavailable": "Check unavailable"
+    },
+    "mailDnsRoutingSummary": {
+      "configured": "Active rule to Courrier",
+      "disabled": "Rule disabled",
+      "other_target": "Rule points elsewhere",
+      "missing": "No explicit rule",
+      "unavailable": "Check unavailable",
+      "mixed": "Partial setup",
+      "conflict": "Rule disabled or points elsewhere",
+      "no_mailboxes": "No active mailboxes to check"
     },
     "createMailbox": "Create a mailbox",
     "createMailboxDescription": "Create a receiving address on a verified domain and choose which active workspace members can access it. Email routing and outgoing sender setup are managed separately.",

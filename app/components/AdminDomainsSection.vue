@@ -90,7 +90,7 @@
             <span>2</span><div><strong>{{ $t('admin.domainOnboardingMx') }}</strong><small>{{ $t(`admin.mailDnsState.${readiness.mx.state}`) }}</small></div>
           </li>
           <li :class="`is-${routingSummaryStyle(readiness.routingRules)}`">
-            <span>3</span><div><strong>{{ $t('admin.domainOnboardingRouting') }}</strong><small>{{ $t(`admin.mailDnsState.${routingSummaryState(readiness.routingRules)}`) }}</small></div>
+            <span>3</span><div><strong>{{ $t('admin.domainOnboardingRouting') }}</strong><small>{{ $t(`admin.mailDnsRoutingSummary.${routingSummaryState(readiness.routingRules)}`) }}</small></div>
           </li>
           <li>
             <span>4</span><div><strong>{{ $t('admin.domainOnboardingMailbox') }}</strong><small>{{ $t('admin.domainOnboardingMailboxDescription') }}</small></div>
@@ -106,7 +106,7 @@
           <div>
             <dt>{{ $t('admin.mailDnsRouting') }}</dt>
             <dd>
-              <span class="admin-status" :class="`is-${routingSummaryStyle(readiness.routingRules)}`">{{ $t(`admin.mailDnsState.${routingSummaryState(readiness.routingRules)}`) }}</span>
+              <span class="admin-status" :class="`is-${routingSummaryStyle(readiness.routingRules)}`">{{ $t(`admin.mailDnsRoutingSummary.${routingSummaryState(readiness.routingRules)}`) }}</span>
               <ul v-if="readiness.routingRules.length" class="admin-domain-routing-rules">
                 <li v-for="rule in readiness.routingRules" :key="rule.address">
                   <code>{{ rule.address }}</code>
@@ -123,8 +123,10 @@
           <div><dt>{{ $t('admin.mailDnsDkim') }}</dt><dd><span class="admin-status" :class="`is-${readiness.routingDkim.state}`">{{ $t(`admin.mailDnsState.${readiness.routingDkim.state}`) }}</span></dd></div>
         </dl>
         <p class="admin-domain-safety-note">{{ $t('admin.mailDnsSafetyNote') }}</p>
-        <a class="admin-domain-doc-link" href="https://developers.cloudflare.com/email-service/get-started/route-emails/" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCloudflareGuide') }}</a>
-        <a class="admin-domain-mailbox-link" href="#admin-mailboxes-heading" @click="emit('selectMailboxDomain', readiness.domainId)">{{ $t('admin.domainOnboardingGoToMailbox') }}</a>
+        <div class="admin-domain-readiness-links">
+          <a class="admin-domain-doc-link" href="https://developers.cloudflare.com/email-service/get-started/route-emails/" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCloudflareGuide') }}</a>
+          <a class="admin-domain-mailbox-link" href="#admin-mailboxes-heading" @click="emit('selectMailboxDomain', readiness.domainId)">{{ $t('admin.domainOnboardingGoToMailbox') }}</a>
+        </div>
       </template>
     </div>
 

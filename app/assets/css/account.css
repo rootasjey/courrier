@@ -90,6 +90,7 @@
 .admin-domain-readiness ul { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
 .admin-domain-readiness .admin-domain-routing-rules { gap: 8px; }
 .admin-domain-routing-rules li { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.admin-domain-readiness-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .admin-domain-onboarding-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0; padding: 0; list-style: none; }
 .admin-domain-onboarding-steps li { display: flex; min-width: 0; align-items: flex-start; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
 .admin-domain-onboarding-steps li > span { display: inline-grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--accent-wash); color: var(--accent); font-size: 10px; font-weight: 700; }
