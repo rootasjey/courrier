@@ -14,10 +14,10 @@ function installErrorStub() {
   }
 }
 
-function makeEvent(factorCount: number) {
+function makeEvent(factorCount: number, mfaVerifiedAt = 0) {
   const target = globalThis as unknown as Record<string, unknown>
   const previous = target.requireUserSession
-  target.requireUserSession = async () => ({ secure: { mfaVerifiedAt: 0 } })
+  target.requireUserSession = async () => ({ secure: { mfaVerifiedAt } })
   const statement = {
     bind() { return this },
     async first() { return { count: factorCount } },
@@ -38,9 +38,9 @@ function makeEvent(factorCount: number) {
   }
 }
 
-test('workspace MFA failures carry a stable machine-readable code', async () => {
+async function assertMfaRequiredCode(factorCount: number) {
   const restoreError = installErrorStub()
-  const { event, restore } = makeEvent(0)
+  const { event, restore } = makeEvent(factorCount)
   try {
     await assert.rejects(
       requireFreshWorkspaceMfa(event as never, 'user-1'),
@@ -53,4 +53,12 @@ test('workspace MFA failures carry a stable machine-readable code', async () => 
     restore()
     restoreError()
   }
+}
+
+test('workspace MFA failures carry a stable machine-readable code when no factor is configured', async () => {
+  await assertMfaRequiredCode(0)
+})
+
+test('workspace MFA failures carry a stable machine-readable code when the step-up has expired', async () => {
+  await assertMfaRequiredCode(1)
 })
