@@ -52,20 +52,69 @@
             <td><span class="admin-status" :class="`is-${domain.verification_status}`">{{ statusLabel(domain.verification_status) }}</span></td>
             <td>{{ domain.mailbox_count }}</td><td>{{ domain.verified_at ? formatDate(domain.verified_at) : '—' }}</td>
             <td>
-              <div v-if="domain.verification_status === 'pending' || domain.verification_status === 'legacy_unverified'" class="admin-domain-row-actions">
-                <button class="admin-membership-action is-reactivate" type="button" :disabled="domainBusy" @click="prepareDomainChallenge(domain)">
-                  {{ $t(domain.verification_status === 'pending' ? 'admin.configureDns' : 'admin.verifyLegacyDomain') }}
+              <div class="admin-domain-row-actions">
+                <button v-if="domain.verification_status === 'verified'" class="admin-membership-action is-reactivate" type="button" :disabled="readinessBusy" @click="checkReadiness(domain)">
+                  {{ readinessBusy && readiness?.domainId === domain.id ? $t('admin.checkingMailDns') : $t('admin.checkMailDns') }}
                 </button>
-                <button v-if="domain.verification_status === 'pending'" class="admin-membership-action is-suspend" type="button" :disabled="domainBusy || domain.mailbox_count > 0" @click="domainToRemove = domain">
-                  {{ $t('admin.removePendingDomain') }}
-                </button>
+                <template v-else-if="domain.verification_status === 'pending' || domain.verification_status === 'legacy_unverified'">
+                  <button class="admin-membership-action is-reactivate" type="button" :disabled="domainBusy" @click="prepareDomainChallenge(domain)">
+                    {{ $t(domain.verification_status === 'pending' ? 'admin.configureDns' : 'admin.verifyLegacyDomain') }}
+                  </button>
+                  <button v-if="domain.verification_status === 'pending'" class="admin-membership-action is-suspend" type="button" :disabled="domainBusy || domain.mailbox_count > 0" @click="domainToRemove = domain">
+                    {{ $t('admin.removePendingDomain') }}
+                  </button>
+                </template>
               </div>
-              <span v-else class="admin-access-protected">—</span>
             </td>
           </tr>
           <tr v-if="!domains.length"><td colspan="6" class="admin-empty">{{ $t('admin.noRows') }}</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="readiness || readinessError" class="admin-domain-challenge" aria-live="polite">
+      <div class="admin-domain-challenge-heading">
+        <div>
+          <h3>{{ $t('admin.mailDnsTitle', { domain: readiness?.domain ?? readinessDomain }) }}</h3>
+          <p>{{ $t('admin.mailDnsDescription') }}</p>
+        </div>
+        <button class="admin-domain-dismiss" type="button" :aria-label="$t('admin.hideMailDns')" @click="readiness = null; readinessError = ''">×</button>
+      </div>
+      <p v-if="readinessError" class="admin-access-error" role="alert">{{ readinessError }}</p>
+      <template v-else-if="readiness">
+        <ol class="admin-domain-onboarding-steps" :aria-label="$t('admin.domainOnboardingSteps')">
+          <li class="is-complete">
+            <span>1</span><div><strong>{{ $t('admin.domainOnboardingOwnership') }}</strong><small>{{ $t('admin.domainOnboardingVerified') }}</small></div>
+          </li>
+          <li :class="`is-${readiness.mx.state}`">
+            <span>2</span><div><strong>{{ $t('admin.domainOnboardingMx') }}</strong><small>{{ $t(`admin.mailDnsState.${readiness.mx.state}`) }}</small></div>
+          </li>
+          <li class="is-pending">
+            <span>3</span><div><strong>{{ $t('admin.domainOnboardingRouting') }}</strong><small>{{ $t('admin.mailDnsState.not_checked') }}</small></div>
+          </li>
+          <li>
+            <span>4</span><div><strong>{{ $t('admin.domainOnboardingMailbox') }}</strong><small>{{ $t('admin.domainOnboardingMailboxDescription') }}</small></div>
+          </li>
+        </ol>
+        <dl class="admin-domain-record admin-domain-readiness">
+          <div>
+            <dt>{{ $t('admin.mailDnsInbound') }}</dt>
+            <dd><span class="admin-status" :class="`is-${readiness.mx.state}`">{{ $t(`admin.mailDnsState.${readiness.mx.state}`) }}</span>
+              <ul v-if="readiness.mx.records.length"><li v-for="record in readiness.mx.records" :key="`${record.priority}-${record.target}`"><code>{{ record.priority }} {{ record.target }}</code></li></ul>
+            </dd>
+          </div>
+          <div><dt>{{ $t('admin.mailDnsRouting') }}</dt><dd><span class="admin-status is-pending">{{ $t('admin.mailDnsState.not_checked') }}</span></dd></div>
+        </dl>
+        <h4 class="admin-domain-subheading">{{ $t('admin.mailDnsRoutingAuth') }}</h4>
+        <p class="admin-domain-routing-note">{{ $t('admin.mailDnsRoutingAuthDescription') }}</p>
+        <dl class="admin-domain-record admin-domain-readiness">
+          <div><dt>{{ $t('admin.mailDnsSpf') }}</dt><dd><span class="admin-status" :class="`is-${readiness.routingSpf.state}`">{{ $t(`admin.mailDnsState.${readiness.routingSpf.state}`) }}</span></dd></div>
+          <div><dt>{{ $t('admin.mailDnsDkim') }}</dt><dd><span class="admin-status" :class="`is-${readiness.routingDkim.state}`">{{ $t(`admin.mailDnsState.${readiness.routingDkim.state}`) }}</span></dd></div>
+        </dl>
+        <p class="admin-domain-safety-note">{{ $t('admin.mailDnsSafetyNote') }}</p>
+        <a class="admin-domain-doc-link" href="https://developers.cloudflare.com/email-service/get-started/route-emails/" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCloudflareGuide') }}</a>
+        <a class="admin-domain-mailbox-link" href="#admin-mailboxes-heading" @click="emit('selectMailboxDomain', readiness.domainId)">{{ $t('admin.domainOnboardingGoToMailbox') }}</a>
+      </template>
     </div>
 
     <NDialog
@@ -98,6 +147,16 @@ import { watch } from 'vue'
 type DomainWorkspace = { id: string, name: string }
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string, verified_at: string | null, mailbox_count: number }
 type DomainChallenge = { domainId: string, domain: string, recordName: string, recordValue: string, expiresAt: string }
+type DnsReadinessState = 'configured' | 'missing' | 'mixed' | 'other_provider' | 'unavailable' | 'conflict' | 'present'
+type DomainReadiness = {
+  domainId: string
+  domain: string
+  checkedAt: string
+  mx: { state: DnsReadinessState, records: { target: string, priority: number | null }[] }
+  routingSpf: { state: DnsReadinessState }
+  routingDkim: { state: DnsReadinessState }
+  routingRule: 'not_checked'
+}
 type AdminRequest = <T>(request: string, options?: Parameters<typeof $fetch>[1]) => Promise<T>
 
 const props = defineProps<{
@@ -107,7 +166,7 @@ const props = defineProps<{
   formatDate: (value: string) => string
   statusLabel: (status: string) => string
 }>()
-const emit = defineEmits<{ refresh: [] }>()
+const emit = defineEmits<{ refresh: [], selectMailboxDomain: [domainId: string] }>()
 const { $t } = useI18n()
 
 const selectedWorkspaceId = ref('')
@@ -117,6 +176,10 @@ const domainError = ref('')
 const domainNotice = ref('')
 const domainChallenge = ref<DomainChallenge | null>(null)
 const domainToRemove = ref<AdminDomain | null>(null)
+const readiness = ref<DomainReadiness | null>(null)
+const readinessDomain = ref('')
+const readinessBusy = ref(false)
+const readinessError = ref('')
 
 watch(() => props.activeWorkspaces, (workspaces) => {
   if (!workspaces.some(workspace => workspace.id === selectedWorkspaceId.value)) {
@@ -183,6 +246,21 @@ async function verifyDomain(challenge: DomainChallenge) {
     domainError.value = $t(statusCode(error) === 410 ? 'admin.domainChallengeExpired' : 'admin.domainVerifyError')
   } finally {
     domainBusy.value = false
+  }
+}
+
+async function checkReadiness(domain: AdminDomain) {
+  if (readinessBusy.value) return
+  readinessBusy.value = true
+  readinessDomain.value = domain.domain
+  readinessError.value = ''
+  readiness.value = null
+  try {
+    readiness.value = await props.adminFetch<DomainReadiness>(`/api/admin/domains/${encodeURIComponent(domain.id)}/readiness`)
+  } catch {
+    readinessError.value = $t('admin.mailDnsCheckError')
+  } finally {
+    readinessBusy.value = false
   }
 }
 

@@ -267,6 +267,7 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
   .admin-domain-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
   .admin-invitation-controls { grid-template-columns: minmax(0, 1fr); }
   .admin-domain-record > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .admin-domain-onboarding-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-access-action { justify-self: start; }
   .login-page { grid-template-columns: minmax(0, 1fr); gap: 26px; width: min(100% - 36px, 460px); align-content: center; padding: 28px 0; }
   .login-panel { width: 100%; padding: 0; }

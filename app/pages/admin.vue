@@ -105,6 +105,16 @@
           :format-date="formatDate"
           :status-label="statusLabel"
           @refresh="loadOverview"
+          @select-mailbox-domain="suggestedMailboxDomainId = $event"
+        />
+
+        <AdminMailboxesSection
+          :domains="verifiedDomains"
+          :members="mailboxAccess?.members ?? []"
+          :members-truncated="mailboxAccess?.truncated.members ?? false"
+          :admin-fetch="adminFetch"
+          :suggested-domain-id="suggestedMailboxDomainId"
+          @refresh="loadOverview"
         />
 
         <AdminBlockedSendersSection
@@ -445,6 +455,7 @@
 
 <script setup lang="ts">
 import AdminDomainsSection from '~/components/AdminDomainsSection.vue'
+import AdminMailboxesSection from '~/components/AdminMailboxesSection.vue'
 import AdminForwardRecoverySection from '~/components/AdminForwardRecoverySection.vue'
 import { createAdminAuthorizationRecovery } from '../utils/admin-authorization-recovery.mjs'
 import { getAdminAuthorizationRedirect } from '../utils/admin-authorization-redirect.mjs'
@@ -490,6 +501,7 @@ type AdminAccountSession = {
 const { $t } = useI18n()
 const accountSession = useState<AdminAccountSession | null>('courrier-account-session', () => null)
 const overview = ref<AdminOverview | null>(null)
+const suggestedMailboxDomainId = ref<string | null>(null)
 const mailboxAccess = ref<MailboxAccess | null>(null)
 const platformAdminState = ref<PlatformAdminState | null>(null)
 const forwardDeliveries = ref<ForwardDelivery[]>([])
@@ -650,6 +662,7 @@ async function loadMoreForwardDeliveries() {
 }
 
 const activeWorkspaces = computed(() => overview.value?.workspaces.filter(workspace => workspace.status === 'active') ?? [])
+const verifiedDomains = computed(() => overview.value?.domains.filter(domain => domain.verification_status === 'verified') ?? [])
 const activePlatformAdminCount = computed(() => platformAdminState.value?.admins.filter(admin => admin.user_status === 'active').length ?? 0)
 const selectedPlatformAdminCandidate = computed(() => platformAdminState.value?.candidates.find(candidate => candidate.user_id === platformAdminCandidateId.value) ?? null)
 const selectedMailbox = computed(() => mailboxAccess.value?.mailboxes.find(mailbox => mailbox.id === selectedMailboxId.value) ?? null)

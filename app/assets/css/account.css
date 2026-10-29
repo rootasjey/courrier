@@ -67,6 +67,9 @@
 .admin-status.is-active, .admin-status.is-verified, .admin-status.is-accepted { background: color-mix(in srgb, #31a879 13%, var(--paper)); color: #27815f; }
 .admin-status.is-suspended, .admin-status.is-revoked { background: color-mix(in srgb, var(--error) 10%, var(--paper)); color: var(--error); }
 .admin-status.is-pending, .admin-status.is-legacy_unverified, .admin-status.is-expired { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
+.admin-status.is-configured, .admin-status.is-present { background: color-mix(in srgb, #31a879 13%, var(--paper)); color: #27815f; }
+.admin-status.is-missing, .admin-status.is-mixed, .admin-status.is-other_provider, .admin-status.is-conflict { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
+.admin-status.is-unavailable { background: color-mix(in srgb, var(--quiet) 12%, var(--paper)); color: var(--quiet); }
 .admin-empty { padding: 28px 12px !important; color: var(--quiet) !important; text-align: center; }
 .admin-domain-controls { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
 .admin-invitation-controls { grid-template-columns: minmax(190px, 1fr) minmax(220px, 1.2fr) minmax(150px, .7fr) auto; }
@@ -83,6 +86,23 @@
 .admin-domain-record dt { color: var(--muted); font-size: 11px; }
 .admin-domain-record dd { min-width: 0; margin: 0; }
 .admin-domain-record code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 4px 7px; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 11px; user-select: all; }
+.admin-domain-readiness { gap: 10px; }
+.admin-domain-readiness ul { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
+.admin-domain-onboarding-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0; padding: 0; list-style: none; }
+.admin-domain-onboarding-steps li { display: flex; min-width: 0; align-items: flex-start; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
+.admin-domain-onboarding-steps li > span { display: inline-grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--accent-wash); color: var(--accent); font-size: 10px; font-weight: 700; }
+.admin-domain-onboarding-steps li.is-complete > span, .admin-domain-onboarding-steps li.is-configured > span { background: color-mix(in srgb, #31a879 13%, var(--paper)); color: #27815f; }
+.admin-domain-onboarding-steps li.is-missing > span, .admin-domain-onboarding-steps li.is-mixed > span, .admin-domain-onboarding-steps li.is-other_provider > span, .admin-domain-onboarding-steps li.is-pending > span { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
+.admin-domain-onboarding-steps li > div { display: grid; min-width: 0; gap: 3px; }
+.admin-domain-onboarding-steps strong { color: var(--ink); font-size: 10px; font-weight: 650; }
+.admin-domain-onboarding-steps small { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.admin-domain-onboarding-steps .is-unavailable small { color: var(--quiet); }
+.admin-domain-subheading { margin: 16px 0 4px; color: var(--ink); font-size: 12px; font-weight: 680; }
+.admin-domain-routing-note, .admin-domain-safety-note { margin: 6px 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.admin-domain-safety-note { margin-top: 14px; }
+.admin-domain-doc-link { color: var(--accent); font-size: 11px; font-weight: 650; }
+.admin-domain-mailbox-link { display: inline-flex; min-height: 32px; align-items: center; margin-top: 14px; padding: 0 10px; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line)); border-radius: 8px; color: var(--accent); font-size: 11px; font-weight: 650; text-decoration: none; }
+.admin-domain-mailbox-link:hover { background: var(--accent-wash); }
 .admin-domain-challenge-actions { display: flex; justify-content: flex-end; }
 .admin-domain-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .admin-access-controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }

@@ -76,7 +76,7 @@ async function seedDatabase(configPath, persistPath) {
 
   statements.push(
     `INSERT INTO workspaces (id,name,status,created_at,updated_at) VALUES ('workspace-one','Workspace One','active',${sql(now)},${sql(now)}),('workspace-two','Workspace Two','active',${sql(now)},${sql(now)});`,
-    `INSERT INTO workspace_domains (id,workspace_id,domain,verification_status,created_at) VALUES ('domain-alpha','workspace-one','alpha.test','verified',${sql(now)}),('domain-beta','workspace-two','beta.test','verified',${sql(now)});`,
+    `INSERT INTO workspace_domains (id,workspace_id,domain,verification_status,created_at) VALUES ('domain-alpha','workspace-one','alpha.test','verified',${sql(now)}),('domain-beta','workspace-two','beta.test','verified',${sql(now)}),('domain-pending','workspace-one','pending.test','pending',${sql(now)});`,
     `INSERT INTO mailboxes (id,workspace_id,domain_id,address,status,created_at) VALUES ('mailbox-a1','workspace-one','domain-alpha','inbox@alpha.test','active',${sql(now)}),('mailbox-a2','workspace-one','domain-alpha','hidden@alpha.test','active',${sql(now)}),('mailbox-b1','workspace-two','domain-beta','other@beta.test','active',${sql(now)});`,
     `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('membership-viewer','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)}),('membership-workspace-admin','workspace-two','00000000-0000-4000-8000-000000000104','admin','active',${sql(now)});`,
     `INSERT INTO users (id,email,display_name,status,session_version,created_at,updated_at) VALUES ('00000000-0000-4000-8000-000000000105','pending@example.test','Pending Account','pending',1,${sql(now)},${sql(now)}),('00000000-0000-4000-8000-000000000106','suspended-admin@example.test','Suspended Admin','suspended',1,${sql(now)},${sql(now)});`,
@@ -617,6 +617,49 @@ try {
     assert.match(overview.response.headers.get('cache-control') || '', /private.*no-store/)
     assert.ok(overview.data.audit.some(value => value.action === 'account.password_reset'))
     assert.ok(overview.data.audit.some(value => value.action === 'platform_admin.resource_read' && value.target_id === 'overview'))
+  })
+  await check('mailbox creation is restricted to platform admins and verified domains', async () => {
+    const payload = {
+      domainId: 'domain-alpha',
+      localPart: 'Support.Team',
+      userIds: ['00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000102'],
+    }
+    const forbidden = await request('/api/admin/mailboxes', { method: 'POST', cookie: memberCookie, body: payload })
+    assert.equal(forbidden.response.status, 403)
+
+    const created = await request('/api/admin/mailboxes', { method: 'POST', cookie: adminCookie, body: payload })
+    assert.equal(created.response.status, 201, JSON.stringify(created.data))
+    assert.equal(created.data.address, 'support.team@alpha.test')
+    assert.equal(created.data.grantedUserIds.length, 2)
+
+    const unverifiedDomain = await request('/api/admin/mailboxes', {
+      method: 'POST', cookie: adminCookie,
+      body: { domainId: 'domain-pending', localPart: 'not-ready', userIds: ['00000000-0000-4000-8000-000000000101'] },
+    })
+    assert.equal(unverifiedDomain.response.status, 404)
+
+    const state = await request('/api/admin/mailbox-access', { cookie: adminCookie })
+    const mailbox = state.data.mailboxes.find(value => value.id === created.data.mailboxId)
+    assert.ok(mailbox)
+    assert.deepEqual(new Set(state.data.grants.filter(value => value.mailbox_id === created.data.mailboxId).map(value => value.user_id)), new Set(payload.userIds))
+
+    const duplicate = await request('/api/admin/mailboxes', { method: 'POST', cookie: adminCookie, body: payload })
+    assert.equal(duplicate.response.status, 409)
+
+    const crossWorkspace = await request('/api/admin/mailboxes', {
+      method: 'POST', cookie: adminCookie,
+      body: { domainId: 'domain-alpha', localPart: 'outside', userIds: ['00000000-0000-4000-8000-000000000104'] },
+    })
+    assert.equal(crossWorkspace.response.status, 400)
+    const audit = await request('/api/admin/overview', { cookie: adminCookie })
+    assert.ok(audit.data.audit.some(value => value.action === 'workspace_mailbox.created' && value.target_id === created.data.mailboxId))
+  })
+  await check('domain readiness checks are admin-only and require domain verification', async () => {
+    const forbidden = await request('/api/admin/domains/domain-alpha/readiness', { cookie: memberCookie })
+    assert.equal(forbidden.response.status, 403)
+
+    const pending = await request('/api/admin/domains/domain-pending/readiness', { cookie: adminCookie })
+    assert.equal(pending.response.status, 409)
   })
   await check('admin console reads are audited and duplicate refreshes are collapsed', async () => {
     const grants = await request('/api/admin/mailbox-access', { cookie: adminCookie })

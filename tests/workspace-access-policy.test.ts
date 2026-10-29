@@ -100,6 +100,10 @@ test('platform administration routes fail closed for unlisted paths and methods'
   assert.equal(isPlatformAdminEndpoint('/api/admin/users', 'GET'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/domains/domain-1/verify', 'POST'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/domains/domain-1/verify', 'GET'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/domains/domain-1/readiness', 'GET'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/domains/domain-1/readiness', 'POST'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes', 'POST'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes', 'GET'), false)
 })
 
 test('mail permissions are method-specific and unknown endpoints are denied', () => {
