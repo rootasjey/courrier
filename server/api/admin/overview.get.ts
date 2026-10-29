@@ -22,6 +22,9 @@ export default defineEventHandler(async (event) => {
     }>(),
     db.prepare(`
       SELECT w.id, w.name, w.status, w.created_at,
+        (SELECT u.email FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
+          WHERE wm.workspace_id = w.id AND wm.role = 'owner' AND wm.status = 'active'
+          ORDER BY wm.created_at, wm.id LIMIT 1) AS owner_email,
         (SELECT COUNT(*) FROM workspace_domains d WHERE d.workspace_id = w.id) AS domain_count,
         (SELECT COUNT(*) FROM mailboxes m WHERE m.workspace_id = w.id AND m.status = 'active') AS mailbox_count,
         (SELECT COUNT(*) FROM workspace_memberships wm WHERE wm.workspace_id = w.id AND wm.status = 'active') AS member_count
@@ -29,7 +32,7 @@ export default defineEventHandler(async (event) => {
       ORDER BY w.created_at DESC, w.id
       LIMIT 100
     `).all<{
-      id: string, name: string, status: string, created_at: string,
+      id: string, name: string, status: string, created_at: string, owner_email: string | null,
       domain_count: number, mailbox_count: number, member_count: number,
     }>(),
     db.prepare(`

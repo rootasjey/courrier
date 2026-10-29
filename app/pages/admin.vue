@@ -81,22 +81,13 @@
           </div>
         </section>
 
-        <section class="admin-section" aria-labelledby="admin-workspaces-heading">
-          <h2 id="admin-workspaces-heading">{{ $t('admin.workspaces') }}</h2>
-          <div class="admin-table-wrap">
-            <table>
-              <thead><tr><th>{{ $t('admin.workspace') }}</th><th>{{ $t('admin.status') }}</th><th>{{ $t('admin.domains') }}</th><th>{{ $t('admin.mailboxes') }}</th><th>{{ $t('admin.members') }}</th><th>{{ $t('admin.created') }}</th></tr></thead>
-              <tbody>
-                <tr v-for="workspace in overview.workspaces" :key="workspace.id">
-                  <td><strong>{{ workspace.name }}</strong><small>{{ workspace.id }}</small></td>
-                  <td><span class="admin-status" :class="`is-${workspace.status}`">{{ statusLabel(workspace.status) }}</span></td>
-                  <td>{{ workspace.domain_count }}</td><td>{{ workspace.mailbox_count }}</td><td>{{ workspace.member_count }}</td><td>{{ formatDate(workspace.created_at) }}</td>
-                </tr>
-                <tr v-if="!overview.workspaces.length"><td colspan="6" class="admin-empty">{{ $t('admin.noRows') }}</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <AdminWorkspacesSection
+          :workspaces="overview.workspaces"
+          :admin-fetch="adminFetch"
+          :format-date="formatDate"
+          :status-label="statusLabel"
+          @refresh="loadOverview"
+        />
 
         <AdminDomainsSection
           :active-workspaces="activeWorkspaces"
@@ -457,6 +448,7 @@
 import AdminDomainsSection from '~/components/AdminDomainsSection.vue'
 import AdminMailboxesSection from '~/components/AdminMailboxesSection.vue'
 import AdminForwardRecoverySection from '~/components/AdminForwardRecoverySection.vue'
+import AdminWorkspacesSection from '~/components/AdminWorkspacesSection.vue'
 import { createAdminAuthorizationRecovery } from '../utils/admin-authorization-recovery.mjs'
 import { getAdminAuthorizationRedirect } from '../utils/admin-authorization-redirect.mjs'
 
@@ -466,7 +458,7 @@ type AdminMembership = { id: string, workspace_id: string, workspace_name: strin
 type ForwardDelivery = { id: string, status: 'processing' | 'failed', attempt_count: number, claimed_at: string | null, forwarded_at: string | null, last_error: string | null, delivery_method: string, subject: string, sender_address: string, mailbox_address: string, destination: string, received_at: string }
 type AdminOverview = {
   counts: { workspace_count: number, domain_count: number, membership_count: number, pending_invitation_count: number }
-  workspaces: { id: string, name: string, status: string, created_at: string, domain_count: number, mailbox_count: number, member_count: number }[]
+  workspaces: { id: string, name: string, status: string, created_at: string, owner_email: string | null, domain_count: number, mailbox_count: number, member_count: number }[]
   domains: { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string, verified_at: string | null, mailbox_count: number }[]
   memberships: AdminMembership[]
   invitations: { id: string, workspace_id: string, workspace_name: string, email: string, role: string, expires_at: string, accepted_at: string | null, revoked_at: string | null, created_at: string, status: string }[]
