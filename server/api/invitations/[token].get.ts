@@ -11,13 +11,13 @@ export default defineEventHandler(async (event) => {
     SELECT i.email, i.role, i.expires_at, w.name AS workspace_name
     FROM workspace_invitations i
     JOIN workspaces w ON w.id = i.workspace_id AND w.status = 'active'
-    WHERE i.token_hash = ? AND i.role IN ('member', 'viewer')
+    WHERE i.token_hash = ? AND i.role IN ('admin', 'member', 'viewer')
       AND i.accepted_at IS NULL AND i.revoked_at IS NULL
       AND datetime(i.expires_at) > datetime('now')
     LIMIT 1
   `).bind(await hashInvitationToken(token)).first<{
     email: string
-    role: 'member' | 'viewer'
+    role: 'admin' | 'member' | 'viewer'
     expires_at: string
     workspace_name: string
   }>()

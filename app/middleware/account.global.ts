@@ -11,6 +11,7 @@ type AccountSession = {
     avatarConfig: TroncheAvatarConfig | null
   }
   activeWorkspaceId: string | null
+  activeWorkspaceRole: 'owner' | 'admin' | 'member' | 'viewer' | null
   isPlatformAdmin: boolean
   hasPasskeys: boolean
   mfaConfigured: boolean
@@ -83,6 +84,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
       return navigateTo({ path: '/mfa', query: { redirect: to.fullPath } }, { replace: true })
     }
     return
+  }
+
+  if (to.path === '/workspace' && !['owner', 'admin'].includes(accountSession.value.activeWorkspaceRole || '')) {
+    return navigateTo('/mail/inbox', { replace: true })
   }
 
   if (!accountSession.value.activeWorkspaceId) {

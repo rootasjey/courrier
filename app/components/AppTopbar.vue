@@ -150,6 +150,13 @@
                   <span class="account-menu-action-label">{{ $t('account.adminConsole') }}</span>
                   <svg class="account-menu-action-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
                 </NuxtLink>
+                <NuxtLink v-if="accountSession?.activeWorkspaceRole === 'owner' || accountSession?.activeWorkspaceRole === 'admin'" class="account-menu-action" to="/workspace" @click="closeAccountMenu">
+                  <span class="account-menu-action-icon" aria-hidden="true">
+                    <span class="account-menu-action-symbol i-tabler-users-group" />
+                  </span>
+                  <span class="account-menu-action-label">{{ $t('account.manageWorkspace') }}</span>
+                  <svg class="account-menu-action-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
+                </NuxtLink>
                 <NuxtLink class="account-menu-action" to="/settings" @click="closeAccountMenu">
                   <span class="account-menu-action-icon" aria-hidden="true">
                     <span class="account-menu-action-symbol i-tabler-settings" />
@@ -223,7 +230,7 @@ const isTagsPage = computed(() => route.path === '/mail/tags')
 const avatarVersion = useState('courrier-avatar-version', () => 0)
 const avatarAvailable = useState('courrier-avatar-available', () => false)
 type WorkspaceSummary = { id: string, name: string, role: string }
-type AccountSession = { user: { id: string, email: string, displayName: string, avatarMode: 'default' | 'photo' | 'tronche' | null, avatarConfig: TroncheAvatarConfig | null }, activeWorkspaceId: string | null, isPlatformAdmin: boolean }
+type AccountSession = { user: { id: string, email: string, displayName: string, avatarMode: 'default' | 'photo' | 'tronche' | null, avatarConfig: TroncheAvatarConfig | null }, activeWorkspaceId: string | null, activeWorkspaceRole: 'owner' | 'admin' | 'member' | 'viewer' | null, isPlatformAdmin: boolean }
 const accountSession = useState<AccountSession | null>('courrier-account-session', () => null)
 const workspaces = ref<WorkspaceSummary[]>([])
 const signingOut = ref(false)

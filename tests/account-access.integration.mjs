@@ -78,7 +78,7 @@ async function seedDatabase(configPath, persistPath) {
     `INSERT INTO workspaces (id,name,status,created_at,updated_at) VALUES ('workspace-one','Workspace One','active',${sql(now)},${sql(now)}),('workspace-two','Workspace Two','active',${sql(now)},${sql(now)});`,
     `INSERT INTO workspace_domains (id,workspace_id,domain,verification_status,created_at) VALUES ('domain-alpha','workspace-one','alpha.test','verified',${sql(now)}),('domain-beta','workspace-two','beta.test','verified',${sql(now)}),('domain-pending','workspace-one','pending.test','pending',${sql(now)});`,
     `INSERT INTO mailboxes (id,workspace_id,domain_id,address,status,created_at) VALUES ('mailbox-a1','workspace-one','domain-alpha','inbox@alpha.test','active',${sql(now)}),('mailbox-a2','workspace-one','domain-alpha','hidden@alpha.test','active',${sql(now)}),('mailbox-b1','workspace-two','domain-beta','other@beta.test','active',${sql(now)});`,
-    `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('membership-viewer','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)}),('membership-workspace-admin','workspace-two','00000000-0000-4000-8000-000000000104','admin','active',${sql(now)});`,
+    `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('00000000-0000-4000-8000-000000000201','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)}),('membership-workspace-admin','workspace-two','00000000-0000-4000-8000-000000000104','admin','active',${sql(now)});`,
     `INSERT INTO users (id,email,display_name,status,session_version,created_at,updated_at) VALUES ('00000000-0000-4000-8000-000000000105','pending@example.test','Pending Account','pending',1,${sql(now)},${sql(now)}),('00000000-0000-4000-8000-000000000106','suspended-admin@example.test','Suspended Admin','suspended',1,${sql(now)},${sql(now)});`,
     `INSERT INTO platform_admins (user_id,created_at,created_by_user_id) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)},NULL),('00000000-0000-4000-8000-000000000106',${sql(now)},'00000000-0000-4000-8000-000000000101'),('00000000-0000-4000-8000-000000000107',${sql(now)},'00000000-0000-4000-8000-000000000101');`,
     `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a2','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000102','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000103','active',${sql(now)});`,
@@ -445,6 +445,7 @@ try {
     const routes = await protectedApiRoutes(path.join(root, 'server/api'))
     const readableRoutes = routes.filter(({ method, path: route }) => method === 'GET'
       && route !== '/api/export'
+      && route !== '/api/workspace/management'
       && route !== '/api/account/passkeys'
       && !route.startsWith('/api/admin/'))
     for (const { path: route } of readableRoutes) {
@@ -452,6 +453,7 @@ try {
       assert.notEqual(result.response.status, 401, `Viewer could not authenticate for GET ${route}.`)
       assert.notEqual(result.response.status, 403, `Viewer was unexpectedly denied read access to GET ${route}.`)
     }
+    assert.equal((await request('/api/workspace/management', { cookie: viewerCookie })).response.status, 403)
 
     const writeRoutes = routes.filter(({ method, path: route }) => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
       && !/^\/api\/(?:account|profile|auth|dev|invitations)(?:\/|$)/.test(route))
@@ -617,6 +619,31 @@ try {
     assert.match(overview.response.headers.get('cache-control') || '', /private.*no-store/)
     assert.ok(overview.data.audit.some(value => value.action === 'account.password_reset'))
     assert.ok(overview.data.audit.some(value => value.action === 'platform_admin.resource_read' && value.target_id === 'overview'))
+  })
+  await check('workspace owners can inspect members and only update memberships in their active workspace', async () => {
+    const management = await request('/api/workspace/management', { cookie: adminCookie })
+    assert.equal(management.response.status, 200, JSON.stringify(management.data))
+    assert.equal(management.data.workspace.role, 'owner')
+    assert.ok(management.data.members.some(value => value.id === '00000000-0000-4000-8000-000000000201' && value.role === 'viewer'))
+
+    const membershipId = '00000000-0000-4000-8000-000000000201'
+    const changeRole = await request(`/api/workspace/memberships/${membershipId}`, {
+      method: 'PATCH', cookie: adminCookie, body: { role: 'member' },
+    })
+    assert.equal(changeRole.response.status, 200, JSON.stringify(changeRole.data))
+    assert.equal(changeRole.data.role, 'member')
+
+    const suspend = await request(`/api/workspace/memberships/${membershipId}`, {
+      method: 'PATCH', cookie: adminCookie, body: { status: 'suspended' },
+    })
+    assert.equal(suspend.response.status, 200, JSON.stringify(suspend.data))
+    assert.equal((await request('/api/messages', { cookie: viewerCookie })).response.status, 401)
+
+    const reactivate = await request(`/api/workspace/memberships/${membershipId}`, {
+      method: 'PATCH', cookie: adminCookie, body: { status: 'active' },
+    })
+    assert.equal(reactivate.response.status, 200, JSON.stringify(reactivate.data))
+    assert.deepEqual((await request('/api/messages', { cookie: viewerCookie })).data, [])
   })
   await check('mailbox creation is restricted to platform admins and verified domains', async () => {
     const payload = {

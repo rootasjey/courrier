@@ -8,12 +8,12 @@ export default defineEventHandler(async (event) => {
   const activeWorkspaceId = typeof session.activeWorkspaceId === 'string' ? session.activeWorkspaceId : null
   const membership = activeWorkspaceId
     ? await getAccountDb(event).prepare(`
-      SELECT w.id
+      SELECT w.id, wm.role
       FROM workspace_memberships wm
       JOIN workspaces w ON w.id = wm.workspace_id AND w.status = 'active'
       WHERE wm.user_id = ? AND wm.workspace_id = ? AND wm.status = 'active'
       LIMIT 1
-    `).bind(user.id, activeWorkspaceId).first<{ id: string }>()
+    `).bind(user.id, activeWorkspaceId).first<{ id: string, role: 'owner' | 'admin' | 'member' | 'viewer' }>()
     : null
   const platformAdmin = await isPlatformAdmin(event, user.id)
   if (!membership && !platformAdmin) {
@@ -54,6 +54,7 @@ export default defineEventHandler(async (event) => {
       avatarConfig,
     },
     activeWorkspaceId: membership?.id ?? null,
+    activeWorkspaceRole: membership?.role ?? null,
     isPlatformAdmin: platformAdmin,
     hasPasskeys,
     recoveryCodesRemaining,

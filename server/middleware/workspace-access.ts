@@ -7,6 +7,7 @@ import {
   isAccountEndpoint,
   isPlatformAdminEndpoint,
   isPublicInvitationEndpoint,
+  isWorkspaceManagementEndpoint,
   permissionFor,
 } from '../utils/workspace-access-policy'
 
@@ -18,6 +19,11 @@ export default defineEventHandler(async (event) => {
   if (isAccountEndpoint(path, method)) return
   if (isPublicInvitationEndpoint(path, method)) {
     if (method === 'POST') assertSameOrigin(event)
+    return
+  }
+  if (isWorkspaceManagementEndpoint(path, method)) {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) assertSameOrigin(event)
+    await requireWorkspacePermission(event, 'members.manage')
     return
   }
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) assertSameOrigin(event)

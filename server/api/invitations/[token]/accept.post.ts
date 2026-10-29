@@ -7,7 +7,7 @@ type InviteRecord = {
   id: string
   workspace_id: string
   email: string
-  role: 'member' | 'viewer'
+  role: 'admin' | 'member' | 'viewer'
   workspace_name: string
   expires_at: string
 }
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     SELECT i.id, i.workspace_id, i.email, i.role, i.expires_at, w.name AS workspace_name
     FROM workspace_invitations i
     JOIN workspaces w ON w.id = i.workspace_id AND w.status = 'active'
-    WHERE i.token_hash = ? AND i.role IN ('member', 'viewer')
+    WHERE i.token_hash = ? AND i.role IN ('admin', 'member', 'viewer')
       AND i.accepted_at IS NULL AND i.revoked_at IS NULL
       AND datetime(i.expires_at) > datetime('now')
     LIMIT 1
@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
       SELECT ?, ?, ?, 'active', 1, ?, ?
       WHERE EXISTS (
         SELECT 1 FROM workspace_invitations i JOIN workspaces w ON w.id = i.workspace_id
-        WHERE i.token_hash = ? AND i.role IN ('member', 'viewer')
+        WHERE i.token_hash = ? AND i.role IN ('admin', 'member', 'viewer')
           AND i.accepted_at IS NULL AND i.revoked_at IS NULL
           AND datetime(i.expires_at) > datetime('now') AND w.status = 'active'
       ) AND NOT EXISTS (SELECT 1 FROM users WHERE email = ? COLLATE NOCASE)
@@ -124,7 +124,7 @@ export default defineEventHandler(async (event) => {
   `).bind(membershipId, userId, now, userId, tokenHash, invitation.email))
   statements.push(db.prepare(`
     UPDATE workspace_invitations SET accepted_at = ?
-    WHERE token_hash = ? AND email = ? COLLATE NOCASE AND role IN ('member', 'viewer')
+    WHERE token_hash = ? AND email = ? COLLATE NOCASE AND role IN ('admin', 'member', 'viewer')
       AND accepted_at IS NULL AND revoked_at IS NULL AND datetime(expires_at) > datetime('now')
       AND EXISTS (
         SELECT 1 FROM workspace_memberships wm

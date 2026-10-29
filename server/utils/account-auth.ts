@@ -20,9 +20,10 @@ export type AccountUser = {
   displayName: string
   sessionVersion: number
   activeWorkspaceId: string
+  workspaceRole: 'owner' | 'admin' | 'member' | 'viewer'
 }
 
-export type AccountIdentity = Omit<AccountUser, 'activeWorkspaceId'>
+export type AccountIdentity = Omit<AccountUser, 'activeWorkspaceId' | 'workspaceRole'>
 
 export function getAccountDb(event: H3Event) {
   const cloudflare = event.context.cloudflare as { env?: { DB?: AccountDb } } | undefined
@@ -160,15 +161,15 @@ export async function requireAccountUser(event: H3Event): Promise<AccountUser> {
   }
 
   const membership = await getAccountDb(event).prepare(`
-    SELECT w.id AS workspace_id
+    SELECT w.id AS workspace_id, wm.role
     FROM workspace_memberships wm
     JOIN workspaces w ON w.id = wm.workspace_id AND w.status = 'active'
     WHERE wm.user_id = ? AND wm.workspace_id = ? AND wm.status = 'active'
     LIMIT 1
-  `).bind(identity.id, activeWorkspaceId).first<{ workspace_id: string }>()
+  `).bind(identity.id, activeWorkspaceId).first<{ workspace_id: string, role: AccountUser['workspaceRole'] }>()
   if (!membership) throw createError({ statusCode: 401, statusMessage: 'Session Courrier expirée ou révoquée.' })
 
-  return { ...identity, activeWorkspaceId: membership.workspace_id }
+  return { ...identity, activeWorkspaceId: membership.workspace_id, workspaceRole: membership.role }
 }
 
 export async function requireWorkspacePermission(

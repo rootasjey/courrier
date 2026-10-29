@@ -6,6 +6,7 @@ import {
   isAccountEndpoint,
   isPlatformAdminEndpoint,
   isPublicInvitationEndpoint,
+  isWorkspaceManagementEndpoint,
   permissionFor,
 } from '../server/utils/workspace-access-policy.ts'
 
@@ -54,6 +55,7 @@ test('every API route has an explicit account, invitation, admin, or mailbox pol
     return !(
       isAccountEndpoint(candidate, method)
       || isPublicInvitationEndpoint(candidate, method)
+      || isWorkspaceManagementEndpoint(candidate, method)
       || isPlatformAdminEndpoint(candidate, method)
       || permissionFor(candidate, method)
     )
@@ -106,6 +108,17 @@ test('platform administration routes fail closed for unlisted paths and methods'
   assert.equal(isPlatformAdminEndpoint('/api/admin/domains/domain-1/readiness', 'POST'), false)
   assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes', 'POST'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes', 'GET'), false)
+})
+
+test('workspace management routes are limited to exact methods and UUID resources', () => {
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/management', 'GET'), true)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/management', 'POST'), false)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/invitations', 'POST'), true)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/invitations', 'GET'), false)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/invitations/00000000-0000-4000-8000-000000000001', 'DELETE'), true)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/invitations/invalid', 'DELETE'), false)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/memberships/00000000-0000-4000-8000-000000000001', 'PATCH'), true)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/memberships/00000000-0000-4000-8000-000000000001', 'DELETE'), false)
 })
 
 test('mail permissions are method-specific and unknown endpoints are denied', () => {

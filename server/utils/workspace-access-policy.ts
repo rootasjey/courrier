@@ -6,6 +6,7 @@ export type WorkspaceMailPermission =
   | 'mail.classify'
   | 'mail.trash'
   | 'mail.export'
+  | 'members.manage'
 
 const accountEndpoints = new Set([
   'GET /api/_auth/session',
@@ -42,6 +43,15 @@ export function isPublicInvitationEndpoint(path: string, method: string) {
   const normalizedMethod = method.toUpperCase()
   if (normalizedMethod === 'GET') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}$/.test(path)
   if (normalizedMethod === 'POST') return /^\/api\/invitations\/[A-Za-z0-9_-]{43}\/accept$/.test(path)
+  return false
+}
+
+export function isWorkspaceManagementEndpoint(path: string, method: string) {
+  const normalizedMethod = method.toUpperCase()
+  if (path === '/api/workspace/management') return normalizedMethod === 'GET'
+  if (path === '/api/workspace/invitations') return normalizedMethod === 'POST'
+  if (/^\/api\/workspace\/invitations\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'
+  if (/^\/api\/workspace\/memberships\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'PATCH'
   return false
 }
 
