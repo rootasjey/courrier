@@ -303,9 +303,20 @@ async function deleteMailbox(mailbox: ManagedMailbox) {
     await loadMailboxes()
     emit('refresh')
   } catch (value) {
-    mailboxActionError.value = statusCode(value) === 409
-      ? $t('admin.mailboxDeleteConflict')
-      : $t('admin.mailboxDeleteError')
+    if (statusCode(value) === 409) {
+      await loadMailboxes()
+      const wasDeleted = !mailboxLoadError.value && !mailboxes.value.some(item => item.id === mailbox.id)
+      if (wasDeleted) {
+        confirmDeleteMailboxId.value = ''
+        deleteConfirmationAddress.value = ''
+        mailboxActionNotice.value = $t('admin.mailboxDeletedNotice', { address: mailbox.address })
+        emit('refresh')
+      } else {
+        mailboxActionError.value = $t('admin.mailboxDeleteConflict')
+      }
+    } else {
+      mailboxActionError.value = $t('admin.mailboxDeleteError')
+    }
   } finally {
     mailboxActionId.value = ''
   }
