@@ -1,20 +1,27 @@
 # Courrier
 
-Prototype personnel de boîte de réception pour réunir des adresses de plusieurs domaines dans une interface à soi.
+Courrier is a personal, multi-domain email workspace. It receives mail for explicitly configured addresses and brings those messages into a private inbox where they can be screened, organized, searched, replied to, and exported.
 
-## État actuel
+## Current status
 
-- Nuxt/Vue déployable sur Cloudflare Workers avec Workers Assets.
-- UnoCSS et Una UI installés comme base de composants ; Una UI est encore en alpha, donc l’interface garde des styles natifs faciles à remplacer.
-- Prototype en cours : les données de démonstration locales sont signalées comme fictives ; une adresse pilote reçoit aussi des emails réels en production.
-- Ingestion locale d’un email synthétique avec PostalMime ; métadonnées et pièces jointes vont dans D1/R2 locaux.
-- Depuis le 17 octobre 2026, Cloudflare Access protège les URL de prévisualisation du Worker ; la production est publiquement joignable et s’appuie sur les sessions Courrier et les autorisations applicatives.
-- L’application contrôle elle-même les sessions Courrier, les rôles, les espaces et les accès aux boîtes. Les réponses API sont privées et non mises en cache ; l’identité Cloudflare Access n’est pas utilisée par le code applicatif.
-- Zero Trust Free est actif à 0 $/mois jusqu’à 50 utilisateurs ; les dépassements des limites gratuites peuvent être facturés selon les conditions validées à la souscription.
-- La réception réelle reste limitée à une adresse pilote ; les autres règles et transferts existants ne sont pas migrés automatiquement.
-- L'export et les limites des sauvegardes sont décrits dans [Export et sauvegardes](./docs/DATA-EXPORT-AND-BACKUPS.md). Le statut détaillé et les critères de validation sont dans [PLAN.md](./PLAN.md).
+Courrier is an actively developed pilot, not a general-purpose hosted email provider. The web app runs on Nuxt and Vue and is deployed to Cloudflare Workers. Cloudflare D1 stores application data; R2 stores original messages and attachments.
 
-## Démarrer
+As of 29 October 2026, the production pilot has three verified domains: `corpinot.cc`, `tronche.cc`, and `verbatims.cc`. Controlled inbound tests from Gmail reached Courrier for all three domains. An Outlook test to `tronche.cc` also reached Courrier and its configured copy appeared in HEY. These checks confirm those test paths at that time; they do not establish long-term deliverability or prove that every address on each domain is configured.
+
+## Features
+
+- Separate workspaces, verified domains, exact mailboxes, membership roles, and explicit mailbox access grants.
+- Inbound screening through the Screener, with messages organized into Imbox, The Feed, and Paper Trail.
+- Thread reading, search, sender rules, shared contacts and tags, drafts, and replies.
+- Mailbox administration for verified domains, including creation and lifecycle controls. When the Cloudflare Email Routing write secret is configured, Courrier can manage an exact-address routing rule for a mailbox; a manual setup path remains available when it is not.
+- Message export and documented recovery procedures.
+- Passkey-based MFA for platform administration and audit events for sensitive administrative actions.
+
+Courrier only receives messages that Cloudflare routes to its Worker. A configured mailbox is an exact address; adding a domain does not automatically accept every possible address on that domain. Domain verification, MX records, Email Routing, and the destination address must be configured and checked separately.
+
+## Local development
+
+Requirements: Node.js, npm, and the Wrangler CLI provided by the project dependencies.
 
 ```sh
 npm install
@@ -22,12 +29,34 @@ npm run db:migrate:local
 npm run dev
 ```
 
-## Déployer
+Nuxt normally serves the app at `http://localhost:3000`. Local development uses a project-specific session cookie name so another app on a different localhost port does not overwrite Courrier's login session. Local Cloudflare bindings and development secrets belong in ignored local configuration files; never commit credentials.
 
-Après configuration des bindings Cloudflare et de l’accès :
+## Checks
 
 ```sh
-npm run deploy
+npm run test:auth
+npm run test:email
+npm run build
 ```
 
-Avant de configurer Email Routing ou de modifier des MX, vérifie l’usage actuel du domaine et suis le jalon 0 de [PLAN.md](./PLAN.md).
+`test:auth` covers account, workspace, and authorization flows. `test:email` covers mail handling and related behavior. `build` creates the Nuxt/Cloudflare Worker output.
+
+## Cloudflare deployment
+
+The production Worker configuration is in `wrangler.jsonc`; the separate canary configuration is `wrangler.canary.jsonc`. Production deployments are normally made through the repository's configured Cloudflare Workers Builds integration.
+
+`npm run deploy` builds the app, applies pending migrations to the **remote production D1 database**, and deploys the Worker with Wrangler. Run it only when a direct production deployment is intended. `npm run deploy:canary` targets the configured canary environment.
+
+Cloudflare bindings and secrets must be configured for the target environment. In particular, automatic domain-readiness checks and mailbox routing changes use the `COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN` and `COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN` secrets respectively. Keep these least-privileged and never put their values in source control.
+
+## Documentation
+
+- [Roadmap and validation status](./PLAN.md)
+- [Product model](./PRODUCT.md)
+- [Design direction](./DESIGN.md)
+- [Identity, workspaces, and access](./docs/identity-and-access.md)
+- [Email sending](./docs/EMAIL-SENDING.md)
+- [Mailbox classification](./docs/MAILBOX-CLASSIFICATION.md)
+- [Imbox workflow](./docs/IMBOX-UX.md)
+- [Exports and backups](./docs/DATA-EXPORT-AND-BACKUPS.md)
+- [Contact logos](./docs/CONTACT-LOGOS.md)

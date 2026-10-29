@@ -2,13 +2,13 @@
 
 ## Avancement
 
-### État consolidé — 18 octobre 2026
+### État consolidé — 29 octobre 2026
 
-- **Réception et boîte quotidienne :** les jalons 0 et 1 sont terminés. Le jalon 2 a validé le pilote de réception réelle pour `courrier-test@verbatims.cc`, mais reste ouvert pour revalider les pannes/réémissions Cloudflare et décider du retrait du relais historique. Le jalon 3 est livré : pages séparées par boîte, lecture dédiée par fil, compositeur plein écran réductible/détachable, raccourcis clavier, recherche, Screener, règles d’expéditeur, renommage, fusion/séparation, Set Aside et Reply Later.
-- **Envoi :** réponses, brouillons et compositeur autonome sont implémentés. Des envois contrôlés du compositeur vers Gmail, HEY et Outlook ont été reçus le 14 octobre avec SPF/DKIM/DMARC PASS ; la délivrabilité sur la durée et les bounces réels ne sont pas établis. Détails : [Brouillons et réponses](docs/EMAIL-SENDING.md).
-- **Comptes et sécurité :** comptes sur invitation, rôles, MFA/passkeys, autorisations par boîte et console d’administration sont en place. Depuis le 17 octobre, la production est publique et protégée par les contrôles Courrier ; Cloudflare Access reste activé pour les previews. La récupération d’un compte en production n’a pas fait l’objet d’un exercice.
-- **Publication :** à l’ouverture de cette revue, le checkout `main` était en avance de quatre commits sur `origin/main` (`2266740`) : trois changements d’interface et un précédent rafraîchissement du sidecar Impeccable. Les changements d’interface ne sont donc pas encore sur GitHub/Workers Builds. Le déploiement actuellement servi en production n’a pas été vérifié dans cette revue.
-- **Suite à traiter :** confirmer l’état du relais de migration avant de le retirer ; continuer l’observation de la délivrabilité ; éprouver la restauration avec un export récent et préciser une procédure de reprise complète ; compléter l’administration des membres, la vérification des domaines et le provisionnement des boîtes. Clips, alias, Collections et fonctions assistées restent des pistes, sans ordre décidé.
+- **Réception réelle :** le parcours entrant a été contrôlé en production pour `verbatims.cc`, `corpinot.cc` et `tronche.cc`. Trois messages de test envoyés depuis Gmail, puis un message indépendant envoyé depuis Outlook à la boîte de test de `tronche.cc`, sont apparus dans Courrier et leur copie de transfert dans HEY. C’est une confirmation ponctuelle de ces parcours, pas une mesure de disponibilité ou de délivrabilité dans la durée. Les messages sans adresse Courrier active restent rejetés avant stockage ; le journal entrant ne couvre donc pas les rejets qui précèdent le Worker.
+- **Administration et routage :** la console plateforme permet de vérifier/pré-vérifier des domaines, créer des boîtes et attribuer leurs accès initiaux. La création d’une boîte configure une règle exacte Cloudflare Email Routing lorsque le secret d’écriture est disponible ; sans ce secret, le parcours manuel reste nécessaire. Suspension, archivage, restauration et suppression définitive d’une boîte sont implémentés. Les contrôles production de création, changement d’état, suppression et réception ont été effectués au cours de la session du 29 octobre.
+- **Espaces et rôles :** les propriétaires et administrateurs d’espace peuvent gérer les membres, invitations, rôles et accès explicites aux boîtes depuis `/workspace`. Les changements sensibles exigent une vérification MFA récente et sont journalisés sans contenu d’email. La création de domaines et de boîtes reste réservée à la console plateforme.
+- **Envoi et sécurité :** les réponses et le compositeur autonome restent limités à l’identité d’envoi configurée. L’application utilise ses propres sessions, rôles et autorisations ; Cloudflare Access protège les previews seulement. La récupération MFA est disponible via un autre administrateur actif ou une commande opérateur encadrée, mais aucun exercice de récupération d’un compte de production n’est documenté.
+- **À poursuivre :** observer la délivrabilité et les échecs réels ; exercer une restauration complète D1/R2 ; simplifier l’onboarding Cloudflare (notamment le provisionnement des identifiants de routage) ; décider du nettoyage des boîtes et messages synthétiques encore présents en production. Clips, alias et Collections restent des pistes à prioriser.
 
 - **Jalon 0 — vérification préalable (vérifié le 30 septembre 2026) :** Email Routing et les enregistrements MX Cloudflare sont actifs pour `verbatims.cc`. Les règles historiques `support@verbatims.cc` et `francis@verbatims.cc` continuent de transférer vers `codingbox.fr`. Une règle dédiée `courrier-test@verbatims.cc` dirige les messages vers le Worker `courrier` ; le handler les stocke et les relaie vers la destination historique tant que `COURRIER_LEGACY_FORWARD_TO` est configuré. Les règles historiques n’ont pas été modifiées.
 - **Jalon 2 — réception réelle (validé pour l’adresse pilote le 30 septembre 2026) :** quatre messages de test ont été reçus et affichés dans Courrier. Le dernier message texte a été confirmé dans HEY ; un message avec pièce jointe a été conservé dans D1/R2 et listé dans Courrier. Les journaux Cloudflare associent `Handled` et `Forwarded` au dernier message. Un rejeu séquentiel du même `.eml` avec le même `Message-ID` dans Wrangler local n’a créé qu’un message et une pièce jointe dans D1/R2. Les tests locaux couvrent les échecs simulés et deux livraisons concurrentes avec le même `Message-ID` (identiques ou avec un contenu MIME différent) : un seul message est stocké et relayé, et les objets R2 perdants sont supprimés. Les pannes réelles et les réémissions concurrentes sur Cloudflare ne sont pas couvertes. Le relais de secours reste actif.
@@ -37,7 +37,7 @@
 
 ## Intention
 
-Construire une boîte de réception par domaine, dans une interface inspirée par les idées de HEY. Pour `verbatims.cc`, prévoir une adresse principale et des alias qui arrivent dans sa propre boîte Courrier. Le pilote, contrôlé par son propriétaire, prend déjà en charge les comptes sur invitation, les espaces, les rôles et les accès explicites par boîte. La gestion autonome des membres, la vérification des domaines et le provisionnement des boîtes restent à terminer avant d’élargir la collaboration.
+Construire une boîte de réception par domaine, dans une interface inspirée par les idées de HEY. Les parcours de gestion des membres et d’accès par boîte sont disponibles dans l’espace ; les administrateurs de plateforme peuvent vérifier des domaines et provisionner les boîtes et leurs règles de routage. Les prochaines évolutions portent sur la simplification du raccordement Cloudflare, la fiabilité opérationnelle et les besoins de collaboration qui émergeront de l’usage.
 
 ## Boussole produit et priorités UX
 
@@ -171,7 +171,8 @@ Le dépôt `cloudflare/agentic-inbox` sert de référence pour l’ingestion et 
 ## Hors périmètre initial
 
 - Remplacer HEY ou migrer `codingbox.fr`.
-- Gestion des membres depuis chaque espace, vérification des domaines et provisionnement guidé des boîtes ; partage élargi après validation de ces parcours et des autorisations par ressource.
+- Création d’un jeton Cloudflare par domaine depuis l’administration et onboarding entièrement automatisé ; l’intégration actuelle utilise un secret Cloudflare préparé séparément et conserve un parcours manuel de secours.
+- Collaboration plus large et agent disposant de sa propre boîte, après validation des autorisations par ressource et des parcours de récupération.
 - Client IMAP/POP ou synchronisation avec les apps mail du système.
 - Envoi automatique par agent.
 - Reproduire toute l’interface ou tous les services internes de HEY.
