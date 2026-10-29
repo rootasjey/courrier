@@ -16,8 +16,11 @@ type MutationResult = { meta?: { changes?: number } }
 const DELETE_LEASE_MS = 15 * 60 * 1000
 
 export default defineEventHandler(async (event) => {
+  console.info('[courrier] Mailbox deletion request started.')
   assertSameOrigin(event)
+  console.info('[courrier] Mailbox deletion request origin validated.')
   const actor = await requirePlatformAdmin(event)
+  console.info('[courrier] Mailbox deletion actor authorized.')
   const db = getAccountDb(event)
   const bindings = event.context.cloudflare?.env as MailStorageBindings & {
     COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN?: string
@@ -29,6 +32,7 @@ export default defineEventHandler(async (event) => {
 
   const mailboxId = getRouterParam(event, 'id')?.trim() ?? ''
   const body = await readBody<{ confirmationAddress?: unknown }>(event)
+  console.info('[courrier] Mailbox deletion confirmation parsed.')
   if (!mailboxId || mailboxId.length > 256 || /[\u0000-\u001f\u007f/\\]/u.test(mailboxId)) {
     throw createError({ statusCode: 400, statusMessage: 'Identifiant de boîte invalide.' })
   }
@@ -43,6 +47,7 @@ export default defineEventHandler(async (event) => {
     WHERE mb.id = ?
     LIMIT 1
   `).bind(mailboxId).first<MailboxRow>()
+  console.info('[courrier] Mailbox deletion target lookup completed.', { found: Boolean(mailbox) })
   if (!mailbox) throw createError({ statusCode: 404, statusMessage: 'Boîte introuvable.' })
   if (!mailbox.archived_at) {
     throw createError({ statusCode: 409, statusMessage: 'Archive d’abord la boîte avant de la supprimer définitivement.' })
@@ -61,6 +66,7 @@ export default defineEventHandler(async (event) => {
     WHERE id = ? AND archived_at IS NOT NULL
       AND (deletion_claimed_at IS NULL OR deletion_claimed_at < ?)
   `).bind(now, now, mailbox.id, leaseCutoff).run() as MutationResult
+  console.info('[courrier] Mailbox deletion claim attempted.', { claimed: Number(claim.meta?.changes ?? 0) === 1 })
   if (Number(claim.meta?.changes ?? 0) !== 1) {
     throw createError({ statusCode: 409, statusMessage: 'Une suppression de cette boîte est déjà en cours. Réessaie après quelques minutes.' })
   }
