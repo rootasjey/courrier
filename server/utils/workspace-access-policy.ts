@@ -59,6 +59,7 @@ export function isPlatformAdminEndpoint(path: string, method: string) {
   if (path === '/api/admin/invitations') return normalizedMethod === 'POST'
   if (/^\/api\/admin\/invitations\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'
   if (path === '/api/admin/domains') return normalizedMethod === 'POST'
+  if (path === '/api/admin/domains/preflight') return normalizedMethod === 'POST'
   if (/^\/api\/admin\/domains\/[^/]+\/readiness$/.test(path)) return normalizedMethod === 'GET'
   if (/^\/api\/admin\/domains\/[^/]+$/.test(path)) return normalizedMethod === 'DELETE'
   if (/^\/api\/admin\/domains\/[^/]+\/(?:challenge|verify)$/.test(path)) return normalizedMethod === 'POST'

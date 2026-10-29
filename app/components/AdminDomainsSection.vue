@@ -7,7 +7,7 @@
     <div class="admin-domain-controls">
       <label class="admin-access-field">
         <span>{{ $t('admin.workspace') }}</span>
-        <select v-model="selectedWorkspaceId" :disabled="domainBusy || !activeWorkspaces.length">
+        <select v-model="selectedWorkspaceId" :disabled="domainBusy || preflightBusy || !activeWorkspaces.length">
           <option value="">{{ $t('admin.chooseWorkspace') }}</option>
           <option v-for="workspace in activeWorkspaces" :key="workspace.id" :value="workspace.id">
             {{ workspace.name }}
@@ -16,11 +16,54 @@
       </label>
       <label class="admin-access-field">
         <span>{{ $t('admin.domain') }}</span>
-        <input v-model="domainInput" type="text" :placeholder="$t('admin.domainPlaceholder')" :disabled="domainBusy" autocomplete="off" spellcheck="false">
+        <input v-model="domainInput" type="text" :placeholder="$t('admin.domainPlaceholder')" :disabled="domainBusy || preflightBusy" autocomplete="off" spellcheck="false">
       </label>
-      <button class="admin-access-action" type="button" :disabled="domainBusy || !selectedWorkspaceId || !domainInput.trim()" @click="addDomain">
-        {{ domainBusy ? $t('admin.savingDomain') : $t('admin.addDomain') }}
-      </button>
+      <div class="admin-domain-actions">
+        <button class="admin-membership-action is-reactivate" type="button" :disabled="domainBusy || preflightBusy || !domainInput.trim()" @click="preflightDomain">
+          {{ preflightBusy ? $t('admin.domainPreflighting') : $t('admin.domainPreflight') }}
+        </button>
+        <button class="admin-access-action" type="button" :disabled="domainBusy || preflightBusy || !selectedWorkspaceId || !domainInput.trim()" @click="addDomain">
+          {{ domainBusy ? $t('admin.savingDomain') : $t('admin.addDomain') }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="domainPreflight || preflightError" class="admin-domain-challenge" aria-live="polite">
+      <div class="admin-domain-challenge-heading">
+        <div>
+          <h3>{{ $t('admin.domainPreflightTitle', { domain: domainPreflight?.domain ?? preflightDomainName }) }}</h3>
+          <p>{{ $t('admin.domainPreflightDescription') }}</p>
+        </div>
+        <button class="admin-domain-dismiss" type="button" :aria-label="$t('admin.hideDomainPreflight')" @click="domainPreflight = null; preflightError = ''">×</button>
+      </div>
+      <p v-if="preflightError" class="admin-access-error" role="alert">{{ preflightError }}</p>
+      <template v-else-if="domainPreflight">
+        <dl class="admin-domain-record admin-domain-readiness">
+          <div>
+            <dt>{{ $t('admin.mailDnsInbound') }}</dt>
+            <dd>
+              <span class="admin-status" :class="`is-${domainPreflight.mx.state}`">{{ $t(`admin.mailDnsState.${domainPreflight.mx.state}`) }}</span>
+              <ul v-if="domainPreflight.mx.records.length"><li v-for="record in domainPreflight.mx.records" :key="`${record.priority}-${record.target}`"><code>{{ record.priority }} {{ record.target }}</code></li></ul>
+              <p class="admin-domain-preflight-help">{{ $t(`admin.domainPreflightHelp.mx.${domainPreflight.mx.state}`) }}</p>
+            </dd>
+          </div>
+          <div>
+            <dt>{{ $t('admin.mailDnsSpf') }}</dt>
+            <dd>
+              <span class="admin-status" :class="`is-${domainPreflight.routingSpf.state}`">{{ $t(`admin.mailDnsState.${domainPreflight.routingSpf.state}`) }}</span>
+              <p class="admin-domain-preflight-help">{{ $t(`admin.domainPreflightHelp.spf.${domainPreflight.routingSpf.state}`) }}</p>
+            </dd>
+          </div>
+          <div>
+            <dt>{{ $t('admin.mailDnsDkim') }}</dt>
+            <dd>
+              <span class="admin-status" :class="`is-${domainPreflight.routingDkim.state}`">{{ $t(`admin.mailDnsState.${domainPreflight.routingDkim.state}`) }}</span>
+              <p class="admin-domain-preflight-help">{{ $t(`admin.domainPreflightHelp.dkim.${domainPreflight.routingDkim.state}`) }}</p>
+            </dd>
+          </div>
+        </dl>
+        <p class="admin-domain-safety-note">{{ $t('admin.domainPreflightSafetyNote') }}</p>
+      </template>
     </div>
 
     <div v-if="domainChallenge" class="admin-domain-challenge" aria-live="polite">
@@ -162,6 +205,13 @@ type AdminDomain = { id: string, workspace_id: string, workspace_name: string, d
 type DomainChallenge = { domainId: string, domain: string, recordName: string, recordValue: string, expiresAt: string }
 type DnsReadinessState = 'configured' | 'missing' | 'mixed' | 'other_provider' | 'unavailable' | 'conflict' | 'present' | 'no_mailboxes'
 type MailboxRoutingState = 'configured' | 'disabled' | 'other_target' | 'missing' | 'unavailable'
+type DomainPreflight = {
+  domain: string
+  checkedAt: string
+  mx: DomainReadiness['mx']
+  routingSpf: DomainReadiness['routingSpf']
+  routingDkim: DomainReadiness['routingDkim']
+}
 type DomainReadiness = {
   domainId: string
   domain: string
@@ -208,6 +258,10 @@ const domainError = ref('')
 const domainNotice = ref('')
 const domainChallenge = ref<DomainChallenge | null>(null)
 const domainToRemove = ref<AdminDomain | null>(null)
+const domainPreflight = ref<DomainPreflight | null>(null)
+const preflightDomainName = ref('')
+const preflightBusy = ref(false)
+const preflightError = ref('')
 const readiness = ref<DomainReadiness | null>(null)
 const readinessDomain = ref('')
 const readinessBusy = ref(false)
@@ -219,14 +273,38 @@ watch(() => props.activeWorkspaces, (workspaces) => {
   }
 }, { immediate: true })
 
+watch(domainInput, () => {
+  domainPreflight.value = null
+  preflightDomainName.value = ''
+  preflightError.value = ''
+})
+
 function statusCode(error: unknown) {
   if (!error || typeof error !== 'object') return undefined
   const value = error as { statusCode?: number, status?: number }
   return value.statusCode ?? value.status
 }
 
+async function preflightDomain() {
+  if (preflightBusy.value || domainBusy.value || !domainInput.value.trim()) return
+  preflightBusy.value = true
+  preflightDomainName.value = domainInput.value.trim()
+  preflightError.value = ''
+  domainPreflight.value = null
+  try {
+    domainPreflight.value = await props.adminFetch<DomainPreflight>('/api/admin/domains/preflight', {
+      method: 'POST',
+      body: { domain: domainInput.value },
+    })
+  } catch (error) {
+    preflightError.value = $t(statusCode(error) === 400 ? 'admin.domainInvalid' : 'admin.domainPreflightError')
+  } finally {
+    preflightBusy.value = false
+  }
+}
+
 async function addDomain() {
-  if (domainBusy.value || !selectedWorkspaceId.value || !domainInput.value.trim()) return
+  if (domainBusy.value || preflightBusy.value || !selectedWorkspaceId.value || !domainInput.value.trim()) return
   domainBusy.value = true
   domainError.value = ''
   domainNotice.value = ''
@@ -237,6 +315,8 @@ async function addDomain() {
     })
     domainNotice.value = $t('admin.domainAddedNotice')
     domainInput.value = ''
+    domainPreflight.value = null
+    preflightDomainName.value = ''
     emit('refresh')
   } catch (error) {
     const status = statusCode(error)

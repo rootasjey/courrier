@@ -265,6 +265,7 @@ button:focus-visible, a:focus-visible, input:not(.files-search-input):focus-visi
   .admin-access-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
   .admin-platform-admin-controls { grid-template-columns: minmax(0, 1fr); }
   .admin-domain-controls { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .admin-domain-actions { flex-direction: column; align-items: stretch; }
   .admin-invitation-controls { grid-template-columns: minmax(0, 1fr); }
   .admin-domain-record > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .admin-domain-onboarding-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -969,6 +969,34 @@
     "platformAdminMfaReverifyError": "A recent security check is required. Sign in again, then try once more.",
     "platformAdminMfaRecoveryError": "MFA recovery failed. Refresh the console and try again.",
     "domainVerificationDescription": "A domain must be verified before mailboxes can be created in this workspace.",
+    "domainPreflight": "Pre-check DNS",
+    "domainPreflighting": "Checking DNS…",
+    "domainPreflightTitle": "DNS pre-check — {domain}",
+    "domainPreflightDescription": "Read-only lookup of public DNS records before adding the domain.",
+    "hideDomainPreflight": "Hide DNS pre-check",
+    "domainPreflightError": "The DNS pre-check failed. Try again or continue with the manual setup.",
+    "domainPreflightSafetyNote": "This check does not change DNS. It flags another email provider to help avoid interrupting its mail delivery. After adding the domain, Courrier will provide a TXT record to prove domain control.",
+    "domainPreflightHelp": {
+      "mx": {
+        "configured": "All three Cloudflare MX records were detected. Also check the receiving rules before creating mailboxes.",
+        "missing": "No MX records were detected. Email will not be received until a routing provider is configured.",
+        "mixed": "The MX records are partial or mix multiple providers. Clarify routing before changing these records.",
+        "other_provider": "The MX records point to another provider. Replace them only if you intend to move email reception.",
+        "unavailable": "The DNS resolver did not respond. You can continue with manual instructions and check the records in Cloudflare."
+      },
+      "spf": {
+        "configured": "The SPF record contains the expected Cloudflare include.",
+        "missing": "No SPF record was detected. Configure it only after listing the services allowed to send email for this domain.",
+        "other_provider": "An SPF record exists for another service. Merge it if adding a sending service; do not publish a second SPF record.",
+        "conflict": "Multiple SPF records are published. Merge them into one before adding other services.",
+        "unavailable": "The DNS resolver did not respond; check SPF manually."
+      },
+      "dkim": {
+        "present": "The expected Cloudflare DKIM record was detected.",
+        "missing": "The expected Cloudflare DKIM selector was not detected. It can be configured later for sending.",
+        "unavailable": "The DNS resolver did not respond; check DKIM manually."
+      }
+    },
     "chooseWorkspace": "Choose a workspace",
     "domain": "Domain",
     "domainPlaceholder": "example.com",

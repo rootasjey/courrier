@@ -969,6 +969,34 @@
     "platformAdminMfaReverifyError": "Une vérification de sécurité récente est requise. Reconnecte-toi puis réessaie.",
     "platformAdminMfaRecoveryError": "La récupération MFA n’a pas abouti. Actualise la console et réessaie.",
     "domainVerificationDescription": "Un domaine doit être vérifié avant de pouvoir créer des boîtes dans cet espace.",
+    "domainPreflight": "Pré-vérifier le DNS",
+    "domainPreflighting": "Vérification DNS…",
+    "domainPreflightTitle": "Pré-vérification DNS — {domain}",
+    "domainPreflightDescription": "Lecture seule des enregistrements publics avant l’ajout du domaine.",
+    "hideDomainPreflight": "Masquer la pré-vérification DNS",
+    "domainPreflightError": "La pré-vérification DNS n’a pas abouti. Réessaie ou poursuis avec le parcours manuel.",
+    "domainPreflightSafetyNote": "Ce contrôle ne modifie aucun DNS. La présence d’un autre fournisseur e-mail est signalée pour éviter d’interrompre sa réception. Après l’ajout, Courrier te donnera un enregistrement TXT pour prouver le contrôle du domaine.",
+    "domainPreflightHelp": {
+      "mx": {
+        "configured": "Les trois MX Cloudflare sont détectés. Vérifie aussi les règles de réception avant de créer des boîtes.",
+        "missing": "Aucun MX détecté : la réception e-mail ne fonctionnera pas tant qu’un fournisseur de routage n’est pas configuré.",
+        "mixed": "Les MX sont partiels ou mélangent plusieurs fournisseurs. Clarifie le routage avant de modifier ces enregistrements.",
+        "other_provider": "Les MX pointent vers un autre fournisseur. Ne les remplace que si tu veux déplacer la réception e-mail.",
+        "unavailable": "Le résolveur DNS ne répond pas. Tu peux poursuivre avec les instructions manuelles et vérifier les enregistrements dans Cloudflare."
+      },
+      "spf": {
+        "configured": "L’enregistrement SPF contient l’inclusion Cloudflare attendue.",
+        "missing": "Aucun SPF détecté. Configure-le seulement après avoir recensé les services autorisés à envoyer des e-mails pour ce domaine.",
+        "other_provider": "Un SPF existe pour un autre service. Il faudra le fusionner si tu ajoutes un service d’envoi ; ne publie pas un deuxième SPF.",
+        "conflict": "Plusieurs SPF sont publiés. Il faut les fusionner en un seul enregistrement avant d’ajouter d’autres services.",
+        "unavailable": "Le résolveur DNS ne répond pas ; vérifie le SPF manuellement."
+      },
+      "dkim": {
+        "present": "L’enregistrement DKIM Cloudflare attendu est détecté.",
+        "missing": "Le sélecteur DKIM Cloudflare attendu n’est pas détecté. Il peut être configuré plus tard pour l’envoi.",
+        "unavailable": "Le résolveur DNS ne répond pas ; vérifie le DKIM manuellement."
+      }
+    },
     "chooseWorkspace": "Choisir un espace",
     "domain": "Domaine",
     "domainPlaceholder": "exemple.fr",

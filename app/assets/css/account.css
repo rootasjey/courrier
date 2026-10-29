@@ -72,6 +72,8 @@
 .admin-status.is-unavailable { background: color-mix(in srgb, var(--quiet) 12%, var(--paper)); color: var(--quiet); }
 .admin-empty { padding: 28px 12px !important; color: var(--quiet) !important; text-align: center; }
 .admin-domain-controls { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
+.admin-domain-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.admin-domain-actions > button { min-width: 132px; }
 .admin-invitation-controls { grid-template-columns: minmax(190px, 1fr) minmax(220px, 1.2fr) minmax(150px, .7fr) auto; }
 .admin-domain-controls input { width: 100%; min-height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 12px; }
 .admin-domain-controls input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -85,6 +87,7 @@
 .admin-domain-record > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: start; gap: 10px; }
 .admin-domain-record dt { color: var(--muted); font-size: 11px; }
 .admin-domain-record dd { min-width: 0; margin: 0; }
+.admin-domain-preflight-help { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .admin-domain-record code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 4px 7px; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 11px; user-select: all; }
 .admin-domain-readiness { gap: 10px; }
 .admin-domain-readiness ul { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }

@@ -661,6 +661,24 @@ try {
     const pending = await request('/api/admin/domains/domain-pending/readiness', { cookie: adminCookie })
     assert.equal(pending.response.status, 409)
   })
+  await check('domain DNS preflight is admin-only, read-only, and rejects invalid hostnames', async () => {
+    const payload = { domain: 'alpha.test' }
+    const forbidden = await request('/api/admin/domains/preflight', { method: 'POST', cookie: memberCookie, body: payload })
+    assert.equal(forbidden.response.status, 403)
+
+    const invalid = await request('/api/admin/domains/preflight', {
+      method: 'POST', cookie: adminCookie, body: { domain: 'https://alpha.test/path' },
+    })
+    assert.equal(invalid.response.status, 400)
+
+    const result = await request('/api/admin/domains/preflight', { method: 'POST', cookie: adminCookie, body: payload })
+    assert.equal(result.response.status, 200, JSON.stringify(result.data))
+    assert.equal(result.data.domain, 'alpha.test')
+    assert.match(result.response.headers.get('cache-control') || '', /private.*no-store/)
+    assert.ok(['configured', 'missing', 'mixed', 'other_provider', 'unavailable'].includes(result.data.mx.state))
+    assert.ok(['configured', 'missing', 'conflict', 'other_provider', 'unavailable'].includes(result.data.routingSpf.state))
+    assert.ok(['present', 'missing', 'unavailable'].includes(result.data.routingDkim.state))
+  })
   await check('admin console reads are audited and duplicate refreshes are collapsed', async () => {
     const grants = await request('/api/admin/mailbox-access', { cookie: adminCookie })
     assert.equal(grants.response.status, 200, JSON.stringify(grants.data))
@@ -670,7 +688,7 @@ try {
     const refreshed = await request('/api/admin/overview', { cookie: adminCookie })
     assert.equal(refreshed.response.status, 200, JSON.stringify(refreshed.data))
     const readEvents = refreshed.data.audit.filter(value => value.action === 'platform_admin.resource_read')
-    assert.deepEqual(new Set(readEvents.map(value => value.target_id)), new Set(['overview', 'mailbox_access', 'platform_admins']))
+    assert.deepEqual(new Set(readEvents.map(value => value.target_id)), new Set(['overview', 'mailbox_access', 'platform_admins', 'domains']))
 
     await request('/api/admin/mailbox-access', { cookie: adminCookie })
     await request('/api/admin/platform-admins', { cookie: adminCookie })
