@@ -1,12 +1,12 @@
-import { assertSameOrigin, getAccountDb, requireFreshAccountMfa, requireWorkspacePermission } from '../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, requireWorkspacePermission } from '../../utils/account-auth'
 import { createWorkspaceInvitation, normalizeInvitationEmail, type WorkspaceInvitationRole } from '../../utils/workspace-invitations'
+import { requireFreshWorkspaceMfa } from '../../utils/workspace-management'
 
 type InvitationPayload = { email?: unknown, role?: unknown }
 
 export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const actor = await requireWorkspacePermission(event, 'members.manage')
-  await requireFreshAccountMfa(event, actor.id)
   const body = await readBody<InvitationPayload>(event)
   const email = normalizeInvitationEmail(body?.email)
   const role = body?.role
@@ -22,8 +22,14 @@ export default defineEventHandler(async (event) => {
   `).bind(actor.activeWorkspaceId, actor.id).first<{ role: string }>()
   if (!membership) throw createError({ statusCode: 403, statusMessage: 'Ton adhésion à cet espace n’est plus active.' })
   if (role === 'admin' && membership.role !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Seul le propriétaire peut inviter un administrateur d’espace.' })
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Seul le propriétaire peut inviter un administrateur d’espace.',
+      data: { code: 'owner_required' },
+    })
   }
+
+  await requireFreshWorkspaceMfa(event, actor.id)
 
   const invitation = await createWorkspaceInvitation(event, actor, actor.activeWorkspaceId, email, role as WorkspaceInvitationRole, {
     requireWorkspaceManager: true,

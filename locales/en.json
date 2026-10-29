@@ -1334,6 +1334,7 @@
     "verifyMfa": "Verify your identity to continue",
     "invalidInvitation": "Check the email address and role, then try again.",
     "adminInviteOwnerOnly": "Only the owner can invite a workspace administrator.",
+    "adminInvitationOwnerOnly": "Only the owner can revoke a workspace administrator invitation.",
     "mfaRequired": "A recent security check is required before this change.",
     "workspaceUnavailable": "This workspace is no longer available. Refresh the page.",
     "invitationConflict": "This address already has access to the workspace or a pending invitation.",

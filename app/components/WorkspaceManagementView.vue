@@ -189,6 +189,16 @@ function statusCode(cause: unknown) {
   return Number(value.statusCode || value.status || value.response?.status || 0)
 }
 
+function errorCode(cause: unknown) {
+  if (!cause || typeof cause !== 'object') return ''
+  const error = cause as { data?: unknown }
+  const payload = error.data
+  if (!payload || typeof payload !== 'object') return ''
+  const body = payload as { code?: unknown, data?: { code?: unknown } }
+  const code = body.code ?? body.data?.code
+  return typeof code === 'string' ? code : ''
+}
+
 async function loadManagement() {
   try {
     state.value = await $fetch<WorkspaceManagement>('/api/workspace/management')
@@ -214,14 +224,16 @@ async function sendInvitation() {
     await loadManagement()
   } catch (cause) {
     const status = statusCode(cause)
+    const code = errorCode(cause)
     error.value = status === 400 ? $t('workspace.invalidInvitation')
-      : status === 403 ? (role.value === 'admin' ? $t('workspace.adminInviteOwnerOnly') : $t('workspace.mfaRequired'))
+      : status === 403 && code === 'owner_required' ? $t('workspace.adminInviteOwnerOnly')
+        : status === 403 && code === 'mfa_required' ? $t('workspace.mfaRequired')
         : status === 404 ? $t('workspace.workspaceUnavailable')
           : status === 409 ? $t('workspace.invitationConflict')
             : status === 429 ? $t('workspace.invitationRateLimit')
               : status === 502 || status === 503 ? $t('workspace.invitationSendError')
                 : $t('workspace.invitationError')
-    showMfaLink.value = status === 403 && role.value !== 'admin'
+    showMfaLink.value = status === 403 && code === 'mfa_required'
   } finally {
     busy.value = false
   }
@@ -240,11 +252,13 @@ async function revokeInvitation() {
     await loadManagement()
   } catch (cause) {
     const status = statusCode(cause)
-    error.value = status === 403 ? $t('workspace.mfaRequired')
+    const code = errorCode(cause)
+    error.value = status === 403 && code === 'owner_required' ? $t('workspace.adminInvitationOwnerOnly')
+      : status === 403 && code === 'mfa_required' ? $t('workspace.mfaRequired')
       : status === 404 ? $t('workspace.workspaceUnavailable')
         : status === 409 ? $t('workspace.invitationChanged')
           : $t('workspace.invitationError')
-    showMfaLink.value = status === 403
+    showMfaLink.value = status === 403 && code === 'mfa_required'
   } finally {
     busy.value = false
   }

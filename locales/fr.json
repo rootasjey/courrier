@@ -1334,6 +1334,7 @@
     "verifyMfa": "Vérifier mon identité pour continuer",
     "invalidInvitation": "Vérifie l’adresse e-mail et le rôle, puis réessaie.",
     "adminInviteOwnerOnly": "Seul le propriétaire peut inviter un administrateur d’espace.",
+    "adminInvitationOwnerOnly": "Seul le propriétaire peut révoquer une invitation administrateur.",
     "mfaRequired": "Une vérification de sécurité récente est requise avant cette modification.",
     "workspaceUnavailable": "L’espace n’est plus accessible. Actualise la page.",
     "invitationConflict": "Cette adresse a déjà accès à l’espace ou possède une invitation en attente.",

@@ -1,11 +1,11 @@
-import { assertSameOrigin, getAccountDb, requireFreshAccountMfa, requireWorkspacePermission } from '../../../utils/account-auth'
+import { assertSameOrigin, getAccountDb, requireWorkspacePermission } from '../../../utils/account-auth'
+import { requireFreshWorkspaceMfa } from '../../../utils/workspace-management'
 
 type D1MutationResult = { meta?: { changes?: number } }
 
 export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const actor = await requireWorkspacePermission(event, 'members.manage')
-  await requireFreshAccountMfa(event, actor.id)
   const invitationId = getRouterParam(event, 'id')?.trim() ?? ''
   if (!/^[0-9a-f-]{36}$/i.test(invitationId)) {
     throw createError({ statusCode: 400, statusMessage: 'Invitation invalide.' })
@@ -20,10 +20,16 @@ export default defineEventHandler(async (event) => {
   }>()
   if (!invitation) throw createError({ statusCode: 404, statusMessage: 'Invitation introuvable dans cet espace.' })
   if (invitation.role === 'admin' && actor.workspaceRole !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Seul le propriétaire peut révoquer une invitation administrateur.' })
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Seul le propriétaire peut révoquer une invitation administrateur.',
+      data: { code: 'owner_required' },
+    })
   }
   if (invitation.accepted_at) throw createError({ statusCode: 409, statusMessage: 'Cette invitation a déjà été acceptée.' })
   if (invitation.revoked_at) return { invitationId, revoked: true, unchanged: true }
+
+  await requireFreshWorkspaceMfa(event, actor.id)
 
   const now = new Date().toISOString()
   const result = await db.batch([
