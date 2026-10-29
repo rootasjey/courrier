@@ -49,6 +49,7 @@ export function isPublicInvitationEndpoint(path: string, method: string) {
 export function isWorkspaceManagementEndpoint(path: string, method: string) {
   const normalizedMethod = method.toUpperCase()
   if (path === '/api/workspace/management') return normalizedMethod === 'GET'
+  if (path === '/api/workspace/mailbox-access') return ['GET', 'POST', 'DELETE'].includes(normalizedMethod)
   if (path === '/api/workspace/invitations') return normalizedMethod === 'POST'
   if (/^\/api\/workspace\/invitations\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'
   if (/^\/api\/workspace\/memberships\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'PATCH'

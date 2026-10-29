@@ -70,6 +70,8 @@
           </div>
         </section>
 
+        <WorkspaceMailboxAccessSection v-if="state.workspace.role === 'owner' || state.workspace.role === 'admin'" :is-owner="state.workspace.role === 'owner'" />
+
         <section class="workspace-section" aria-labelledby="workspace-invitations-title">
           <h2 id="workspace-invitations-title">{{ $t('workspace.invitations') }}</h2>
           <p class="workspace-section-description">{{ $t('workspace.invitationDescription') }}</p>

@@ -120,6 +120,10 @@ test('platform administration routes fail closed for unlisted paths and methods'
 test('workspace management routes are limited to exact methods and UUID resources', () => {
   assert.equal(isWorkspaceManagementEndpoint('/api/workspace/management', 'GET'), true)
   assert.equal(isWorkspaceManagementEndpoint('/api/workspace/management', 'POST'), false)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/mailbox-access', 'GET'), true)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/mailbox-access', 'POST'), true)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/mailbox-access', 'DELETE'), true)
+  assert.equal(isWorkspaceManagementEndpoint('/api/workspace/mailbox-access', 'PATCH'), false)
   assert.equal(isWorkspaceManagementEndpoint('/api/workspace/invitations', 'POST'), true)
   assert.equal(isWorkspaceManagementEndpoint('/api/workspace/invitations', 'GET'), false)
   assert.equal(isWorkspaceManagementEndpoint('/api/workspace/invitations/00000000-0000-4000-8000-000000000001', 'DELETE'), true)

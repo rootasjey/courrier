@@ -449,6 +449,7 @@ try {
     const readableRoutes = routes.filter(({ method, path: route }) => method === 'GET'
       && route !== '/api/export'
       && route !== '/api/workspace/management'
+      && route !== '/api/workspace/mailbox-access'
       && route !== '/api/account/passkeys'
       && !route.startsWith('/api/admin/'))
     for (const { path: route } of readableRoutes) {
@@ -457,6 +458,7 @@ try {
       assert.notEqual(result.response.status, 403, `Viewer was unexpectedly denied read access to GET ${route}.`)
     }
     assert.equal((await request('/api/workspace/management', { cookie: viewerCookie })).response.status, 403)
+    assert.equal((await request('/api/workspace/mailbox-access', { cookie: viewerCookie })).response.status, 403)
 
     const writeRoutes = routes.filter(({ method, path: route }) => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
       && !/^\/api\/(?:account|profile|auth|dev|invitations)(?:\/|$)/.test(route))
@@ -471,12 +473,16 @@ try {
     assert.equal((await request('/api/admin/overview', { cookie: viewerCookie })).response.status, 403)
     console.log(`  Covered ${readableRoutes.length} viewer reads and ${writeRoutes.length} denied writes.`)
   })
-  await check('workspace administrators do not receive platform administration rights', async () => {
+  await check('workspace administrators can inspect only their mailbox grants, not platform administration', async () => {
     const login = await request('/api/auth/login', {
       method: 'POST',
       body: { email: 'workspace-admin@example.test', password: 'local-test-workspace-admin-password-001' },
     })
     assert.equal(login.response.status, 200)
+    const mailboxAccess = await request('/api/workspace/mailbox-access', { cookie: login.cookie })
+    assert.equal(mailboxAccess.response.status, 200)
+    assert.ok(mailboxAccess.data.mailboxes.every(mailbox => mailbox.workspace_id === undefined))
+    assert.deepEqual(mailboxAccess.data.mailboxes.map(mailbox => mailbox.id), ['mailbox-b1'])
     assert.equal((await request('/api/admin/platform-admins', { cookie: login.cookie })).response.status, 403)
     assert.equal((await request('/api/admin/platform-admins', {
       method: 'POST', cookie: login.cookie, body: { userId: '00000000-0000-4000-8000-000000000103' },
@@ -830,6 +836,32 @@ try {
       method: 'POST', cookie: adminCookie, body: { recoveryCode: adminRecoveryCode },
     })
     assert.equal(replay.response.status, 401)
+  })
+  await check('workspace owners can grant and revoke only mailbox access in their active workspace', async () => {
+    const mailboxId = 'mailbox-a2'
+    const userId = '00000000-0000-4000-8000-000000000102'
+    const grant = await request('/api/workspace/mailbox-access', {
+      method: 'POST', cookie: adminCookie, body: { mailboxId, userId },
+    })
+    assert.equal(grant.response.status, 200, JSON.stringify(grant.data))
+    assert.equal(grant.data.granted, true)
+
+    const visible = await request('/api/workspace/mailbox-access', { cookie: adminCookie })
+    assert.equal(visible.response.status, 200)
+    assert.ok(visible.data.grants.some(value => value.mailbox_id === mailboxId && value.user_id === userId))
+
+    const revoke = await request('/api/workspace/mailbox-access', {
+      method: 'DELETE', cookie: adminCookie, body: { mailboxId, userId },
+    })
+    assert.equal(revoke.response.status, 200, JSON.stringify(revoke.data))
+    assert.equal(revoke.data.revoked, true)
+
+    const hidden = await request('/api/workspace/mailbox-access', { cookie: adminCookie })
+    assert.equal(hidden.response.status, 200)
+    assert.ok(!hidden.data.grants.some(value => value.mailbox_id === mailboxId && value.user_id === userId))
+    const audit = await request('/api/admin/overview', { cookie: adminCookie })
+    assert.ok(audit.data.audit.some(value => value.action === 'mailbox_access.grant' && value.target_id === `${mailboxId}:${userId}`))
+    assert.ok(audit.data.audit.some(value => value.action === 'mailbox_access.revoke' && value.target_id === `${mailboxId}:${userId}`))
   })
   await check('platform admin changes require an active account, protect self-revocation, and preserve mailbox grants', async () => {
     const list = await request('/api/admin/platform-admins', { cookie: adminCookie })
