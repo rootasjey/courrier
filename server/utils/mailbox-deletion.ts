@@ -83,7 +83,9 @@ export async function permanentlyDeleteMailboxData(input: {
 }): Promise<boolean> {
   const { db, mailStore, target, actorId, data, deletedAt, archivedGuardSql } = input
   for (let offset = 0; offset < data.objectKeys.length; offset += R2_DELETE_BATCH_SIZE) {
-    await mailStore.delete(data.objectKeys.slice(offset, offset + R2_DELETE_BATCH_SIZE))
+    const keys = data.objectKeys.slice(offset, offset + R2_DELETE_BATCH_SIZE)
+    console.info('[courrier] Mailbox deletion is removing stored objects.', { batchSize: keys.length })
+    await mailStore.delete(keys)
   }
 
   const details = JSON.stringify({
@@ -94,6 +96,10 @@ export async function permanentlyDeleteMailboxData(input: {
     routingRule: 'disabled',
   })
   const threadMergeIds = JSON.stringify(data.threadMergeIds)
+  console.info('[courrier] Mailbox deletion is removing database records.', {
+    messageCount: data.messages.length,
+    objectCount: data.objectKeys.length,
+  })
   const results = await db.batch([
     db.prepare(`
       INSERT INTO platform_audit_log

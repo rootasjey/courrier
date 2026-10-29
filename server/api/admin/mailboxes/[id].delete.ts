@@ -73,7 +73,9 @@ export default defineEventHandler(async (event) => {
     `).bind(mailbox.id).run().catch(() => undefined)
   }
 
+  let deletionStage = 'routing'
   try {
+    console.info('[courrier] Mailbox deletion reached stage.', { stage: deletionStage })
     if (bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN) {
       await setCloudflareMailboxRule({
         domain: mailbox.domain,
@@ -96,6 +98,8 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    deletionStage = 'collect-purge-data'
+    console.info('[courrier] Mailbox deletion reached stage.', { stage: deletionStage })
     const target = {
       id: mailbox.id,
       workspaceId: mailbox.workspace_id,
@@ -108,6 +112,8 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 409, statusMessage: 'Attends la fin des transferts et envois en cours avant de supprimer la boîte.' })
     }
 
+    deletionStage = 'delete-storage-objects'
+    console.info('[courrier] Mailbox deletion reached stage.', { stage: deletionStage, objectCount: purgeData.objectKeys.length })
     const hasArchivedMailbox = `EXISTS (
       SELECT 1 FROM mailboxes
       WHERE id = ? AND workspace_id = ?
@@ -123,6 +129,7 @@ export default defineEventHandler(async (event) => {
       archivedGuardSql: hasArchivedMailbox,
     })
 
+    deletionStage = 'complete'
     if (!deleted) {
       await resetDeletionClaim(false)
       throw createError({ statusCode: 409, statusMessage: 'La boîte a changé pendant sa suppression. Actualise la console et vérifie son état.' })
@@ -131,6 +138,7 @@ export default defineEventHandler(async (event) => {
     setResponseHeader(event, 'Cache-Control', 'no-store')
     return { mailboxId: mailbox.id, deleted: true, messagesDeleted: purgeData.messages.length, storedObjectsDeleted: purgeData.objectKeys.length }
   } catch (error) {
+    console.error('[courrier] Mailbox deletion failed.', { stage: deletionStage, errorName: error instanceof Error ? error.name : 'unknown' })
     if (!(error && typeof error === 'object' && 'statusCode' in error)) await resetDeletionClaim(false)
     throw error
   }
