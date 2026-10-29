@@ -83,6 +83,9 @@ async function seedDatabase(configPath, persistPath) {
     `INSERT INTO platform_admins (user_id,created_at,created_by_user_id) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)},NULL),('00000000-0000-4000-8000-000000000106',${sql(now)},'00000000-0000-4000-8000-000000000101'),('00000000-0000-4000-8000-000000000107',${sql(now)},'00000000-0000-4000-8000-000000000101');`,
     `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a2','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000102','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000103','active',${sql(now)});`,
     `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-a1','<message-a1@alpha.test>','sender@external.test','inbox@alpha.test','Allowed Sender','sender@external.test','Allowed mailbox',${sql(now)},'visible','messages/a1.eml','alpha.test','Imbox'),('message-a2','<message-a2@alpha.test>','sender@external.test','hidden@alpha.test','Hidden Sender','sender@external.test','Hidden mailbox',${sql(now)},'hiddenneedle','messages/a2.eml','alpha.test','Imbox'),('message-b1','<message-b1@beta.test>','sender@external.test','other@beta.test','Other Sender','sender@external.test','Other workspace',${sql(now)},'workspace B','messages/b1.eml','beta.test','Imbox');`,
+    `INSERT INTO mailboxes (id,workspace_id,domain_id,address,status,created_at,archived_at,status_before_archive) VALUES ('mailbox-archived','workspace-one','domain-alpha','archived@alpha.test','suspended',${sql(now)},${sql(now)},'active');`,
+    `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-archived','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-archived','00000000-0000-4000-8000-000000000102','active',${sql(now)});`,
+    `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-archived','<message-archived@alpha.test>','sender@external.test','archived@alpha.test','Archived Sender','sender@external.test','Archived mailbox content',${sql(now)},'preserved but hidden','messages/archived.eml','alpha.test','Imbox');`,
     `INSERT INTO sender_rules (mailbox_domain,sender_address,folder,created_at,updated_at) VALUES ('alpha.test','sender@external.test','The Feed',${sql(now)},${sql(now)});`,
     `INSERT INTO thread_subject_overrides (mailbox_domain,thread_id,subject,updated_at) VALUES ('alpha.test','message-a1','Domain-wide private title',${sql(now)});`,
     `INSERT INTO attachments (id,message_id,filename,mime_type,size_bytes,object_key) VALUES ('attachment-a2','message-a2','hidden.txt','text/plain',6,'attachments/a2.txt'),('attachment-b1','message-b1','other.txt','text/plain',5,'attachments/b1.txt');`,
@@ -681,6 +684,15 @@ try {
     const audit = await request('/api/admin/overview', { cookie: adminCookie })
     assert.ok(audit.data.audit.some(value => value.action === 'workspace_mailbox.created' && value.target_id === created.data.mailboxId))
   })
+  await check('archived mailboxes retain their records but hide messages from account access', async () => {
+    const messages = await request('/api/messages', { cookie: memberCookie })
+    assert.equal(messages.response.status, 200, JSON.stringify(messages.data))
+    assert.ok(!messages.data.some(value => value.id === 'message-archived'))
+
+    const mailboxes = await request('/api/admin/mailboxes', { cookie: adminCookie })
+    assert.equal(mailboxes.response.status, 200, JSON.stringify(mailboxes.data))
+    assert.equal(mailboxes.data.mailboxes.find(value => value.id === 'mailbox-archived')?.status, 'archived')
+  })
   await check('domain readiness checks are admin-only and require domain verification', async () => {
     const forbidden = await request('/api/admin/domains/domain-alpha/readiness', { cookie: memberCookie })
     assert.equal(forbidden.response.status, 403)
@@ -715,7 +727,7 @@ try {
     const refreshed = await request('/api/admin/overview', { cookie: adminCookie })
     assert.equal(refreshed.response.status, 200, JSON.stringify(refreshed.data))
     const readEvents = refreshed.data.audit.filter(value => value.action === 'platform_admin.resource_read')
-    assert.deepEqual(new Set(readEvents.map(value => value.target_id)), new Set(['overview', 'mailbox_access', 'platform_admins', 'domains']))
+    assert.deepEqual(new Set(readEvents.map(value => value.target_id)), new Set(['overview', 'mailbox_access', 'mailbox_routing', 'platform_admins', 'domains']))
 
     await request('/api/admin/mailbox-access', { cookie: adminCookie })
     await request('/api/admin/platform-admins', { cookie: adminCookie })

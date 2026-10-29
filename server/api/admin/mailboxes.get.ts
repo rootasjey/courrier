@@ -7,7 +7,8 @@ export default defineEventHandler(async (event) => {
   await auditPlatformAdminRead(db, actor, 'mailbox_routing')
 
   const result = await db.prepare(`
-    SELECT mb.id, mb.workspace_id, w.name AS workspace_name, d.domain, mb.address, mb.status
+    SELECT mb.id, mb.workspace_id, w.name AS workspace_name, d.domain, mb.address,
+      CASE WHEN mb.archived_at IS NOT NULL THEN 'archived' ELSE mb.status END AS status
     FROM mailboxes mb
     JOIN workspaces w ON w.id = mb.workspace_id AND w.status = 'active'
     JOIN workspace_domains d ON d.id = mb.domain_id AND d.workspace_id = mb.workspace_id
@@ -15,7 +16,7 @@ export default defineEventHandler(async (event) => {
     ORDER BY w.name COLLATE NOCASE, mb.address COLLATE NOCASE
     LIMIT 500
   `).all<{
-    id: string, workspace_id: string, workspace_name: string, domain: string, address: string, status: 'active' | 'suspended',
+    id: string, workspace_id: string, workspace_name: string, domain: string, address: string, status: 'active' | 'suspended' | 'archived',
   }>()
 
   setResponseHeader(event, 'Cache-Control', 'private, no-store')

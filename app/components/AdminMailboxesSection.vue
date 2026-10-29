@@ -55,15 +55,33 @@
             <tr v-for="mailbox in mailboxes" :key="mailbox.id">
               <td><strong>{{ mailbox.address }}</strong></td>
               <td>{{ mailbox.workspace_name }}</td>
-              <td><span class="admin-status" :class="`is-${mailbox.status}`">{{ $t(mailbox.status === 'active' ? 'admin.active' : 'admin.suspended') }}</span></td>
+              <td><span class="admin-status" :class="`is-${mailbox.status}`">{{ $t(mailbox.status === 'active' ? 'admin.active' : mailbox.status === 'archived' ? 'admin.archived' : 'admin.suspended') }}</span></td>
               <td>
-                <button v-if="mailbox.status === 'suspended' || confirmMailboxId !== mailbox.id" class="admin-membership-action" :class="mailbox.status === 'active' ? 'is-suspend' : 'is-reactivate'" type="button" :disabled="Boolean(mailboxActionId)" @click="prepareMailboxToggle(mailbox)">
-                  {{ mailboxActionId === mailbox.id ? $t('admin.savingAccess') : $t(mailbox.status === 'active' ? 'admin.suspendMailbox' : 'admin.reactivateMailbox') }}
-                </button>
-                <div v-else class="admin-mailbox-confirm" role="group" :aria-label="$t('admin.confirmSuspendMailbox', { address: mailbox.address })">
-                  <p>{{ $t('admin.confirmSuspendMailbox', { address: mailbox.address }) }}</p>
-                  <button class="admin-membership-action is-suspend" type="button" :disabled="Boolean(mailboxActionId)" @click="toggleMailbox(mailbox)">{{ $t('admin.confirmMailboxAction') }}</button>
-                  <button class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmMailboxId = ''">{{ $t('admin.cancelMailboxAction') }}</button>
+                <div class="admin-mailbox-actions">
+                  <template v-if="mailbox.status === 'archived'">
+                    <div v-if="confirmRestoreMailboxId === mailbox.id" class="admin-mailbox-confirm" role="group" :aria-label="$t('admin.confirmRestoreMailbox', { address: mailbox.address })">
+                      <p>{{ $t('admin.confirmRestoreMailbox', { address: mailbox.address }) }}</p>
+                      <button class="admin-membership-action is-reactivate" type="button" :disabled="Boolean(mailboxActionId)" @click="setMailboxArchived(mailbox, false)">{{ $t('admin.confirmRestoreAction') }}</button>
+                      <button class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmRestoreMailboxId = ''">{{ $t('admin.cancelMailboxAction') }}</button>
+                    </div>
+                    <button v-else class="admin-membership-action is-reactivate" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmRestoreMailboxId = mailbox.id">{{ $t('admin.restoreMailbox') }}</button>
+                  </template>
+                  <template v-else>
+                    <button v-if="mailbox.status === 'suspended' || confirmMailboxId !== mailbox.id" class="admin-membership-action" :class="mailbox.status === 'active' ? 'is-suspend' : 'is-reactivate'" type="button" :disabled="Boolean(mailboxActionId)" @click="prepareMailboxToggle(mailbox)">
+                      {{ mailboxActionId === mailbox.id ? $t('admin.savingAccess') : $t(mailbox.status === 'active' ? 'admin.suspendMailbox' : 'admin.reactivateMailbox') }}
+                    </button>
+                    <div v-else class="admin-mailbox-confirm" role="group" :aria-label="$t('admin.confirmSuspendMailbox', { address: mailbox.address })">
+                      <p>{{ $t('admin.confirmSuspendMailbox', { address: mailbox.address }) }}</p>
+                      <button class="admin-membership-action is-suspend" type="button" :disabled="Boolean(mailboxActionId)" @click="toggleMailbox(mailbox)">{{ $t('admin.confirmMailboxAction') }}</button>
+                      <button class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmMailboxId = ''">{{ $t('admin.cancelMailboxAction') }}</button>
+                    </div>
+                    <div v-if="confirmArchiveMailboxId === mailbox.id" class="admin-mailbox-confirm" role="group" :aria-label="$t('admin.confirmArchiveMailbox', { address: mailbox.address })">
+                      <p>{{ $t('admin.confirmArchiveMailbox', { address: mailbox.address }) }}</p>
+                      <button class="admin-membership-action is-suspend" type="button" :disabled="Boolean(mailboxActionId)" @click="setMailboxArchived(mailbox, true)">{{ $t('admin.confirmArchiveAction') }}</button>
+                      <button class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmArchiveMailboxId = ''">{{ $t('admin.cancelMailboxAction') }}</button>
+                    </div>
+                    <button v-else class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmArchiveMailboxId = mailbox.id">{{ $t('admin.archiveMailbox') }}</button>
+                  </template>
                 </div>
               </td>
             </tr>
@@ -82,7 +100,7 @@ import { computed, onMounted, watch } from 'vue'
 
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string }
 type AdminMember = { workspace_id: string, user_id: string, email: string, display_name: string | null, role: string }
-type ManagedMailbox = { id: string, workspace_id: string, workspace_name: string, domain: string, address: string, status: 'active' | 'suspended' }
+type ManagedMailbox = { id: string, workspace_id: string, workspace_name: string, domain: string, address: string, status: 'active' | 'suspended' | 'archived' }
 type AdminRequest = <T>(request: string, options?: Parameters<typeof $fetch>[1]) => Promise<T>
 
 const props = defineProps<{
@@ -106,6 +124,8 @@ const mailboxesLoading = ref(false)
 const mailboxLoadError = ref(false)
 const mailboxActionId = ref('')
 const confirmMailboxId = ref('')
+const confirmArchiveMailboxId = ref('')
+const confirmRestoreMailboxId = ref('')
 const mailboxActionError = ref('')
 const mailboxActionNotice = ref('')
 
@@ -217,6 +237,30 @@ async function toggleMailbox(mailbox: ManagedMailbox) {
     mailboxActionId.value = ''
   }
 }
+
+async function setMailboxArchived(mailbox: ManagedMailbox, archived: boolean) {
+  if (mailboxActionId.value) return
+  mailboxActionId.value = mailbox.id
+  confirmArchiveMailboxId.value = ''
+  confirmRestoreMailboxId.value = ''
+  mailboxActionError.value = ''
+  mailboxActionNotice.value = ''
+  try {
+    await props.adminFetch(`/api/admin/mailboxes/${encodeURIComponent(mailbox.id)}`, {
+      method: 'PATCH',
+      body: { archived },
+    })
+    mailboxActionNotice.value = $t(archived ? 'admin.mailboxArchivedNotice' : 'admin.mailboxRestoredNotice')
+    await loadMailboxes()
+    emit('refresh')
+  } catch (value) {
+    mailboxActionError.value = statusCode(value) === 409
+      ? $t(archived ? 'admin.mailboxManualDisableRequired' : 'admin.mailboxManualEnableRequired')
+      : $t('admin.mailboxLifecycleError')
+  } finally {
+    mailboxActionId.value = ''
+  }
+}
 </script>
 
 <style scoped>
@@ -244,6 +288,12 @@ async function toggleMailbox(mailbox: ManagedMailbox) {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-mailbox-actions {
+  display: grid;
+  justify-items: start;
   gap: 8px;
 }
 

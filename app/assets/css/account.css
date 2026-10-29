@@ -66,6 +66,7 @@
 .admin-status, .admin-role { display: inline-flex; min-height: 23px; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--accent); font-size: 10px; font-weight: 650; white-space: nowrap; }
 .admin-status.is-active, .admin-status.is-verified, .admin-status.is-accepted { background: color-mix(in srgb, #31a879 13%, var(--paper)); color: #27815f; }
 .admin-status.is-suspended, .admin-status.is-revoked { background: color-mix(in srgb, var(--error) 10%, var(--paper)); color: var(--error); }
+.admin-status.is-archived { background: color-mix(in srgb, var(--muted) 12%, var(--paper)); color: var(--muted); }
 .admin-status.is-pending, .admin-status.is-legacy_unverified, .admin-status.is-expired { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
 .admin-status.is-configured, .admin-status.is-present { background: color-mix(in srgb, #31a879 13%, var(--paper)); color: #27815f; }
 .admin-status.is-missing, .admin-status.is-mixed, .admin-status.is-other_provider, .admin-status.is-conflict { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
