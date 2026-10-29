@@ -44,25 +44,32 @@ export default defineEventHandler(async (event) => {
       SET status = 'suspended', revoked_at = ?
       WHERE workspace_id = ? AND mailbox_id = ? AND user_id = ? AND status = 'active'
         AND EXISTS (
-          SELECT 1 FROM workspace_memberships wm
-          WHERE wm.workspace_id = mailbox_access_grants.workspace_id
-            AND wm.user_id = mailbox_access_grants.user_id
-            AND wm.status = 'active' AND wm.role <> 'owner'
+          SELECT 1 FROM workspace_memberships target_membership
+          WHERE target_membership.workspace_id = ?
+            AND target_membership.user_id = ?
+            AND target_membership.status = 'active' AND target_membership.role <> 'owner'
         )
         AND EXISTS (
           SELECT 1 FROM workspace_memberships actor_membership
           JOIN role_permissions rp ON rp.role = actor_membership.role AND rp.permission = 'mailbox.access.manage'
-          WHERE actor_membership.workspace_id = mailbox_access_grants.workspace_id
+          WHERE actor_membership.workspace_id = ?
             AND actor_membership.user_id = ? AND actor_membership.status = 'active'
             AND EXISTS (
               SELECT 1 FROM workspace_memberships target_membership
-              WHERE target_membership.workspace_id = mailbox_access_grants.workspace_id
-                AND target_membership.user_id = mailbox_access_grants.user_id
+              WHERE target_membership.workspace_id = ?
+                AND target_membership.user_id = ?
                 AND target_membership.status = 'active'
-                AND (target_membership.role <> 'admin' OR actor_membership.role = 'owner')
+                AND (target_membership.role <> 'admin' OR EXISTS (
+                  SELECT 1 FROM workspace_memberships owner_membership
+                  WHERE owner_membership.workspace_id = ?
+                    AND owner_membership.user_id = ?
+                    AND owner_membership.status = 'active'
+                    AND owner_membership.role = 'owner'
+                ))
             )
         )
-    `).bind(now, workspaceId, mailboxId, userId, actor.id),
+    `).bind(now, workspaceId, mailboxId, userId, workspaceId, userId, workspaceId, actor.id,
+      workspaceId, userId, workspaceId, actor.id),
     db.prepare(`
       INSERT INTO platform_audit_log
         (id, actor_user_id, action, target_type, target_id, workspace_id, details_json, created_at)

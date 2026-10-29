@@ -40,11 +40,11 @@ export default defineEventHandler(async (event) => {
       WHERE workspace_id = ? AND mailbox_id = ? AND user_id = ? AND status = 'active'
         AND EXISTS (
           SELECT 1 FROM workspace_memberships wm
-          WHERE wm.workspace_id = mailbox_access_grants.workspace_id
-            AND wm.user_id = mailbox_access_grants.user_id
+          WHERE wm.workspace_id = ?
+            AND wm.user_id = ?
             AND wm.role <> 'owner'
         )
-    `).bind(now, target.workspace_id, mailboxId, userId),
+    `).bind(now, target.workspace_id, mailboxId, userId, target.workspace_id, userId),
     db.prepare(`
       INSERT INTO platform_audit_log
         (id, actor_user_id, action, target_type, target_id, workspace_id, details_json, created_at)
