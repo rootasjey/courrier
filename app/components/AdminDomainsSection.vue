@@ -166,7 +166,10 @@
           <div><dt>{{ $t('admin.mailDnsDkim') }}</dt><dd><span class="admin-status" :class="`is-${readiness.routingDkim.state}`">{{ $t(`admin.mailDnsState.${readiness.routingDkim.state}`) }}</span></dd></div>
         </dl>
         <p class="admin-domain-safety-note">{{ $t('admin.mailDnsSafetyNote') }}</p>
+        <h4 class="admin-domain-subheading">{{ $t('admin.mailDnsTokenTitle') }}</h4>
+        <p class="admin-domain-routing-note">{{ $t('admin.mailDnsTokenInstructions', { domain: readiness.domain }) }}</p>
         <div class="admin-domain-readiness-links">
+          <a class="admin-domain-doc-link" :href="cloudflareApiTokenCreationUrl(readiness.domain)" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCreateCloudflareToken', { domain: readiness.domain }) }}</a>
           <a class="admin-domain-doc-link" href="https://developers.cloudflare.com/email-service/get-started/route-emails/" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCloudflareGuide') }}</a>
           <a class="admin-domain-mailbox-link" href="#admin-mailboxes-heading" @click="emit('selectMailboxDomain', readiness.domainId)">{{ $t('admin.domainOnboardingGoToMailbox') }}</a>
         </div>
@@ -199,6 +202,7 @@
 
 <script setup lang="ts">
 import { watch } from 'vue'
+import { cloudflareApiTokenCreationUrl } from '~/utils/cloudflare-api-token-url'
 
 type DomainWorkspace = { id: string, name: string }
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string, verified_at: string | null, mailbox_count: number }
