@@ -1,69 +1,9 @@
 import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../../utils/account-auth'
-import { domainVerificationRecord, normalizeTxtAnswer } from '../../../../utils/domain-verification'
+import { domainVerificationRecord } from '../../../../utils/domain-verification'
+import { DomainVerificationDnsError, hasDomainVerificationRecord } from '../../../../utils/domain-verification-dns'
 
 type DomainChallenge = { id: string, workspace_id: string, domain: string, verification_status: string, verification_token: string | null, expires_at: string | null }
-type DnsJsonResponse = { Status?: number, Answer?: { type?: number, data?: string }[] }
 type D1MutationResult = { meta?: { changes?: number } }
-
-async function hasTxtVerificationRecord(name: string, expectedValue: string) {
-  const url = new URL('https://cloudflare-dns.com/dns-query')
-  url.searchParams.set('name', name)
-  url.searchParams.set('type', 'TXT')
-
-  let response: Response
-  try {
-    response = await fetch(url, {
-      headers: { Accept: 'application/dns-json' },
-      signal: AbortSignal.timeout(5000),
-    })
-  } catch {
-    throw createError({ statusCode: 503, statusMessage: 'Le résolveur DNS ne répond pas. Réessaie dans un instant.' })
-  }
-
-  if (!response.ok) {
-    throw createError({ statusCode: 502, statusMessage: 'La vérification DNS est temporairement indisponible.' })
-  }
-
-  const contentLength = Number(response.headers.get('content-length') ?? 0)
-  if (contentLength > 32_768) {
-    throw createError({ statusCode: 502, statusMessage: 'La réponse DNS est trop volumineuse.' })
-  }
-
-  let result: DnsJsonResponse
-  try {
-    const reader = response.body?.getReader()
-    if (!reader) throw new Error('Missing DNS response body')
-    const chunks: Uint8Array[] = []
-    let byteCount = 0
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      byteCount += value.byteLength
-      if (byteCount > 32_768) {
-        await reader.cancel()
-        throw new Error('DNS response too large')
-      }
-      chunks.push(value)
-    }
-    const bytes = new Uint8Array(byteCount)
-    let offset = 0
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset)
-      offset += chunk.byteLength
-    }
-    result = JSON.parse(new TextDecoder().decode(bytes)) as DnsJsonResponse
-  } catch {
-    throw createError({ statusCode: 502, statusMessage: 'La réponse du résolveur DNS est invalide.' })
-  }
-
-  if (result.Status !== 0 && result.Status !== 3) {
-    throw createError({ statusCode: 502, statusMessage: 'La recherche DNS a échoué. Réessaie dans un instant.' })
-  }
-
-  return (result.Answer ?? []).some(answer =>
-    answer.type === 16 && typeof answer.data === 'string' && normalizeTxtAnswer(answer.data) === expectedValue,
-  )
-}
 
 export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
@@ -100,7 +40,22 @@ export default defineEventHandler(async (event) => {
   }
 
   const { recordName, recordValue } = domainVerificationRecord(domain.domain, domain.verification_token)
-  if (!await hasTxtVerificationRecord(recordName, recordValue)) {
+  let hasRecord: boolean
+  try {
+    hasRecord = await hasDomainVerificationRecord(recordName, recordValue)
+  } catch (error) {
+    if (error instanceof DomainVerificationDnsError) {
+      if (error.code === 'resolver_unavailable') {
+        throw createError({ statusCode: 503, statusMessage: 'Le résolveur DNS ne répond pas. Réessaie dans un instant.' })
+      }
+      if (error.code === 'invalid_response') {
+        throw createError({ statusCode: 502, statusMessage: 'La réponse DNS est invalide ou trop volumineuse.' })
+      }
+      throw createError({ statusCode: 502, statusMessage: 'La vérification DNS est temporairement indisponible.' })
+    }
+    throw error
+  }
+  if (!hasRecord) {
     setResponseHeader(event, 'Cache-Control', 'private, no-store')
     return { domainId, verified: false }
   }

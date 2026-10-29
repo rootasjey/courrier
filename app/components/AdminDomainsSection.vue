@@ -204,7 +204,7 @@ type DomainWorkspace = { id: string, name: string }
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string, verified_at: string | null, mailbox_count: number }
 type DomainChallenge = { domainId: string, domain: string, recordName: string, recordValue: string, expiresAt: string }
 type DnsReadinessState = 'configured' | 'missing' | 'mixed' | 'other_provider' | 'unavailable' | 'conflict' | 'present' | 'no_mailboxes'
-type MailboxRoutingState = 'configured' | 'disabled' | 'other_target' | 'missing' | 'unavailable'
+type MailboxRoutingState = 'configured' | 'conflict' | 'disabled' | 'other_target' | 'missing' | 'unavailable'
 type DomainPreflight = {
   domain: string
   checkedAt: string
@@ -236,6 +236,7 @@ const { $t } = useI18n()
 function routingSummaryState(rules: DomainReadiness['routingRules']): DnsReadinessState {
   if (!rules.length) return 'no_mailboxes'
   if (rules.some(rule => rule.state === 'unavailable')) return 'unavailable'
+  if (rules.some(rule => rule.state === 'conflict')) return 'conflict'
   if (rules.every(rule => rule.state === 'configured')) return 'configured'
   if (rules.some(rule => rule.state === 'configured')) return 'mixed'
   if (rules.some(rule => rule.state === 'disabled' || rule.state === 'other_target')) return 'conflict'
@@ -248,7 +249,7 @@ function routingSummaryStyle(rules: DomainReadiness['routingRules']) {
 }
 
 function routingStateStyle(state: MailboxRoutingState) {
-  return state === 'disabled' || state === 'other_target' ? 'conflict' : state
+  return state === 'conflict' || state === 'disabled' || state === 'other_target' ? 'conflict' : state
 }
 
 const selectedWorkspaceId = ref('')

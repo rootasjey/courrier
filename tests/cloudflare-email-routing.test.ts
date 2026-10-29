@@ -51,6 +51,40 @@ test('reports explicit Cloudflare rules for active mailbox addresses', async () 
   assert.equal(calls.length, 2)
 })
 
+test('reports a conflict when multiple exact rules match one mailbox', async () => {
+  const fetcher: typeof fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname === '/client/v4/zones') {
+      return Response.json({ success: true, result: [{ id: 'zone-1', name: 'corpinot.cc', status: 'active' }] })
+    }
+    return Response.json({
+      success: true,
+      result: [
+        {
+          enabled: true,
+          matchers: [{ type: 'literal', field: 'to', value: 'jeremie@corpinot.cc' }],
+          actions: [{ type: 'worker', value: ['courrier'] }],
+        },
+        {
+          enabled: true,
+          matchers: [{ type: 'literal', field: 'to', value: 'jeremie@corpinot.cc' }],
+          actions: [{ type: 'forward', value: ['external@example.net'] }],
+        },
+      ],
+      result_info: { total_pages: 1 },
+    })
+  }
+
+  const checks = await checkCloudflareMailboxRouting({
+    domain: 'corpinot.cc',
+    addresses: ['jeremie@corpinot.cc'],
+    token: 'test-token',
+    fetcher,
+  })
+
+  assert.deepEqual(checks, [{ address: 'jeremie@corpinot.cc', state: 'conflict' }])
+})
+
 test('reports unavailable without a token and for failed Cloudflare responses', async () => {
   const noToken = await checkCloudflareMailboxRouting({ domain: 'corpinot.cc', addresses: ['jeremie@corpinot.cc'] })
   assert.deepEqual(noToken, [{ address: 'jeremie@corpinot.cc', state: 'unavailable' }])

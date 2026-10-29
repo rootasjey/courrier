@@ -1077,6 +1077,7 @@
     },
     "mailDnsRoutingState": {
       "configured": "Règle active vers Courrier",
+      "conflict": "Plusieurs règles correspondent à cette adresse",
       "disabled": "Règle désactivée",
       "other_target": "Règle dirigée ailleurs",
       "missing": "Aucune règle explicite",
@@ -1089,7 +1090,7 @@
       "missing": "Aucune règle explicite",
       "unavailable": "Vérification indisponible",
       "mixed": "Configuration partielle",
-      "conflict": "Règle désactivée ou dirigée ailleurs",
+      "conflict": "Règles désactivées, en conflit ou dirigées ailleurs",
       "no_mailboxes": "Aucune boîte active à vérifier"
     },
     "createMailbox": "Créer une boîte",

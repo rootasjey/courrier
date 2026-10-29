@@ -31,7 +31,7 @@ export class CloudflareMailboxRuleError extends Error {
   }
 }
 
-export type CloudflareRoutingState = 'configured' | 'disabled' | 'other_target' | 'missing' | 'unavailable'
+export type CloudflareRoutingState = 'configured' | 'conflict' | 'disabled' | 'other_target' | 'missing' | 'unavailable'
 export type MailboxRoutingCheck = { address: string, state: CloudflareRoutingState }
 
 async function getCloudflareJson<T>(url: string, token: string, fetcher: typeof fetch): Promise<CloudflareEnvelope<T>> {
@@ -57,6 +57,7 @@ function ruleState(address: string, rules: CloudflareRule[]): CloudflareRoutingS
   const matches = rules.filter(rule => rule.matchers?.some(matcher =>
     matcher.type === 'literal' && matcher.field === 'to' && matcher.value?.trim().toLowerCase() === address,
   ))
+  if (matches.length > 1) return 'conflict'
   if (matches.some(rule => rule.enabled === true && isCourrierWorkerRule(rule))) return 'configured'
   if (matches.some(rule => rule.enabled === false && isCourrierWorkerRule(rule))) return 'disabled'
   if (matches.length) return 'other_target'

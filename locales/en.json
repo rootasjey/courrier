@@ -1077,6 +1077,7 @@
     },
     "mailDnsRoutingState": {
       "configured": "Active rule to Courrier",
+      "conflict": "Multiple rules match this address",
       "disabled": "Rule disabled",
       "other_target": "Rule points elsewhere",
       "missing": "No explicit rule",
@@ -1089,7 +1090,7 @@
       "missing": "No explicit rule",
       "unavailable": "Check unavailable",
       "mixed": "Partial setup",
-      "conflict": "Rule disabled or points elsewhere",
+      "conflict": "Rules are disabled, conflicting, or point elsewhere",
       "no_mailboxes": "No active mailboxes to check"
     },
     "createMailbox": "Create a mailbox",

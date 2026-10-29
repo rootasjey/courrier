@@ -76,11 +76,12 @@ async function seedDatabase(configPath, persistPath) {
 
   statements.push(
     `INSERT INTO workspaces (id,name,status,created_at,updated_at) VALUES ('workspace-one','Workspace One','active',${sql(now)},${sql(now)}),('workspace-two','Workspace Two','active',${sql(now)},${sql(now)});`,
-    `INSERT INTO workspace_domains (id,workspace_id,domain,verification_status,created_at) VALUES ('domain-alpha','workspace-one','alpha.test','verified',${sql(now)}),('domain-beta','workspace-two','beta.test','verified',${sql(now)}),('domain-pending','workspace-one','pending.test','pending',${sql(now)});`,
+    `INSERT INTO workspace_domains (id,workspace_id,domain,verification_status,created_at) VALUES ('domain-alpha','workspace-one','alpha.test','verified',${sql(now)}),('domain-beta','workspace-two','beta.test','verified',${sql(now)}),('domain-pending','workspace-one','pending.test','pending',${sql(now)}),('domain-expired','workspace-one','expired.test','pending',${sql(now)});`,
     `INSERT INTO mailboxes (id,workspace_id,domain_id,address,status,created_at) VALUES ('mailbox-a1','workspace-one','domain-alpha','inbox@alpha.test','active',${sql(now)}),('mailbox-a2','workspace-one','domain-alpha','hidden@alpha.test','active',${sql(now)}),('mailbox-b1','workspace-two','domain-beta','other@beta.test','active',${sql(now)});`,
     `INSERT INTO workspace_memberships (id,workspace_id,user_id,role,status,created_at) VALUES ('membership-admin','workspace-one','00000000-0000-4000-8000-000000000101','owner','active',${sql(now)}),('membership-member-one','workspace-one','00000000-0000-4000-8000-000000000102','member','active',${sql(now)}),('membership-member-two','workspace-two','00000000-0000-4000-8000-000000000102','member','active',${sql(later)}),('00000000-0000-4000-8000-000000000201','workspace-one','00000000-0000-4000-8000-000000000103','viewer','active',${sql(now)}),('membership-workspace-admin','workspace-two','00000000-0000-4000-8000-000000000104','admin','active',${sql(now)});`,
     `INSERT INTO users (id,email,display_name,status,session_version,created_at,updated_at) VALUES ('00000000-0000-4000-8000-000000000105','pending@example.test','Pending Account','pending',1,${sql(now)},${sql(now)}),('00000000-0000-4000-8000-000000000106','suspended-admin@example.test','Suspended Admin','suspended',1,${sql(now)},${sql(now)});`,
     `INSERT INTO platform_admins (user_id,created_at,created_by_user_id) VALUES ('00000000-0000-4000-8000-000000000101',${sql(now)},NULL),('00000000-0000-4000-8000-000000000106',${sql(now)},'00000000-0000-4000-8000-000000000101'),('00000000-0000-4000-8000-000000000107',${sql(now)},'00000000-0000-4000-8000-000000000101');`,
+    `INSERT INTO domain_verification_challenges (domain_id,verification_token,expires_at,created_by_user_id,created_at) VALUES ('domain-expired','expired-domain-verification-token',datetime('now','-1 hour'),'00000000-0000-4000-8000-000000000101',${sql(now)});`,
     `INSERT INTO mailbox_access_grants (workspace_id,mailbox_id,user_id,status,created_at) VALUES ('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a2','00000000-0000-4000-8000-000000000101','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000102','active',${sql(now)}),('workspace-one','mailbox-a1','00000000-0000-4000-8000-000000000103','active',${sql(now)});`,
     `INSERT INTO messages (id,message_id,envelope_from,envelope_to,sender_name,sender_address,subject,received_at,text_body,raw_object_key,mailbox_domain,folder) VALUES ('message-a1','<message-a1@alpha.test>','sender@external.test','inbox@alpha.test','Allowed Sender','sender@external.test','Allowed mailbox',${sql(now)},'visible','messages/a1.eml','alpha.test','Imbox'),('message-a2','<message-a2@alpha.test>','sender@external.test','hidden@alpha.test','Hidden Sender','sender@external.test','Hidden mailbox',${sql(now)},'hiddenneedle','messages/a2.eml','alpha.test','Imbox'),('message-b1','<message-b1@beta.test>','sender@external.test','other@beta.test','Other Sender','sender@external.test','Other workspace',${sql(now)},'workspace B','messages/b1.eml','beta.test','Imbox');`,
     `INSERT INTO mailboxes (id,workspace_id,domain_id,address,status,created_at,archived_at,status_before_archive) VALUES ('mailbox-archived','workspace-one','domain-alpha','archived@alpha.test','suspended',${sql(now)},${sql(now)},'active');`,
@@ -705,6 +706,55 @@ try {
 
     const pending = await request('/api/admin/domains/domain-pending/readiness', { cookie: adminCookie })
     assert.equal(pending.response.status, 409)
+  })
+  await check('pending domains can be added, challenged, and removed with audit history', async () => {
+    const created = await request('/api/admin/domains', {
+      method: 'POST', cookie: adminCookie,
+      body: { workspaceId: 'workspace-one', domain: ' New-Domain.Test. ' },
+    })
+    assert.equal(created.response.status, 200, JSON.stringify(created.data))
+    assert.equal(created.data.domain, 'new-domain.test')
+    assert.equal(created.data.verificationStatus, 'pending')
+
+    const challenge = await request(`/api/admin/domains/${created.data.domainId}/challenge`, {
+      method: 'POST', cookie: adminCookie,
+    })
+    assert.equal(challenge.response.status, 200, JSON.stringify(challenge.data))
+    assert.equal(challenge.data.recordName, '_courrier-verification.new-domain.test')
+    assert.match(challenge.data.recordValue, /^courrier-verification=[0-9a-f]{64}$/u)
+
+    const repeatedChallenge = await request(`/api/admin/domains/${created.data.domainId}/challenge`, {
+      method: 'POST', cookie: adminCookie,
+    })
+    assert.equal(repeatedChallenge.data.recordValue, challenge.data.recordValue)
+    assert.equal(repeatedChallenge.data.expiresAt, challenge.data.expiresAt)
+
+    const removed = await request(`/api/admin/domains/${created.data.domainId}`, {
+      method: 'DELETE', cookie: adminCookie,
+    })
+    assert.equal(removed.response.status, 200, JSON.stringify(removed.data))
+    assert.equal(removed.data.deleted, true)
+
+    const overview = await request('/api/admin/overview', { cookie: adminCookie })
+    const events = overview.data.audit.filter(value => value.target_id === created.data.domainId)
+    assert.deepEqual(new Set(events.map(value => value.action)), new Set([
+      'workspace_domain.created',
+      'workspace_domain.challenge_created',
+      'workspace_domain.delete_pending',
+    ]))
+  })
+  await check('expired domain TXT challenges return 410 and can be renewed', async () => {
+    const expired = await request('/api/admin/domains/domain-expired/verify', {
+      method: 'POST', cookie: adminCookie,
+    })
+    assert.equal(expired.response.status, 410)
+
+    const renewed = await request('/api/admin/domains/domain-expired/challenge', {
+      method: 'POST', cookie: adminCookie,
+    })
+    assert.equal(renewed.response.status, 200, JSON.stringify(renewed.data))
+    assert.match(renewed.data.recordValue, /^courrier-verification=[0-9a-f]{64}$/u)
+    assert.notEqual(renewed.data.recordValue, 'courrier-verification=expired-domain-verification-token')
   })
   await check('domain DNS preflight is admin-only, read-only, and rejects invalid hostnames', async () => {
     const payload = { domain: 'alpha.test' }
