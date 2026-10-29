@@ -64,7 +64,18 @@
                       <button class="admin-membership-action is-reactivate" type="button" :disabled="Boolean(mailboxActionId)" @click="setMailboxArchived(mailbox, false)">{{ $t('admin.confirmRestoreAction') }}</button>
                       <button class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmRestoreMailboxId = ''">{{ $t('admin.cancelMailboxAction') }}</button>
                     </div>
-                    <button v-else class="admin-membership-action is-reactivate" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmRestoreMailboxId = mailbox.id">{{ $t('admin.restoreMailbox') }}</button>
+                    <button v-else-if="!mailbox.deletion_pending" class="admin-membership-action is-reactivate" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmRestoreMailboxId = mailbox.id">{{ $t('admin.restoreMailbox') }}</button>
+                    <span v-else class="admin-status is-archived">{{ $t('admin.mailboxDeletionPending') }}</span>
+                    <div v-if="confirmDeleteMailboxId === mailbox.id" class="admin-mailbox-confirm admin-mailbox-delete-confirm" role="group" :aria-label="$t('admin.confirmDeleteMailbox', { address: mailbox.address })">
+                      <p>{{ $t('admin.confirmDeleteMailbox', { address: mailbox.address }) }}</p>
+                      <label class="admin-access-field">
+                        <span>{{ $t('admin.confirmDeleteAddress') }}</span>
+                        <input v-model="deleteConfirmationAddress" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" :placeholder="mailbox.address" :disabled="Boolean(mailboxActionId)">
+                      </label>
+                      <button class="admin-membership-action is-suspend" type="button" :disabled="Boolean(mailboxActionId) || deleteConfirmationAddress.trim().toLowerCase() !== mailbox.address.toLowerCase()" @click="deleteMailbox(mailbox)">{{ mailboxActionId === mailbox.id ? $t('admin.deletingMailbox') : $t('admin.confirmDeleteAction') }}</button>
+                      <button class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="cancelDeleteMailbox">{{ $t('admin.cancelMailboxAction') }}</button>
+                    </div>
+                    <button v-else class="admin-membership-action is-suspend" type="button" :disabled="Boolean(mailboxActionId)" @click="prepareMailboxDelete(mailbox)">{{ mailbox.deletion_pending ? $t('admin.resumeMailboxDeletion') : $t('admin.deleteMailbox') }}</button>
                   </template>
                   <template v-else>
                     <button v-if="mailbox.status === 'suspended' || confirmMailboxId !== mailbox.id" class="admin-membership-action" :class="mailbox.status === 'active' ? 'is-suspend' : 'is-reactivate'" type="button" :disabled="Boolean(mailboxActionId)" @click="prepareMailboxToggle(mailbox)">
@@ -100,7 +111,7 @@ import { computed, onMounted, watch } from 'vue'
 
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string }
 type AdminMember = { workspace_id: string, user_id: string, email: string, display_name: string | null, role: string }
-type ManagedMailbox = { id: string, workspace_id: string, workspace_name: string, domain: string, address: string, status: 'active' | 'suspended' | 'archived' }
+type ManagedMailbox = { id: string, workspace_id: string, workspace_name: string, domain: string, address: string, status: 'active' | 'suspended' | 'archived', deletion_pending: boolean }
 type AdminRequest = <T>(request: string, options?: Parameters<typeof $fetch>[1]) => Promise<T>
 
 const props = defineProps<{
@@ -126,6 +137,8 @@ const mailboxActionId = ref('')
 const confirmMailboxId = ref('')
 const confirmArchiveMailboxId = ref('')
 const confirmRestoreMailboxId = ref('')
+const confirmDeleteMailboxId = ref('')
+const deleteConfirmationAddress = ref('')
 const mailboxActionError = ref('')
 const mailboxActionNotice = ref('')
 
@@ -214,6 +227,18 @@ function prepareMailboxToggle(mailbox: ManagedMailbox) {
   void toggleMailbox(mailbox)
 }
 
+function prepareMailboxDelete(mailbox: ManagedMailbox) {
+  confirmDeleteMailboxId.value = mailbox.id
+  deleteConfirmationAddress.value = ''
+  mailboxActionError.value = ''
+  mailboxActionNotice.value = ''
+}
+
+function cancelDeleteMailbox() {
+  confirmDeleteMailboxId.value = ''
+  deleteConfirmationAddress.value = ''
+}
+
 async function toggleMailbox(mailbox: ManagedMailbox) {
   if (mailboxActionId.value) return
   mailboxActionId.value = mailbox.id
@@ -261,6 +286,30 @@ async function setMailboxArchived(mailbox: ManagedMailbox, archived: boolean) {
     mailboxActionId.value = ''
   }
 }
+
+async function deleteMailbox(mailbox: ManagedMailbox) {
+  if (mailboxActionId.value || deleteConfirmationAddress.value.trim().toLowerCase() !== mailbox.address.toLowerCase()) return
+  mailboxActionId.value = mailbox.id
+  mailboxActionError.value = ''
+  mailboxActionNotice.value = ''
+  try {
+    await props.adminFetch(`/api/admin/mailboxes/${encodeURIComponent(mailbox.id)}`, {
+      method: 'DELETE',
+      body: { confirmationAddress: deleteConfirmationAddress.value },
+    })
+    confirmDeleteMailboxId.value = ''
+    deleteConfirmationAddress.value = ''
+    mailboxActionNotice.value = $t('admin.mailboxDeletedNotice', { address: mailbox.address })
+    await loadMailboxes()
+    emit('refresh')
+  } catch (value) {
+    mailboxActionError.value = statusCode(value) === 409
+      ? $t('admin.mailboxDeleteConflict')
+      : $t('admin.mailboxDeleteError')
+  } finally {
+    mailboxActionId.value = ''
+  }
+}
 </script>
 
 <style scoped>
@@ -295,6 +344,21 @@ async function setMailboxArchived(mailbox: ManagedMailbox, archived: boolean) {
   display: grid;
   justify-items: start;
   gap: 8px;
+}
+
+.admin-mailbox-delete-confirm {
+  min-width: min(320px, 100%);
+  padding: 12px;
+  border: 1px solid var(--danger, #b42318);
+  border-radius: 12px;
+}
+
+.admin-mailbox-delete-confirm .admin-access-field {
+  flex: 1 1 100%;
+}
+
+.admin-mailbox-delete-confirm input {
+  width: 100%;
 }
 
 .admin-mailbox-preview {

@@ -40,9 +40,12 @@ class ConcurrentD1 {
       INSERT INTO workspaces VALUES ('workspace-test', 'active');
       INSERT INTO workspace_domains VALUES ('domain-test', 'workspace-test', 'verbatims.cc', 'verified');
       INSERT INTO mailboxes VALUES ('mailbox-test', 'workspace-test', 'domain-test', 'courrier-test@verbatims.cc', 'active');
+      ALTER TABLE mailboxes ADD COLUMN archived_at TEXT;
+      ALTER TABLE mailboxes ADD COLUMN deletion_started_at TEXT;
       CREATE TABLE messages (
         id TEXT PRIMARY KEY,
         message_id TEXT NOT NULL UNIQUE,
+        is_outgoing INTEGER NOT NULL DEFAULT 0,
         envelope_from TEXT NOT NULL,
         envelope_to TEXT NOT NULL,
         sender_name TEXT NOT NULL DEFAULT '',

@@ -67,7 +67,7 @@ export function isPlatformAdminEndpoint(path: string, method: string) {
   if (/^\/api\/admin\/platform-admins\/[0-9a-f-]{36}\/mfa-recovery$/i.test(path)) return normalizedMethod === 'POST'
   if (path === '/api/admin/mailbox-access') return ['GET', 'POST', 'DELETE'].includes(normalizedMethod)
   if (path === '/api/admin/mailboxes') return ['GET', 'POST'].includes(normalizedMethod)
-  if (/^\/api\/admin\/mailboxes\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'PATCH'
+  if (/^\/api\/admin\/mailboxes\/[^/]{1,256}$/.test(path)) return ['PATCH', 'DELETE'].includes(normalizedMethod)
   if (path === '/api/admin/invitations') return normalizedMethod === 'POST'
   if (/^\/api\/admin\/invitations\/[0-9a-f-]{36}$/i.test(path)) return normalizedMethod === 'DELETE'
   if (path === '/api/admin/domains') return normalizedMethod === 'POST'

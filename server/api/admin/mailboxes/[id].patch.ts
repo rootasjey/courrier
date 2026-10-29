@@ -10,6 +10,7 @@ type MailboxRow = {
   status: MailboxStatus
   archived_at: string | null
   status_before_archive: MailboxStatus | null
+  deletion_started_at: string | null
 }
 type MutationResult = { meta?: { changes?: number } }
 
@@ -20,6 +21,13 @@ async function restoreCloudflareMailboxRule(mailbox: MailboxRow, token: string, 
   } catch {
     return false
   }
+}
+
+async function currentMailboxRoutingEnabled(db: ReturnType<typeof getAccountDb>, mailboxId: string) {
+  const current = await db.prepare(`
+    SELECT status, archived_at, deletion_started_at FROM mailboxes WHERE id = ? LIMIT 1
+  `).bind(mailboxId).first<{ status: MailboxStatus, archived_at: string | null, deletion_started_at: string | null }>()
+  return current?.status === 'active' && current.archived_at === null && current.deletion_started_at === null
 }
 
 export default defineEventHandler(async (event) => {
@@ -40,7 +48,7 @@ export default defineEventHandler(async (event) => {
 
   const mailbox = await db.prepare(`
     SELECT mb.id, mb.workspace_id, lower(d.domain) AS domain, lower(mb.address) AS address,
-      mb.status, mb.archived_at, mb.status_before_archive
+      mb.status, mb.archived_at, mb.status_before_archive, mb.deletion_started_at
     FROM mailboxes mb
     JOIN workspaces w ON w.id = mb.workspace_id AND w.status = 'active'
     JOIN workspace_domains d ON d.id = mb.domain_id AND d.workspace_id = mb.workspace_id
@@ -49,6 +57,9 @@ export default defineEventHandler(async (event) => {
     LIMIT 1
   `).bind(mailboxId).first<MailboxRow>()
   if (!mailbox) throw createError({ statusCode: 404, statusMessage: 'Boîte active, suspendue ou archivée introuvable.' })
+  if (mailbox.deletion_started_at) {
+    throw createError({ statusCode: 409, statusMessage: 'La suppression définitive de cette boîte a commencé et ne peut plus être annulée.' })
+  }
 
   const isArchived = mailbox.archived_at !== null
   if (archiveAction && body.archived === false && !isArchived) {
@@ -135,6 +146,7 @@ export default defineEventHandler(async (event) => {
         UPDATE mailboxes
         SET status = ?, archived_at = ?, status_before_archive = ?
         WHERE id = ? AND workspace_id = ? AND status = ? AND archived_at IS ?
+          AND deletion_started_at IS NULL
       `).bind(
         nextStatus, archivedAt, statusBeforeArchive,
         mailbox.id, mailbox.workspace_id, mailbox.status, mailbox.archived_at,
@@ -150,7 +162,7 @@ export default defineEventHandler(async (event) => {
     ])
   } catch {
     if (bindings?.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN) {
-      const previousRoutingEnabled = mailbox.status === 'active' && !isArchived
+      const previousRoutingEnabled = await currentMailboxRoutingEnabled(db, mailbox.id)
       const restored = await restoreCloudflareMailboxRule(mailbox, bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN, previousRoutingEnabled)
       if (!restored) {
         await db.prepare(`
@@ -170,7 +182,7 @@ export default defineEventHandler(async (event) => {
   const changed = Number((results[0] as MutationResult | undefined)?.meta?.changes ?? 0) > 0
   if (!changed) {
     if (bindings?.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN) {
-      const previousRoutingEnabled = mailbox.status === 'active' && !isArchived
+      const previousRoutingEnabled = await currentMailboxRoutingEnabled(db, mailbox.id)
       const restored = await restoreCloudflareMailboxRule(mailbox, bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN, previousRoutingEnabled)
       if (!restored) {
         await db.prepare(`

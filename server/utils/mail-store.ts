@@ -92,6 +92,16 @@ async function claimLegacyForwardDelivery(
         status = 'failed'
         OR (status = 'processing' AND claimed_at < ?)
       )
+      AND EXISTS (
+        SELECT 1
+        FROM messages m
+        JOIN mailboxes mb ON lower(mb.address) = lower(trim(
+          CASE WHEN m.is_outgoing = 1 THEN m.envelope_from ELSE m.envelope_to END
+        ))
+        WHERE m.id = legacy_forward_deliveries.message_id
+          AND mb.status = 'active' AND mb.archived_at IS NULL
+          AND mb.deletion_started_at IS NULL
+      )
   `).bind(destination, claimedAt, claimToken, messageId, leaseExpiresBefore).run()
 
   return result.meta.changes === 1
@@ -298,11 +308,16 @@ export async function storeIncomingEmail(
         id, message_id, envelope_from, envelope_to, sender_name, sender_address,
         subject, sent_at, received_at, in_reply_to, references_header, text_body, raw_object_key,
       mailbox_domain, folder, is_set_aside, is_reply_later
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(
+      ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(
         ?,
         (SELECT folder FROM sender_rules WHERE mailbox_domain = ? AND sender_address = ?),
         'Screener'
-      ), ?, ?)
+      ), ?, ?
+      WHERE EXISTS (
+        SELECT 1 FROM mailboxes mb
+        WHERE mb.id = ? AND mb.workspace_id = ? AND mb.status = 'active'
+          AND mb.archived_at IS NULL AND mb.deletion_started_at IS NULL
+      )
     `).bind(
       id,
       messageId,
@@ -323,6 +338,8 @@ export async function storeIncomingEmail(
       senderAddress,
       replyBelongsToSetAsideThread ? 1 : 0,
       replyLaterFolder ? 1 : 0,
+      mailbox.id,
+      mailbox.workspace_id,
     ),
     ...attachmentRows.map(attachment => bindings.DB.prepare(`
       INSERT OR IGNORE INTO attachments (
@@ -433,6 +450,15 @@ export async function storeIncomingEmail(
         ...(claimed ? { forwardingClaimToken: claimToken } : {}),
       }
     } else {
+      // R2 writes happen before the guarded D1 insert so a mailbox archived
+      // during MIME parsing cannot leave orphaned objects behind.
+      await Promise.all([rawObjectKey, ...attachmentRows.map(attachment => attachment.objectKey)].map(async (key) => {
+        try {
+          await bindings.MAIL_STORE.delete(key)
+        } catch (error) {
+          console.error('[courrier] Could not remove an R2 object after the mailbox became unavailable.', { key, error })
+        }
+      }))
       throw new Error('D1 did not store the incoming email and no existing Message-ID was found.')
     }
   }

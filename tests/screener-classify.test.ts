@@ -48,6 +48,8 @@ test('message-only Screener approval moves only the selected message and clears 
     INSERT INTO workspaces VALUES ('workspace-test', 'active');
     INSERT INTO workspace_domains VALUES ('domain-test', 'workspace-test', 'verbatims.cc', 'verified');
     INSERT INTO mailboxes VALUES ('mailbox-test', 'workspace-test', 'domain-test', 'courrier-test@verbatims.cc', 'active');
+    ALTER TABLE mailboxes ADD COLUMN archived_at TEXT;
+    ALTER TABLE mailboxes ADD COLUMN deletion_started_at TEXT;
     INSERT INTO mailbox_access_grants VALUES ('workspace-test', 'mailbox-test', '00000000-0000-4000-8000-000000000001', 'active');
     CREATE TABLE messages (
       id TEXT PRIMARY KEY,

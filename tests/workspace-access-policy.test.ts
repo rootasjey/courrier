@@ -109,7 +109,10 @@ test('platform administration routes fail closed for unlisted paths and methods'
   assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes', 'POST'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes', 'GET'), true)
   assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes/00000000-0000-4000-8000-000000000001', 'PATCH'), true)
-  assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes/invalid', 'PATCH'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes/legacy-mailbox-a%40example.test', 'PATCH'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes/00000000-0000-4000-8000-000000000001', 'DELETE'), true)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes/00000000-0000-4000-8000-000000000001', 'GET'), false)
+  assert.equal(isPlatformAdminEndpoint('/api/admin/mailboxes/a/b', 'DELETE'), false)
 })
 
 test('workspace management routes are limited to exact methods and UUID resources', () => {
