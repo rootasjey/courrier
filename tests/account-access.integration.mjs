@@ -773,7 +773,7 @@ try {
     const grant = await request('/api/admin/mailbox-access', { method: 'POST', cookie: adminCookie, body: target })
     assert.equal(grant.response.status, 200, JSON.stringify(grant.data))
     assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id).sort(), ['message-a1', 'message-a2'])
-    const revoke = await request('/api/admin/mailbox-access', { method: 'DELETE', cookie: adminCookie, body: target })
+    const revoke = await request(`/api/admin/mailbox-access?mailboxId=${encodeURIComponent(target.mailboxId)}&userId=${encodeURIComponent(target.userId)}`, { method: 'DELETE', cookie: adminCookie })
     assert.equal(revoke.response.status, 200, JSON.stringify(revoke.data))
     assert.deepEqual((await request('/api/messages', { cookie: memberCookie })).data.map(value => value.id), ['message-a1'])
   })
@@ -850,8 +850,8 @@ try {
     assert.equal(visible.response.status, 200)
     assert.ok(visible.data.grants.some(value => value.mailbox_id === mailboxId && value.user_id === userId))
 
-    const revoke = await request('/api/workspace/mailbox-access', {
-      method: 'DELETE', cookie: adminCookie, body: { mailboxId, userId },
+    const revoke = await request(`/api/workspace/mailbox-access?mailboxId=${encodeURIComponent(mailboxId)}&userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE', cookie: adminCookie,
     })
     assert.equal(revoke.response.status, 200, JSON.stringify(revoke.data))
     assert.equal(revoke.data.revoked, true)

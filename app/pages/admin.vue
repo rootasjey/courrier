@@ -977,7 +977,7 @@ async function revokeSelectedAccess() {
   try {
     await adminFetch('/api/admin/mailbox-access', {
       method: 'DELETE',
-      body: { mailboxId: grant.mailbox_id, userId: grant.user_id },
+      query: { mailboxId: grant.mailbox_id, userId: grant.user_id },
     })
     accessToRevoke.value = null
     accessNotice.value = $t('admin.accessRevokedNotice')

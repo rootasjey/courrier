@@ -16,7 +16,7 @@ function parseIds(body: MailboxAccessPayload | undefined) {
 export default defineEventHandler(async (event) => {
   const actor = await requirePlatformAdmin(event)
   const db = getAccountDb(event)
-  const { mailboxId, userId } = parseIds(await readBody<MailboxAccessPayload>(event))
+  const { mailboxId, userId } = parseIds(getQuery(event) as MailboxAccessPayload)
 
   const target = await db.prepare(`
     SELECT mag.workspace_id, wm.role

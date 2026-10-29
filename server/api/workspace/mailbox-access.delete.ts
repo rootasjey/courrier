@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const actor = await requireWorkspacePermission(event, 'mailbox.access.manage')
   await requireFreshWorkspaceMfa(event, actor.id)
-  const { mailboxId, userId } = parseIds(await readBody<MailboxAccessPayload>(event))
+  const { mailboxId, userId } = parseIds(getQuery(event) as MailboxAccessPayload)
   const db = getAccountDb(event)
   const workspaceId = actor.activeWorkspaceId
 

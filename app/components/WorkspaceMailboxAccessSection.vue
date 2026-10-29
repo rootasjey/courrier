@@ -165,7 +165,7 @@ async function revokeAccess() {
   notice.value = ''
   showMfaLink.value = false
   try {
-    await $fetch('/api/workspace/mailbox-access', { method: 'DELETE', body: target })
+    await $fetch('/api/workspace/mailbox-access', { method: 'DELETE', query: target })
     grantToRevoke.value = null
     notice.value = $t('workspace.mailboxAccessRevoked')
     await loadAccess()
