@@ -43,14 +43,46 @@
         {{ busy ? $t('admin.creatingMailbox') : $t('admin.createMailbox') }}
       </button>
     </form>
+
+    <div class="admin-mailbox-management">
+      <h3>{{ $t('admin.manageMailboxes') }}</h3>
+      <p v-if="mailboxLoadError" class="admin-access-error" role="alert">{{ $t('admin.mailboxLoadError') }}</p>
+      <p v-else-if="mailboxesLoading" class="admin-empty" role="status">{{ $t('admin.loading') }}</p>
+      <div v-else-if="mailboxes.length" class="admin-table-wrap">
+        <table>
+          <thead><tr><th>{{ $t('admin.mailbox') }}</th><th>{{ $t('admin.workspace') }}</th><th>{{ $t('admin.status') }}</th><th>{{ $t('admin.action') }}</th></tr></thead>
+          <tbody>
+            <tr v-for="mailbox in mailboxes" :key="mailbox.id">
+              <td><strong>{{ mailbox.address }}</strong></td>
+              <td>{{ mailbox.workspace_name }}</td>
+              <td><span class="admin-status" :class="`is-${mailbox.status}`">{{ $t(mailbox.status === 'active' ? 'admin.active' : 'admin.suspended') }}</span></td>
+              <td>
+                <button v-if="mailbox.status === 'suspended' || confirmMailboxId !== mailbox.id" class="admin-membership-action" :class="mailbox.status === 'active' ? 'is-suspend' : 'is-reactivate'" type="button" :disabled="Boolean(mailboxActionId)" @click="prepareMailboxToggle(mailbox)">
+                  {{ mailboxActionId === mailbox.id ? $t('admin.savingAccess') : $t(mailbox.status === 'active' ? 'admin.suspendMailbox' : 'admin.reactivateMailbox') }}
+                </button>
+                <div v-else class="admin-mailbox-confirm" role="group" :aria-label="$t('admin.confirmSuspendMailbox', { address: mailbox.address })">
+                  <p>{{ $t('admin.confirmSuspendMailbox', { address: mailbox.address }) }}</p>
+                  <button class="admin-membership-action is-suspend" type="button" :disabled="Boolean(mailboxActionId)" @click="toggleMailbox(mailbox)">{{ $t('admin.confirmMailboxAction') }}</button>
+                  <button class="admin-membership-action" type="button" :disabled="Boolean(mailboxActionId)" @click="confirmMailboxId = ''">{{ $t('admin.cancelMailboxAction') }}</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p v-else class="admin-empty">{{ $t('admin.noActiveMailboxes') }}</p>
+      <p v-if="mailboxActionError" class="admin-access-error" role="alert">{{ mailboxActionError }}</p>
+      <p v-if="mailboxActionNotice" class="admin-access-notice" role="status">{{ mailboxActionNotice }}</p>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string }
 type AdminMember = { workspace_id: string, user_id: string, email: string, display_name: string | null, role: string }
+type ManagedMailbox = { id: string, workspace_id: string, workspace_name: string, domain: string, address: string, status: 'active' | 'suspended' }
 type AdminRequest = <T>(request: string, options?: Parameters<typeof $fetch>[1]) => Promise<T>
 
 const props = defineProps<{
@@ -69,6 +101,13 @@ const userIds = ref<string[]>([])
 const busy = ref(false)
 const error = ref('')
 const notice = ref('')
+const mailboxes = ref<ManagedMailbox[]>([])
+const mailboxesLoading = ref(false)
+const mailboxLoadError = ref(false)
+const mailboxActionId = ref('')
+const confirmMailboxId = ref('')
+const mailboxActionError = ref('')
+const mailboxActionNotice = ref('')
 
 const selectedDomain = computed(() => props.domains.find(domain => domain.id === domainId.value) ?? null)
 const eligibleMembers = computed(() => selectedDomain.value
@@ -93,6 +132,8 @@ watch(() => props.suggestedDomainId, (suggestedDomainId) => {
 
 watch(domainId, () => { userIds.value = [] })
 
+onMounted(loadMailboxes)
+
 function roleLabel(role: string) {
   const key = `admin.role${role[0]?.toUpperCase() ?? ''}${role.slice(1)}`
   return ['owner', 'admin', 'member', 'viewer'].includes(role) ? $t(key) : role
@@ -110,19 +151,70 @@ async function createMailbox() {
   error.value = ''
   notice.value = ''
   try {
-    const result = await props.adminFetch<{ address: string }>('/api/admin/mailboxes', {
+    const result = await props.adminFetch<{ address: string, routingStatus: 'configured' | 'manual_required' | 'conflict' }>('/api/admin/mailboxes', {
       method: 'POST',
       body: { domainId: selectedDomain.value.id, localPart: normalizedLocalPart.value, userIds: userIds.value },
     })
-    notice.value = $t('admin.mailboxCreatedNotice', { address: result.address })
+    notice.value = $t(result.routingStatus === 'configured'
+      ? 'admin.mailboxCreatedNotice'
+      : result.routingStatus === 'conflict' ? 'admin.mailboxCreatedRoutingConflictNotice' : 'admin.mailboxCreatedRoutingManualNotice',
+    { address: result.address })
     localPart.value = ''
     userIds.value = []
+    await loadMailboxes()
     emit('refresh')
   } catch (value) {
     const status = statusCode(value)
     error.value = $t(status === 409 ? 'admin.mailboxAlreadyExists' : status === 400 ? 'admin.mailboxInvalid' : 'admin.mailboxCreateError')
   } finally {
     busy.value = false
+  }
+}
+
+async function loadMailboxes() {
+  mailboxesLoading.value = true
+  mailboxLoadError.value = false
+  try {
+    const result = await props.adminFetch<{ mailboxes: ManagedMailbox[] }>('/api/admin/mailboxes')
+    mailboxes.value = Array.isArray(result.mailboxes) ? result.mailboxes : []
+  } catch {
+    mailboxLoadError.value = true
+  } finally {
+    mailboxesLoading.value = false
+  }
+}
+
+function prepareMailboxToggle(mailbox: ManagedMailbox) {
+  if (mailbox.status === 'active') {
+    confirmMailboxId.value = mailbox.id
+    mailboxActionError.value = ''
+    mailboxActionNotice.value = ''
+    return
+  }
+  void toggleMailbox(mailbox)
+}
+
+async function toggleMailbox(mailbox: ManagedMailbox) {
+  if (mailboxActionId.value) return
+  mailboxActionId.value = mailbox.id
+  confirmMailboxId.value = ''
+  mailboxActionError.value = ''
+  mailboxActionNotice.value = ''
+  const status = mailbox.status === 'active' ? 'suspended' : 'active'
+  try {
+    await props.adminFetch(`/api/admin/mailboxes/${encodeURIComponent(mailbox.id)}`, {
+      method: 'PATCH',
+      body: { status },
+    })
+    mailboxActionNotice.value = $t(status === 'suspended' ? 'admin.mailboxSuspendedNotice' : 'admin.mailboxReactivatedNotice')
+    await loadMailboxes()
+    emit('refresh')
+  } catch (value) {
+    mailboxActionError.value = statusCode(value) === 409
+      ? $t(status === 'suspended' ? 'admin.mailboxManualDisableRequired' : 'admin.mailboxManualEnableRequired')
+      : $t('admin.mailboxLifecycleError')
+  } finally {
+    mailboxActionId.value = ''
   }
 }
 </script>
@@ -135,6 +227,24 @@ async function createMailbox() {
 .admin-mailbox-preview,
 .admin-mailbox-members {
   grid-column: 1 / -1;
+}
+
+.admin-mailbox-management {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.admin-mailbox-management h3,
+.admin-mailbox-management p {
+  margin: 0;
+}
+
+.admin-mailbox-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .admin-mailbox-preview {

@@ -9,9 +9,26 @@ type CloudflareEnvelope<T> = {
 
 type CloudflareZone = { id?: string, name?: string, status?: string }
 type CloudflareRule = {
+  id?: string
+  name?: string
   actions?: { type?: string, value?: string[] }[]
   enabled?: boolean
   matchers?: { type?: string, field?: string, value?: string }[]
+  priority?: number
+  source?: 'api' | 'wrangler'
+}
+
+type CloudflareMutationEnvelope = { success?: boolean, result?: CloudflareRule, errors?: unknown[] }
+
+export type CloudflareMailboxRuleChange = 'created' | 'enabled' | 'disabled' | 'unchanged'
+
+export class CloudflareMailboxRuleError extends Error {
+  readonly code: 'unavailable' | 'conflict' | 'invalid_input' | 'invalid_response'
+
+  constructor(code: 'unavailable' | 'conflict' | 'invalid_input' | 'invalid_response') {
+    super(`CLOUDFLARE_MAILBOX_RULE_${code.toUpperCase()}`)
+    this.code = code
+  }
 }
 
 export type CloudflareRoutingState = 'configured' | 'disabled' | 'other_target' | 'missing' | 'unavailable'
@@ -58,28 +75,132 @@ export async function checkCloudflareMailboxRouting(input: {
 
   const fetcher = input.fetcher ?? fetch
   try {
-    const zoneUrl = new URL(`${CLOUDFLARE_API}/zones`)
-    zoneUrl.searchParams.set('name', input.domain.toLowerCase())
-    zoneUrl.searchParams.set('status', 'active')
-    zoneUrl.searchParams.set('per_page', '50')
-    const zones = await getCloudflareJson<CloudflareZone[]>(zoneUrl.toString(), input.token, fetcher)
-    const zone = zones.result?.find(candidate => candidate.name?.toLowerCase() === input.domain.toLowerCase() && candidate.status === 'active')
-    if (!zone?.id) return addresses.map(address => ({ address, state: 'unavailable' }))
-
-    const rules: CloudflareRule[] = []
-    let totalPages = 1
-    for (let page = 1; page <= totalPages; page++) {
-      const rulesUrl = new URL(`${CLOUDFLARE_API}/zones/${encodeURIComponent(zone.id)}/email/routing/rules`)
-      rulesUrl.searchParams.set('page', String(page))
-      rulesUrl.searchParams.set('per_page', '50')
-      const response = await getCloudflareJson<CloudflareRule[]>(rulesUrl.toString(), input.token, fetcher)
-      rules.push(...(response.result ?? []))
-      totalPages = Math.max(totalPages, response.result_info?.total_pages ?? 1)
-      if (totalPages > MAX_RULE_PAGES) throw new Error('CLOUDFLARE_TOO_MANY_RULES')
-    }
-
+    const { rules } = await listCloudflareZoneRules(input.domain.trim().toLowerCase(), input.token, fetcher)
     return addresses.map(address => ({ address, state: ruleState(address, rules) }))
   } catch {
     return addresses.map(address => ({ address, state: 'unavailable' }))
   }
+}
+
+async function listCloudflareZoneRules(domain: string, token: string, fetcher: typeof fetch) {
+  const zoneUrl = new URL(`${CLOUDFLARE_API}/zones`)
+  zoneUrl.searchParams.set('name', domain)
+  zoneUrl.searchParams.set('status', 'active')
+  zoneUrl.searchParams.set('per_page', '50')
+  const zones = await getCloudflareJson<CloudflareZone[]>(zoneUrl.toString(), token, fetcher)
+  const zone = zones.result?.find(candidate => candidate.name?.toLowerCase() === domain && candidate.status === 'active')
+  if (!zone?.id) throw new CloudflareMailboxRuleError('unavailable')
+
+  const rules: CloudflareRule[] = []
+  let totalPages = 1
+  for (let page = 1; page <= totalPages; page++) {
+    const rulesUrl = new URL(`${CLOUDFLARE_API}/zones/${encodeURIComponent(zone.id)}/email/routing/rules`)
+    rulesUrl.searchParams.set('page', String(page))
+    rulesUrl.searchParams.set('per_page', '50')
+    const response = await getCloudflareJson<CloudflareRule[]>(rulesUrl.toString(), token, fetcher)
+    rules.push(...(response.result ?? []))
+    totalPages = Math.max(totalPages, response.result_info?.total_pages ?? 1)
+    if (totalPages > MAX_RULE_PAGES) throw new CloudflareMailboxRuleError('unavailable')
+  }
+  return { zoneId: zone.id, rules }
+}
+
+async function mutateCloudflareRule(url: string, method: 'POST' | 'PUT', body: CloudflareRule, token: string, fetcher: typeof fetch) {
+  try {
+    const response = await fetcher(url, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) throw new CloudflareMailboxRuleError('unavailable')
+    const envelope = await response.json() as CloudflareMutationEnvelope
+    if (envelope.success !== true || !envelope.result || typeof envelope.result !== 'object') {
+      throw new CloudflareMailboxRuleError('invalid_response')
+    }
+    return envelope.result
+  } catch (error) {
+    if (error instanceof CloudflareMailboxRuleError) throw error
+    throw new CloudflareMailboxRuleError('unavailable')
+  }
+}
+
+function matchesAddress(rule: CloudflareRule, address: string) {
+  return rule.matchers?.some(matcher =>
+    matcher.type === 'literal' && matcher.field === 'to' && matcher.value?.trim().toLowerCase() === address,
+  ) === true
+}
+
+/** Ensures one exact address rule targets Courrier, or safely toggles that rule. */
+export async function setCloudflareMailboxRule(input: {
+  domain: string
+  address: string
+  enabled: boolean
+  token?: string
+  fetcher?: typeof fetch
+}): Promise<CloudflareMailboxRuleChange> {
+  const domain = input.domain.trim().toLowerCase()
+  const address = input.address.trim().toLowerCase()
+  if (!input.token?.trim()) throw new CloudflareMailboxRuleError('unavailable')
+  if (!domain || !address.endsWith(`@${domain}`) || address.length > 90) {
+    throw new CloudflareMailboxRuleError('invalid_input')
+  }
+
+  const fetcher = input.fetcher ?? fetch
+  let zoneId: string
+  let rules: CloudflareRule[]
+  try {
+    ({ zoneId, rules } = await listCloudflareZoneRules(domain, input.token, fetcher))
+  } catch (error) {
+    if (error instanceof CloudflareMailboxRuleError) throw error
+    throw new CloudflareMailboxRuleError('unavailable')
+  }
+  const matches = rules.filter(rule => matchesAddress(rule, address))
+  if (!matches.length) {
+    if (!input.enabled) return 'unchanged'
+    const rule = await mutateCloudflareRule(
+      `${CLOUDFLARE_API}/zones/${encodeURIComponent(zoneId)}/email/routing/rules`,
+      'POST',
+      {
+        name: address,
+        enabled: true,
+        matchers: [{ type: 'literal', field: 'to', value: address }],
+        actions: [{ type: 'worker', value: ['courrier'] }],
+        source: 'api',
+      },
+      input.token,
+      fetcher,
+    )
+    if (!matchesAddress(rule, address) || !isCourrierWorkerRule(rule) || rule.enabled !== true) {
+      throw new CloudflareMailboxRuleError('invalid_response')
+    }
+    return 'created'
+  }
+
+  if (matches.length !== 1 || !isCourrierWorkerRule(matches[0]!)) {
+    throw new CloudflareMailboxRuleError('conflict')
+  }
+
+  const existing = matches[0]!
+  if (!existing.id) throw new CloudflareMailboxRuleError('invalid_response')
+  if (existing.enabled === input.enabled) return 'unchanged'
+
+  const updated = await mutateCloudflareRule(
+    `${CLOUDFLARE_API}/zones/${encodeURIComponent(zoneId)}/email/routing/rules/${encodeURIComponent(existing.id)}`,
+    'PUT',
+    {
+      name: existing.name ?? address,
+      enabled: input.enabled,
+      matchers: existing.matchers,
+      actions: existing.actions,
+      ...(typeof existing.priority === 'number' ? { priority: existing.priority } : {}),
+      source: existing.source ?? 'api',
+    },
+    input.token,
+    fetcher,
+  )
+  if (!matchesAddress(updated, address) || !isCourrierWorkerRule(updated) || updated.enabled !== input.enabled) {
+    throw new CloudflareMailboxRuleError('invalid_response')
+  }
+  return input.enabled ? 'enabled' : 'disabled'
 }
