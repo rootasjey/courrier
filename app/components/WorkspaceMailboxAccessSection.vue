@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ isOwner: boolean }>()
+const props = defineProps<{ isOwner: boolean }>()
 
 type Mailbox = { id: string, address: string }
 type Member = { user_id: string, email: string, display_name: string | null, role: string }
@@ -107,11 +107,11 @@ const memberById = computed(() => new Map(members.value.map(member => [member.us
 const selectedGrants = computed(() => grants.value.filter(grant => grant.mailbox_id === selectedMailboxId.value))
 const availableMembers = computed(() => {
   const granted = new Set(selectedGrants.value.map(grant => grant.user_id))
-  return members.value.filter(member => !granted.has(member.user_id) && (isOwner || member.role !== 'admin'))
+  return members.value.filter(member => !granted.has(member.user_id) && (props.isOwner || member.role !== 'admin'))
 })
 
 function canManageMember(member: Member | undefined) {
-  return Boolean(member && member.role !== 'owner' && (isOwner || member.role !== 'admin'))
+  return Boolean(member && member.role !== 'owner' && (props.isOwner || member.role !== 'admin'))
 }
 
 async function loadAccess() {
