@@ -1,8 +1,10 @@
 import { getAccountDb, requirePlatformAdmin } from '../../../../utils/account-auth'
 import { auditPlatformAdminRead } from '../../../../utils/platform-admin-audit'
 import { assessDomainEmailReadiness, queryPublicDns } from '../../../../utils/domain-email-readiness'
+import { checkCloudflareMailboxRouting } from '../../../../utils/cloudflare-email-routing'
 
 type DomainRow = { id: string, workspace_id: string, domain: string, verification_status: string }
+type MailboxRow = { address: string }
 
 export default defineEventHandler(async (event) => {
   const actor = await requirePlatformAdmin(event)
@@ -26,10 +28,21 @@ export default defineEventHandler(async (event) => {
 
   await auditPlatformAdminRead(db, actor, 'domains')
 
+  const mailboxes = await db.prepare(`
+    SELECT address FROM mailboxes WHERE domain_id = ? AND workspace_id = ? AND status = 'active'
+    ORDER BY lower(address)
+  `).bind(domain.id, domain.workspace_id).all<MailboxRow>()
+  const bindings = event.context.cloudflare?.env as { COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN?: string } | undefined
+
   const checks = await Promise.all([
     queryPublicDns(domain.domain, 'MX').catch(() => null),
     queryPublicDns(domain.domain, 'TXT').catch(() => null),
     queryPublicDns(`cf2024-1._domainkey.${domain.domain}`, 'TXT').catch(() => null),
+    checkCloudflareMailboxRouting({
+      domain: domain.domain,
+      addresses: mailboxes.results.map(mailbox => mailbox.address),
+      token: bindings?.COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN,
+    }),
   ])
   const readiness = assessDomainEmailReadiness({ mx: checks[0], routingSpf: checks[1], routingDkim: checks[2] })
 
@@ -39,6 +52,6 @@ export default defineEventHandler(async (event) => {
     domain: domain.domain,
     checkedAt: new Date().toISOString(),
     ...readiness,
-    routingRule: 'not_checked' as const,
+    routingRules: checks[3],
   }
 })

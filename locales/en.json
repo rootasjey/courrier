@@ -1009,10 +1009,10 @@
     "mailDnsInbound": "Inbound mail — MX",
     "mailDnsRouting": "Email Routing rule",
     "mailDnsRoutingAuth": "Forwarding authentication",
-    "mailDnsRoutingAuthDescription": "These SPF and DKIM records help Cloudflare authenticate mail routed through Email Routing. This check cannot confirm that a routing rule is enabled or points to Courrier.",
+    "mailDnsRoutingAuthDescription": "These SPF and DKIM records help Cloudflare authenticate mail routed through Email Routing.",
     "mailDnsSpf": "SPF",
     "mailDnsDkim": "DKIM",
-    "mailDnsSafetyNote": "This check is read-only. It cannot confirm that Email Routing is enabled or that its rule targets Courrier. Changing MX records can interrupt an existing email service.",
+    "mailDnsSafetyNote": "This read-only check verifies explicit rules for active mailboxes and whether they target the Courrier Worker. It does not confirm that email is being delivered. Changing MX records can interrupt an existing email service.",
     "mailDnsCloudflareGuide": "Open the Cloudflare Email Routing guide",
     "mailDnsCheckError": "The DNS check could not be loaded. Try again shortly.",
     "domainOnboardingSteps": "Domain setup steps",
@@ -1031,7 +1031,15 @@
       "unavailable": "Check unavailable",
       "conflict": "Multiple SPF records detected",
       "present": "DKIM record detected",
-      "not_checked": "Check in the Cloudflare dashboard"
+      "not_checked": "Check in the Cloudflare dashboard",
+      "no_mailboxes": "No active mailboxes to check"
+    },
+    "mailDnsRoutingState": {
+      "configured": "Active rule to Courrier",
+      "disabled": "Rule disabled",
+      "other_target": "Rule points elsewhere",
+      "missing": "No explicit rule",
+      "unavailable": "Check unavailable"
     },
     "createMailbox": "Create a mailbox",
     "createMailboxDescription": "Create a receiving address on a verified domain and choose which active workspace members can access it. Email routing and outgoing sender setup are managed separately.",

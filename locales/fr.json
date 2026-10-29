@@ -1009,10 +1009,10 @@
     "mailDnsInbound": "Réception — MX",
     "mailDnsRouting": "Règle Email Routing",
     "mailDnsRoutingAuth": "Authentification des transferts",
-    "mailDnsRoutingAuthDescription": "Ces enregistrements SPF et DKIM aident Cloudflare à authentifier les e-mails transférés via Email Routing. Ce contrôle ne confirme pas qu’une règle de routage est active ou qu’elle pointe vers Courrier.",
+    "mailDnsRoutingAuthDescription": "Ces enregistrements SPF et DKIM aident Cloudflare à authentifier les e-mails transférés via Email Routing.",
     "mailDnsSpf": "SPF",
     "mailDnsDkim": "DKIM",
-    "mailDnsSafetyNote": "Ce contrôle est en lecture seule. Il ne vérifie pas que le routage est activé ni que sa règle cible Courrier. Modifier les MX peut interrompre un service e-mail existant.",
+    "mailDnsSafetyNote": "Ce contrôle est en lecture seule : il vérifie les règles explicites des boîtes actives et leur destination Worker. Il ne confirme pas la réception effective des e-mails. Modifier les MX peut interrompre un service e-mail existant.",
     "mailDnsCloudflareGuide": "Consulter le guide Cloudflare Email Routing",
     "mailDnsCheckError": "Le diagnostic DNS n’a pas pu être chargé. Réessaie dans un instant.",
     "domainOnboardingSteps": "Étapes de configuration du domaine",
@@ -1031,7 +1031,15 @@
       "unavailable": "Vérification indisponible",
       "conflict": "Plusieurs enregistrements SPF détectés",
       "present": "Enregistrement DKIM détecté",
-      "not_checked": "À vérifier dans le tableau de bord Cloudflare"
+      "not_checked": "À vérifier dans le tableau de bord Cloudflare",
+      "no_mailboxes": "Aucune boîte active à vérifier"
+    },
+    "mailDnsRoutingState": {
+      "configured": "Règle active vers Courrier",
+      "disabled": "Règle désactivée",
+      "other_target": "Règle dirigée ailleurs",
+      "missing": "Aucune règle explicite",
+      "unavailable": "Vérification indisponible"
     },
     "createMailbox": "Créer une boîte",
     "createMailboxDescription": "Crée une adresse de réception sur un domaine vérifié et choisis les membres actifs de l’espace qui pourront y accéder. Le routage des e-mails et la configuration des expéditeurs sortants restent séparés.",

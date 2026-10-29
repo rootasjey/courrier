@@ -89,8 +89,8 @@
           <li :class="`is-${readiness.mx.state}`">
             <span>2</span><div><strong>{{ $t('admin.domainOnboardingMx') }}</strong><small>{{ $t(`admin.mailDnsState.${readiness.mx.state}`) }}</small></div>
           </li>
-          <li class="is-pending">
-            <span>3</span><div><strong>{{ $t('admin.domainOnboardingRouting') }}</strong><small>{{ $t('admin.mailDnsState.not_checked') }}</small></div>
+          <li :class="`is-${routingSummaryStyle(readiness.routingRules)}`">
+            <span>3</span><div><strong>{{ $t('admin.domainOnboardingRouting') }}</strong><small>{{ $t(`admin.mailDnsState.${routingSummaryState(readiness.routingRules)}`) }}</small></div>
           </li>
           <li>
             <span>4</span><div><strong>{{ $t('admin.domainOnboardingMailbox') }}</strong><small>{{ $t('admin.domainOnboardingMailboxDescription') }}</small></div>
@@ -103,7 +103,18 @@
               <ul v-if="readiness.mx.records.length"><li v-for="record in readiness.mx.records" :key="`${record.priority}-${record.target}`"><code>{{ record.priority }} {{ record.target }}</code></li></ul>
             </dd>
           </div>
-          <div><dt>{{ $t('admin.mailDnsRouting') }}</dt><dd><span class="admin-status is-pending">{{ $t('admin.mailDnsState.not_checked') }}</span></dd></div>
+          <div>
+            <dt>{{ $t('admin.mailDnsRouting') }}</dt>
+            <dd>
+              <span class="admin-status" :class="`is-${routingSummaryStyle(readiness.routingRules)}`">{{ $t(`admin.mailDnsState.${routingSummaryState(readiness.routingRules)}`) }}</span>
+              <ul v-if="readiness.routingRules.length" class="admin-domain-routing-rules">
+                <li v-for="rule in readiness.routingRules" :key="rule.address">
+                  <code>{{ rule.address }}</code>
+                  <span class="admin-status" :class="`is-${routingStateStyle(rule.state)}`">{{ $t(`admin.mailDnsRoutingState.${rule.state}`) }}</span>
+                </li>
+              </ul>
+            </dd>
+          </div>
         </dl>
         <h4 class="admin-domain-subheading">{{ $t('admin.mailDnsRoutingAuth') }}</h4>
         <p class="admin-domain-routing-note">{{ $t('admin.mailDnsRoutingAuthDescription') }}</p>
@@ -147,7 +158,8 @@ import { watch } from 'vue'
 type DomainWorkspace = { id: string, name: string }
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string, verified_at: string | null, mailbox_count: number }
 type DomainChallenge = { domainId: string, domain: string, recordName: string, recordValue: string, expiresAt: string }
-type DnsReadinessState = 'configured' | 'missing' | 'mixed' | 'other_provider' | 'unavailable' | 'conflict' | 'present'
+type DnsReadinessState = 'configured' | 'missing' | 'mixed' | 'other_provider' | 'unavailable' | 'conflict' | 'present' | 'no_mailboxes'
+type MailboxRoutingState = 'configured' | 'disabled' | 'other_target' | 'missing' | 'unavailable'
 type DomainReadiness = {
   domainId: string
   domain: string
@@ -155,7 +167,7 @@ type DomainReadiness = {
   mx: { state: DnsReadinessState, records: { target: string, priority: number | null }[] }
   routingSpf: { state: DnsReadinessState }
   routingDkim: { state: DnsReadinessState }
-  routingRule: 'not_checked'
+  routingRules: { address: string, state: MailboxRoutingState }[]
 }
 type AdminRequest = <T>(request: string, options?: Parameters<typeof $fetch>[1]) => Promise<T>
 
@@ -168,6 +180,24 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ refresh: [], selectMailboxDomain: [domainId: string] }>()
 const { $t } = useI18n()
+
+function routingSummaryState(rules: DomainReadiness['routingRules']): DnsReadinessState {
+  if (!rules.length) return 'no_mailboxes'
+  if (rules.some(rule => rule.state === 'unavailable')) return 'unavailable'
+  if (rules.every(rule => rule.state === 'configured')) return 'configured'
+  if (rules.some(rule => rule.state === 'configured')) return 'mixed'
+  if (rules.some(rule => rule.state === 'disabled' || rule.state === 'other_target')) return 'conflict'
+  return 'missing'
+}
+
+function routingSummaryStyle(rules: DomainReadiness['routingRules']) {
+  const state = routingSummaryState(rules)
+  return state === 'no_mailboxes' ? 'pending' : state
+}
+
+function routingStateStyle(state: MailboxRoutingState) {
+  return state === 'disabled' || state === 'other_target' ? 'conflict' : state
+}
 
 const selectedWorkspaceId = ref('')
 const domainInput = ref('')

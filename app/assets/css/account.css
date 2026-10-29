@@ -88,11 +88,14 @@
 .admin-domain-record code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 4px 7px; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 11px; user-select: all; }
 .admin-domain-readiness { gap: 10px; }
 .admin-domain-readiness ul { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
+.admin-domain-readiness .admin-domain-routing-rules { gap: 8px; }
+.admin-domain-routing-rules li { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .admin-domain-onboarding-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 18px 0; padding: 0; list-style: none; }
 .admin-domain-onboarding-steps li { display: flex; min-width: 0; align-items: flex-start; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
 .admin-domain-onboarding-steps li > span { display: inline-grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--accent-wash); color: var(--accent); font-size: 10px; font-weight: 700; }
 .admin-domain-onboarding-steps li.is-complete > span, .admin-domain-onboarding-steps li.is-configured > span { background: color-mix(in srgb, #31a879 13%, var(--paper)); color: #27815f; }
-.admin-domain-onboarding-steps li.is-missing > span, .admin-domain-onboarding-steps li.is-mixed > span, .admin-domain-onboarding-steps li.is-other_provider > span, .admin-domain-onboarding-steps li.is-pending > span { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
+.admin-domain-onboarding-steps li.is-missing > span, .admin-domain-onboarding-steps li.is-mixed > span, .admin-domain-onboarding-steps li.is-other_provider > span, .admin-domain-onboarding-steps li.is-pending > span, .admin-domain-onboarding-steps li.is-conflict > span { background: color-mix(in srgb, #bd8528 12%, var(--paper)); color: #94661b; }
+.admin-domain-onboarding-steps li.is-unavailable > span { background: color-mix(in srgb, var(--quiet) 12%, var(--paper)); color: var(--quiet); }
 .admin-domain-onboarding-steps li > div { display: grid; min-width: 0; gap: 3px; }
 .admin-domain-onboarding-steps strong { color: var(--ink); font-size: 10px; font-weight: 650; }
 .admin-domain-onboarding-steps small { color: var(--muted); font-size: 10px; line-height: 1.4; }
