@@ -10,8 +10,6 @@ export type MailboxPurgeTarget = {
 
 type MailboxMessageRow = { id: string, raw_object_key: string }
 type KeyRow = { object_key: string }
-type MutationResult = { meta?: { changes?: number } }
-
 export type MailboxPurgeData = {
   messages: MailboxMessageRow[]
   objectKeys: string[]
@@ -95,7 +93,7 @@ export async function permanentlyDeleteMailboxData(input: {
     routingRule: 'disabled',
   })
   const threadMergeIds = JSON.stringify(data.threadMergeIds)
-  const results = await db.batch([
+  await db.batch([
     db.prepare(`
       INSERT INTO platform_audit_log
         (id, actor_user_id, action, target_type, target_id, workspace_id, details_json, created_at)
@@ -133,7 +131,10 @@ export async function permanentlyDeleteMailboxData(input: {
     db.prepare(`DELETE FROM mailboxes
       WHERE id = ? AND workspace_id = ? AND archived_at IS NOT NULL AND deletion_started_at IS NOT NULL`)
       .bind(target.id, target.workspaceId),
-  ]) as MutationResult[]
+  ])
 
-  return Number(results.at(-1)?.meta?.changes ?? 0) === 1
+  const remaining = await db.prepare(`
+    SELECT 1 AS present FROM mailboxes WHERE id = ? AND workspace_id = ? LIMIT 1
+  `).bind(target.id, target.workspaceId).first<{ present: number }>()
+  return remaining === null
 }

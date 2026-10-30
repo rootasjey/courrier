@@ -1,7 +1,5 @@
 import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../utils/account-auth'
 
-type D1MutationResult = { meta?: { changes?: number } }
-
 export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const actor = await requirePlatformAdmin(event)
@@ -21,29 +19,32 @@ export default defineEventHandler(async (event) => {
   }>()
 
   if (!domain) throw createError({ statusCode: 404, statusMessage: 'Domaine introuvable.' })
-  if (domain.verification_status !== 'pending' || domain.mailbox_count > 0) {
-    throw createError({ statusCode: 409, statusMessage: 'Seul un domaine en attente sans boîte peut être supprimé.' })
+  if (!['pending', 'verified'].includes(domain.verification_status) || domain.mailbox_count > 0) {
+    throw createError({ statusCode: 409, statusMessage: 'Seul un domaine en attente ou vérifié, sans boîte associée, peut être retiré.' })
   }
 
   const now = new Date().toISOString()
-  const results = await db.batch([
+  await db.batch([
     db.prepare(`
       DELETE FROM workspace_domains
-      WHERE id = ? AND verification_status = 'pending'
+      WHERE id = ? AND verification_status IN ('pending', 'verified')
         AND NOT EXISTS (SELECT 1 FROM mailboxes WHERE domain_id = ?)
     `).bind(domainId, domainId),
     db.prepare(`
       INSERT INTO platform_audit_log
         (id, actor_user_id, action, target_type, target_id, workspace_id, details_json, created_at)
-      SELECT ?, ?, 'workspace_domain.delete_pending', 'workspace_domain', ?, ?, ?, ?
+      SELECT ?, ?, 'workspace_domain.removed', 'workspace_domain', ?, ?, ?, ?
       WHERE changes() > 0
     `).bind(
       crypto.randomUUID(), actor.id, domainId, domain.workspace_id,
-      JSON.stringify({ domain: domain.domain }), now,
+      JSON.stringify({ domain: domain.domain, verificationStatus: domain.verification_status }), now,
     ),
   ])
 
-  if (Number((results[0] as D1MutationResult | undefined)?.meta?.changes ?? 0) < 1) {
+  const remaining = await db.prepare(`
+    SELECT 1 AS present FROM workspace_domains WHERE id = ? LIMIT 1
+  `).bind(domainId).first<{ present: number }>()
+  if (remaining) {
     throw createError({ statusCode: 409, statusMessage: 'Le domaine a changé ou possède maintenant une boîte.' })
   }
 

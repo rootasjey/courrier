@@ -115,15 +115,20 @@
             <td>{{ domain.mailbox_count }}</td><td>{{ domain.verified_at ? formatDate(domain.verified_at) : '—' }}</td>
             <td>
               <div class="admin-domain-row-actions">
-                <button v-if="domain.verification_status === 'verified'" class="admin-membership-action is-reactivate" type="button" :disabled="readinessBusy" @click="checkReadiness(domain)">
-                  {{ readinessBusy && readiness?.domainId === domain.id ? $t('admin.checkingMailDns') : $t('admin.checkMailDns') }}
-                </button>
+                <template v-if="domain.verification_status === 'verified'">
+                  <button class="admin-membership-action is-reactivate" type="button" :disabled="readinessBusy" @click="checkReadiness(domain)">
+                    {{ readinessBusy && readiness?.domainId === domain.id ? $t('admin.checkingMailDns') : $t('admin.checkMailDns') }}
+                  </button>
+                  <button v-if="domain.mailbox_count === 0" class="admin-membership-action is-suspend" type="button" :disabled="domainBusy" @click="domainToRemove = domain">
+                    {{ $t('admin.removeDomain') }}
+                  </button>
+                </template>
                 <template v-else-if="domain.verification_status === 'pending' || domain.verification_status === 'legacy_unverified'">
                   <button class="admin-membership-action is-reactivate" type="button" :disabled="domainBusy" @click="prepareDomainChallenge(domain)">
                     {{ $t(domain.verification_status === 'pending' ? 'admin.configureDns' : 'admin.verifyLegacyDomain') }}
                   </button>
                   <button v-if="domain.verification_status === 'pending'" class="admin-membership-action is-suspend" type="button" :disabled="domainBusy || domain.mailbox_count > 0" @click="domainToRemove = domain">
-                    {{ $t('admin.removePendingDomain') }}
+                    {{ $t('admin.removeDomain') }}
                   </button>
                 </template>
               </div>
@@ -197,21 +202,21 @@
 
     <NDialog
       :open="Boolean(domainToRemove)"
-      :title="$t('admin.removePendingDomain')"
-      :description="$t('admin.removePendingDomainDescription', { domain: domainToRemove?.domain || '' })"
+      :title="$t('admin.removeDomain')"
+      :description="$t('admin.removeDomainDescription', { domain: domainToRemove?.domain || '' })"
       :show-close="false"
       :_dialog-content="{ class: 'classification-dialog thread-trash-dialog' }"
       @update:open="(open: boolean) => { if (!open && !domainBusy) domainToRemove = null }"
     >
       <template #content>
         <header class="dialog-header">
-          <NDialogTitle class="dialog-title">{{ $t('admin.removePendingDomain') }}</NDialogTitle>
-          <NDialogDescription>{{ $t('admin.removePendingDomainDescription', { domain: domainToRemove?.domain || '' }) }}</NDialogDescription>
+          <NDialogTitle class="dialog-title">{{ $t('admin.removeDomain') }}</NDialogTitle>
+          <NDialogDescription>{{ $t('admin.removeDomainDescription', { domain: domainToRemove?.domain || '' }) }}</NDialogDescription>
         </header>
         <div class="dialog-actions">
           <button class="dialog-cancel" type="button" :disabled="domainBusy" @click="domainToRemove = null">{{ $t('common.cancel') }}</button>
-          <button class="dialog-danger" type="button" :disabled="domainBusy" @click="removePendingDomain">
-            {{ domainBusy ? $t('admin.removingDomain') : $t('admin.removePendingDomain') }}
+          <button class="dialog-danger" type="button" :disabled="domainBusy" @click="removeDomain">
+            {{ domainBusy ? $t('admin.removingDomain') : $t('admin.removeDomain') }}
           </button>
         </div>
       </template>
@@ -419,7 +424,7 @@ async function checkReadiness(domain: AdminDomain) {
   }
 }
 
-async function removePendingDomain() {
+async function removeDomain() {
   const domain = domainToRemove.value
   if (!domain || domainBusy.value) return
   domainBusy.value = true
