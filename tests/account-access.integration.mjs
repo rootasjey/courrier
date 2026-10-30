@@ -740,7 +740,7 @@ try {
     assert.deepEqual(new Set(events.map(value => value.action)), new Set([
       'workspace_domain.created',
       'workspace_domain.challenge_created',
-      'workspace_domain.delete_pending',
+      'workspace_domain.removed',
     ]))
   })
   await check('expired domain TXT challenges return 410 and can be renewed', async () => {

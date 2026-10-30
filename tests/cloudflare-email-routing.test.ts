@@ -303,6 +303,31 @@ test('requires manual cleanup when Cloudflare refuses to delete a disabled Courr
   assert.deepEqual(methods, ['GET', 'DELETE'])
 })
 
+test('propagates a routing conflict from the Cloudflare rule wrapper', async () => {
+  const fetcher: typeof fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname === '/client/v4/zones') {
+      return Response.json({ success: true, result: [{ id: 'zone-1', name: 'corpinot.cc', status: 'active' }] })
+    }
+    return Response.json({
+      success: true,
+      result: [{
+        id: 'other-rule', enabled: false,
+        matchers: [{ type: 'literal', field: 'to', value: 'box@corpinot.cc' }],
+        actions: [{ type: 'forward', value: ['personal@example.net'] }],
+      }],
+      result_info: { total_pages: 1 },
+    })
+  }
+
+  await assert.rejects(
+    deleteCloudflareMailboxRuleOrRequireManualCleanup({
+      domain: 'corpinot.cc', address: 'box@corpinot.cc', token: 'write-token', fetcher,
+    }),
+    (error: unknown) => error instanceof CloudflareMailboxRuleError && error.code === 'conflict',
+  )
+})
+
 test('does not delete active or non-Courrier rules', async () => {
   for (const rule of [
     { id: 'active', enabled: true, matchers: [{ type: 'literal', field: 'to', value: 'box@corpinot.cc' }], actions: [{ type: 'worker', value: ['courrier'] }] },
