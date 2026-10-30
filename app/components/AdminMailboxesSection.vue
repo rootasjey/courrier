@@ -108,6 +108,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
+import { mailboxDeletionNotice } from '../utils/mailbox-deletion-notice'
 
 type AdminDomain = { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string }
 type AdminMember = { workspace_id: string, user_id: string, email: string, display_name: string | null, role: string }
@@ -299,10 +300,11 @@ async function deleteMailbox(mailbox: ManagedMailbox) {
     })
     confirmDeleteMailboxId.value = ''
     deleteConfirmationAddress.value = ''
-    mailboxActionNotice.value = $t('admin.mailboxDeletedNotice', { address: mailbox.address })
-    if (result.routingCleanup === 'manual_required') {
-      mailboxActionNotice.value += ` ${$t('admin.mailboxRoutingCleanupWarning')}`
-    }
+    mailboxActionNotice.value = mailboxDeletionNotice(
+      result.routingCleanup,
+      $t('admin.mailboxDeletedNotice', { address: mailbox.address }),
+      $t('admin.mailboxRoutingCleanupWarning'),
+    )
     await loadMailboxes()
     emit('refresh')
   } catch (value) {

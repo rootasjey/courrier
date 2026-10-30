@@ -1,7 +1,7 @@
 import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../../utils/account-auth'
 import type { MailStorageBindings } from '../../../../utils/mail-store'
 import { collectMailboxPurgeData, permanentlyDeleteMailboxData } from '../../../../utils/mailbox-deletion'
-import { checkCloudflareMailboxRouting, CloudflareMailboxRuleError, deleteCloudflareMailboxRule, setCloudflareMailboxRule } from '../../../../utils/cloudflare-email-routing'
+import { checkCloudflareMailboxRouting, CloudflareMailboxRuleError, deleteCloudflareMailboxRuleOrRequireManualCleanup, setCloudflareMailboxRule } from '../../../../utils/cloudflare-email-routing'
 
 type MailboxRow = {
   id: string
@@ -83,7 +83,7 @@ export default defineEventHandler(async (event) => {
         token: bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN,
       })
       try {
-        routingCleanup = await deleteCloudflareMailboxRule({
+        routingCleanup = await deleteCloudflareMailboxRuleOrRequireManualCleanup({
           domain: mailbox.domain,
           address: mailbox.address,
           token: bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN,
@@ -94,7 +94,7 @@ export default defineEventHandler(async (event) => {
           await resetDeletionClaim(false)
           throw createError({ statusCode: 409, statusMessage: 'La règle Cloudflare a changé ou n’est pas désactivée; la boîte reste archivée.' })
         }
-        routingCleanup = 'manual_required'
+        throw error
       }
     } else {
       const [routing] = await checkCloudflareMailboxRouting({

@@ -181,3 +181,32 @@ test('permanent mailbox purge removes mailbox-owned content but preserves neighb
     sqlite.close()
   }
 })
+
+test('permanent mailbox purge records when Cloudflare cleanup requires manual follow-up', async () => {
+  const { sqlite, db } = createDatabase()
+  sqlite.exec(`
+    INSERT INTO mailboxes VALUES ('mailbox-1','workspace-1','box@example.test','now','now');
+  `)
+
+  try {
+    const target = { id: 'mailbox-1', workspaceId: 'workspace-1', domain: 'example.test', address: 'box@example.test' }
+    const data = await collectMailboxPurgeData(db as never, target)
+    const deleted = await permanentlyDeleteMailboxData({
+      db: db as never,
+      mailStore: { delete: async () => undefined } as never,
+      target,
+      actorId: 'admin-1',
+      data,
+      deletedAt: '2026-10-30T00:00:00.000Z',
+      archivedGuardSql: `EXISTS (SELECT 1 FROM mailboxes WHERE id = ? AND workspace_id = ? AND archived_at IS NOT NULL AND deletion_started_at IS NOT NULL)`,
+      routingCleanup: 'manual_required',
+    })
+
+    assert.equal(deleted, true)
+    assert.equal(sqlite.prepare('SELECT COUNT(*) AS count FROM mailboxes WHERE id = ?').get('mailbox-1')?.count, 0)
+    const details = JSON.parse(String(sqlite.prepare("SELECT details_json FROM platform_audit_log WHERE action = 'workspace_mailbox.deleted'").get()?.details_json))
+    assert.equal(details.routingCleanup, 'manual_required')
+  } finally {
+    sqlite.close()
+  }
+})

@@ -190,6 +190,24 @@ export async function deleteCloudflareMailboxRule(input: {
   return 'removed'
 }
 
+/** Falls back to a manual Cloudflare cleanup when deletion is unavailable or fails. */
+export async function deleteCloudflareMailboxRuleOrRequireManualCleanup(input: {
+  domain: string
+  address: string
+  token?: string
+  fetcher?: typeof fetch
+}): Promise<CloudflareMailboxRuleDeletion | 'manual_required'> {
+  try {
+    return await deleteCloudflareMailboxRule(input)
+  } catch (error) {
+    if (error instanceof CloudflareMailboxRuleError
+      && (error.code === 'conflict' || error.code === 'invalid_input')) {
+      throw error
+    }
+    return 'manual_required'
+  }
+}
+
 function matchesAddress(rule: CloudflareRule, address: string) {
   return rule.matchers?.some(matcher =>
     matcher.type === 'literal' && matcher.field === 'to' && matcher.value?.trim().toLowerCase() === address,

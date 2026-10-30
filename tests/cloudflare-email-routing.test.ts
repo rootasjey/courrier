@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { checkCloudflareMailboxRouting, CloudflareMailboxRuleError, deleteCloudflareMailboxRule, setCloudflareMailboxRule } from '../server/utils/cloudflare-email-routing.ts'
+import { checkCloudflareMailboxRouting, CloudflareMailboxRuleError, deleteCloudflareMailboxRule, deleteCloudflareMailboxRuleOrRequireManualCleanup, setCloudflareMailboxRule } from '../server/utils/cloudflare-email-routing.ts'
 
 test('reports explicit Cloudflare rules for active mailbox addresses', async () => {
   const calls: string[] = []
@@ -272,6 +272,35 @@ test('deletes only a disabled exact Courrier rule and verifies its removal', asy
     domain: 'corpinot.cc', address: 'BOX@corpinot.cc', token: 'write-token', fetcher,
   }), 'removed')
   assert.deepEqual(methods, ['GET', 'DELETE', 'GET'])
+})
+
+test('requires manual cleanup when Cloudflare refuses to delete a disabled Courrier rule', async () => {
+  const methods: string[] = []
+  const fetcher: typeof fetch = async (input, init) => {
+    const url = new URL(String(input))
+    if (url.pathname === '/client/v4/zones') {
+      return Response.json({ success: true, result: [{ id: 'zone-1', name: 'corpinot.cc', status: 'active' }] })
+    }
+    if (init?.method === 'DELETE') {
+      methods.push('DELETE')
+      return Response.json({ success: false, errors: [{ code: 10000 }] }, { status: 403 })
+    }
+    methods.push('GET')
+    return Response.json({
+      success: true,
+      result: [{
+        id: 'rule-1', enabled: false,
+        matchers: [{ type: 'literal', field: 'to', value: 'box@corpinot.cc' }],
+        actions: [{ type: 'worker', value: ['courrier'] }],
+      }],
+      result_info: { total_pages: 1 },
+    })
+  }
+
+  assert.equal(await deleteCloudflareMailboxRuleOrRequireManualCleanup({
+    domain: 'corpinot.cc', address: 'box@corpinot.cc', token: 'write-token', fetcher,
+  }), 'manual_required')
+  assert.deepEqual(methods, ['GET', 'DELETE'])
 })
 
 test('does not delete active or non-Courrier rules', async () => {
