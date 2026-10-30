@@ -6,7 +6,7 @@ Courrier is a personal, multi-domain email workspace. It receives mail for expli
 
 Courrier is an actively developed pilot, not a general-purpose hosted email provider. The web app runs on Nuxt and Vue and is deployed to Cloudflare Workers. Cloudflare D1 stores application data; R2 stores original messages and attachments.
 
-As of 29 October 2026, the production pilot has three verified domains: `corpinot.cc`, `tronche.cc`, and `verbatims.cc`. Controlled inbound tests from Gmail reached Courrier for all three domains. An Outlook test to `tronche.cc` also reached Courrier and its configured copy appeared in HEY. These checks confirm those test paths at that time; they do not establish long-term deliverability or prove that every address on each domain is configured.
+As of 30 October 2026, the production pilot has three verified domains: `corpinot.cc`, `tronche.cc`, and `verbatims.cc`. Controlled inbound tests from Gmail reached Courrier for all three domains. An Outlook test to `tronche.cc` also reached Courrier and its configured copy appeared in HEY. A disposable mailbox on `tronche.cc` was used to verify mailbox creation, suspension/archive, and deletion; its exact Cloudflare routing rule was absent after deletion. No message was sent to that disposable mailbox. These checks confirm those test paths at that time; they do not establish long-term deliverability or prove that every address on each domain is configured. The Cloudflare deletion-refusal fallback is covered by local tests and still needs verification against the deployed build.
 
 ## Features
 
