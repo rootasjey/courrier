@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { checkCloudflareMailboxRouting, CloudflareMailboxRuleError, setCloudflareMailboxRule } from '../server/utils/cloudflare-email-routing.ts'
+import { checkCloudflareMailboxRouting, CloudflareMailboxRuleError, deleteCloudflareMailboxRule, setCloudflareMailboxRule } from '../server/utils/cloudflare-email-routing.ts'
 
 test('reports explicit Cloudflare rules for active mailbox addresses', async () => {
   const calls: string[] = []
@@ -243,5 +243,73 @@ test('disabling a missing route is idempotent and performs no write', async () =
   assert.equal(await setCloudflareMailboxRule({
     domain: 'corpinot.cc', address: 'jeremie@corpinot.cc', enabled: false, token: 'write-token', fetcher,
   }), 'unchanged')
+  assert.equal(writes, 0)
+})
+
+test('deletes only a disabled exact Courrier rule and verifies its removal', async () => {
+  const methods: string[] = []
+  let rules = [{
+    id: 'rule-1', enabled: false,
+    matchers: [{ type: 'literal', field: 'to', value: 'box@corpinot.cc' }],
+    actions: [{ type: 'worker', value: ['courrier'] }],
+  }]
+  const fetcher: typeof fetch = async (input, init) => {
+    const url = new URL(String(input))
+    if (url.pathname === '/client/v4/zones') {
+      return Response.json({ success: true, result: [{ id: 'zone-1', name: 'corpinot.cc', status: 'active' }] })
+    }
+    if (init?.method === 'DELETE') {
+      methods.push('DELETE')
+      assert.equal(url.pathname, '/client/v4/zones/zone-1/email/routing/rules/rule-1')
+      rules = []
+      return Response.json({ success: true, result: { id: 'rule-1' } })
+    }
+    methods.push('GET')
+    return Response.json({ success: true, result: rules, result_info: { total_pages: 1 } })
+  }
+
+  assert.equal(await deleteCloudflareMailboxRule({
+    domain: 'corpinot.cc', address: 'BOX@corpinot.cc', token: 'write-token', fetcher,
+  }), 'removed')
+  assert.deepEqual(methods, ['GET', 'DELETE', 'GET'])
+})
+
+test('does not delete active or non-Courrier rules', async () => {
+  for (const rule of [
+    { id: 'active', enabled: true, matchers: [{ type: 'literal', field: 'to', value: 'box@corpinot.cc' }], actions: [{ type: 'worker', value: ['courrier'] }] },
+    { id: 'other', enabled: false, matchers: [{ type: 'literal', field: 'to', value: 'box@corpinot.cc' }], actions: [{ type: 'forward', value: ['elsewhere@example.net'] }] },
+  ]) {
+    let deletes = 0
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = new URL(String(input))
+      if (init?.method === 'DELETE') deletes++
+      if (url.pathname === '/client/v4/zones') {
+        return Response.json({ success: true, result: [{ id: 'zone-1', name: 'corpinot.cc', status: 'active' }] })
+      }
+      return Response.json({ success: true, result: [rule], result_info: { total_pages: 1 } })
+    }
+
+    await assert.rejects(
+      deleteCloudflareMailboxRule({ domain: 'corpinot.cc', address: 'box@corpinot.cc', token: 'write-token', fetcher }),
+      (error: unknown) => error instanceof CloudflareMailboxRuleError && error.code === 'conflict',
+    )
+    assert.equal(deletes, 0)
+  }
+})
+
+test('treats an already absent exact rule as cleaned up without writing', async () => {
+  let writes = 0
+  const fetcher: typeof fetch = async (input, init) => {
+    const url = new URL(String(input))
+    if (init?.method) writes++
+    if (url.pathname === '/client/v4/zones') {
+      return Response.json({ success: true, result: [{ id: 'zone-1', name: 'corpinot.cc', status: 'active' }] })
+    }
+    return Response.json({ success: true, result: [], result_info: { total_pages: 1 } })
+  }
+
+  assert.equal(await deleteCloudflareMailboxRule({
+    domain: 'corpinot.cc', address: 'box@corpinot.cc', token: 'write-token', fetcher,
+  }), 'missing')
   assert.equal(writes, 0)
 })

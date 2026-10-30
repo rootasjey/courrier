@@ -78,8 +78,9 @@ export async function permanentlyDeleteMailboxData(input: {
   data: MailboxPurgeData
   deletedAt: string
   archivedGuardSql: string
+  routingCleanup: 'removed' | 'missing' | 'manual_required'
 }): Promise<boolean> {
-  const { db, mailStore, target, actorId, data, deletedAt, archivedGuardSql } = input
+  const { db, mailStore, target, actorId, data, deletedAt, archivedGuardSql, routingCleanup } = input
   for (let offset = 0; offset < data.objectKeys.length; offset += R2_DELETE_BATCH_SIZE) {
     const keys = data.objectKeys.slice(offset, offset + R2_DELETE_BATCH_SIZE)
     await mailStore.delete(keys)
@@ -90,7 +91,7 @@ export async function permanentlyDeleteMailboxData(input: {
     domain: target.domain,
     messages: data.messages.length,
     storedObjects: data.objectKeys.length,
-    routingRule: 'disabled',
+    routingCleanup,
   })
   const threadMergeIds = JSON.stringify(data.threadMergeIds)
   await db.batch([

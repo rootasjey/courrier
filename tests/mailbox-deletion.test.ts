@@ -157,6 +157,7 @@ test('permanent mailbox purge removes mailbox-owned content but preserves neighb
       data,
       deletedAt: '2026-10-29T00:00:00.000Z',
       archivedGuardSql: `EXISTS (SELECT 1 FROM mailboxes WHERE id = ? AND workspace_id = ? AND archived_at IS NOT NULL AND deletion_started_at IS NOT NULL)`,
+      routingCleanup: 'removed',
     })
     assert.equal(deleted, true)
     assert.equal(sqlite.prepare('SELECT COUNT(*) AS count FROM mailboxes WHERE id = ?').get('mailbox-1')?.count, 0)
@@ -174,6 +175,8 @@ test('permanent mailbox purge removes mailbox-owned content but preserves neighb
       'outgoing-drafts/draft-1/attachment',
     ])
     assert.equal(sqlite.prepare("SELECT COUNT(*) AS count FROM platform_audit_log WHERE action = 'workspace_mailbox.deleted'").get()?.count, 1)
+    const auditDetails = JSON.parse(String(sqlite.prepare("SELECT details_json FROM platform_audit_log WHERE action = 'workspace_mailbox.deleted'").get()?.details_json))
+    assert.equal(auditDetails.routingCleanup, 'removed')
   } finally {
     sqlite.close()
   }

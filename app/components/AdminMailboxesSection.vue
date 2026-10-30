@@ -293,13 +293,16 @@ async function deleteMailbox(mailbox: ManagedMailbox) {
   mailboxActionError.value = ''
   mailboxActionNotice.value = ''
   try {
-    await props.adminFetch(`/api/admin/mailboxes/${encodeURIComponent(mailbox.id)}/delete`, {
+    const result = await props.adminFetch<{ routingCleanup?: 'removed' | 'missing' | 'manual_required' }>(`/api/admin/mailboxes/${encodeURIComponent(mailbox.id)}/delete`, {
       method: 'POST',
       body: { confirmationAddress: deleteConfirmationAddress.value },
     })
     confirmDeleteMailboxId.value = ''
     deleteConfirmationAddress.value = ''
     mailboxActionNotice.value = $t('admin.mailboxDeletedNotice', { address: mailbox.address })
+    if (result.routingCleanup === 'manual_required') {
+      mailboxActionNotice.value += ` ${$t('admin.mailboxRoutingCleanupWarning')}`
+    }
     await loadMailboxes()
     emit('refresh')
   } catch (value) {

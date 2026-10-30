@@ -21,6 +21,7 @@ type CloudflareRule = {
 type CloudflareMutationEnvelope = { success?: boolean, result?: CloudflareRule, errors?: unknown[] }
 
 export type CloudflareMailboxRuleChange = 'created' | 'enabled' | 'disabled' | 'unchanged'
+export type CloudflareMailboxRuleDeletion = 'removed' | 'missing'
 
 export class CloudflareMailboxRuleError extends Error {
   readonly code: 'unavailable' | 'conflict' | 'invalid_input' | 'invalid_response'
@@ -124,6 +125,69 @@ async function mutateCloudflareRule(url: string, method: 'POST' | 'PUT', body: C
     if (error instanceof CloudflareMailboxRuleError) throw error
     throw new CloudflareMailboxRuleError('unavailable')
   }
+}
+
+/** Removes one exact, disabled Courrier rule and confirms it is absent afterward. */
+export async function deleteCloudflareMailboxRule(input: {
+  domain: string
+  address: string
+  token?: string
+  fetcher?: typeof fetch
+}): Promise<CloudflareMailboxRuleDeletion> {
+  const domain = input.domain.trim().toLowerCase()
+  const address = input.address.trim().toLowerCase()
+  if (!input.token?.trim()) throw new CloudflareMailboxRuleError('unavailable')
+  if (!domain || !address.endsWith(`@${domain}`) || address.length > 90) {
+    throw new CloudflareMailboxRuleError('invalid_input')
+  }
+
+  const fetcher = input.fetcher ?? fetch
+  let zoneId: string
+  let rules: CloudflareRule[]
+  try {
+    ({ zoneId, rules } = await listCloudflareZoneRules(domain, input.token, fetcher))
+  } catch (error) {
+    if (error instanceof CloudflareMailboxRuleError) throw error
+    throw new CloudflareMailboxRuleError('unavailable')
+  }
+
+  const matches = rules.filter(rule => matchesAddress(rule, address))
+  if (!matches.length) return 'missing'
+  if (matches.length !== 1 || !isCourrierWorkerRule(matches[0])) {
+    throw new CloudflareMailboxRuleError('conflict')
+  }
+
+  const existing = matches[0]!
+  if (!existing.id || existing.enabled !== false) throw new CloudflareMailboxRuleError('conflict')
+
+  try {
+    const response = await fetcher(
+      `${CLOUDFLARE_API}/zones/${encodeURIComponent(zoneId)}/email/routing/rules/${encodeURIComponent(existing.id)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${input.token}`, Accept: 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      },
+    )
+    if (!response.ok) throw new CloudflareMailboxRuleError('unavailable')
+    const envelope = await response.json() as CloudflareMutationEnvelope
+    if (envelope.success !== true) throw new CloudflareMailboxRuleError('invalid_response')
+  } catch (error) {
+    if (error instanceof CloudflareMailboxRuleError) throw error
+    throw new CloudflareMailboxRuleError('unavailable')
+  }
+
+  try {
+    const latest = await listCloudflareZoneRules(domain, input.token, fetcher)
+    if (latest.rules.some(rule => matchesAddress(rule, address))) {
+      throw new CloudflareMailboxRuleError('invalid_response')
+    }
+  } catch (error) {
+    if (error instanceof CloudflareMailboxRuleError) throw error
+    throw new CloudflareMailboxRuleError('unavailable')
+  }
+
+  return 'removed'
 }
 
 function matchesAddress(rule: CloudflareRule, address: string) {

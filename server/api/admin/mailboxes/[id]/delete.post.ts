@@ -1,7 +1,7 @@
 import { assertSameOrigin, getAccountDb, requirePlatformAdmin } from '../../../../utils/account-auth'
 import type { MailStorageBindings } from '../../../../utils/mail-store'
 import { collectMailboxPurgeData, permanentlyDeleteMailboxData } from '../../../../utils/mailbox-deletion'
-import { checkCloudflareMailboxRouting, setCloudflareMailboxRule } from '../../../../utils/cloudflare-email-routing'
+import { checkCloudflareMailboxRouting, CloudflareMailboxRuleError, deleteCloudflareMailboxRule, setCloudflareMailboxRule } from '../../../../utils/cloudflare-email-routing'
 
 type MailboxRow = {
   id: string
@@ -74,6 +74,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    let routingCleanup: 'removed' | 'missing' | 'manual_required' = 'missing'
     if (bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN) {
       await setCloudflareMailboxRule({
         domain: mailbox.domain,
@@ -81,13 +82,29 @@ export default defineEventHandler(async (event) => {
         enabled: false,
         token: bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN,
       })
+      try {
+        routingCleanup = await deleteCloudflareMailboxRule({
+          domain: mailbox.domain,
+          address: mailbox.address,
+          token: bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN,
+        })
+      } catch (error) {
+        if (error instanceof CloudflareMailboxRuleError
+          && (error.code === 'conflict' || error.code === 'invalid_input')) {
+          await resetDeletionClaim(false)
+          throw createError({ statusCode: 409, statusMessage: 'La règle Cloudflare a changé ou n’est pas désactivée; la boîte reste archivée.' })
+        }
+        routingCleanup = 'manual_required'
+      }
     } else {
       const [routing] = await checkCloudflareMailboxRouting({
         domain: mailbox.domain,
         addresses: [mailbox.address],
         token: bindings.COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN,
       })
-      if (routing?.state !== 'disabled') {
+      if (routing?.state === 'disabled') {
+        routingCleanup = 'manual_required'
+      } else if (routing?.state !== 'missing') {
         await resetDeletionClaim(!resumedDeletion)
         throw createError({
           statusCode: routing?.state === 'unavailable' ? 503 : 409,
@@ -121,6 +138,7 @@ export default defineEventHandler(async (event) => {
       data: purgeData,
       deletedAt: new Date().toISOString(),
       archivedGuardSql: hasArchivedMailbox,
+      routingCleanup,
     })
 
     if (!deleted) {
@@ -129,7 +147,13 @@ export default defineEventHandler(async (event) => {
     }
 
     setResponseHeader(event, 'Cache-Control', 'no-store')
-    return { mailboxId: mailbox.id, deleted: true, messagesDeleted: purgeData.messages.length, storedObjectsDeleted: purgeData.objectKeys.length }
+    return {
+      mailboxId: mailbox.id,
+      deleted: true,
+      messagesDeleted: purgeData.messages.length,
+      storedObjectsDeleted: purgeData.objectKeys.length,
+      routingCleanup,
+    }
   } catch (error) {
     if (!(error && typeof error === 'object' && 'statusCode' in error)) await resetDeletionClaim(false)
     throw error

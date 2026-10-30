@@ -1140,6 +1140,7 @@
     "mailboxArchivedNotice": "La boîte est archivée, sa réception désactivée et ses messages conservés.",
     "mailboxRestoredNotice": "La boîte est restaurée et son état de réception antérieur rétabli.",
     "mailboxDeletedNotice": "La boîte {address} et ses données ont été supprimées.",
+    "mailboxRoutingCleanupWarning": "Sa règle Cloudflare n’a pas pu être supprimée automatiquement ; supprime-la manuellement dans Cloudflare Email Routing.",
     "mailboxDeleteConflict": "La boîte doit être archivée et aucun envoi ou transfert ne doit être en cours. Actualise son état puis réessaie.",
     "mailboxDeleteError": "La suppression n’est pas terminée. La boîte reste archivée; réessaie pour reprendre.",
     "mailboxManualDisableRequired": "Désactive la règle exacte dans Cloudflare, puis réessaie la suspension.",

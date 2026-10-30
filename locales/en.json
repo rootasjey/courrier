@@ -1140,6 +1140,7 @@
     "mailboxArchivedNotice": "The mailbox is archived, inbound routing is disabled, and its messages are retained.",
     "mailboxRestoredNotice": "The mailbox is restored to its previous routing state.",
     "mailboxDeletedNotice": "Mailbox {address} and its data were deleted.",
+    "mailboxRoutingCleanupWarning": "Its Cloudflare rule could not be removed automatically; delete it manually in Cloudflare Email Routing.",
     "mailboxDeleteConflict": "The mailbox must be archived, with no sends or forwards in progress. Refresh its state and try again.",
     "mailboxDeleteError": "Deletion did not finish. The mailbox remains archived; retry to resume.",
     "mailboxManualDisableRequired": "Disable the exact rule in Cloudflare, then retry the suspension.",
