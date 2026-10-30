@@ -88,6 +88,10 @@
 .admin-domain-record > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: start; gap: 10px; }
 .admin-domain-record dt { color: var(--muted); font-size: 11px; }
 .admin-domain-record dd { min-width: 0; margin: 0; }
+.admin-domain-copyable { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 7px; }
+.admin-domain-copy { min-height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink); font: inherit; font-size: 10px; font-weight: 650; cursor: pointer; }
+.admin-domain-copy:hover { border-color: var(--accent); color: var(--accent); }
+.admin-domain-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .admin-domain-preflight-help { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .admin-domain-record code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 4px 7px; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 11px; user-select: all; }
 .admin-domain-readiness { gap: 10px; }
@@ -111,7 +115,7 @@
 .admin-domain-doc-link { color: var(--accent); font-size: 11px; font-weight: 650; }
 .admin-domain-mailbox-link { display: inline-flex; min-height: 32px; align-items: center; margin-top: 14px; padding: 0 10px; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line)); border-radius: 8px; color: var(--accent); font-size: 11px; font-weight: 650; text-decoration: none; }
 .admin-domain-mailbox-link:hover { background: var(--accent-wash); }
-.admin-domain-challenge-actions { display: flex; justify-content: flex-end; }
+.admin-domain-challenge-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
 .admin-domain-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .admin-access-controls { display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }
 .admin-platform-admin-controls { grid-template-columns: minmax(240px, min(100%, 540px)) auto; margin-bottom: 18px; }

@@ -76,10 +76,29 @@
       </div>
       <dl class="admin-domain-record">
         <div><dt>{{ $t('admin.dnsRecordType') }}</dt><dd><code>TXT</code></dd></div>
-        <div><dt>{{ $t('admin.dnsRecordName') }}</dt><dd><code>{{ domainChallenge.recordName }}</code></dd></div>
-        <div><dt>{{ $t('admin.dnsRecordValue') }}</dt><dd><code>{{ domainChallenge.recordValue }}</code></dd></div>
+        <div>
+          <dt>{{ $t('admin.dnsRecordName') }}</dt>
+          <dd class="admin-domain-copyable">
+            <code>{{ domainChallenge.recordName }}</code>
+            <button class="admin-domain-copy" type="button" @click="copyDnsValue('name', domainChallenge.recordName)">
+              {{ copiedDnsField === 'name' ? $t('admin.dnsCopied') : $t('admin.dnsCopy') }}
+            </button>
+          </dd>
+        </div>
+        <div>
+          <dt>{{ $t('admin.dnsRecordValue') }}</dt>
+          <dd class="admin-domain-copyable">
+            <code>{{ domainChallenge.recordValue }}</code>
+            <button class="admin-domain-copy" type="button" @click="copyDnsValue('value', domainChallenge.recordValue)">
+              {{ copiedDnsField === 'value' ? $t('admin.dnsCopied') : $t('admin.dnsCopy') }}
+            </button>
+          </dd>
+        </div>
       </dl>
       <div class="admin-domain-challenge-actions">
+        <a class="admin-domain-doc-link" href="https://dash.cloudflare.com/?to=/:account/:zone/dns/records" target="_blank" rel="noopener noreferrer">
+          {{ $t('admin.dnsOpenCloudflare') }}
+        </a>
         <button class="admin-access-action" type="button" :disabled="domainBusy" @click="verifyDomain(domainChallenge)">
           {{ domainBusy ? $t('admin.checkingDns') : $t('admin.checkDns') }}
         </button>
@@ -201,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { onBeforeUnmount, watch } from 'vue'
 import { cloudflareApiTokenCreationUrl } from '~/utils/cloudflare-api-token-url'
 
 type DomainWorkspace = { id: string, name: string }
@@ -262,6 +281,7 @@ const domainBusy = ref(false)
 const domainError = ref('')
 const domainNotice = ref('')
 const domainChallenge = ref<DomainChallenge | null>(null)
+const copiedDnsField = ref<'name' | 'value' | null>(null)
 const domainToRemove = ref<AdminDomain | null>(null)
 const domainPreflight = ref<DomainPreflight | null>(null)
 const preflightDomainName = ref('')
@@ -271,6 +291,11 @@ const readiness = ref<DomainReadiness | null>(null)
 const readinessDomain = ref('')
 const readinessBusy = ref(false)
 const readinessError = ref('')
+let copyFeedbackTimeout: ReturnType<typeof setTimeout> | undefined
+
+onBeforeUnmount(() => {
+  if (copyFeedbackTimeout) clearTimeout(copyFeedbackTimeout)
+})
 
 watch(() => props.activeWorkspaces, (workspaces) => {
   if (!workspaces.some(workspace => workspace.id === selectedWorkspaceId.value)) {
@@ -342,6 +367,19 @@ async function prepareDomainChallenge(domain: AdminDomain) {
     domainError.value = $t('admin.domainChallengeError')
   } finally {
     domainBusy.value = false
+  }
+}
+
+async function copyDnsValue(field: 'name' | 'value', value: string) {
+  try {
+    await navigator.clipboard.writeText(value)
+    copiedDnsField.value = field
+    if (copyFeedbackTimeout) clearTimeout(copyFeedbackTimeout)
+    copyFeedbackTimeout = setTimeout(() => {
+      copiedDnsField.value = null
+    }, 1800)
+  } catch {
+    domainError.value = $t('admin.dnsCopyError')
   }
 }
 
