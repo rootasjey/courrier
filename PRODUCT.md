@@ -20,7 +20,7 @@ Courrier provides a dedicated inbox for the user's domains, so incoming mail can
 
 ## Positioning
 
-An owner-controlled, multi-domain personal mail client shaped around explicit sender screening and three intentional destinations: Imbox, The Feed and Paper Trail. HEY is a product and workflow reference; Courrier does not need to reproduce all of HEY.
+An owner-controlled, multi-domain personal mail client shaped around explicit sender screening and three intentional destinations: Imbox, The Feed and Paper Trail. HEY is a product and workflow reference; Courrier does not aim to reproduce all of HEY.
 
 ## Operating Context
 
@@ -37,7 +37,7 @@ Courrier receives mail for verified domains through exact Cloudflare Email Routi
 
 ## Brand Commitments
 
-The product name is Courrier. The interface is available in French and English; mailbox names Imbox, The Feed and Paper Trail remain in English. The user wants the interface to take clear inspiration from HEY's spacious, chronological mail-list and focused reading experience, while giving Courrier its own visual personality.
+The product name is Courrier. The interface is available in French and English; mailbox names Imbox, The Feed and Paper Trail remain in English. The user wants a spacious, chronological mail list and a focused reading experience, while giving Courrier its own visual personality.
 
 ## Evidence on Hand
 
