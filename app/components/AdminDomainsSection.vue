@@ -167,6 +167,9 @@
       </div>
       <p v-if="readinessError" class="admin-access-error" role="alert">{{ readinessError }}</p>
       <template v-else-if="readiness">
+        <p class="admin-domain-routing-note">
+          <time :datetime="readiness.checkedAt">{{ $t('admin.mailDnsCheckedAt', { date: formatDate(readiness.checkedAt) }) }}</time>
+        </p>
         <ol class="admin-domain-onboarding-steps" :aria-label="$t('admin.domainOnboardingSteps')">
           <li class="is-complete">
             <span>1</span><div><strong>{{ $t('admin.domainOnboardingOwnership') }}</strong><small>{{ $t('admin.domainOnboardingVerified') }}</small></div>
@@ -201,6 +204,9 @@
             </dd>
           </div>
         </dl>
+        <p v-if="readiness.routingRules.some(rule => rule.state === 'unavailable')" class="admin-domain-routing-note">
+          {{ $t('admin.mailDnsRoutingUnavailableNote') }}
+        </p>
         <h4 class="admin-domain-subheading">{{ $t('admin.mailDnsRoutingAuth') }}</h4>
         <p class="admin-domain-routing-note">{{ $t('admin.mailDnsRoutingAuthDescription') }}</p>
         <dl class="admin-domain-record admin-domain-readiness">
