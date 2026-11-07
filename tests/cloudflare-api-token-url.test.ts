@@ -10,6 +10,12 @@ test('opens the Cloudflare user-token form with a normalized Courrier token name
   assert.equal(url.searchParams.get('name'), 'Courrier corpinot.cc')
 })
 
+test('suggests a global Email Routing token name when no domain is supplied', () => {
+  const url = new URL(cloudflareApiTokenCreationUrl())
+
+  assert.equal(url.searchParams.get('name'), 'Courrier Email Routing')
+})
+
 test('does not preselect broad permissions or all-zone scope', () => {
   const url = new URL(cloudflareApiTokenCreationUrl('corpinot.cc'))
 

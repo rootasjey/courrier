@@ -92,6 +92,7 @@
         <AdminDomainsSection
           :active-workspaces="activeWorkspaces"
           :domains="overview.domains"
+          :cloudflare-tokens="overview.cloudflareTokens"
           :admin-fetch="adminFetch"
           :format-date="formatDate"
           :status-label="statusLabel"
@@ -458,6 +459,7 @@ type AdminMembership = { id: string, workspace_id: string, workspace_name: strin
 type ForwardDelivery = { id: string, status: 'processing' | 'failed', attempt_count: number, claimed_at: string | null, forwarded_at: string | null, last_error: string | null, delivery_method: string, subject: string, sender_address: string, mailbox_address: string, destination: string, received_at: string }
 type AdminOverview = {
   counts: { workspace_count: number, domain_count: number, membership_count: number, pending_invitation_count: number }
+  cloudflareTokens: { readConfigured: boolean, writeConfigured: boolean }
   workspaces: { id: string, name: string, status: string, created_at: string, owner_email: string | null, domain_count: number, mailbox_count: number, member_count: number }[]
   domains: { id: string, workspace_id: string, workspace_name: string, domain: string, verification_status: string, verified_at: string | null, mailbox_count: number }[]
   memberships: AdminMembership[]
@@ -539,6 +541,9 @@ function isAdminOverviewResponse(value: unknown): value is AdminOverview {
   if (!isRecord(value) || !isRecord(value.counts)) return false
   const countKeys = ['workspace_count', 'domain_count', 'membership_count', 'pending_invitation_count']
   return countKeys.every(key => typeof value.counts[key] === 'number')
+    && isRecord(value.cloudflareTokens)
+    && typeof value.cloudflareTokens.readConfigured === 'boolean'
+    && typeof value.cloudflareTokens.writeConfigured === 'boolean'
     && ['workspaces', 'domains', 'memberships', 'invitations', 'audit', 'blockedSenders', 'inboundEmailEvents'].every(key => Array.isArray(value[key]))
     && typeof value.blockedSendersTruncated === 'boolean'
     && typeof value.inboundEmailEventsTruncated === 'boolean'

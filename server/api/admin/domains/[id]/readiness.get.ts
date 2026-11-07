@@ -32,7 +32,10 @@ export default defineEventHandler(async (event) => {
     SELECT address FROM mailboxes WHERE domain_id = ? AND workspace_id = ? AND status = 'active'
     ORDER BY lower(address)
   `).bind(domain.id, domain.workspace_id).all<MailboxRow>()
-  const bindings = event.context.cloudflare?.env as { COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN?: string } | undefined
+  const bindings = event.context.cloudflare?.env as {
+    COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN?: string
+    COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN?: string
+  } | undefined
 
   const checks = await Promise.all([
     queryPublicDns(domain.domain, 'MX').catch(() => null),

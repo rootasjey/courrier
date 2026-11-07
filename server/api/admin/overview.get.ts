@@ -1,6 +1,7 @@
 import { getAccountDb, requirePlatformAdmin } from '../../utils/account-auth'
 import { INBOUND_EMAIL_EVENT_RETENTION_DAYS } from '../../utils/inbound-email-events'
 import { auditPlatformAdminRead } from '../../utils/platform-admin-audit'
+import { cloudflareRoutingTokenStatus } from '../../utils/cloudflare-token-status'
 
 export default defineEventHandler(async (event) => {
   const actor = await requirePlatformAdmin(event)
@@ -130,6 +131,10 @@ export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Cache-Control', 'private, no-store')
   return {
     counts,
+    cloudflareTokens: cloudflareRoutingTokenStatus(event.context.cloudflare?.env as {
+      COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN?: string
+      COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN?: string
+    } | undefined),
     workspaces: workspaces.results,
     domains: domains.results,
     memberships: memberships.results,

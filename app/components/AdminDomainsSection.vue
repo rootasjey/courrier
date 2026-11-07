@@ -2,6 +2,24 @@
   <section class="admin-section" aria-labelledby="admin-domains-heading">
     <h2 id="admin-domains-heading">{{ $t('admin.domains') }}</h2>
     <p class="admin-section-description">{{ $t('admin.domainVerificationDescription') }}</p>
+    <div class="admin-domain-challenge admin-cloudflare-credentials">
+      <h3>{{ $t('admin.mailDnsTokenTitle') }}</h3>
+      <p class="admin-domain-routing-note">{{ $t('admin.mailDnsTokenInstructions') }}</p>
+      <dl class="admin-domain-record admin-domain-readiness">
+        <div>
+          <dt>{{ $t('admin.mailDnsReadToken') }}</dt>
+          <dd><span class="admin-status" :class="cloudflareTokens.readConfigured ? 'is-configured' : 'is-missing'">{{ $t(cloudflareTokens.readConfigured ? 'admin.mailDnsTokenPresent' : 'admin.mailDnsTokenMissing') }}</span></dd>
+        </div>
+        <div>
+          <dt>{{ $t('admin.mailDnsWriteToken') }}</dt>
+          <dd><span class="admin-status" :class="cloudflareTokens.writeConfigured ? 'is-configured' : 'is-missing'">{{ $t(cloudflareTokens.writeConfigured ? 'admin.mailDnsTokenPresent' : 'admin.mailDnsTokenMissing') }}</span></dd>
+        </div>
+      </dl>
+      <p class="admin-domain-routing-note">{{ $t('admin.mailDnsTokenPresenceNote') }}</p>
+      <div class="admin-domain-readiness-links">
+        <a class="admin-domain-doc-link" :href="cloudflareApiTokenCreationUrl()" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCreateCloudflareToken') }}</a>
+      </div>
+    </div>
     <p v-if="domainError" class="admin-access-error" role="alert">{{ domainError }}</p>
     <p v-if="domainNotice" class="admin-access-notice" role="status">{{ domainNotice }}</p>
     <div class="admin-domain-controls">
@@ -190,10 +208,7 @@
           <div><dt>{{ $t('admin.mailDnsDkim') }}</dt><dd><span class="admin-status" :class="`is-${readiness.routingDkim.state}`">{{ $t(`admin.mailDnsState.${readiness.routingDkim.state}`) }}</span></dd></div>
         </dl>
         <p class="admin-domain-safety-note">{{ $t('admin.mailDnsSafetyNote') }}</p>
-        <h4 class="admin-domain-subheading">{{ $t('admin.mailDnsTokenTitle') }}</h4>
-        <p class="admin-domain-routing-note">{{ $t('admin.mailDnsTokenInstructions', { domain: readiness.domain }) }}</p>
         <div class="admin-domain-readiness-links">
-          <a class="admin-domain-doc-link" :href="cloudflareApiTokenCreationUrl(readiness.domain)" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCreateCloudflareToken', { domain: readiness.domain }) }}</a>
           <a class="admin-domain-doc-link" href="https://developers.cloudflare.com/email-service/get-started/route-emails/" target="_blank" rel="noopener noreferrer">{{ $t('admin.mailDnsCloudflareGuide') }}</a>
           <a class="admin-domain-mailbox-link" href="#admin-mailboxes-heading" @click="emit('selectMailboxDomain', readiness.domainId)">{{ $t('admin.domainOnboardingGoToMailbox') }}</a>
         </div>
@@ -254,6 +269,7 @@ type AdminRequest = <T>(request: string, options?: Parameters<typeof $fetch>[1])
 const props = defineProps<{
   activeWorkspaces: DomainWorkspace[]
   domains: AdminDomain[]
+  cloudflareTokens: { readConfigured: boolean, writeConfigured: boolean }
   adminFetch: AdminRequest
   formatDate: (value: string) => string
   statusLabel: (status: string) => string
