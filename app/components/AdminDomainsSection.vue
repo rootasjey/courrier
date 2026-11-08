@@ -2,6 +2,7 @@
   <section class="admin-section" aria-labelledby="admin-domains-heading">
     <h2 id="admin-domains-heading">{{ $t('admin.domains') }}</h2>
     <p class="admin-section-description">{{ $t('admin.domainVerificationDescription') }}</p>
+    <p class="admin-section-description">{{ $t('admin.domainOnboardingIntro') }}</p>
     <div class="admin-domain-challenge admin-cloudflare-credentials">
       <h3>{{ $t('admin.mailDnsTokenTitle') }}</h3>
       <p class="admin-domain-routing-note">{{ $t('admin.mailDnsTokenInstructions') }}</p>
@@ -365,15 +366,21 @@ async function addDomain() {
   domainBusy.value = true
   domainError.value = ''
   domainNotice.value = ''
+  domainChallenge.value = null
   try {
-    await props.adminFetch('/api/admin/domains', {
+    const created = await props.adminFetch<{ domainId: string, domain: string }>('/api/admin/domains', {
       method: 'POST',
       body: { workspaceId: selectedWorkspaceId.value, domain: domainInput.value },
     })
-    domainNotice.value = $t('admin.domainAddedNotice')
     domainInput.value = ''
     domainPreflight.value = null
     preflightDomainName.value = ''
+    try {
+      domainChallenge.value = await props.adminFetch<DomainChallenge>(`/api/admin/domains/${encodeURIComponent(created.domainId)}/challenge`, { method: 'POST' })
+      domainNotice.value = $t('admin.domainAddedChallengePreparedNotice')
+    } catch {
+      domainError.value = $t('admin.domainAddedChallengeError')
+    }
     emit('refresh')
   } catch (error) {
     const status = statusCode(error)
@@ -388,6 +395,7 @@ async function prepareDomainChallenge(domain: AdminDomain) {
   domainBusy.value = true
   domainError.value = ''
   domainNotice.value = ''
+  domainChallenge.value = null
   try {
     domainChallenge.value = await props.adminFetch<DomainChallenge>(`/api/admin/domains/${encodeURIComponent(domain.id)}/challenge`, { method: 'POST' })
   } catch {
@@ -424,6 +432,7 @@ async function verifyDomain(challenge: DomainChallenge) {
     domainChallenge.value = null
     domainNotice.value = $t('admin.domainVerifiedNotice')
     emit('refresh')
+    await checkReadiness({ id: challenge.domainId, domain: challenge.domain })
   } catch (error) {
     domainError.value = $t(statusCode(error) === 410 ? 'admin.domainChallengeExpired' : 'admin.domainVerifyError')
   } finally {
@@ -431,7 +440,7 @@ async function verifyDomain(challenge: DomainChallenge) {
   }
 }
 
-async function checkReadiness(domain: AdminDomain) {
+async function checkReadiness(domain: Pick<AdminDomain, 'id' | 'domain'>) {
   if (readinessBusy.value) return
   readinessBusy.value = true
   readinessDomain.value = domain.domain
