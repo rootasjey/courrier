@@ -27,7 +27,7 @@ export type PasskeyRow = {
 }
 
 type ChallengePurpose = 'register' | 'admin_step_up' | 'account_login' | 'account_step_up'
-type WebAuthnEnvironment = { COURRIER_PUBLIC_ORIGIN?: string }
+type WebAuthnEnvironment = { COURRIER_ENVIRONMENT?: string, COURRIER_PUBLIC_ORIGIN?: string }
 type AppSession = Awaited<ReturnType<typeof getUserSession>>
 
 export function base64UrlFromBytes(bytes: Uint8Array) {
@@ -71,14 +71,12 @@ export function generateRecoveryCodes() {
 export async function getWebAuthnRelyingParty(event: H3Event) {
   const requestUrl = getRequestURL(event)
   const isLocalHost = ['localhost', '127.0.0.1', '[::1]'].includes(requestUrl.hostname)
-  let configuredOrigin: string | undefined
-
-  if (import.meta.dev && isLocalHost) {
-    configuredOrigin = requestUrl.origin
-  } else {
-    const env = (event.context.cloudflare as { env?: WebAuthnEnvironment } | undefined)?.env
-    configuredOrigin = env?.COURRIER_PUBLIC_ORIGIN
-  }
+  const env = (event.context.cloudflare as { env?: WebAuthnEnvironment } | undefined)?.env
+  const isPreview = env?.COURRIER_ENVIRONMENT === 'preview'
+  const shouldUseRequestOrigin = (import.meta.dev && isLocalHost) || isPreview
+  const configuredOrigin = shouldUseRequestOrigin
+    ? requestUrl.origin
+    : env?.COURRIER_PUBLIC_ORIGIN
 
   let origin: URL
   try { origin = new URL(configuredOrigin || '') } catch {

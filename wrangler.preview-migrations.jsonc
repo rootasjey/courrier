@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "d1_databases": [
+    {
+      "binding": "PREVIEW_DB",
+      "database_name": "courrier-preview-db",
+      "database_id": "0ca1ce3a-0e14-4b83-a75d-9fbacfef0b35",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

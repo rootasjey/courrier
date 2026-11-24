@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Adresse e-mail invalide.' })
   }
 
-  const bindings = (event.context.cloudflare as { env?: { EMAIL?: PasswordResetEmailBinding, COURRIER_PUBLIC_ORIGIN?: string } } | undefined)?.env
+  const bindings = (event.context.cloudflare as { env?: { COURRIER_ENVIRONMENT?: string, EMAIL?: PasswordResetEmailBinding, COURRIER_PUBLIC_ORIGIN?: string } } | undefined)?.env
   if (!bindings?.EMAIL) throw createError({ statusCode: 503, statusMessage: 'La récupération de compte est temporairement indisponible.' })
 
   const ip = getRequestHeader(event, 'cf-connecting-ip') || (import.meta.dev ? 'local' : '')
@@ -68,7 +68,8 @@ export default defineEventHandler(async (event) => {
   const requestUrl = getRequestURL(event)
   const isLocalOrigin = requestUrl.protocol === 'http:'
     && (requestUrl.hostname === 'localhost' || requestUrl.hostname === '127.0.0.1' || requestUrl.hostname === '[::1]')
-  const appOrigin = isLocalOrigin ? requestUrl.origin : bindings.COURRIER_PUBLIC_ORIGIN
+  const isPreview = bindings.COURRIER_ENVIRONMENT === 'preview'
+  const appOrigin = isLocalOrigin || isPreview ? requestUrl.origin : bindings.COURRIER_PUBLIC_ORIGIN
   let resetUrl: string
   try {
     const origin = new URL(appOrigin || '')

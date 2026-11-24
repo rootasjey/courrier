@@ -24,7 +24,8 @@
     "deploy:canary": "npm run build && npm run db:migrate:canary && wrangler deploy --config wrangler.canary.jsonc",
     "cf-typegen": "wrangler types",
     "account:test-canary-admin-recovery": "node scripts/test-canary-admin-recovery.mjs",
-    "account:test-canary-authorization": "node scripts/test-canary-authorization.mjs"
+    "account:test-canary-authorization": "node scripts/test-canary-authorization.mjs",
+    "db:migrate:preview": "wrangler d1 migrations apply PREVIEW_DB --remote --config wrangler.preview-migrations.jsonc"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
