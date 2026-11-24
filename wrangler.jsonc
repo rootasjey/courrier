@@ -51,7 +51,38 @@
 			"name": "EMAIL",
 			"allowed_sender_addresses": ["courrier-test@verbatims.cc"]
 		}
-	]
+	],
+	"previews": {
+		"vars": {
+			"COURRIER_ENVIRONMENT": "preview",
+			"COURRIER_PUBLIC_ORIGIN": "https://courrier-preview.invalid"
+		},
+		"d1_databases": [
+			{
+				"binding": "DB",
+				"database_name": "courrier-preview-db",
+				"database_id": "0ca1ce3a-0e14-4b83-a75d-9fbacfef0b35",
+				"migrations_dir": "migrations"
+			}
+		],
+		"r2_buckets": [
+			{
+				"binding": "MAIL_STORE",
+				"bucket_name": "courrier-preview-mail-store"
+			},
+			{
+				"binding": "BACKUP_STORE",
+				"bucket_name": "courrier-preview-mail-backup"
+			}
+		],
+		"send_email": [
+			{
+				"name": "EMAIL",
+				"allowed_sender_addresses": ["courrier-test@verbatims.cc"],
+				"allowed_destination_addresses": ["jc@codingbox.fr"]
+			}
+		]
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

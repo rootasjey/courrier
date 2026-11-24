@@ -47,6 +47,8 @@ The production Worker configuration is in `wrangler.jsonc`; the separate canary 
 
 `npm run deploy` builds the app, applies pending migrations to the **remote production D1 database**, and deploys the Worker with Wrangler. Run it only when a direct production deployment is intended. `npm run deploy:canary` targets the configured canary environment.
 
+Pull request Worker Previews use dedicated D1/R2 resources defined in the `previews` block of `wrangler.jsonc`. All branch previews share this synthetic preview data. Run `npm run db:migrate:preview` once when the shared preview database needs new migrations; this command targets `wrangler.preview-migrations.jsonc`, never the production database. Preview email is restricted to `jc@codingbox.fr`, and preview passkey/password-reset links use the request's branch-specific preview origin.
+
 Cloudflare bindings and secrets must be configured for the target environment. In particular, automatic domain-readiness checks and mailbox routing changes use the `COURRIER_CLOUDFLARE_EMAIL_ROUTING_TOKEN` and `COURRIER_CLOUDFLARE_EMAIL_ROUTING_WRITE_TOKEN` secrets respectively. Keep these least-privileged and never put their values in source control.
 
 ## Documentation
